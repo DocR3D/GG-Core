@@ -1,0 +1,12 @@
+FROM node:20-alpine
+WORKDIR /app
+
+# Installe les deps une seule fois (rapide ensuite grâce aux volumes)
+COPY backend/ggbot-backend/package*.json ./
+RUN npm ci
+
+# Ports (Nest: API/WS + endpoint logs)
+EXPOSE 3000 8081
+
+# Lancement en watch; le code sera monté en volume
+CMD ["npm", "run", "start:dev"]

@@ -1,0 +1,19 @@
+# Regénère/restart l'agent quand un .go change
+root = "."
+tmp_dir = "tmp"
+
+[build]
+cmd = "go build -o ./tmp/ggbot-agent ./cmd/agent"
+bin = "./tmp/ggbot-agent -cmd agent -cfg /app/config.yaml"
+full_bin = ""
+delay = 100
+exclude_dir = ["tmp", ".git"]
+include_ext = ["go","yaml"]
+exclude_file = []
+log = "build_errors.log"
+kill_delay = 500
+send_interrupt = true
+stop_on_error = true
+
+[log]
+time = true

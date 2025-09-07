@@ -1,0 +1,13 @@
+# Exemple : adapter aux vrais serveurs CS2
+servers:
+  - name: srv-a
+    addr: 127.0.0.1:27015
+    rcon: "123456"
+  - name: srv-b
+    addr: 10.0.0.12:27015
+    rcon: "YourRconPassword"
+
+redis:
+  url: "redis://127.0.0.1:6379"
+
+# autres options agent (timeouts, loglevel, etc.) si tu en as

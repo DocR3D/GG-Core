@@ -1,0 +1,47 @@
+services:
+  redis:
+    image: redis:7-alpine
+    container_name: ggbot-redis-dev
+    ports:
+      - "6379:6379"
+
+  nest:
+    build:
+      context: .
+      dockerfile: Dockerfile.nest.dev
+    container_name: ggbot-backend-dev
+    working_dir: /app
+    # Monte ton code Nest pour --watch
+    volumes:
+      - ./backend/ggbot-backend:/app
+      - /app/node_modules   # évite d’écraser node_modules
+    environment:
+      REDIS_URL: redis://redis:6379
+      PORT: "3000"
+      LOGS_PORT: "8081"
+    depends_on:
+      - redis
+    ports:
+      - "3000:3000"
+      - "8081:8081"
+    restart: unless-stopped
+    # Si tu utilises dotenv, ajoute:
+    # env_file:
+    #   - backend/ggbot-backend/.env
+
+  agent:
+    build:
+      context: .
+      dockerfile: Dockerfile.agent.dev
+    container_name: ggbot-agent-dev
+    working_dir: /app
+    # Monte tout parser (code + config.yaml)
+    volumes:
+      - ./parser:/app
+      # environment:
+      # si ton agent lit Redis dans config.yaml ignore ceci
+      # sinon, tu peux aussi injecter une URL:
+      # REDIS_URL: redis://redis:6379
+    depends_on:
+      - redis
+    restart: unless-stopped

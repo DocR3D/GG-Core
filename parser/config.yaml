@@ -1,0 +1,15 @@
+servers:
+  - name: "srv-a"
+    rcon:
+      host: "172.21.192.1"
+      port: 27015
+      password: "123456"
+      timeoutMs: 2000
+      rateLimitMs: 200
+    cstv:
+      enabled: true
+      port: 27020
+      delay: 5
+
+redis:
+  url: "redis://redis:6379"
