@@ -1,0 +1,11 @@
+version: "3.8"
+services:
+  ggbot-aio:
+    build:
+      context: ..
+      dockerfile: Dockerfile
+    container_name: ggbot-aio
+    ports:
+      - "3000:3000"   # API/WS Nest
+      - "8081:8081"   # Endpoint /cs2/logs
+    restart: unless-stopped

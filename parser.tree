@@ -1,0 +1,17 @@
+parser/
+├── cmd
+│   └── agent
+│       └── main.go
+├── config.yaml
+├── go.mod
+├── go.sum
+├── internal
+│   ├── logs
+│   │   ├── http.go
+│   │   └── types.go
+│   └── rcon
+│       └── client.go
+└── tmp
+    └── ggbot-agent
+
+7 directories, 8 files

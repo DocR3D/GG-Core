@@ -1,0 +1,36 @@
+src
+├── admin
+│   ├── admin
+│   │   ├── admin.service.spec.ts
+│   │   └── admin.service.ts
+│   └── admin.module.ts
+├── app.controller.spec.ts
+├── app.controller.ts
+├── app.module.ts
+├── app.service.ts
+├── commands
+│   ├── commands-processor
+│   │   ├── commands-processor.service.spec.ts
+│   │   └── commands-processor.service.ts
+│   └── commands.module.ts
+├── cs2-logs
+│   ├── cs2-logs.controller.spec.ts
+│   ├── cs2-logs.controller.ts
+│   ├── cs2-logs.module.ts
+│   ├── cs2-logs.service.spec.ts
+│   └── cs2-logs.service.ts
+├── health
+│   ├── health.controller.spec.ts
+│   └── health.controller.ts
+├── main.ts
+├── match-state
+│   ├── match-state
+│   │   ├── match-state-handler.service.spec.ts
+│   │   ├── match-state-handler.service.ts
+│   │   ├── match-state.service.spec.ts
+│   │   └── match-state.service.ts
+│   └── match-state.module.ts
+└── types
+    └── match-event.ts
+
+10 directories, 24 files
