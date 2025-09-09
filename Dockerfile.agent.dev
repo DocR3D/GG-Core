@@ -5,4 +5,4 @@ WORKDIR /app
 RUN go install github.com/cespare/reflex@latest
 ENV PATH="/root/go/bin:${PATH}"
 
-CMD ["reflex", "-r", "\\.go$", "-s", "--", "sh", "-c", "go build -o ./tmp/ggbot-agent ./cmd/agent && ./tmp/ggbot-agent -cmd agent -cfg /app/config.yaml"]
+CMD ["reflex", "-r", "\\.go$", "-s", "--", "sh", "-c", "go build -o ./tmp/ggbot-agent ./cmd/ggbot-agent && ./tmp/ggbot-agent -cmd agent -cfg /app/configs/default.yaml"]

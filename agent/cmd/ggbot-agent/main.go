@@ -10,7 +10,7 @@ import (
 	"strings"
 	"time"
 
-	"ggbot/internal/logs"
+	logs "ggbot/internal/ingest/httpLogs"
 	myrcon "ggbot/internal/rcon"
 
 	"gopkg.in/yaml.v3"

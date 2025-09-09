@@ -1,14 +1,8 @@
-import { Injectable, Logger, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
+import { Inject, Injectable, Logger, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
 import Redis, { RedisOptions } from 'ioredis';
 import { MatchStateService } from '@app/state/match-state.service';
-export type CommandEvent = {
-  type: 'command';
-  serverId: string;
-  ts: number;
-  name: string;
-  args: string[];
-  from: { name: string; steamId: string | null; team: string; channel: 'say' | 'say_team' };
-};
+import { REDIS_CMD, REDIS_PUB } from '@adapters/redis/redis.tokens';
+import { CommandEvent} from '@domain/types/command.event';
 
 type AgentAction = {
   type: 'action';
@@ -23,7 +17,6 @@ type AgentAction = {
   ts: number;
 };
 
-const redisUrl = process.env.REDIS_URL ?? 'redis://redis:6379';
 const baseRedisOptions: RedisOptions = {
       lazyConnect: true,
   // Fix #1: évite le crash "Stream isn't writeable..."
@@ -34,58 +27,14 @@ const baseRedisOptions: RedisOptions = {
 };
 
 @Injectable()
-export class CommandsProcessorService implements OnModuleInit, OnModuleDestroy {
+export class CommandsProcessorService{
   private readonly logger = new Logger(CommandsProcessorService.name);
-  private readonly sub = new Redis(redisUrl, { ...baseRedisOptions });
-  private readonly pub = new Redis(redisUrl, { ...baseRedisOptions });
 
-  constructor(private readonly matchState: MatchStateService,private readonly ms: MatchStateService) {}
+  constructor(
+    @Inject(REDIS_PUB) private readonly pub: Redis,
+    private readonly matchState: MatchStateService,private readonly ms: MatchStateService) {}
   // anti-spam (1s par joueur)
   private lastByPlayer = new Map<string, number>();
-
- private waitReady(client: Redis): Promise<void> {
-    if ((client as any).status === 'ready') return Promise.resolve();
-    return new Promise((resolve, reject) => {
-      const onReady = () => { cleanup(); resolve(); };
-      const onError = (e: Error) => { cleanup(); reject(e); };
-      const cleanup = () => {
-        client.off('ready', onReady);
-        client.off('error', onError);
-      };
-      client.once('ready', onReady);
-      client.once('error', onError);
-    });
-  }
-  async onModuleInit() {
-    // Assure-toi que les sockets sont prêtes avant SUBSCRIBE
-    await Promise.all([this.sub.connect(), this.pub.connect()]);
-
-    // Optionnel: log utile au debug
-    this.sub.on('error', (e) => this.logger.error(`REDIS SUB error: ${e.message}`));
-    this.pub.on('error', (e) => this.logger.error(`REDIS PUB error: ${e.message}`));
-    this.sub.on('end', () => this.logger.warn('REDIS SUB connection ended'));
-    this.pub.on('end', () => this.logger.warn('REDIS PUB connection ended'));
-
-    await this.sub.subscribe('ggbot:commands');
-    this.sub.on('message', (_chan, msg) => this.onCommand(msg));
-    this.logger.log('Subscribed to ggbot:commands');
-  }
-  async onModuleDestroy() {
-    // Quit propre (avec timeout de secours)
-    const quit = (client: Redis) =>
-      Promise.race([
-        client.quit(),
-        new Promise((resolve) => setTimeout(resolve, 500)).then(() => client.disconnect()),
-      ]).catch(() => client.disconnect());
-
-    await Promise.all([quit(this.sub), quit(this.pub)]);
-  }
-
-
-
-  // anti-spam (1s par joueur)
-
-
 
   private async onCommand(message: string) {
     let cmd: CommandEvent;
@@ -97,7 +46,7 @@ export class CommandsProcessorService implements OnModuleInit, OnModuleDestroy {
     }
 
     // 1) anti-spam 1s/joueur
-    const who = cmd.from.steamId ?? cmd.from.name;
+    const who = cmd.payload.sender.steamId ?? cmd.payload.sender.name;
     const now = Date.now();
     const last = this.lastByPlayer.get(who) ?? 0;
     if (now - last < 1000) {
@@ -106,11 +55,11 @@ export class CommandsProcessorService implements OnModuleInit, OnModuleDestroy {
     }
     this.lastByPlayer.set(who, now);
 
-    const side = (cmd.from.team || '').toUpperCase(); // "CT" | "T" | ...
-    const channel = cmd.from.channel;
-    const mapped = this.mapCommandToAction(cmd.name, cmd.args, side, channel);
+    const side = (cmd.payload.sender.team || '').toUpperCase(); // "CT" | "T" | ...
+    const channel = cmd.payload.sender.channel;
+    const mapped = this.mapCommandToAction(cmd.payload.sender.name, cmd.payload.parameters, side, channel);
     if (!mapped) {
-      this.logger.debug(`Command ignored: ${cmd.name}`);
+      this.logger.debug(`Command ignored: ${cmd.payload.sender}`);
       return;
     }
 
@@ -158,8 +107,8 @@ export class CommandsProcessorService implements OnModuleInit, OnModuleDestroy {
       source: {
         via: 'chat',
         player: {
-          name: cmd.from.name,
-          steamId: cmd.from.steamId,
+          name: cmd.payload.sender.name,
+          steamId: cmd.payload.sender.steamId,
           team: side,
         },
       },
@@ -211,9 +160,11 @@ export class CommandsProcessorService implements OnModuleInit, OnModuleDestroy {
 
     return null;
   }
-
-  private parseSeconds(args: string[], def: number): number {
+private parseSeconds(args: string[], def: number): number {
     const s = parseInt(args[0] ?? '', 10);
     return Number.isFinite(s) && s > 0 && s < 600 ? s : def;
   }
+
+
+
 }

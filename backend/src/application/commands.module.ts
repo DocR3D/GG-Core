@@ -1,13 +1,18 @@
-import { Module, forwardRef } from '@nestjs/common';
-import { CommandsProcessorService } from './use-cases/commands-processor.uc';
-import { MatchStateModule } from './match-state.module';
+// src/application/commands.module.ts
+import { Module, forwardRef, Logger } from '@nestjs/common';
+import { MatchCommandsService } from '@app/commands/ match-commands.service'; // ← corrige l'import (sans espace)
+import { MatchStateModule } from './match.state.module';
+import { RedisModule } from '../adapters/redis/redis.module'; // ← pour REDIS_PUB
 
 @Module({
   imports: [
-    // Importez le module qui **exporte** MatchStateService
-    forwardRef(() => MatchStateModule), // forwardRef seulement si cycle ; sinon: MatchStateModule
+    RedisModule,                 // ← nécessaire pour REDIS_PUB
+    forwardRef(() => MatchStateModule), // seulement si MatchCommandsService injecte MatchStateService
   ],
-  providers: [CommandsProcessorService],
-  exports: [CommandsProcessorService],
+  providers: [
+    MatchCommandsService,
+    Logger, // ← ajoute le Logger comme provider
+  ],
+  exports: [MatchCommandsService],
 })
 export class CommandsModule {}

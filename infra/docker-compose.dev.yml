@@ -45,3 +45,19 @@ services:
     depends_on:
       - redis
     restart: unless-stopped
+
+    
+  log-drain:
+    build:
+      context: ../tools/log-drain   # <- vérifie le chemin depuis le dossier du compose
+      dockerfile: Dockerfile
+    environment:
+      REDIS_URL: redis://redis:6379
+      REDIS_PATTERN: ggbot:*
+      LOG_FILE: /var/log/ggbot/redis-events.jsonl
+    volumes:
+      - ./logs:/var/log/ggbot       # ./logs relatif au fichier compose
+    depends_on: [redis]
+    restart: unless-stopped
+
+
