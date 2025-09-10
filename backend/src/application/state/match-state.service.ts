@@ -165,14 +165,35 @@ export class MatchStateService {
   // ─────────────────────────────────────────────────────────────────────────────
   // Timeouts / pauses (logical-based: home/away)
   // ─────────────────────────────────────────────────────────────────────────────
-  async initTimeouts(matchId: string, homeTac = 4, awayTac = 4, homeTech = 0, awayTech = 0) {
-    await this.redis.hset(redisConst.timeouts(matchId), {
-      home_tac: String(homeTac),
-      away_tac: String(awayTac),
-      home_tech: String(homeTech),
-      away_tech: String(awayTech),
-    });
+async initTimeouts(
+  matchId: string,
+  homeTac = 4,
+  awayTac = 4,
+  homeTech = 0,
+  awayTech = 0,
+  opts: { force?: boolean } = {},
+): Promise<void> {
+  const key = redisConst.timeouts(matchId);
+  const t = await this.redis.type(key);
+
+  // Si force, on repart d'une feuille blanche
+  if (opts.force) {
+    if (t !== 'none') await this.redis.del(key);
+  } else {
+    // Si la clé n'existe pas, on l'initialise; si elle existe, on ne touche pas
+    if (t !== 'none') {
+      return;
+    }
   }
+
+  // Écrit en HASH (camelCase)
+  await this.redis.hset(key, {
+    homeTac: String(homeTac),
+    awayTac: String(awayTac),
+    homeTech: String(homeTech),
+    awayTech: String(awayTech),
+  });
+}
   
 
   private static readonly DEC_IF_POS_LUA = `
@@ -189,7 +210,7 @@ export class MatchStateService {
   /** Décrémente un timeout tactique de la logical team. Retour: -1 absent, 0 épuisé, >0 nouveau solde */
   async decrTac(matchId: string, logicalTeam: Logical): Promise<number> {
     const key = redisConst.timeouts(matchId);
-    const field = `${logicalTeam}_tac`;
+    const field = `${logicalTeam}Tac`;
     const remain = await this.redis.eval(MatchStateService.DEC_IF_POS_LUA, 1, key, field);
     return Number(remain);
   }
@@ -197,18 +218,18 @@ export class MatchStateService {
   /** Décrémente un timeout technique de la logical team. */
   async decrTech(matchId: string, logicalTeam: Logical): Promise<number> {
     const key = redisConst.timeouts(matchId);
-    const field = `${logicalTeam}_tech`;
+    const field = `${logicalTeam}Tech`;
     const remain = await this.redis.eval(MatchStateService.DEC_IF_POS_LUA, 1, key, field);
     return Number(remain);
   }
 
-  async getTimeouts(matchId: string): Promise<{ home_tac: number; away_tac: number; home_tech: number; away_tech: number }> {
+  async getTimeouts(matchId: string): Promise<{ homeTac: number; awayTac: number; homeTech: number; awayTech: number }> {
     const res = await this.redis.hgetall(redisConst.timeouts(matchId));
     return {
-      home_tac: toInt(res?.home_tac),
-      away_tac: toInt(res?.away_tac),
-      home_tech: toInt(res?.home_tech),
-      away_tech: toInt(res?.away_tech),
+      homeTac: toInt(res?.homeTac),
+      awayTac: toInt(res?.awayTac),
+      homeTech: toInt(res?.homeTech),
+      awayTech: toInt(res?.awayTech),
     };
   }
 
@@ -349,10 +370,10 @@ const tId =
       phase: (scoreHash?.phase as Phase) ?? 'freeze',
     },
     timeouts: {
-      home_tac: toInt(timeouts?.home_tac),
-      away_tac: toInt(timeouts?.away_tac),
-      home_tech: toInt(timeouts?.home_tech),
-      away_tech: toInt(timeouts?.away_tech),
+      homeTac: toInt(timeouts?.homeTac),
+      awayTac: toInt(timeouts?.awayTac),
+      homeTech: toInt(timeouts?.homeTech),
+      awayTech: toInt(timeouts?.awayTech),
     },
     teams: {
       ct_id: ctId,
@@ -469,6 +490,7 @@ async getPlayersEconomy(matchId: string): Promise<Record<string,{money:number; e
   for (const id of ids) out[id] = { money: toInt(m?.[id]), equip: toInt(e?.[id]) };
   return out;
 }
+
 
 
 

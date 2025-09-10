@@ -1,6 +1,7 @@
 // match.event.ts
 import type { BaseEvent } from './base.event';
 import { EventTypes } from './event.types';
+import type { CommandEvent } from './command.event'; // ← importe la source
 
 /** Contrats d’événements canoniques (TS strict) */
 
@@ -17,16 +18,6 @@ export type PlayerRefLogs = {
 export type RoundStartEvent = BaseEvent<typeof EventTypes.ROUND_START, {}>;
 export type MatchPausedEvent = BaseEvent<typeof EventTypes.MATCH_PAUSED, {}>;
 export type MatchUnpausedEvent = BaseEvent<typeof EventTypes.MATCH_UNPAUSED, {}>;
-export type CommandEvent = BaseEvent<typeof EventTypes.COMMAND, {
-  command: string;
-  parameters: string[];
-  sender: {
-    name: string;
-    steamId: string | null;
-    team: 'T' | 'CT' | 'SPECTATOR' | 'Unassigned'; // tu peux réduire à 'T'|'CT' si tu préfères
-    channel: 'say' | 'say_team';
-  };
-}>;
 export type DefuseBeginEvent = BaseEvent<typeof EventTypes.DEFUSE_BEGIN, {
   player: PlayerRefLogs;
   hasKit: boolean;

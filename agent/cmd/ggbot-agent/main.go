@@ -10,7 +10,6 @@ import (
 	"strings"
 	"time"
 
-	logs "ggbot/internal/ingest/httpLogs"
 	myrcon "ggbot/internal/rcon"
 
 	"gopkg.in/yaml.v3"
@@ -69,7 +68,6 @@ type CstvCfg struct {
 func main() {
 	// Flags
 	cfgPath := flag.String("cfg", "config.yaml", "chemin du fichier YAML")
-	server := flag.String("server", "", "nom du serveur (ex: srv-a)")
 	cmd := flag.String("cmd", "status", "commande: status|pause|unpause|changelevel|say|listen-chat|agent")
 	flag.Parse()
 
@@ -97,74 +95,6 @@ func main() {
 			log.Fatal(err)
 		}
 		return
-	}
-
-	// ----- Autres commandes (RCON direct) -----
-	if *server == "" {
-		log.Fatal("utilisation: -server <name> [-cmd status|pause|unpause|changelevel|say|listen-chat] [-cfg config.yaml]")
-	}
-
-	// Trouve la cible
-	var target *ServerConfig
-	for i := range cfg.Servers {
-		if cfg.Servers[i].Name == *server {
-			target = &cfg.Servers[i]
-			break
-		}
-	}
-	if target == nil {
-		log.Fatalf("serveur %q introuvable dans %s", *server, *cfgPath)
-	}
-
-	// Connect RCON
-	client := myrcon.New(myrcon.Config{
-		Host:      target.RCON.Host,
-		Port:      target.RCON.Port,
-		Password:  target.RCON.Password,
-		Timeout:   time.Duration(max(500, target.RCON.TimeoutMs)) * time.Millisecond,
-		RateLimit: time.Duration(max(0, target.RCON.RateLimitMs)) * time.Millisecond,
-	})
-	if err := client.Connect(ctx); err != nil {
-		log.Fatalf("RCON connect %s:%d: %v", target.RCON.Host, target.RCON.Port, err)
-	}
-	defer client.Close()
-
-	switch *cmd {
-	case "status":
-		out, err := client.Status(ctx)
-		check(err)
-		fmt.Println(out)
-
-	case "pause":
-		out, err := client.PauseMatch(ctx)
-		check(err)
-		fmt.Println(out)
-
-	case "unpause":
-		out, err := client.UnpauseMatch(ctx)
-		check(err)
-		fmt.Println(out)
-
-	case "changelevel":
-		if flag.NArg() < 1 {
-			log.Fatal("utilisation: -cmd changelevel <map>")
-		}
-		mapName := flag.Arg(0)
-		out, err := client.ChangeLevel(ctx, mapName)
-		check(err)
-		fmt.Println(out)
-
-	case "say":
-		out, err := client.Say(ctx, "Hello depuis GGBot 🚀")
-		check(err)
-		fmt.Println(out)
-
-	case "listen-chat":
-		log.Println("👂 écoute des logs HTTP sur :8081")
-		logs.RunHTTP("0.0.0.0:8081")
-
-	default:
-		log.Fatalf("commande inconnue: %s (attendu: status|pause|unpause|changelevel|say|listen-chat|agent)", *cmd)
 	}
 }
 
@@ -239,7 +169,7 @@ func handleAction(ctx context.Context, cfg *Config, act AgentAction) error {
 	}
 
 	switch act.Action {
-	case "pause_tac", "pause_tech":
+	case "tac_timeout", "tech_timeout":
 		_, err := withRcon(ctx, target, func(ctx context.Context, c *myrcon.Client) (string, error) {
 			return c.PauseMatch(ctx)
 		})
@@ -289,11 +219,6 @@ func max(a, b int) int {
 		return a
 	}
 	return b
-}
-func check(err error) {
-	if err != nil {
-		log.Fatalf("erreur: %v", err)
-	}
 }
 
 func findServer(cfg *Config, name string) *ServerConfig {
