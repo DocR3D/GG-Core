@@ -34,9 +34,7 @@ export class MatchEventsHandler {
       case EventTypes.TEAM_ROUND_WIN: {
         const w = ev.payload?.winner;
         if (w === 'T' || w === 'CT') {
-          await this.matchState.addPoint(ev.matchId, w);
-          // On passe en intermission; l'UI ou un autre handler lancera le prochain round.
-          await this.matchState.setPhase(ev.matchId, 'intermission');
+          await this.matchState.roundEnd(ev.matchId, w);
         }
         break;
       }

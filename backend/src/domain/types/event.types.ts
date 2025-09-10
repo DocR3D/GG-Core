@@ -16,6 +16,7 @@ export const EventTypes = {
   COMMAND: 'command',
   LOG: 'raw_log',
   ROUND_STATS: 'round_stats',
+
 } as const;
 
 export type EventType = typeof EventTypes[keyof typeof EventTypes];

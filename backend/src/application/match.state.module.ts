@@ -5,6 +5,7 @@ import { MatchStateService } from './state/match-state.service';
 import { EventsRouterSubscriber } from './subscribers/events-router.subscriber';
 import { MatchEventsHandler } from './subscribers/match-events.handler';
 import { ChatCommandHandler } from './subscribers/chat-commands.handler';
+import { SeqService } from './state/seq.service';
 
 @Module({
   imports: [
@@ -15,10 +16,12 @@ import { ChatCommandHandler } from './subscribers/chat-commands.handler';
     EventsRouterSubscriber,
     MatchEventsHandler,
     ChatCommandHandler,
+    SeqService,
   ], // ← supprimé le doublon d’EventsRouterSubscriber
   exports: [
     MatchStateService,
-    ChatCommandHandler, // exporte si utilisé ailleurs (optionnel)
+    ChatCommandHandler,
+    SeqService, // exporte si utilisé ailleurs (optionnel)
   ],
 })
 export class MatchStateModule {}

@@ -1,9 +1,11 @@
 import {
   Controller, Post, Body, Req, UnauthorizedException, ForbiddenException,
-  HttpCode, Query, BadRequestException,
+  HttpCode, Query, BadRequestException, Logger
 } from '@nestjs/common';
 import type { Request } from 'express';
-import { Cs2LogsService } from './cs2-logs.service';
+import { Cs2LogsService, LogCtx } from './cs2-logs.service';
+import { MatchStateService } from '@app/state/match-state.service';
+
 
 // Utils IP identiques à ta version
 function normalizeIpv4(ip: string): string {
@@ -35,18 +37,29 @@ export class Cs2LogsController {
   private readonly allowed: string[] = (process.env.ALLOWED_IPS || '')
     .split(',').map(s => s.trim()).filter(Boolean);
 
-  constructor(private readonly svc: Cs2LogsService) {}
+  constructor(private readonly svc: Cs2LogsService,private readonly matchState: MatchStateService) {}
+  private readonly logger = new Logger('CS2-LOGS');
 
   @Post()
   @HttpCode(200)
   async receive(
+    
     @Req() req: Request,
     @Body() body: any,
-    @Query('matchId') matchId?: string,
+    @Query('matchId') matchIdFromQuery?: string,
     @Query('map') map?: string,
+    @Query('server') serverQ?: string,
+    @Query('matchId') matchIdQ?: string,
+    @Query('m') matchIdShort?: string,
+    @Query('serverId') serverIdQ?: string, 
     @Query('round') roundQ?: string,
     @Query('tick') tickQ?: string,
   ) {
+    const serverId = serverIdQ ?? serverQ ?? null;
+    let matchId = matchIdQ ?? matchIdShort ?? null;
+    if (!matchId && serverId) {
+      matchId = await this.matchState.getServerMatch(serverId);
+    }
     // 1) Auth token (identique)
     const token = req.header('x-cs2-token') || (typeof req.query.token === 'string' ? req.query.token : undefined);
     if (process.env.CS2_TOKEN) {
@@ -65,21 +78,14 @@ export class Cs2LogsController {
       }
     }
 
-    // 3) Identification serveur (identique, mais param name harmonisé)
-    const serverId =
-      req.header('x-cs2-server') ||
-      (typeof req.query.server === 'string' ? req.query.server : undefined) ||
-      `${req.ip}`;
-    if (!serverId) throw new BadRequestException('serverId required');
-
     // 4) Contexte optionnel via query
-    const ctx = {
-      serverId,
-      matchId: matchId ?? (typeof req.query.match === 'string' ? req.query.match : null),
-      map: map ?? null,
-      round: roundQ != null ? Number(roundQ) : null,
-      tick: tickQ != null ? Number(tickQ) : null,
-    };
+
+    const ctx: LogCtx = {
+  serverId: (serverId ?? 'unknown'),    // <- garanti string
+  matchId: (matchId ?? null),
+  map: null, round: null, tick: null,
+  source: 'logs', recvAt: Date.now(), lineTs: null, serverBound: !!matchId,
+};
 
     // 5) Normalisation du body (identique)
     const text =
@@ -89,7 +95,10 @@ export class Cs2LogsController {
 
     let t = text.replace(/\0/g, ''); // nettoyage léger
     const blocks = this.findRoundStatsBlocks(t);
+    this.logger.debug(`RX serverId=${serverId ?? '∅'} matchId=${matchId ?? '∅'} token=${token ?? '∅'} bodyLen=${body?.length ?? 0} content= ${body ?? '∅'}`,);
 
+
+    
     if (blocks.length) {
       let last = 0;
 

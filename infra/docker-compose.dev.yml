@@ -5,29 +5,23 @@ services:
     ports:
       - "6379:6379"
 
-  nest:
+  backend:
     build:
-      context: ../backend
-      dockerfile: ../Dockerfile.nest.dev
-    container_name: ggcore-backend-dev
-    working_dir: /app
-    # Monte ton code Nest pour --watch
+      context: ../backend            # chemins relatifs au fichier compose (infra/)
+      dockerfile: Dockerfile.nest.dev
     volumes:
       - ../backend:/app
-      - /app/node_modules   # évite d’écraser node_modules
+      - /app/node_modules            # volume anonyme pour ne pas écraser les deps
     environment:
-      REDIS_URL: redis://redis:6379
-      PORT: "3000"
-      LOGS_PORT: "8081"
-    depends_on:
-      - redis
+      PORT: "8081"
+      WS_PATH: "/ws"
+      JWT_SECRET: "dev-change-me"
+      REDIS_URL: "redis://redis:6379"
+      CORS_ORIGIN: "http://localhost:3000"
+      CHOKIDAR_USEPOLLING: "1"
+      WATCHPACK_POLLING: "true"
     ports:
-      - "3000:3000"
       - "8081:8081"
-    restart: unless-stopped
-    # Si tu utilises dotenv, ajoute:
-    # env_file:
-    #   - backend/ggcore-backend/.env
 
   agent:
     build:

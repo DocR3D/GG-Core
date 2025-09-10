@@ -1,0 +1,27 @@
+# backend/Dockerfile.nest.dev
+FROM node:20-alpine
+
+WORKDIR /app
+
+# Dépendances
+COPY package*.json ./
+RUN npm ci
+
+# Source
+COPY . .
+
+# Env de dev
+ENV NODE_ENV=development \
+    PORT=8081 \
+    WS_PATH=/ws
+
+# Utile pour le reload fiable en volume monté (surtout sous Windows/WSL)
+ENV CHOKIDAR_USEPOLLING=1 \
+    WATCHPACK_POLLING=true
+
+EXPOSE 8081
+
+# Si tu utilises Nest CLI :
+# CMD ["npm","run","start:dev"]
+# Sinon (ts-node-dev ou nodemon) :
+CMD ["npm","run","start:dev"]

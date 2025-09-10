@@ -17,7 +17,16 @@ export type PlayerRefLogs = {
 export type RoundStartEvent = BaseEvent<typeof EventTypes.ROUND_START, {}>;
 export type MatchPausedEvent = BaseEvent<typeof EventTypes.MATCH_PAUSED, {}>;
 export type MatchUnpausedEvent = BaseEvent<typeof EventTypes.MATCH_UNPAUSED, {}>;
-
+export type CommandEvent = BaseEvent<typeof EventTypes.COMMAND, {
+  command: string;
+  parameters: string[];
+  sender: {
+    name: string;
+    steamId: string | null;
+    team: 'T' | 'CT' | 'SPECTATOR' | 'Unassigned'; // tu peux réduire à 'T'|'CT' si tu préfères
+    channel: 'say' | 'say_team';
+  };
+}>;
 export type DefuseBeginEvent = BaseEvent<typeof EventTypes.DEFUSE_BEGIN, {
   player: PlayerRefLogs;
   hasKit: boolean;
@@ -101,6 +110,7 @@ export type MatchEvent =
   | SfuiTargetBombedEvent
   | KillEvent
   | RoundStatsEvent
+  | CommandEvent
   | GenericMatchEvent;
 
 /** Map [type -> interface] pour typer les handlers stricts côté parser */
@@ -117,6 +127,8 @@ export type EventByType = {
   [EventTypes.DEFUSE_BEGIN]: DefuseBeginEvent;
   [EventTypes.MATCH_PAUSED]: MatchPausedEvent;
   [EventTypes.MATCH_UNPAUSED]: MatchUnpausedEvent;
+  [EventTypes.COMMAND]: CommandEvent;
+
 };
 
 /** Type guards utiles côté consumers */
@@ -140,3 +152,5 @@ export const isDefuseBegin = (e: MatchEvent): e is DefuseBeginEvent =>
   e.type === EventTypes.DEFUSE_BEGIN;
 export const isDefuseAbort = (e: MatchEvent): e is DefuseAbortEvent =>
   e.type === EventTypes.DEFUSE_ABORT;
+export const isCommand = (e: MatchEvent): e is CommandEvent =>
+  e.type === EventTypes.COMMAND;

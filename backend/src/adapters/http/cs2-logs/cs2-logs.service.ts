@@ -4,24 +4,60 @@ import Redis from 'ioredis';
 import { REDIS_PUB } from '@adapters/redis/redis.tokens';
 import type { MatchEvent } from '@domain/types/match.event';
 import { EventTypes } from '@domain/types/event.types';
+import { InternalEvent } from '@domain/types/internal-events';
 import { withCtx } from '@domain/types/factory';
+import { withCtxInternal } from '@domain/types/internal-events';
 
 import { RULES, stripCs2Prefix } from './rules';
 
-const CHAT_RE =
-  /^L\s+\d{2}\/\d{2}\/\d{4}\s+-\s+\d{2}:\d{2}:\d{2}:\s+"(?<name>[^"<]+)<(?<userid>\d+)><(?<steam>[^>]+)><(?<team>[^>]+)>"\s+(?<channel>say|say_team)\s+"(?<msg>.*)"\s*$/i;
 
 const CMD_PREFIXES = ['!', '/'];
 const ALLOWED_COMMANDS = new Set(['pause','unpause','tech','tac','start','knife','stop','ready','unready','timeout','restart']);
 
-// types utilitaires
-type LogCtx = {
-  serverId: string;
+export type LogCtx = {
+  serverId: string;           // non-nullable
+  matchId: string | null;
+  map: string | null;
+  round: number | null;
+  tick: number | null;
+  source?: 'logs' | 'cstv' | 'demo';
+  recvAt?: number;
+  lineTs?: number | null;
+  serverBound?: boolean;
+};
+
+export function makeCtx(p: {
+  serverId: string | null | undefined;
   matchId?: string | null;
   map?: string | null;
   round?: number | null;
   tick?: number | null;
-};
+  source?: LogCtx['source'];
+}): LogCtx {
+  return {
+    serverId: p.serverId ?? 'unknown',   // => string garanti
+    matchId: p.matchId ?? null,
+    map: p.map ?? null,
+    round: p.round ?? null,
+    tick: p.tick ?? null,
+    source: p.source ?? 'logs',
+    recvAt: Date.now(),
+    lineTs: null,
+  };
+}
+export function makeCtxFromServerId(serverId: string): LogCtx {
+  return {
+    serverId,
+    matchId: null,
+    map: null,
+    round: null,
+    tick: null,
+    source: 'logs',
+    recvAt: Date.now(),
+    lineTs: null,
+    serverBound: false,
+  };
+}
 
 function normTeam(team: string): 'CT'|'TERRORIST'|'Spectator'|'Unassigned'|string {
   const t = (team || '').toLowerCase();
@@ -38,44 +74,31 @@ export class Cs2LogsService {
   constructor(@Inject(REDIS_PUB) private readonly pub: Redis) {}
 
   // --------- Ingest public API ---------
+// === 2) handleLogLine: minimal, un seul passage par tryParseEvent ===
 async handleLogLine(serverId: string, rawLine: string): Promise<void>;
 async handleLogLine(ctx: LogCtx, rawLine: string): Promise<void>;
-async handleLogLine(a: string | LogCtx, rawLine: string): Promise<void> {    
+async handleLogLine(a: string | LogCtx, rawLine: string): Promise<void> {
   const ctx: LogCtx = typeof a === 'string'
     ? { serverId: a, matchId: null, map: null, round: null, tick: null }
     : a;
 
   const line = stripCs2Prefix(rawLine);
+  this.logger.debug(`[CS2-LOGS] shortened line = ${line}`);
 
-  // Chat / Command
-  const chat = this.tryParseChat(line, ctx.serverId, ctx.matchId ?? 'unknown');
-  if (chat) {
-    const cmd = this.tryParseCommand(chat);
-    if (cmd) { await this.publish('ggbot:commands', cmd); return; }
-    await this.publish('ggbot:chat', chat);
-    return;
-  }
-
-  // Événements via RULES (en un seul endroit)
   const ev = this.tryParseEvent(line, {
     serverId: ctx.serverId,
-    matchId: ctx.matchId ?? 'unknown',
-    map: ctx.map ?? null,
-    round: ctx.round ?? null,
-    tick: ctx.tick ?? null,
+    matchId : ctx.matchId ?? 'unknown',
+    map     : ctx.map ?? null,
+    round   : ctx.round ?? null,
+    tick    : ctx.tick ?? null,
   });
-  if (ev) {
-    await this.publish('ggbot:events', ev);
-    return;
-  }
 
-  // Fallback (optionnel) : publier la ligne brute
-  // await this.publish('ggbot:events', {
-  //   v: 1, id: crypto.randomUUID(), timestamp: Date.now(),
-  //   type: EventTypes.LOG, kind: 'telemetry', source: 'logs',
-  //   serverId: ctx.serverId, matchId: ctx.matchId ?? 'unknown',
-  //   payload: { line }
-  // });
+  this.logger.debug(`[CS2-LOGS] parsed event = ${ev ? ev.type : 'none'}`);
+
+  if (ev) {
+    // Publie le BaseEvent (MatchEvent) comme le reste du pipeline
+    await this.publish('ggbot:events', ev);
+  }
 }
 
 
@@ -84,8 +107,7 @@ async handleLogLine(a: string | LogCtx, rawLine: string): Promise<void> {
 async handleJson(serverId: string, seg: string): Promise<void>;
 async handleJson(ctx: LogCtx, seg: string): Promise<void>;
 async handleJson(a: string | LogCtx, seg: string): Promise<void> {
-  const ctx: LogCtx = typeof a === 'string' ? { serverId: a, matchId: null } : a;
-
+  const ctx: LogCtx = typeof a === 'string' ? makeCtxFromServerId(a) : a;
   const BEGIN = 'JSON_BEGIN{', END = '}}JSON_END';
   if (!seg || seg.length > 256 * 1024) return;
 
@@ -213,84 +235,28 @@ async handleJson(a: string | LogCtx, seg: string): Promise<void> {
   private async publish(channel: string, payload: unknown) {
     return this.pub.publish(channel, JSON.stringify(payload));
   }
-    private tryParseEvent(
+
+  private tryParseEvent(
     line: string,
     ctx: { serverId: string; matchId: string; map?: string|null; round?: number|null; tick?: number|null }
-    ): MatchEvent | null {
+  ): MatchEvent | null {
+    // Builders BaseEvent (comme avant)
     const build    = withCtx({ matchId: ctx.matchId, serverId: ctx.serverId, source: 'logs', kind: 'primary' });
     const buildTel = withCtx({ matchId: ctx.matchId, serverId: ctx.serverId, source: 'logs', kind: 'telemetry' });
-    const extra = { map: ctx.map ?? undefined, round: ctx.round ?? undefined, tick: ctx.tick ?? undefined };
+    const extra = {
+      map:   ctx.map   ?? undefined,
+      round: ctx.round ?? undefined,
+      tick:  ctx.tick  ?? undefined,
+    };
 
     for (const r of RULES) {
-        const m = line.match(r.re);
-        if (!m) continue;
-        return r.build(m, build, buildTel, extra);
+      const m = line.match(r.re);
+      if (!m) continue;
+
+      // Chaque règle retourne un MatchEvent (grâce à la signature Rule.build)
+      const ev = r.build(m, build, buildTel, extra);
+      if (ev) return ev; // (si tu as gardé un COMMAND_RE, ev n'est jamais null ici)
     }
     return null;
-    }
-
-
-  private tryParseChat(line: string, serverId: string, matchId: string,) {
-    const m = CHAT_RE.exec(line);
-    if (!m?.groups) return null;
-    const ts = Date.now();
-    return {
-      type: EventTypes.CHAT_MESSAGE,
-      timestamp: ts,
-      source: 'logs',
-      serverId,
-      matchId,
-      map: null,
-      round: null,
-      tick: null,
-      payload: {
-        channel: m.groups.channel === 'say_team' ? 'say_team' : 'say',
-        message: (m.groups.msg ?? '').trim(),
-        player: {
-          name: m.groups.name,
-          userId: Number.isFinite(+m.groups.userid) ? +m.groups.userid : null,
-          steamId: m.groups.steam || null,
-          team: normTeam(m.groups.team),
-        },
-      },
-    };
-  }
-
-  private tryParseCommand(chat: any) {
-    let msg = (chat.payload.message || '').trim();
-    if (!msg) return null;
-    if (!CMD_PREFIXES.includes(msg[0])) return null;
-
-    msg = msg.slice(1).trim();
-    const parts = msg.split(/\s+/);
-    if (!parts.length) return null;
-
-    let name = parts[0].toLowerCase();
-    if (name === 'tactical' || name === 'timeout') name = 'tac';
-    if (name === 'p') name = 'pause';
-    if (name === 'technical') name = 'tech';
-    if (!ALLOWED_COMMANDS.has(name)) return null;
-
-    const parameters = parts.slice(1);
-    return {
-      type: EventTypes.COMMAND,
-      timestamp: chat.timestamp,
-      source: chat.source,
-      serverId: chat.serverId,
-      matchId: chat.matchId,
-      map: chat.map ?? null,
-      round: chat.round ?? null,
-      tick: chat.tick ?? null,
-      payload: {
-        command: name,
-        parameters,
-        sender: {
-          name: chat.payload.player.name,
-          steamId: chat.payload.player.steamId,
-          team: chat.payload.player.team,
-          channel: chat.payload.channel,
-        },
-      },
-    };
   }
 }

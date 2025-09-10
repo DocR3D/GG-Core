@@ -7,10 +7,19 @@ import { withCtx } from '../../../domain/types/factory';
 
 // --------- Utils (inchangés) ---------
 
-const CS2_PREFIX_RE = /^(?:L\s\d{2}\/\d{2}\/\d{4}\s-\s\d{2}:\d{2}:\d{2}:\s+)/;
-export function stripCs2Prefix(line: string): string {
+export const CS2_PREFIX_RE =
+  /^(?:L\s+)?\d{2}\/\d{2}\/\d{4}\s+-\s+\d{2}:\d{2}:\d{2}(?:\.\d{3})?(?::)?\s+-\s+/;
+
+export const CHAT_RE =
+  /^"(?<name>[^"<]+)<(?<userid>\d+)><(?<steam>[^>]+)><(?<team>[^>]+)>"\s+(?<channel>say|say_team)\s+"(?<msg>.*)"\s*$/i;
+export const COMMAND_RE =
+  /^"(?<name>[^"<]+)<(?<userid>\d+)><(?<steam>[^>]+)><(?<team>[^>]+)>"\s+(?<channel>say|say_team)\s+"(?<msg>![^"]+)"\s*$/i;
+
+  export function stripCs2Prefix(line: string): string {
   return line.replace(CS2_PREFIX_RE, '');
 }
+const normTeam = (raw?: string) =>
+  raw?.includes('CT') ? 'CT' : raw?.includes('T') ? 'T' : 'CT';
 
 const toT = (s: string) => (s === 'TERRORIST' ? 'T' : 'CT');
 
@@ -59,6 +68,41 @@ export const RULES: Rule[] = [
   winFixedTelemetry(/SFUI_Notice_Target_Saved/, 'CT', 'time'),
   winFixedTelemetry(/SFUI_Notice_CTs_Win/, 'CT', 'elim'),
 
+{
+  re: COMMAND_RE,
+  build: (m, build /*, _buildTel, _extra */) => {
+    const raw = (m.groups?.msg ?? '').trim(); // commence forcément par '!' grâce au regex
+    const parts      = raw.slice(1).split(/\s+/).filter(Boolean);
+    const command    = (parts.shift() || '').toLowerCase();
+    const parameters = parts;
+
+    return build(EventTypes.COMMAND, {
+      command,
+      parameters,
+      sender: {
+        name:    m.groups?.name ?? 'unknown',
+        steamId: m.groups?.steam || null,
+        team:    (m.groups?.team?.includes('CT') ? 'CT' : (m.groups?.team?.includes('T') ? 'T' : 'CT')),
+        channel: m.groups?.channel === 'say_team' ? 'say_team' : 'say',
+      },
+    });
+  },
+},
+{
+  re: CHAT_RE,
+  build: (m, build /*, _buildTel, _extra */) => {
+    return build(EventTypes.CHAT_MESSAGE, {
+      channel: m.groups?.channel === 'say_team' ? 'say_team' : 'say',
+      message: (m.groups?.msg ?? '').trim(),
+      player: {
+        name:    m.groups?.name ?? 'unknown',
+        steamId: m.groups?.steam || null,
+        team:    (m.groups?.team?.includes('CT') ? 'CT' : (m.groups?.team?.includes('T') ? 'T' : 'CT')),
+      },
+    });
+  },
+},
+   
   // ---------- Round Win (source de vérité primaire) ----------
   {
     re: /Team "(TERRORIST|CT)".*?Round_Win.*?reason "([^"]+)"/,
