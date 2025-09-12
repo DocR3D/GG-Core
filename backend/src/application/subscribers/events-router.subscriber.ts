@@ -1,7 +1,7 @@
 import { Injectable, OnModuleInit, OnModuleDestroy, Logger, Inject } from '@nestjs/common';
 import type Redis from 'ioredis';
 import {isCommand, MatchEvent } from '@domain/types/match.event';
-import { REDIS_SUB,REDIS_PUB } from '@adapters/redis/redis.tokens'; // ← client SUB dédié
+import { REDIS_SUB,REDIS_PUB } from '@adapters/redis/redis.tokens';
 import { MatchEventsHandler } from './match-events.handler';
 import { ChatCommandHandler } from './chat-commands.handler';
 import { EventTypes } from '@domain/types/event.types';
@@ -9,7 +9,7 @@ import { EventTypes } from '@domain/types/event.types';
 @Injectable()
 export class EventsRouterSubscriber implements OnModuleInit, OnModuleDestroy {
   private readonly logger = new Logger(EventsRouterSubscriber.name);
-  private readonly channels = ['ggbot:events'] as const;
+  private readonly channels = ['ggbot:events_primary'] as const;
   private onMessageBound = (channel: string, message: string) => this.onMessage(channel, message);
 
   constructor(

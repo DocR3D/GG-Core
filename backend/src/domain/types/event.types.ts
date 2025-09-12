@@ -16,6 +16,11 @@ export const EventTypes = {
   COMMAND: 'command',
   LOG: 'raw_log',
   ROUND_STATS: 'round_stats',
+  ITEM_PURCHASE:     'item_purchase',
+  BEGIN_BOMB_PLANT:  'begin_bomb_plant',
+  GRENADE_LAND:     'grenade_land',
+  GRENADE_THROW:     'grenade_throw',
+  PLAYER_BLINDED:    'player_blinded',
 
 } as const;
 

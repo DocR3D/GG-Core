@@ -15,7 +15,6 @@ package main
 //   ./agentd -config /etc/ggbot/agents.d/srv-a.yaml -serverId srv-a
 
 import (
-	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
@@ -23,7 +22,6 @@ import (
 	"fmt"
 	"io"
 	"log"
-	"math/rand"
 	"net/http"
 	"os"
 	"os/signal"
@@ -32,6 +30,9 @@ import (
 	"sync/atomic"
 	"syscall"
 	"time"
+
+	// ...
+	"ggbot/internal/parser"
 
 	myrcon "ggbot/internal/rcon"
 
@@ -186,7 +187,7 @@ func main() {
 
 	// Start components
 	go runLogsHTTP(ctx, cfg)
-	go runLogsForwarder(ctx, cfg)
+	go runEventsPusher(ctx, cfg, rdb) // ✅ nouveau: transforme log→events et XADD en Redis
 	go runHeartbeat(ctx, cfg, rdb)
 	go runActionsSubscriber(ctx, cfg, rdb)
 
@@ -273,158 +274,6 @@ func splitLines(s string) []string {
 		}
 	}
 	return out
-}
-
-// ---- Logs forwarder (batch + retry)
-// ---- Logs forwarder (batch + retry) [FIX: flush on timeout]
-func runLogsForwarder(ctx context.Context, cfg AgentConfig) {
-	maxLines := orDefault(cfg.Logs.Batch.MaxLines, 100)
-	maxDelay := time.Duration(orDefault(cfg.Logs.Batch.MaxDelayMs, 75)) * time.Millisecond
-	maxBytes := orDefault(cfg.Logs.Batch.MaxBytes, 64*1024)
-	maxBuffer := orDefault(cfg.Logs.Retry.MaxBufferLines, 10000)
-
-	client := &http.Client{Timeout: 5 * time.Second}
-	buf := make([]string, 0, maxLines)
-
-	send := func(batch []string) {
-
-		if len(batch) == 0 {
-			return
-		}
-		// build NDJSON
-		var body bytes.Buffer
-		for _, line := range batch {
-			body.WriteString(line)
-			body.WriteByte('\n')
-		}
-		req, _ := http.NewRequestWithContext(ctx, http.MethodPost, cfg.Logs.BackendPostURL, &body)
-		req.Header.Set("Content-Type", "application/x-ndjson")
-		req.Header.Set("X-Server-ID", cfg.ServerID)
-		// Si ton backend exige un token:
-		// req.Header.Set("x-cs2-token", "tonSuperSecret")
-
-		backoff := time.Duration(orDefault(cfg.Logs.Retry.BaseMs, 200)) * time.Millisecond
-		backoffMax := time.Duration(orDefault(cfg.Logs.Retry.MaxMs, 5000)) * time.Millisecond
-		attempt := 0
-		for {
-			attempt++
-			start := time.Now()
-			resp, err := client.Do(req)
-			if err == nil && resp.StatusCode >= 200 && resp.StatusCode < 300 {
-				_ = resp.Body.Close()
-				log.Printf("[agent:%s] FWD ok -> backend=%s status=%d batchLines=%d bytes=%d dur=%s queue=%d",
-					cfg.ServerID, cfg.Logs.BackendPostURL, resp.StatusCode, len(batch), body.Len(),
-					time.Since(start).Truncate(time.Millisecond), len(logQueue))
-				return
-			}
-			code := 0
-			if resp != nil {
-				code = resp.StatusCode
-				_ = resp.Body.Close()
-			}
-			log.Printf("[agent:%s] FWD fail attempt=%d status=%d err=%v batchLines=%d bytes=%d backoff=%s",
-				cfg.ServerID, attempt, code, err, len(batch), body.Len(), backoff)
-
-			// retry with backoff (+ optional jitter)
-			j := 0
-			if cfg.Logs.Retry.Jitter {
-				j = rand.Intn(150)
-			}
-			select {
-			case <-time.After(backoff + time.Duration(j)*time.Millisecond):
-			case <-ctx.Done():
-				log.Printf("[agent:%s] FWD canceled", cfg.ServerID)
-				return
-			}
-			backoff *= 2
-			if backoff > backoffMax {
-				backoff = backoffMax
-			}
-		}
-	}
-
-	for {
-		// On crée un délai neuf à chaque cycle.
-		deadline := time.NewTimer(maxDelay)
-		timeout := false
-
-		for !timeout && len(buf) < maxLines {
-			select {
-			case line := <-logQueue:
-				if line == "" {
-					continue
-				}
-				// Si ajouter la ligne dépasse maxBytes, flush d'abord, puis recommence le batch.
-				if bodySize(buf)+len(line)+1 > maxBytes && len(buf) > 0 {
-					log.Printf("[agent:%s] FWD flush (maxBytes) lines=%d bytes~%d", cfg.ServerID, len(buf), bodySize(buf))
-					send(buf)
-					buf = buf[:0]
-					// On redémarre le timer pour le nouveau batch
-					if !deadline.Stop() {
-						select {
-						case <-deadline.C:
-						default:
-						}
-					}
-					deadline.Reset(maxDelay)
-				}
-				buf = append(buf, line)
-
-				// Anti-overflow: si le channel est surchargé, on droppe des anciennes
-				for len(logQueue) > maxBuffer {
-					<-logQueue
-					atomic.AddInt64(&droppedLogs, 1)
-				}
-
-				// Si on atteint le seuil de lignes, on flush juste après
-				if len(buf) >= maxLines {
-					break
-				}
-
-			case <-deadline.C:
-				// ✅ [FIX] Sortir de la boucle interne pour flusher le batch courant
-				timeout = true
-
-			case <-ctx.Done():
-				if !deadline.Stop() {
-					select {
-					case <-deadline.C:
-					default:
-					}
-				}
-				return
-			}
-		}
-
-		if !deadline.Stop() {
-			select {
-			case <-deadline.C:
-			default:
-			}
-		}
-
-		if len(buf) > 0 {
-			log.Printf("[agent:%s] FWD flush (%s) lines=%d bytes~%d queue=%d",
-				cfg.ServerID, map[bool]string{true: "timeout", false: "threshold"}[timeout], len(buf), bodySize(buf), len(logQueue))
-			send(buf)
-			buf = buf[:0]
-		}
-	}
-}
-
-func bodySize(lines []string) int {
-	sz := 0
-	for _, l := range lines {
-		sz += len(l) + 1
-	}
-	return sz
-}
-
-func orDefault(v, def int) int {
-	if v <= 0 {
-		return def
-	}
-	return v
 }
 
 // ---- Actions subscriber (Redis) → RCON queue
@@ -652,5 +501,118 @@ func normalizeCS2(cfg *AgentConfig) {
 	}
 	if cfg.CSTV.Port == 0 {
 		cfg.CSTV.Port = port + 5
+	}
+}
+
+// ---- Events pusher (parse → Redis Streams) ----
+
+// Stream: ggbot:events_primary:<serverId>
+// Champs: v,id,timestamp,source,kind,serverId,matchId,type,payload,(map?,round?,tick?)
+func runEventsPusher(ctx context.Context, cfg AgentConfig, rdb *redis.Client) {
+	const (
+		maxBatch   = 200
+		flushEvery = 50 * time.Millisecond
+		maxLen     = 100_000 // trim approx côté Redis
+	)
+	streamKey := "ggbot:events_primary:" + cfg.ServerID
+	serverID := cfg.ServerID
+	matchID := "unknown" // ajuste si tu as un mapping serveur→match dans Redis
+
+	type entry struct {
+		vals map[string]any
+	}
+	batch := make([]entry, 0, maxBatch)
+	ticker := time.NewTicker(flushEvery)
+	defer ticker.Stop()
+
+	flush := func() {
+		if len(batch) == 0 {
+			return
+		}
+		pipe := rdb.Pipeline()
+		for _, e := range batch {
+			pipe.XAdd(ctx, &redis.XAddArgs{
+				Stream: streamKey,
+				MaxLen: maxLen, Approx: true,
+				Values: e.vals,
+			})
+		}
+		if _, err := pipe.Exec(ctx); err != nil {
+			log.Printf("[agent:%s] XADD batch error: %v", serverID, err)
+		} else {
+			log.Printf("[agent:%s] XADD -> stream=%s count=%d", serverID, streamKey, len(batch))
+		}
+		batch = batch[:0]
+	}
+
+	for {
+		select {
+		case <-ctx.Done():
+			flush()
+			return
+
+		case <-ticker.C:
+			flush()
+
+		case line := <-logQueue:
+			if line == "" {
+				continue
+			}
+			// Laisse le parser gérer le strip + la détection
+			if typ, payloadJSON, ok := parser.TryParse(line); ok {
+				ev := makeBaseEvent(serverID, matchID, typ, payloadJSON)
+				fields := map[string]any{
+					"v":         ev.V,
+					"id":        ev.ID,
+					"timestamp": ev.Timestamp,
+					"source":    ev.Source,
+					"kind":      ev.Kind,
+					"serverId":  ev.ServerID,
+					"matchId":   ev.MatchID,
+					"type":      ev.Type,
+					"payload":   string(ev.Payload),
+				}
+				batch = append(batch, entry{vals: fields})
+				if len(batch) >= maxBatch {
+					flush()
+				}
+				continue
+			}
+
+			// 2) sinon (optionnel) émettre une ligne brute pour debug:
+			// raw := map[string]any{
+			//     "v": 1, "id": genID(), "timestamp": time.Now().UnixMilli(),
+			//     "source": "logs", "kind": "primary",
+			//     "serverId": serverID, "matchId": matchID,
+			//     "type": "raw_log",
+			//     "payload": `{"line":` + jsonString(short) + `}`,
+			// }
+			// batch = append(batch, entry{vals: raw})
+		}
+	}
+}
+func genID() string {
+	// ID lisible sans crypto pour éviter dépendance
+	return fmt.Sprintf("evt-%d", time.Now().UnixNano())
+}
+
+type baseEvt struct {
+	V         int             `json:"v"`
+	ID        string          `json:"id"`
+	Timestamp int64           `json:"timestamp"`
+	Source    string          `json:"source"`
+	Kind      string          `json:"kind"`
+	ServerID  string          `json:"serverId"`
+	MatchID   string          `json:"matchId"`
+	Type      string          `json:"type"`
+	Payload   json.RawMessage `json:"payload"`
+}
+
+func makeBaseEvent(serverId, matchId, typ string, payload json.RawMessage) baseEvt {
+	return baseEvt{
+		V: 1, ID: genID(), Timestamp: time.Now().UnixMilli(),
+		Source: "logs", Kind: "primary",
+		ServerID: serverId, MatchID: matchId,
+		Type: typ, Payload: payload,
 	}
 }

@@ -35,7 +35,7 @@ export class MatchStateService {
   // Server ↔ Match binding
   // ─────────────────────────────────────────────────────────────────────────────
   async setServerMatch(serverId: string, matchId: string, ttlSec?: number) {
-    const key = redisConst.serverMatchid(serverId);
+    const key = redisConst.serverMatch(serverId);
     if (ttlSec && ttlSec > 0) {
       await this.redis.set(key, matchId, 'EX', ttlSec);
     } else {
@@ -43,7 +43,7 @@ export class MatchStateService {
     }
   }
   async getServerMatch(serverId: string): Promise<string | null> {
-    return (await this.redis.get(redisConst.serverMatchid(serverId))) as string | null;
+    return (await this.redis.get(redisConst.serverMatch(serverId))) as string | null;
   }
 
   // ─────────────────────────────────────────────────────────────────────────────

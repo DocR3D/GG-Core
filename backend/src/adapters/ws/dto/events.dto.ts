@@ -26,7 +26,11 @@ export type WsEventType =
   | 'command'
   | 'agent:action'
   | 'agent:result'
-  | 'log:raw';
+  | 'log:raw'
+  // NEW (grenades)
+  | 'grenade_throw'
+  | 'player_blinded';
+//  | 'grenade_landed' // ← si/quant tu l’activeras plus tard
 
 export interface BaseWsEvent<TType extends WsEventType, TPayload> {
   type: TType;
@@ -65,6 +69,8 @@ export interface PlayerRef {
 
 export interface Vec3 { x: number; y: number; z: number; }
 export interface Vec2N { nx: number; ny: number; }
+
+// ===== Kills =====
 
 export type KillPayload =
   | {
@@ -177,6 +183,36 @@ export type LobbyAdminDebug = {
 export type LobbyEvent = LobbyUpsert | LobbyRemove;
 export type LobbyAdminEvent = LobbyEvent | LobbyAdminDebug;
 
+/* ====== Grenades (nouveaux events) ====== */
+
+// grenade_throw
+export interface GrenadeThrowPayload {
+  player: PlayerRef;
+  grenade: string;     // 'smokegrenade' | 'flashbang' | 'hegrenade' | 'molotov' | 'incgrenade' | 'decoy'
+  origin: Vec3;
+  entindex?: string;   // présent pour certaines flash
+}
+export type GrenadeThrowEvent = BaseWsEvent<'grenade_throw', GrenadeThrowPayload>;
+
+// player_blinded
+export interface PlayerBlindedPayload {
+  victim: PlayerRef;
+  attacker: PlayerRef;
+  grenade: 'flashbang';
+  duration: number | string; // le parser envoie pour l’instant une string
+  entindex?: string;
+}
+export type PlayerBlindedEvent = BaseWsEvent<'player_blinded', PlayerBlindedPayload>;
+
+// // grenade_landed (optionnel, plus tard)
+// export interface GrenadeLandedPayload {
+//   grenade: string;
+//   position: Vec3;
+//   velocity?: Vec3;
+//   entindex?: string;
+// }
+// export type GrenadeLandedEvent = BaseWsEvent<'grenade_landed', GrenadeLandedPayload>;
+
 /* ====== Unions pratiques côté front ====== */
 
 export type MatchWsEvent =
@@ -189,7 +225,11 @@ export type MatchWsEvent =
   | SidesSwappedEvent
   | ChatPublicEvent
   | ChatAdminEvent
-  | SponsorRotateEvent;
+  | SponsorRotateEvent
+  // NEW:
+  | GrenadeThrowEvent
+  | PlayerBlindedEvent;
+//  | GrenadeLandedEvent
 
 /* ====== Admin / Agent / Debug ====== */
 
