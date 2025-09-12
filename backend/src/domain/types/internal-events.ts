@@ -12,11 +12,26 @@ export type InternalEventName =
   | 'CHAT_ADMIN'
   | 'MATCH_STATE'
   | 'COMMAND'
-  // NEW (aligne tes WS/agent/debug)
+  // Agent / debug
   | 'AGENT_ACTION'
   | 'AGENT_RESULT'
   | 'LOG_RAW'
-  | 'TEAM_ROUND_WIN';
+  // Parser Go — événements “primaires”
+  | 'TEAM_ROUND_WIN'
+  | 'BOMB_PLANTED'
+  | 'BEGIN_BOMB_PLANT'
+  | 'DEFUSE_BEGIN'
+  | 'DEFUSE_ABORT'
+  | 'MATCH_PAUSED'
+  | 'MATCH_UNPAUSED'
+  | 'PLAYER_CONNECTED'
+  | 'PLAYER_DISCONNECTED'
+  | 'PLAYER_NAME_CHANGE'
+  | 'ITEM_PURCHASE'
+  | 'GRENADE_THROW'
+  | 'GRENADE_LAND'
+  | 'PLAYER_BLINDED'
+  | 'SFUI_TARGET_BOMBED';
 
 export interface InternalEvent {
   v?: 1;
@@ -41,13 +56,13 @@ export interface InternalEvent {
   seq?: number;  // attribué par le broadcaster
 
   // Métadonnées (optionnelles)
-  source?: 'logs' | 'api' | 'system';
+  source?: 'logs' | 'api' | 'system' | 'agent';
   kind?: 'primary' | 'telemetry';
 
   payload?: unknown;
 }
 
-// Builder contextuel (inchangé, mais audience/ts deviennent optionnels ici aussi)
+// Builder contextuel
 export function withCtxInternal(ctx: {
   serverId: string; matchId: string;
   map?: string|null; round?: number|null; tick?: number|null;
@@ -66,7 +81,7 @@ export function withCtxInternal(ctx: {
       audience?: Audience;
       ts?: number;
       id?: string;
-      source?: 'logs'|'api'|'system';
+      source?: 'logs'|'api'|'system'|'agent';
       kind?: 'primary'|'telemetry';
     }
   ): InternalEvent {

@@ -1,9 +1,6 @@
-// match.event.ts
 import type { BaseEvent } from './base.event';
 import { EventTypes } from './event.types';
-import type { CommandEvent } from './command.event'; // ← importe la source
-
-/** Contrats d’événements canoniques (TS strict) */
+import type { CommandEvent } from './command.event';
 
 export type EventKind = 'primary' | 'telemetry';
 export type Team = 'T' | 'CT';
@@ -15,9 +12,13 @@ export type PlayerRefLogs = {
   team: 'TERRORIST' | 'CT' | 'SPECTATOR' | 'Unassigned';
 };
 
+// ————————————————————————————
+// Core match events
+// ————————————————————————————
 export type RoundStartEvent = BaseEvent<typeof EventTypes.ROUND_START, {}>;
 export type MatchPausedEvent = BaseEvent<typeof EventTypes.MATCH_PAUSED, {}>;
 export type MatchUnpausedEvent = BaseEvent<typeof EventTypes.MATCH_UNPAUSED, {}>;
+
 export type DefuseBeginEvent = BaseEvent<typeof EventTypes.DEFUSE_BEGIN, {
   player: PlayerRefLogs;
   hasKit: boolean;
@@ -84,7 +85,37 @@ export type KillEvent = BaseEvent<typeof EventTypes.KILL,
     }
 >;
 
-/** Catch-all (compat / debug) */
+// ————————————————————————————
+// Nouveaux events (agent Go)
+// ————————————————————————————
+export type ItemPurchaseEvent = BaseEvent<typeof EventTypes.ITEM_PURCHASE, {
+  player: PlayerRefLogs;
+  weapon: string;
+}>;
+
+export type GrenadeThrowEvent = BaseEvent<typeof EventTypes.GRENADE_THROW, {
+  player: PlayerRefLogs;
+  grenade: string;
+  origin: { x: number; y: number; z: number };
+  entindex?: string;
+}>;
+
+export type GrenadeLandEvent = BaseEvent<typeof EventTypes.GRENADE_LAND, {
+  grenade: string;
+  position: { x: number; y: number; z: number };
+  velocity?: { x: number; y: number; z: number };
+  entindex?: string;
+}>;
+
+export type PlayerBlindedEvent = BaseEvent<typeof EventTypes.PLAYER_BLINDED, {
+  victim: PlayerRefLogs;
+  attacker: PlayerRefLogs;
+  grenade: 'flashbang';
+  duration: number | string;
+  entindex?: string;
+}>;
+
+// ————————————————————————————
 export type GenericMatchEvent = BaseEvent<string, Record<string, any>>;
 
 export type MatchEvent =
@@ -101,10 +132,13 @@ export type MatchEvent =
   | SfuiTargetBombedEvent
   | KillEvent
   | RoundStatsEvent
+  | ItemPurchaseEvent
+  | GrenadeThrowEvent
+  | GrenadeLandEvent
+  | PlayerBlindedEvent
   | CommandEvent
   | GenericMatchEvent;
 
-/** Map [type -> interface] pour typer les handlers stricts côté parser */
 export type EventByType = {
   [EventTypes.ROUND_START]: RoundStartEvent;
   [EventTypes.BOMB_PLANTED]: BombPlantedEvent;
@@ -118,11 +152,16 @@ export type EventByType = {
   [EventTypes.DEFUSE_BEGIN]: DefuseBeginEvent;
   [EventTypes.MATCH_PAUSED]: MatchPausedEvent;
   [EventTypes.MATCH_UNPAUSED]: MatchUnpausedEvent;
+  [EventTypes.ITEM_PURCHASE]: ItemPurchaseEvent;
+  [EventTypes.GRENADE_THROW]: GrenadeThrowEvent;
+  [EventTypes.GRENADE_LAND]: GrenadeLandEvent;
+  [EventTypes.PLAYER_BLINDED]: PlayerBlindedEvent;
   [EventTypes.COMMAND]: CommandEvent;
-
 };
 
-/** Type guards utiles côté consumers */
+// ————————————————————————————
+// Type guards
+// ————————————————————————————
 export const isTeamRoundWin = (e: MatchEvent): e is TeamRoundWinEvent =>
   e.type === EventTypes.TEAM_ROUND_WIN;
 export const isRoundStart = (e: MatchEvent): e is RoundStartEvent =>
@@ -143,5 +182,13 @@ export const isDefuseBegin = (e: MatchEvent): e is DefuseBeginEvent =>
   e.type === EventTypes.DEFUSE_BEGIN;
 export const isDefuseAbort = (e: MatchEvent): e is DefuseAbortEvent =>
   e.type === EventTypes.DEFUSE_ABORT;
+export const isItemPurchase = (e: MatchEvent): e is ItemPurchaseEvent =>
+  e.type === EventTypes.ITEM_PURCHASE;
+export const isGrenadeThrow = (e: MatchEvent): e is GrenadeThrowEvent =>
+  e.type === EventTypes.GRENADE_THROW;
+export const isGrenadeLand = (e: MatchEvent): e is GrenadeLandEvent =>
+  e.type === EventTypes.GRENADE_LAND;
+export const isPlayerBlinded = (e: MatchEvent): e is PlayerBlindedEvent =>
+  e.type === EventTypes.PLAYER_BLINDED;
 export const isCommand = (e: MatchEvent): e is CommandEvent =>
   e.type === EventTypes.COMMAND;

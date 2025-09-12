@@ -4,7 +4,7 @@ import { RealtimeEmitter } from './realtime.emitter';
 import { WsBroadcaster } from './ws-broadcaster.service';
 import { SocketAuthGuard } from './socket.auth.guard';
 import { RedisModule } from '@adapters/redis/redis.module'; // adapte le chemin si besoin
-import { MatchStateModule } from '@app/match.state.module'; // pour disposer de SeqService (ou importe le module qui l'exporte)
+import { MatchStateModule } from '@app/match-state.module'; // pour disposer de SeqService (ou importe le module qui l'exporte)
 
 @Module({
   imports: [

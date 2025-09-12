@@ -1,7 +1,7 @@
 // src/application/commands.module.ts
 import { Module, forwardRef, Logger } from '@nestjs/common';
-import { MatchCommandsService } from '@app/commands/ match-commands.service'; // ← corrige l'import (sans espace)
-import { MatchStateModule } from './match.state.module';
+import { MatchCommandsService } from '@app/commands/match-commands.service'; // ← corrige l'import (sans espace)
+import { MatchStateModule } from './match-state.module';
 import { RedisModule } from '../adapters/redis/redis.module'; // ← pour REDIS_PUB
 
 @Module({

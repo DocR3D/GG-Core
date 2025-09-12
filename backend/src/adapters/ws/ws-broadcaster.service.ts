@@ -4,6 +4,7 @@ import type Redis from 'ioredis';
 import { REDIS_SUB } from '@adapters/redis/redis.tokens';
 import { RealtimeEmitter } from './realtime.emitter';
 import { SeqService } from '@app/state/seq.service';
+import { MatchStateService } from '@app/state/match-state.service';
 
 import type { Audience, InternalEvent } from '@domain/types/internal-events';
 import type {
@@ -20,7 +21,7 @@ type RawBusEvent = {
   type?: string;               // ex: "chat_message"
   matchId?: string;
   serverId?: string;
-  source?: 'logs' | 'api' | 'system';
+  source?: 'logs' | 'api' | 'system' | 'agent';
   kind?: 'primary' | 'telemetry';
   payload?: any;
   audience?: Audience;
@@ -38,6 +39,7 @@ export class WsBroadcaster implements OnModuleInit {
     @Inject(REDIS_SUB) private readonly sub: Redis,
     private readonly emitter: RealtimeEmitter,
     private readonly seq: SeqService,
+    private readonly matchState: MatchStateService,
   ) {}
 
   async onModuleInit() {
@@ -47,20 +49,36 @@ export class WsBroadcaster implements OnModuleInit {
     // mappe bus.type -> InternalEvent.name
     const mapTypeToName = (t?: string): InternalEvent['name'] | undefined => {
       switch (t) {
-        case 'chat_message':   return 'CHAT_PUBLIC';
-        case 'command':        return 'COMMAND';
-        case 'round_start':    return 'ROUND_START';
-        case 'round_end':      return 'ROUND_END';
-        case 'score_update':   return 'SCORE_UPDATE';
-        case 'pause_update':   return 'PAUSE_UPDATE';
-        case 'sides_swapped':  return 'SIDES_SWAPPED';
-        case 'match_state':    return 'MATCH_STATE';
-        case 'kill':           return 'KILL';
-        case 'agent:action':   return 'AGENT_ACTION';
-        case 'agent:result':   return 'AGENT_RESULT';
-        case 'log:raw':        return 'LOG_RAW';
-        case 'team_round_win': return 'TEAM_ROUND_WIN';
-        default:               return undefined;
+        case 'chat_message':        return 'CHAT_PUBLIC';
+        case 'command':             return 'COMMAND';
+        case 'round_start':         return 'ROUND_START';
+        case 'round_end':           return 'ROUND_END';
+        case 'score_update':        return 'SCORE_UPDATE';
+        case 'pause_update':        return 'PAUSE_UPDATE';
+        case 'sides_swapped':       return 'SIDES_SWAPPED';
+        case 'match_state':         return 'MATCH_STATE';
+        case 'kill':                return 'KILL';
+        case 'agent:action':        return 'AGENT_ACTION';
+        case 'agent:result':        return 'AGENT_RESULT';
+        case 'log:raw':             return 'LOG_RAW';
+
+        // Nouveaux événements “primaires” du parser Go
+        case 'team_round_win':      return 'TEAM_ROUND_WIN';
+        case 'bomb_planted':        return 'BOMB_PLANTED';
+        case 'begin_bomb_plant':    return 'BEGIN_BOMB_PLANT';
+        case 'defuse_begin':        return 'DEFUSE_BEGIN';
+        case 'defuse_abort':        return 'DEFUSE_ABORT';
+        case 'match_paused':        return 'MATCH_PAUSED';
+        case 'match_unpaused':      return 'MATCH_UNPAUSED';
+        case 'player_connected':    return 'PLAYER_CONNECTED';
+        case 'player_disconnected': return 'PLAYER_DISCONNECTED';
+        case 'player_name_change':  return 'PLAYER_NAME_CHANGE';
+        case 'item_purchase':       return 'ITEM_PURCHASE';
+        case 'grenade_throw':       return 'GRENADE_THROW';
+        case 'grenade_landed':      return 'GRENADE_LAND';
+        case 'player_blinded':      return 'PLAYER_BLINDED';
+        case 'sfui_target_bombed':  return 'SFUI_TARGET_BOMBED';
+        default:                    return undefined;
       }
     };
 
@@ -73,7 +91,6 @@ export class WsBroadcaster implements OnModuleInit {
 
     this.sub.on('message', async (_channel, raw) => {
       const recvAt = Date.now();
-      this.logger.debug(`📩 RX on ${_channel}: ${raw.slice(0, 240)}${raw.length > 240 ? '…' : ''}`);
 
       let base: RawBusEvent;
       try {
@@ -82,6 +99,25 @@ export class WsBroadcaster implements OnModuleInit {
         this.logger.warn(`⚠️ Invalid JSON: ${(e as Error).message}`);
         return;
       }
+
+      if (!base?.type && ((base as any).rcon || (base as any).logs)) {
+        //this.logger.debug('ignored agent heartbeat on ggbot:events');
+        return;
+      }
+      if (!base?.type && !base?.name) {
+        // rien à mapper, message non match => on ignore proprement
+        return;
+      }
+      if (!base.matchId || base.matchId === 'unknown') {
+          const sid = typeof base.serverId === 'string' && base.serverId.trim() ? base.serverId : null;
+          if ((!base.matchId || base.matchId === 'unknown') && sid) {
+            try {
+              const mid = await this.matchState.getServerMatch(sid); // sid est string ici
+              if (mid) base.matchId = mid; // getServerMatch: Promise<string | null>
+            } catch {}
+          }
+      }
+      this.logger.debug(`📩 RX on ${_channel}: ${raw.slice(0, 240)}${raw.length > 240 ? '…' : ''}`);
 
       // ——— Normalisation → InternalEvent ———
       let ev: InternalEvent | null;
@@ -107,8 +143,8 @@ export class WsBroadcaster implements OnModuleInit {
           round: null,
           tick: null,
           ts: base.timestamp ?? Date.now(),
-          source: base.source,
-          kind: base.kind,
+          source: base.source ?? 'agent',
+          kind: base.kind ?? 'primary',
           payload: base.payload,
         } as InternalEvent;
       }
@@ -128,15 +164,40 @@ export class WsBroadcaster implements OnModuleInit {
       };
 
       switch (ev.name) {
-        case 'KILL':          send('kill'); break;
-        case 'ROUND_START':   send('round:start'); break;
-        case 'ROUND_END':     send('round:end'); break;
-        case 'SCORE_UPDATE':  send('score:update'); break;
-        case 'PAUSE_UPDATE':  send('pause:update'); break;
-        case 'SIDES_SWAPPED': send('sides:swapped'); break;
-        case 'MATCH_STATE':   send('match:state'); break;
-        case 'TEAM_ROUND_WIN':   send('round:win'); break;
+        case 'KILL':              send('kill'); break;
+        case 'ROUND_START':       send('round:start'); break;
+        case 'ROUND_END':         send('round:end'); break;
+        case 'SCORE_UPDATE':      send('score:update'); break;
+        case 'PAUSE_UPDATE':      send('pause:update'); break;
+        case 'SIDES_SWAPPED':     send('sides:swapped'); break;
+        case 'MATCH_STATE':       send('match:state'); break;
 
+        // ✅ corriger l’event WS pour coller à events.dto.ts
+        case 'TEAM_ROUND_WIN':    send('team_round_win'); break;
+
+        // Bomb / defuse
+        case 'BOMB_PLANTED':      send('bomb:planted', asWs('bomb:planted' as WsEventType, ev, ev.payload, ev.seq!, ev.ts!)); break;
+        case 'BEGIN_BOMB_PLANT':  send('bomb:begin',    asWs('bomb:begin'    as WsEventType, ev, ev.payload, ev.seq!, ev.ts!)); break;
+        case 'DEFUSE_BEGIN':      send('defuse:begin',  asWs('defuse:begin'  as WsEventType, ev, ev.payload, ev.seq!, ev.ts!)); break;
+        case 'DEFUSE_ABORT':      send('defuse:abort',  asWs('defuse:abort'  as WsEventType, ev, ev.payload, ev.seq!, ev.ts!)); break;
+
+        // Pause explicite (si l’agent envoie match_paused/unpaused)
+        case 'MATCH_PAUSED':      send('pause:update',  asWs('pause:update'  as WsEventType, ev, { state: 'paused' },   ev.seq!, ev.ts!)); break;
+        case 'MATCH_UNPAUSED':    send('pause:update',  asWs('pause:update'  as WsEventType, ev, { state: 'unpaused' }, ev.seq!, ev.ts!)); break;
+
+        // Grenades / blinded
+        case 'GRENADE_THROW':     send('grenade_throw'); break;
+        case 'GRENADE_LAND':      send('grenade_landed' as any /* ajoute-le si tu l’as dans WsEventType */); break;
+        case 'PLAYER_BLINDED':    send('player_blinded'); break;
+
+        // Divers joueurs / achats
+        case 'PLAYER_CONNECTED':    send('player:connected'  as any); break;
+        case 'PLAYER_DISCONNECTED': send('player:disconnected' as any); break;
+        case 'PLAYER_NAME_CHANGE':  send('player:name_change' as any); break;
+        case 'ITEM_PURCHASE':       send('item:purchase'      as any); break;
+
+        // SFUI bombed (fallback rare, utile overlay)
+        case 'SFUI_TARGET_BOMBED':  send('sfui:target_bombed' as any); break;
 
         case 'CHAT_PUBLIC': {
           if (!toAdmin) break;
@@ -193,14 +254,12 @@ export class WsBroadcaster implements OnModuleInit {
 
 // ————— Helpers —————
 
-// normalise l’équipe provenant des logs
 function toTeamSide(team: string): 'CT'|'T'|'spec' {
   if (team === 'CT') return 'CT';
   if (team === 'T' || team === 'TERRORIST') return 'T';
   return 'spec';
 }
 
-// fabrique l’enveloppe commune BaseWsEvent<...>
 function asWs<TType extends WsEventType, TPayload>(
   type: TType,
   ev: InternalEvent,

@@ -1,7 +1,9 @@
 export const redisConst = {
   // Liaison serveur ↔ match
   serverMatch: (serverId: string) => `server:${serverId}:currentMatch`,
-
+  matchServer: (matchId: string) => `match:${matchId}:server`,
+  
+  eventsPrimary: (serverId: string) => `ggbot:events_primary:${serverId}`,
   // Match-level keys existantes
   sides:       (matchId: string) => `match:${matchId}:sides`,
   score:       (matchId: string) => `match:${matchId}:score`,

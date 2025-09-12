@@ -122,6 +122,19 @@ type heartbeat struct {
 	CurrentMatchID string `json:"currentMatchId,omitempty"`
 }
 
+// Enveloppe bus publiée sur ggbot:events
+type busEvent struct {
+	V         int             `json:"v,omitempty"`
+	ID        string          `json:"id,omitempty"`
+	Timestamp int64           `json:"timestamp"`
+	Type      string          `json:"type"`
+	MatchID   string          `json:"matchId,omitempty"`
+	ServerID  string          `json:"serverId"`
+	Source    string          `json:"source,omitempty"` // "agent"
+	Kind      string          `json:"kind,omitempty"`   // "primary"
+	Payload   json.RawMessage `json:"payload"`
+}
+
 // ---- Globals (state)
 
 var (
@@ -448,8 +461,9 @@ func runHeartbeat(ctx context.Context, cfg AgentConfig, rdb *redis.Client) {
 			hb.Logs.OK = true
 			hb.Logs.Queue = int64(len(logQueue))
 			hb.Logs.Dropped = atomic.LoadInt64(&droppedLogs)
-
 			b, _ := json.Marshal(&hb)
+			_ = rdb.Publish(ctx, "ggbot:events", b).Err() // live
+
 			exp := time.Duration(max(10, cfg.Redis.StateTtlSec)) * time.Second
 			if err := rdb.Set(ctx, key, string(b), exp).Err(); err != nil {
 				log.Printf("[agent:%s] heartbeat err: %v", cfg.ServerID, err)
@@ -510,20 +524,43 @@ func normalizeCS2(cfg *AgentConfig) {
 // Champs: v,id,timestamp,source,kind,serverId,matchId,type,payload,(map?,round?,tick?)
 func runEventsPusher(ctx context.Context, cfg AgentConfig, rdb *redis.Client) {
 	const (
-		maxBatch   = 200
-		flushEvery = 50 * time.Millisecond
-		maxLen     = 100_000 // trim approx côté Redis
+		maxBatch        = 200
+		flushEvery      = 50 * time.Millisecond
+		maxLen          = 100_000
+		refreshMatchTTL = 1 * time.Second
 	)
+
 	streamKey := "ggbot:events_primary:" + cfg.ServerID
+	pubChan := "ggbot:events"
 	serverID := cfg.ServerID
-	matchID := "unknown" // ajuste si tu as un mapping serveur→match dans Redis
+
+	matchKey := "ggbot:server:" + serverID + ":currentMatch"
 
 	type entry struct {
-		vals map[string]any
+		streamVals map[string]any
+		pubJSON    []byte
 	}
 	batch := make([]entry, 0, maxBatch)
 	ticker := time.NewTicker(flushEvery)
 	defer ticker.Stop()
+
+	// --- cache matchId ---
+	var cachedMatchID = "unknown"
+	var lastFetch time.Time
+	resolveMatchID := func() string {
+		// refresh au plus toutes les 1s
+		if time.Since(lastFetch) < refreshMatchTTL {
+			return cachedMatchID
+		}
+		lastFetch = time.Now()
+		mid, err := rdb.Get(ctx, matchKey).Result()
+		if err == nil && mid != "" {
+			cachedMatchID = mid
+			return cachedMatchID
+		}
+		// en cas d’erreur/clé absente on garde le dernier (ou "unknown")
+		return cachedMatchID
+	}
 
 	flush := func() {
 		if len(batch) == 0 {
@@ -534,13 +571,14 @@ func runEventsPusher(ctx context.Context, cfg AgentConfig, rdb *redis.Client) {
 			pipe.XAdd(ctx, &redis.XAddArgs{
 				Stream: streamKey,
 				MaxLen: maxLen, Approx: true,
-				Values: e.vals,
+				Values: e.streamVals,
 			})
+			pipe.Publish(ctx, pubChan, e.pubJSON)
 		}
 		if _, err := pipe.Exec(ctx); err != nil {
-			log.Printf("[agent:%s] XADD batch error: %v", serverID, err)
+			log.Printf("[agent:%s] batch flush error: %v", serverID, err)
 		} else {
-			log.Printf("[agent:%s] XADD -> stream=%s count=%d", serverID, streamKey, len(batch))
+			log.Printf("[agent:%s] XADD+PUBLISH -> stream=%s count=%d", serverID, streamKey, len(batch))
 		}
 		batch = batch[:0]
 	}
@@ -558,10 +596,14 @@ func runEventsPusher(ctx context.Context, cfg AgentConfig, rdb *redis.Client) {
 			if line == "" {
 				continue
 			}
-			// Laisse le parser gérer le strip + la détection
+
 			if typ, payloadJSON, ok := parser.TryParse(line); ok {
+				// ⬅️ récupère le matchId courant
+				matchID := resolveMatchID()
+
 				ev := makeBaseEvent(serverID, matchID, typ, payloadJSON)
-				fields := map[string]any{
+
+				streamFields := map[string]any{
 					"v":         ev.V,
 					"id":        ev.ID,
 					"timestamp": ev.Timestamp,
@@ -572,25 +614,34 @@ func runEventsPusher(ctx context.Context, cfg AgentConfig, rdb *redis.Client) {
 					"type":      ev.Type,
 					"payload":   string(ev.Payload),
 				}
-				batch = append(batch, entry{vals: fields})
+
+				pub := struct {
+					V         int             `json:"v,omitempty"`
+					ID        string          `json:"id,omitempty"`
+					Timestamp int64           `json:"timestamp"`
+					Type      string          `json:"type"`
+					MatchID   string          `json:"matchId,omitempty"`
+					ServerID  string          `json:"serverId"`
+					Source    string          `json:"source,omitempty"`
+					Kind      string          `json:"kind,omitempty"`
+					Payload   json.RawMessage `json:"payload"`
+				}{
+					V: ev.V, ID: ev.ID, Timestamp: ev.Timestamp, Type: ev.Type,
+					MatchID: ev.MatchID, ServerID: ev.ServerID, Source: ev.Source, Kind: ev.Kind,
+					Payload: json.RawMessage(ev.Payload),
+				}
+				b, _ := json.Marshal(pub)
+
+				batch = append(batch, entry{streamVals: streamFields, pubJSON: b})
 				if len(batch) >= maxBatch {
 					flush()
 				}
 				continue
 			}
-
-			// 2) sinon (optionnel) émettre une ligne brute pour debug:
-			// raw := map[string]any{
-			//     "v": 1, "id": genID(), "timestamp": time.Now().UnixMilli(),
-			//     "source": "logs", "kind": "primary",
-			//     "serverId": serverID, "matchId": matchID,
-			//     "type": "raw_log",
-			//     "payload": `{"line":` + jsonString(short) + `}`,
-			// }
-			// batch = append(batch, entry{vals: raw})
 		}
 	}
 }
+
 func genID() string {
 	// ID lisible sans crypto pour éviter dépendance
 	return fmt.Sprintf("evt-%d", time.Now().UnixNano())

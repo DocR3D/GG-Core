@@ -27,19 +27,42 @@ export type WsEventType =
   | 'agent:action'
   | 'agent:result'
   | 'log:raw'
-  // NEW (grenades)
+  // NEW (grenades & round win)
   | 'grenade_throw'
-  | 'round:win'        // alias explicite de team_round_win (payload: winner, reason)
+  | 'bomb:planted'
+  | 'bomb:begin'
+  | 'defuse:begin'
+  | 'defuse:abort'
+  | 'team_round_win'   // ← remplace 'round:win'
   | 'player_blinded';
-//  | 'grenade_landed' // ← si/quant tu l’activeras plus tard
+//  | 'grenade_landed'  // activer quand prêt
+//  | 'bomb:planted' | 'bomb:begin' | 'defuse:begin' | 'defuse:abort' // si tu exposes ces events
 
 export interface BaseWsEvent<TType extends WsEventType, TPayload> {
   type: TType;
   matchId: string;
-  seq: number; // ordre garanti par match
-  ts: number;  // epoch ms
+  seq: number;
+  ts: number;
   payload: TPayload;
 }
+export type BombPlantedEvent = BaseWsEvent<'bomb:planted', {
+  planter?: PlayerRef;
+  site?: 'A'|'B';
+}>;
+
+export type BombBeginEvent = BaseWsEvent<'bomb:begin', {
+  player: PlayerRef;
+  site: 'A'|'B';
+}>;
+
+export type DefuseBeginEventWs = BaseWsEvent<'defuse:begin', {
+  player: PlayerRef;
+  hasKit: boolean;
+}>;
+
+export type DefuseAbortEventWs = BaseWsEvent<'defuse:abort', {
+  player: PlayerRef;
+}>;
 
 // ===== Payloads communs réutilisables =====
 
@@ -50,10 +73,11 @@ export interface ScorePayload {
 }
 export type ScoreUpdateEvent = BaseWsEvent<'score:update', ScorePayload>;
 
-export type WsRoundWinEvent = BaseWsEvent<'round:win', {
+export type TeamRoundWinEvent = BaseWsEvent<'team_round_win', {
   winner: 'CT' | 'T';
   reason?: 'bomb_exploded' | 'defused' | 'elim' | 'time';
 }>;
+
 
 // match:state — snapshot synthétique
 export interface MatchStatePayload {
@@ -232,10 +256,14 @@ export type MatchWsEvent =
   | ChatPublicEvent
   | ChatAdminEvent
   | SponsorRotateEvent
+  | BombPlantedEvent
+  | BombBeginEvent
+  | DefuseBeginEventWs
+  | DefuseAbortEventWs
   // NEW:
   | GrenadeThrowEvent
-  | PlayerBlindedEvent;
-//  | GrenadeLandedEvent
+  | PlayerBlindedEvent
+  | TeamRoundWinEvent; // ← ajouté ici
 
 /* ====== Admin / Agent / Debug ====== */
 

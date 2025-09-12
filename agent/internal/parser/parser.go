@@ -141,6 +141,7 @@ func TryParse(line string) (string, json.RawMessage, bool) {
 				payload.Sender.Team = mapTeamForCommand(team)
 				payload.Sender.Channel = channel
 				raw, _ := json.Marshal(payload)
+
 				return events.EvCommand, raw, true
 			}
 		}
