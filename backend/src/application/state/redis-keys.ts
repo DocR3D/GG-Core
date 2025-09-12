@@ -23,4 +23,9 @@ export const redisConst = {
   clock:       (matchId: string) => `match:${matchId}:clock`,   // phaseEndsAt, pauseEndsAt, etc.
   ready:       (matchId: string) => `match:${matchId}:ready`,   // home=0|1, away=0|1
   seq:         (matchId: string) => `match:${matchId}:seq`,     // incrément global pour WS/events
+  phase:       (matchId: string) => `match:${matchId}:phase`,        // string
+  phasePending:(matchId: string) => `match:${matchId}:phase:pending`,// string
+  phaseLock:   (matchId: string) => `match:${matchId}:phase:lock`,   // string (SET NX EX)
+  pause:       (matchId: string) => `match:${matchId}:pause`,        // hash { state, ... } optionnel
+
 } as const;

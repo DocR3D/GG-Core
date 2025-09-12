@@ -78,6 +78,11 @@ export class WsBroadcaster implements OnModuleInit {
         case 'grenade_landed':      return 'GRENADE_LAND';
         case 'player_blinded':      return 'PLAYER_BLINDED';
         case 'sfui_target_bombed':  return 'SFUI_TARGET_BOMBED';
+
+        //Changement de phase
+        case 'phase_countdown':  return 'PHASE_COUNTDOWN';
+        case 'phase_changed':    return 'PHASE_CHANGED';
+        case 'phase_cancelled':  return 'PHASE_CANCELLED';
         default:                    return undefined;
       }
     };
@@ -195,6 +200,17 @@ export class WsBroadcaster implements OnModuleInit {
         case 'PLAYER_DISCONNECTED': send('player:disconnected' as any); break;
         case 'PLAYER_NAME_CHANGE':  send('player:name_change' as any); break;
         case 'ITEM_PURCHASE':       send('item:purchase'      as any); break;
+        case 'PHASE_COUNTDOWN':
+          send('phase:countdown', asWs('phase:countdown' as WsEventType, ev, ev.payload, ev.seq!, ev.ts!));
+          break;
+
+        case 'PHASE_CHANGED':
+          send('phase:changed', asWs('phase:changed' as WsEventType, ev, ev.payload, ev.seq!, ev.ts!));
+          break;
+
+        case 'PHASE_CANCELLED':
+          send('phase:cancelled', asWs('phase:cancelled' as WsEventType, ev, ev.payload, ev.seq!, ev.ts!));
+          break;
 
         // SFUI bombed (fallback rare, utile overlay)
         case 'SFUI_TARGET_BOMBED':  send('sfui:target_bombed' as any); break;
@@ -250,6 +266,24 @@ export class WsBroadcaster implements OnModuleInit {
       this.logger.debug(`✅ Handled ${ev.name}#${ev.seq} (match=${ev.matchId}) in ${Date.now()-recvAt}ms`);
     });
   }
+  // ws-broadcaster.ts
+async push(
+  matchId: string,
+  type: WsEventType,
+  payload: any,
+  audience: Audience = 'both',
+) {
+  const seq = await this.seq.next(matchId);
+  const ts  = Date.now();
+  const dto = { type, matchId, seq, ts, payload };
+
+  if (audience === 'both' || audience === 'public') {
+    this.emitter.emitPublic(matchId, type, dto);
+  }
+  if (audience === 'both' || audience === 'admin') {
+    this.emitter.emitAdmin(matchId, type, dto);
+  }
+}
 }
 
 // ————— Helpers —————

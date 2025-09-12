@@ -31,6 +31,9 @@ export type InternalEventName =
   | 'GRENADE_THROW'
   | 'GRENADE_LAND'
   | 'PLAYER_BLINDED'
+  | 'PHASE_COUNTDOWN'
+  | 'PHASE_CHANGED'
+  | 'PHASE_CANCELLED'
   | 'SFUI_TARGET_BOMBED';
 
 export interface InternalEvent {

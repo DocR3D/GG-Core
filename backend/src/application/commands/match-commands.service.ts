@@ -3,19 +3,34 @@ import { Injectable, Logger, Inject, BadRequestException } from '@nestjs/common'
 import type Redis from 'ioredis';
 import { REDIS_CMD, REDIS_PUB } from '@adapters/redis/redis.tokens';
 import { MatchStateService } from '../state/match-state.service';
+import { MatchPhaseService } from '../phase/match-phase.service';
+
 import { redisConst } from '../state/redis-keys';
 import * as crypto from 'crypto';
 
 // ⚠️ Idéalement, importe depuis un type canonique partagé (ex: @adapters/ws/dto/events.dto)
 type TeamSide = 'CT' | 'T';
 type Actor = { name: string; steamId?: string; teamSide: TeamSide; channel?: 'say' | 'say_team' };
+type Phase = 'warmup' | 'knife'| 'knife_decision' | 'live' | 'halftime' | 'overtime' | 'postgame';
 
+
+type NextPhaseContext = {
+  knifeEnabled?: boolean;   // défaut: true
+  halftimePlayed?: boolean; // défaut: false (on n’a pas encore fait la mi-temps)
+  needOvertime?: boolean;   // défaut: false (set à true si égalité en fin de temps réglementaire)
+};
+
+const DEFAULT_CTX: Required<NextPhaseContext> = {
+  knifeEnabled: true,
+  halftimePlayed: false,
+  needOvertime: false,
+};
 type AgentAction =
   | { id: string; ts: number; type: 'action'; serverId: string; action: 'tac_timeout';  payload: { matchId: string; teamSide: TeamSide; teamLogical: 'home'|'away'; seconds: number }; source?: any }
   | { id: string; ts: number; type: 'action'; serverId: string; action: 'tech_timeout'; payload: { matchId: string; seconds: number };                                      source?: any }
   | { id: string; ts: number; type: 'action'; serverId: string; action: 'unpause';     payload: { matchId: string; teamSide?: TeamSide };                                  source?: any }
-  | { id: string; ts: number; type: 'action'; serverId: string; action: 'say';         payload: { message: string };                                                      source?: any }
-  | { id: string; ts: number; type: 'action'; serverId: string; action: 'say_team';    payload: { team: TeamSide; message: string };                                      source?: any }
+  | { id: string; ts: number; type: 'action'; serverId: string; action: 'say';         payload: { text: string };                                                      source?: any }
+  | { id: string; ts: number; type: 'action'; serverId: string; action: 'say_team';    payload: { team: TeamSide; text: string };                                      source?: any }
   | { id: string; ts: number; type: 'action'; serverId: string; action: 'knife';       payload: { matchId: string };                                                      source?: any }
   | { id: string; ts: number; type: 'action'; serverId: string; action: 'restart';     payload: { matchId: string; delay?: number };                                       source?: any }
   | { id: string; ts: number; type: 'action'; serverId: string; action: 'changelevel'; payload: { map: string };                                                          source?: any };
@@ -46,10 +61,21 @@ const matchSeqKey   = redisConst.seq;
 
 @Injectable()
 export class MatchCommandsService {
+  runPostgame(matchId: string, serverId: string | undefined) {
+  }
+  runOvertime(matchId: string, serverId: string | undefined) {
+  }
+  runHalftime(matchId: string, serverId: string | undefined) {
+  }
+  runLive(matchId: string, serverId: string | undefined) {
+  }
+  runKnife(matchId: string, serverId: string | undefined) {
+  }
   private readonly logger = new Logger(MatchCommandsService.name);
 
   constructor(
     private readonly ms: MatchStateService,
+    private readonly mps: MatchPhaseService,
     @Inject(REDIS_CMD) private readonly redis: Redis,
     @Inject(REDIS_PUB) private readonly pub: Redis,
   ) {}
@@ -134,7 +160,7 @@ export class MatchCommandsService {
     if (!opts.serverId) throw new BadRequestException('serverId requis');
     const msg: AgentAction = {
       id: uuid(), ts: Date.now(), type: 'action', serverId: opts.serverId,
-      action: 'say', payload: { message: opts.message }, source: { via: 'admin' },
+      action: 'say', payload: { text: opts.message }, source: { via: 'admin' },
     };
     await this.publishToAgent(opts.serverId, msg);
     return { ok: true };
@@ -144,7 +170,7 @@ export class MatchCommandsService {
     if (!opts.serverId) throw new BadRequestException('serverId requis');
     const msg: AgentAction = {
       id: uuid(), ts: Date.now(), type: 'action', serverId: opts.serverId,
-      action: 'say_team', payload: { team: opts.team, message: opts.message }, source: { via: 'admin' },
+      action: 'say_team', payload: { team: opts.team, text: opts.message }, source: { via: 'admin' },
     };
     await this.publishToAgent(opts.serverId, msg);
     return { ok: true };
@@ -292,15 +318,44 @@ export class MatchCommandsService {
     return this.restart(opts);
   }
 
-  // NEW: !ready / !unready → on marque le ready par logique (home/away) selon la side du joueur
   async setReady(opts: { serverId?: string; matchId?: string; actor: Actor; ready: boolean }) {
     const { serverId, matchId } = await this.resolveServerAndMatch(opts);
     const logical = await this.ms.sideToLogical(matchId, opts.actor.teamSide);
     if (!logical) throw new BadRequestException('Impossible de résoudre la logique (home/away)');
-    await this.redis.hset(matchReadyKey(matchId), logical === 'home' ? 'home' : 'away', opts.ready ? 1 : 0);
-    await this.say({ serverId, message: `[ready] ${opts.actor.name} -> ${opts.ready ? 'ready' : 'not ready'}` });
+
+    const key = matchReadyKey(matchId);
+    const field = logical === 'home' ? 'home' : 'away';
+
+    // 🔹 Récupération de l'ancien statut
+    const oldVal = await this.redis.hget(key, field);
+    const oldReady = oldVal === '1'; // true si 1, false sinon
+    const oldStatus = oldVal == null ? 'unset' : (oldReady ? 'ready' : 'not ready');
+
+    // 🔹 Mise à jour
+    await this.redis.hset(key, field, opts.ready ? 1 : 0);
+    const newStatus = opts.ready ? 'ready' : 'not ready';
+
+    // 🔹 Message
+    await this.say({
+      serverId,
+      message: `[status] ${opts.actor.name}: ${oldStatus} → ${newStatus}`
+    });
+    if (!opts.ready) {
+      await this.mps.cancelPhaseCountdown(matchId, 'team_unready');
+    }
+
+
+  const values = await this.redis.hgetall(matchReadyKey(matchId));
+  if(values.home === '1' && values.away === '1'){ 
+    const current = await this.redis.get(redisConst.phase(matchId));
+    const next = resolveNextPhase(current as Phase); // p.ex. 'knife' -> 'live'
+    await this.mps.startPhaseCountdown(matchId, next, 5, serverId);
+  }
+
+
     return { ok: true };
   }
+  
 
   // NEW: !stop → on met fin au match (phase=ended) et petit message serveur
   async stopMatch(opts: { serverId?: string; matchId?: string; actor?: Actor }) {
@@ -308,5 +363,53 @@ export class MatchCommandsService {
     await this.ms.setPhase(matchId, 'ended');
     await this.say({ serverId, message: '[match] stopped by admin' });
     return { ok: true };
+  }
+}
+/**
+ * Détermine la phase suivante, en pure function.
+ * - Si current est null/undefined: on démarre par knife (si activé), sinon live.
+ * - knife -> live (1ère mi-temps)
+ * - live -> halftime (si pas encore jouée), sinon overtime (si égalité), sinon postgame
+ * - halftime -> live (2nde mi-temps)
+ * - overtime -> postgame (par défaut) ; si tu gères plusieurs OT successifs, appelle à nouveau avec needOvertime=true
+ * - postgame -> postgame (idempotent)
+ */
+export function resolveNextPhase(
+  current: Phase | null | undefined,
+  ctx?: NextPhaseContext
+): Phase {
+  const C = { ...DEFAULT_CTX, ...(ctx || {}) };
+
+  if (!current) {
+    return C.knifeEnabled ? 'knife' : 'live';
+  }
+
+  switch (current) {
+    case 'knife':
+      // Après le knife, on passe live (1ère mi-temps)
+      return 'knife_decision';
+
+    case 'knife_decision':
+      return 'live'
+
+    case 'live':
+      // Si la mi-temps n’a pas encore été jouée → on y va
+      if (!C.halftimePlayed) return 'halftime';
+      // Sinon, on est en fin de temps réglementaire : OT si égalité, sinon postgame
+      return C.needOvertime ? 'overtime' : 'postgame';
+
+    case 'halftime':
+      // Reprise en live (2nde mi-temps)
+      return 'live';
+
+    case 'overtime':
+      // Par défaut, une fois un OT joué on décide ici :
+      // - si encore égalité, tu peux rappeler resolveNextPhase avec needOvertime=true pour enchaîner un autre OT
+      // - sinon on va en postgame
+      return C.needOvertime ? 'overtime' : 'postgame';
+
+    case 'postgame':
+    default:
+      return 'postgame';
   }
 }

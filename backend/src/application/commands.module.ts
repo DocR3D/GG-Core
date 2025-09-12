@@ -1,18 +1,17 @@
 // src/application/commands.module.ts
 import { Module, forwardRef, Logger } from '@nestjs/common';
-import { MatchCommandsService } from '@app/commands/match-commands.service'; // ← corrige l'import (sans espace)
+import { MatchCommandsService } from '@app/commands/match-commands.service';
 import { MatchStateModule } from './match-state.module';
-import { RedisModule } from '../adapters/redis/redis.module'; // ← pour REDIS_PUB
+import { RedisModule } from '../adapters/redis/redis.module';
+import { PhaseModule } from './phase/phase.module';
 
 @Module({
   imports: [
-    RedisModule,                 // ← nécessaire pour REDIS_PUB
-    forwardRef(() => MatchStateModule), // seulement si MatchCommandsService injecte MatchStateService
+    RedisModule,
+    forwardRef(() => MatchStateModule),
+    forwardRef(() => PhaseModule),   // ← IMPORTANT (voir 3)
   ],
-  providers: [
-    MatchCommandsService,
-    Logger, // ← ajoute le Logger comme provider
-  ],
-  exports: [MatchCommandsService],
+  providers: [MatchCommandsService, Logger],
+  exports:   [MatchCommandsService], // ← IMPORTANT
 })
 export class CommandsModule {}

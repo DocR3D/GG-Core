@@ -51,7 +51,7 @@ type AgentAction struct {
 		TeamLogical string `json:"teamLogical"`
 		TeamSide    string `json:"teamSide"`
 		Seconds     int    `json:"seconds,omitempty"`
-		Text        string `json:"text,omitempty"`
+		Message     string `json:"text,omitempty"`
 		Map         string `json:"map,omitempty"`
 	} `json:"payload"`
 	TS int64 `json:"ts"`
@@ -355,7 +355,7 @@ func execAction(ctx context.Context, cfg AgentConfig, act *AgentAction) error {
 		return err
 
 	case "say":
-		msg := strings.TrimSpace(act.Payload.Text)
+		msg := strings.TrimSpace(act.Payload.Message)
 		if msg == "" {
 			return fmt.Errorf("say: payload.text missing")
 		}

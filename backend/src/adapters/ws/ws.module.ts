@@ -1,24 +1,18 @@
-import { Module } from '@nestjs/common';
+// src/adapters/ws/ws.module.ts
+import { Module, forwardRef } from '@nestjs/common';
+import { RedisModule } from '@adapters/redis/redis.module';
+import { MatchStateModule } from '@app/match-state.module';
 import { MatchGateway } from './match.gateway';
 import { RealtimeEmitter } from './realtime.emitter';
 import { WsBroadcaster } from './ws-broadcaster.service';
 import { SocketAuthGuard } from './socket.auth.guard';
-import { RedisModule } from '@adapters/redis/redis.module'; // adapte le chemin si besoin
-import { MatchStateModule } from '@app/match-state.module'; // pour disposer de SeqService (ou importe le module qui l'exporte)
 
 @Module({
   imports: [
     RedisModule,
-    MatchStateModule, // assure l'export de SeqService ou le module qui le fournit
+    forwardRef(() => MatchStateModule), // ✅ index [1] = StateModule défini
   ],
-  providers: [
-    MatchGateway,
-    RealtimeEmitter,
-    WsBroadcaster,
-    SocketAuthGuard,
-  ],
-  exports: [
-    RealtimeEmitter,
-  ],
+  providers: [MatchGateway, RealtimeEmitter, WsBroadcaster, SocketAuthGuard],
+  exports:   [RealtimeEmitter, WsBroadcaster], // ⬅️ exporte aussi WsBroadcaster si utilisé ailleurs
 })
 export class WsModule {}

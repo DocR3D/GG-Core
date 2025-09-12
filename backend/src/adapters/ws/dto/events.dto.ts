@@ -12,6 +12,9 @@ export type TeamSide = Team; // 'T' | 'CT'
 // Énum des types WS
 
 export type WsEventType =
+  | 'phase:countdown'
+  | 'phase:changed'
+  | 'phase:cancelled'
   | 'match:state'
   | 'score:update'
   | 'round:start'
