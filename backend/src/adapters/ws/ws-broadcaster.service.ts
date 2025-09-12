@@ -59,6 +59,7 @@ export class WsBroadcaster implements OnModuleInit {
         case 'agent:action':   return 'AGENT_ACTION';
         case 'agent:result':   return 'AGENT_RESULT';
         case 'log:raw':        return 'LOG_RAW';
+        case 'team_round_win': return 'TEAM_ROUND_WIN';
         default:               return undefined;
       }
     };
@@ -134,6 +135,8 @@ export class WsBroadcaster implements OnModuleInit {
         case 'PAUSE_UPDATE':  send('pause:update'); break;
         case 'SIDES_SWAPPED': send('sides:swapped'); break;
         case 'MATCH_STATE':   send('match:state'); break;
+        case 'TEAM_ROUND_WIN':   send('round:win'); break;
+
 
         case 'CHAT_PUBLIC': {
           if (!toAdmin) break;

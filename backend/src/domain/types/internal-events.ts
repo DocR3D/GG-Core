@@ -15,7 +15,8 @@ export type InternalEventName =
   // NEW (aligne tes WS/agent/debug)
   | 'AGENT_ACTION'
   | 'AGENT_RESULT'
-  | 'LOG_RAW';
+  | 'LOG_RAW'
+  | 'TEAM_ROUND_WIN';
 
 export interface InternalEvent {
   v?: 1;

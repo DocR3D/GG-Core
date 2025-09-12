@@ -29,6 +29,7 @@ export type WsEventType =
   | 'log:raw'
   // NEW (grenades)
   | 'grenade_throw'
+  | 'round:win'        // alias explicite de team_round_win (payload: winner, reason)
   | 'player_blinded';
 //  | 'grenade_landed' // ← si/quant tu l’activeras plus tard
 
@@ -48,6 +49,11 @@ export interface ScorePayload {
   round: number; // round courant (1-based)
 }
 export type ScoreUpdateEvent = BaseWsEvent<'score:update', ScorePayload>;
+
+export type WsRoundWinEvent = BaseWsEvent<'round:win', {
+  winner: 'CT' | 'T';
+  reason?: 'bomb_exploded' | 'defused' | 'elim' | 'time';
+}>;
 
 // match:state — snapshot synthétique
 export interface MatchStatePayload {
