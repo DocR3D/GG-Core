@@ -7,7 +7,7 @@ import { MatchEventsHandler } from './subscribers/match-events.handler';
 import { ChatCommandHandler } from './subscribers/chat-commands.handler';
 import { SeqService } from './state/seq.service';
 import { RedisModule } from '@adapters/redis/redis.module';
-import { MatchIdResolver } from './state/match-id.resolver'; // ⬅️ NEW
+import { MatchIdResolver } from './state/match-id.resolver';
 
 // Facade + services découpés
 import { SidesScoreService } from './state/sides-score.service';
@@ -16,12 +16,13 @@ import { TeamsRosterService } from './state/teams-roster.service';
 import { EconomyService } from './state/economy.service';
 import { SnapshotQuery } from './state/snapshot.query';
 
-
+// ⬅️ NEW: service des phases (autorisation des commandes par phase)
+import { MatchPhaseService } from '@app/phase/match-phase.service';
 
 @Module({
   imports: [
-    forwardRef(() => CommandsModule), 
-    RedisModule// pour récupérer MatchCommandsService
+    forwardRef(() => CommandsModule), // pour MatchCommandsService
+    RedisModule,
   ],
   providers: [
     MatchStateService,
@@ -35,6 +36,7 @@ import { SnapshotQuery } from './state/snapshot.query';
     ChatCommandHandler,
     SeqService,
     MatchIdResolver,
+    MatchPhaseService,            // ⬅️ NEW (règle l’erreur d’injection)
   ],
   exports: [
     MatchStateService,
@@ -46,6 +48,7 @@ import { SnapshotQuery } from './state/snapshot.query';
     TimeoutsService,
     SeqService,
     MatchIdResolver,
+    MatchPhaseService,            // ⬅️ NEW (si consommé hors module)
   ],
 })
 export class MatchStateModule {}

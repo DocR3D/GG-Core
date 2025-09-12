@@ -7,6 +7,7 @@ import { MatchPhaseService } from '../phase/match-phase.service';
 
 import { redisConst } from '../state/redis-keys';
 import * as crypto from 'crypto';
+import { MatchPhase as MP } from '@domain/phase.types';
 
 // ⚠️ Idéalement, importe depuis un type canonique partagé (ex: @adapters/ws/dto/events.dto)
 type TeamSide = 'CT' | 'T';
@@ -28,12 +29,13 @@ const DEFAULT_CTX: Required<NextPhaseContext> = {
 type AgentAction =
   | { id: string; ts: number; type: 'action'; serverId: string; action: 'tac_timeout';  payload: { matchId: string; teamSide: TeamSide; teamLogical: 'home'|'away'; seconds: number }; source?: any }
   | { id: string; ts: number; type: 'action'; serverId: string; action: 'tech_timeout'; payload: { matchId: string; seconds: number };                                      source?: any }
-  | { id: string; ts: number; type: 'action'; serverId: string; action: 'unpause';     payload: { matchId: string; teamSide?: TeamSide };                                  source?: any }
-  | { id: string; ts: number; type: 'action'; serverId: string; action: 'say';         payload: { text: string };                                                      source?: any }
-  | { id: string; ts: number; type: 'action'; serverId: string; action: 'say_team';    payload: { team: TeamSide; text: string };                                      source?: any }
-  | { id: string; ts: number; type: 'action'; serverId: string; action: 'knife';       payload: { matchId: string };                                                      source?: any }
-  | { id: string; ts: number; type: 'action'; serverId: string; action: 'restart';     payload: { matchId: string; delay?: number };                                       source?: any }
-  | { id: string; ts: number; type: 'action'; serverId: string; action: 'changelevel'; payload: { map: string };                                                          source?: any };
+  | { id: string; ts: number; type: 'action'; serverId: string; action: 'unpause';      payload: { matchId: string; teamSide?: TeamSide };                                  source?: any }
+  | { id: string; ts: number; type: 'action'; serverId: string; action: 'say';          payload: { text: string };                                                      source?: any }
+  | { id: string; ts: number; type: 'action'; serverId: string; action: 'say_team';     payload: { team: TeamSide; text: string };                                      source?: any }
+  | { id: string; ts: number; type: 'action'; serverId: string; action: 'knife';        payload: { matchId: string };                                                      source?: any }
+  | { id: string; ts: number; type: 'action'; serverId: string; action: 'restart';      payload: { matchId: string; delay?: number };                                       source?: any }
+  | { id: string; ts: number; type: 'action'; serverId: string; action: 'exec_cfg';     payload: { matchId: string;name: string;vars?: Record<string, string>;  };   source?: any }
+  | { id: string; ts: number; type: 'action'; serverId: string; action: 'changelevel';  payload: { map: string };                                                          source?: any };
 
 const agentActionsCh = (serverId: string) => `ggbot:agent:${serverId}:actions`;
 function uuid() { return crypto.randomUUID?.() ?? crypto.randomBytes(16).toString('hex'); }
@@ -68,8 +70,6 @@ export class MatchCommandsService {
   runHalftime(matchId: string, serverId: string | undefined) {
   }
   runLive(matchId: string, serverId: string | undefined) {
-  }
-  runKnife(matchId: string, serverId: string | undefined) {
   }
   private readonly logger = new Logger(MatchCommandsService.name);
 
@@ -176,14 +176,22 @@ export class MatchCommandsService {
     return { ok: true };
   }
 
-  async knife(opts: { serverId?: string; matchId?: string }) {
+  async knife(opts: { serverId?: string; matchId?: string; vars?: Record<string,string> }) {
     const { serverId, matchId } = await this.resolveServerAndMatch(opts);
     const msg: AgentAction = {
-      id: uuid(), ts: Date.now(), type: 'action', serverId,
-      action: 'knife', payload: { matchId }, source: { via: 'admin' },
+      id: uuid(),
+      ts: Date.now(),
+      type: 'action',
+      serverId,
+      action: 'exec_cfg',
+      payload: {
+        matchId,
+        name: 'ggbot/knife.cfg',   // ⬅️ fichier à exécuter
+        ...(opts.vars ? { vars: opts.vars } : {}) // optionnel: variables du cfg
+      },
+      source: { via: 'admin' },
     };
     await this.publishToAgent(serverId, msg);
-    await this.ms.setPhase(matchId, 'knife'); // NEW: refléter côté state
     return { ok: true };
   }
 
@@ -308,10 +316,6 @@ export class MatchCommandsService {
     return { ok: true };
   }
 
-  // NEW: !knife → alias qui appelle knife()
-  async startKnife(opts: { serverId?: string; matchId?: string, actor?: Actor }) {
-    return this.knife(opts);
-  }
 
   // NEW: !restart → alias qui appelle restart()
   async restartGame(opts: { serverId?: string; matchId?: string; delay?: number, actor?: Actor }) {
@@ -343,7 +347,6 @@ export class MatchCommandsService {
     if (!opts.ready) {
       await this.mps.cancelPhaseCountdown(matchId, 'team_unready');
     }
-
 
   const values = await this.redis.hgetall(matchReadyKey(matchId));
   if(values.home === '1' && values.away === '1'){ 
@@ -377,39 +380,23 @@ export class MatchCommandsService {
 export function resolveNextPhase(
   current: Phase | null | undefined,
   ctx?: NextPhaseContext
-): Phase {
+): MP {
   const C = { ...DEFAULT_CTX, ...(ctx || {}) };
 
   if (!current) {
-    return C.knifeEnabled ? 'knife' : 'live';
+    return C.knifeEnabled ? MP.KNIFE_LIVE : MP.LIVE_MAIN;
   }
 
   switch (current) {
     case 'knife':
       // Après le knife, on passe live (1ère mi-temps)
-      return 'knife_decision';
+      return MP.KNIFE_CHOICE;
 
     case 'knife_decision':
-      return 'live'
-
-    case 'live':
-      // Si la mi-temps n’a pas encore été jouée → on y va
-      if (!C.halftimePlayed) return 'halftime';
-      // Sinon, on est en fin de temps réglementaire : OT si égalité, sinon postgame
-      return C.needOvertime ? 'overtime' : 'postgame';
-
-    case 'halftime':
-      // Reprise en live (2nde mi-temps)
-      return 'live';
-
-    case 'overtime':
-      // Par défaut, une fois un OT joué on décide ici :
-      // - si encore égalité, tu peux rappeler resolveNextPhase avec needOvertime=true pour enchaîner un autre OT
-      // - sinon on va en postgame
-      return C.needOvertime ? 'overtime' : 'postgame';
+      return MP.LIVE_MAIN
 
     case 'postgame':
     default:
-      return 'postgame';
+      return MP.KNIFE_CHOICE;
   }
 }

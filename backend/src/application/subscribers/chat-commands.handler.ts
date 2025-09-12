@@ -3,6 +3,7 @@ import { Injectable, Logger } from '@nestjs/common';
 import { MatchStateService } from '../state/match-state.service';
 import { MatchCommandsService } from '@app/commands/match-commands.service';
 import { CommandEvent } from '@domain/types/command.event';
+import { MatchPhaseService } from '@app/phase/match-phase.service';
 
 type TeamSide = 'CT' | 'T';
 type Channel = 'say' | 'say_team';
@@ -21,6 +22,7 @@ export class ChatCommandHandler {
   constructor(
     private readonly matchState: MatchStateService,
     private readonly matchCommandService: MatchCommandsService,
+    private readonly matchPhaseService: MatchPhaseService,
   ) {}
 
   private key(matchId: string, who: string) { return `${matchId}:${who}`; }
@@ -72,7 +74,12 @@ export class ChatCommandHandler {
       return;
     }
 
+    if (!(await this.matchPhaseService.isAllowed(ev.matchId, command))) return;
+
+
     this.logger.debug(`[COMMAND] ${command} by=${who} team=${side} chan=${chan} params=${JSON.stringify(params)} match=${ev.matchId}`);
+
+
 
     // ————— Dispatch commandes —————
     switch (command) {
@@ -111,10 +118,9 @@ export class ChatCommandHandler {
         break;
       }
       case 'knife': {
-        await this.matchCommandService.startKnife({
+        await this.matchCommandService.knife({
           serverId: ev.serverId,
           matchId: ev.matchId,
-          actor: { name: sender.name, steamId: sender.steamId ?? undefined, teamSide: side as TeamSide, channel: chan },
         });
         break;
       }

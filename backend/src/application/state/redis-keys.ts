@@ -28,4 +28,8 @@ export const redisConst = {
   phaseLock:   (matchId: string) => `match:${matchId}:phase:lock`,   // string (SET NX EX)
   pause:       (matchId: string) => `match:${matchId}:pause`,        // hash { state, ... } optionnel
 
+  knifeWinner:  (m: string) => `match:${m}:knife:winner`,            // 'home' | 'away'
+  knifeChoiceT: (m: string) => `match:${m}:knife:choice_deadline`,   // ts ms
+
+
 } as const;

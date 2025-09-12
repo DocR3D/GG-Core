@@ -5,7 +5,18 @@ import { REDIS_CMD, REDIS_PUB } from '@adapters/redis/redis.tokens';
 import { redisConst } from '../state/redis-keys';
 import { MatchCommandsService } from '@app/commands/match-commands.service';
 
-import type { Phase} from '@domain/phase.types';
+import { MatchPhase, Phase} from '@domain/phase.types';
+
+
+const ALLOW: Record<MatchPhase, ReadonlySet<String>> = {
+  [MatchPhase.WARMUP_MAIN]:  new Set(['ready','unready','start_knife','pause_tech']),
+  [MatchPhase.KNIFE_WARMUP]: new Set(['abort_knife','pause_tech']),
+  [MatchPhase.KNIFE_LIVE]:   new Set(['abort_knife','pause_tech']),
+  [MatchPhase.KNIFE_CHOICE]: new Set(['stay','switch','pause_tech']),
+  [MatchPhase.LIVE_MAIN]:    new Set(['pause_tac','pause_tech','unpause','restart_round']),
+  [MatchPhase.PAUSED_TAC]:   new Set(['unpause','pause_tech']),
+  [MatchPhase.PAUSED_TECH]:  new Set(['unpause']),
+};
 
 @Injectable()
 export class MatchPhaseService {
@@ -24,7 +35,7 @@ export class MatchPhaseService {
     return h.home === '1' && h.away === '1';
   }
 
-  async startPhaseCountdown(matchId: string, nextPhase: Phase, seconds = 5, serverId?: string) {
+  async startPhaseCountdown(matchId: string, nextPhase: MatchPhase, seconds = 5, serverId?: string) {
     const lockKey = redisConst.phaseLock(matchId);
     const pendingKey = redisConst.phasePending(matchId);
 
@@ -146,7 +157,7 @@ export class MatchPhaseService {
     this.logger.debug(`[${matchId}] countdown cancelled: ${reason}`);
   }
 
-  private async applyPhase(matchId: string, phase: Phase, serverId?: string) {
+  private async applyPhase(matchId: string, phase: MatchPhase, serverId?: string) {
     const lockKey = redisConst.phaseLock(matchId);
     const pendingKey = redisConst.phasePending(matchId);
     const phaseKey = redisConst.phase(matchId);
@@ -180,23 +191,33 @@ export class MatchPhaseService {
   }
 
   // Route la logique (tu peux déplacer ceci ailleurs si tu préfères)
-  private async runPhase(matchId: string, phase: Phase, serverId?: string) {
+  private async runPhase(matchId: string, phase: MatchPhase, serverId?: string) {
     switch (phase) {
-      case 'knife':
-        await this.mcs.runKnife(matchId, serverId);
+      case MatchPhase.KNIFE_LIVE:
+        await this.mcs.knife({matchId, serverId});
         break;
-      case 'live':
+      case MatchPhase.LIVE_MAIN:
         await this.mcs.runLive(matchId, serverId); // (ex: mp_restartgame 1, say "live in 3..2..1")
         break;
-      case 'halftime':
+      /*case 'halftime':
         await this.mcs.runHalftime(matchId, serverId);
         break;
       case 'overtime':
         await this.mcs.runOvertime(matchId, serverId);
-        break;
-      case 'postgame':
+        break; */
+      case MatchPhase.WARMUP_MAIN:
         await this.mcs.runPostgame(matchId, serverId);
         break;
     }
+  }
+  async isAllowed(matchId: string, cmd: String): Promise<boolean> {
+    const phase = await this.getPhase(matchId);
+    return ALLOW[phase]?.has(cmd) ?? false;
+  }
+
+  async getPhase(matchId: string): Promise<MatchPhase> {
+    const v = await this.redis.get(redisConst.phase(matchId));
+    return (v as MatchPhase) || MatchPhase.WARMUP_MAIN;
+    // Option: set par défaut si absent
   }
 }

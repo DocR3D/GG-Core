@@ -34,6 +34,7 @@ import (
 	// ...
 	"ggbot/internal/parser"
 
+	"ggbot/internal/execfg"
 	myrcon "ggbot/internal/rcon"
 
 	redis "github.com/redis/go-redis/v9"
@@ -47,12 +48,14 @@ type AgentAction struct {
 	ServerID string `json:"serverId"`
 	Action   string `json:"action"`
 	Payload  struct {
-		MatchID     string `json:"matchId"`
-		TeamLogical string `json:"teamLogical"`
-		TeamSide    string `json:"teamSide"`
-		Seconds     int    `json:"seconds,omitempty"`
-		Message     string `json:"text,omitempty"`
-		Map         string `json:"map,omitempty"`
+		MatchID     string            `json:"matchId"`
+		TeamLogical string            `json:"teamLogical"`
+		TeamSide    string            `json:"teamSide"`
+		Seconds     int               `json:"seconds,omitempty"`
+		Message     string            `json:"text,omitempty"`
+		Map         string            `json:"map,omitempty"`
+		Name        string            `json:"name,omitempty"`
+		Vars        map[string]string `json:"vars,omitempty"` // ex: {"roundtime":"60"}
 	} `json:"payload"`
 	TS int64 `json:"ts"`
 }
@@ -385,6 +388,47 @@ func execAction(ctx context.Context, cfg AgentConfig, act *AgentAction) error {
 		})
 		log.Printf("[agent:%s] RCON mp_restartgame -> %q err=%v", cfg.ServerID, out, err)
 		return err
+	case "exec_cfg":
+		name := strings.TrimSpace(act.Payload.Name)
+		if name == "" {
+			// fallback: on autorise aussi d’envoyer le nom dans "text" si besoin
+			name = strings.TrimSpace(act.Payload.Message)
+		}
+		if name == "" {
+			return fmt.Errorf("exec_cfg: payload.name manquant")
+		}
+
+		base := os.Getenv("CFG_BASE")
+		if base == "" {
+			base = "/app/cfg" // le volume monté via docker-compose
+		}
+		resolver := execfg.OSResolver{Base: base}
+
+		f, err := resolver.Open(name)
+		if err != nil {
+			return fmt.Errorf("exec_cfg: open %q: %w", name, err)
+		}
+		defer f.Close()
+
+		rcon := &RconAdapter{Cfg: cfg}
+		opts := execfg.Options{
+			Throttle:         75 * time.Millisecond,
+			MaxLines:         1000,
+			MaxLineLen:       512,
+			AllowChangeLevel: false,
+			WhitelistPrefix:  []string{"mp_", "sv_", "tv_", "bot_", "say", "echo"},
+			Resolver:         resolver,
+			Vars:             act.Payload.Vars, // peut être nil
+			Logger: func(format string, args ...any) {
+				log.Printf("[agent:%s] execCfg "+format, append([]any{}, args...)...)
+			},
+		}
+
+		log.Printf("[agent:%s] exec_cfg: %s (base=%s)", cfg.ServerID, name, base)
+		if err := execfg.ExecCfg(ctx, rcon, f, opts); err != nil {
+			return fmt.Errorf("exec_cfg: %w", err)
+		}
+		return nil
 
 	default:
 		log.Printf("[agent:%s] unknown action: %q (ignored)", cfg.ServerID, act.Action)

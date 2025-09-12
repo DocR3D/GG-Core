@@ -41,9 +41,12 @@ services:
     depends_on:
       redis:
         condition: service_healthy
+    environment:
+      - CFG_BASE=/app/cfg
     volumes:
     # Mount your agents directory from host → container
       - ../agents.d:/etc/ggbot/agents.d:ro
+      - ../agent/cfg:/app/cfg:ro
     command: ["-agents-dir","/etc/ggbot/agents.d",
       "-agent-bin","/app/agentd",
       "-redis","redis://redis:6379"]
