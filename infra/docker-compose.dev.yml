@@ -23,24 +23,26 @@ services:
     ports:
       - "8081:8081"
 
-  agent:
+  manager:
     build:
-      context: ../agent
-      dockerfile: ../Dockerfile.agent.dev
-    container_name: ggcore-agent-dev
-    working_dir: /app
-    # Monte tout parser (code + config.yaml)
-    volumes:
-      - ../agent:/app
-      # environment:
-      # si ton agent lit Redis dans config.yaml ignore ceci
-      # sinon, tu peux aussi injecter une URL:
-      # REDIS_URL: redis://redis:6379
+      context: ..
+      dockerfile: infra/Dockerfile
+    container_name: ggbot-manager
     depends_on:
       - redis
+    volumes:
+    # Mount your agents directory from host → container
+      - ../agents.d:/etc/ggbot/agents.d:ro
+    command: ["-agents-dir","/etc/ggbot/agents.d",
+      "-agent-bin","/app/agentd",
+      "-redis","redis://redis:6379"]
+    # Expose the agents' /logs ports on the host. Adjust to match your YAMLs.
+    ports:
+      - "8082:8082" # srv-a logs.bind must be 0.0.0.0:8082
+      - "8083:8083" # srv-b logs.bind must be 0.0.0.0:8083 (example)
     restart: unless-stopped
 
-    
+
   log-drain:
     build:
       context: ../tools/log-drain   # <- vérifie le chemin depuis le dossier du compose

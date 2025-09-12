@@ -58,11 +58,16 @@ async handle(ev: CommandEvent): Promise<void> {
 
       this.logger.debug(`[COMMAND] action=TACTICAL_TIMEOUT side=${side} matchId=${ev.matchId} serverId=${ev.serverId}`);
 
-      await this.matchCommandService.tacticalTimeout(ev.serverId, ev.matchId, {
-        name: ev.payload.sender.name,
-        steamId: ev.payload.sender.steamId ?? undefined, // null -> undefined
-        teamSide: side,
-        channel: ev.payload.sender.channel === 'say_team' ? 'say_team' : 'say',
+      await this.matchCommandService.tacticalTimeout({
+        serverId: ev.serverId,
+        matchId: ev.matchId,
+        actor: {
+          name: ev.payload.sender.name,
+          steamId: ev.payload.sender.steamId ?? undefined,
+          teamSide: side,
+          channel: ev.payload.sender.channel === 'say_team' ? 'say_team' : 'say',
+        },
+        // seconds: 30, // optionnel
       });
       break;
     }
@@ -70,12 +75,20 @@ async handle(ev: CommandEvent): Promise<void> {
     case 'init': {
       const p = ev.payload.parameters ?? [];
       this.logger.debug(`[COMMAND] action=INIT map=${p[0]} home=${p[1]} away=${p[2]} matchId=${ev.matchId}`);
+      // APRÈS (init)
+      const map = p[0];
+      const home = (p[1] === 'CT' || p[1] === 'T') ? (p[1] as 'CT'|'T') : 'CT';
+      const away = (p[2] === 'CT' || p[2] === 'T') ? (p[2] as 'CT'|'T') : 'T';
+      const res = await this.matchCommandService.ensureInitMatch(
+        ev.serverId,
+        ev.matchId ?? undefined,
+        { home, away },
+      );
 
-      await this.matchCommandService.ensureInitFromCommand(ev, {
-        map: p[0],
-        home: (p[1] as 'CT' | 'T') ?? 'CT',
-        away: (p[2] as 'CT' | 'T') ?? 'T',
-      });
+      // Si un nom de map a été fourni, switch de map via l’agent
+      if (map) {
+        await this.matchCommandService.changeLevel({ serverId: ev.serverId, map });
+      }
       break;
     }
 

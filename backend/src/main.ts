@@ -5,34 +5,28 @@ import { json, urlencoded } from 'express';
 import { RequestMethod } from '@nestjs/common';
 
 async function bootstrap() {
-  const app = await NestFactory.create(AppModule);
+  const app = await NestFactory.create(AppModule, { logger: ['log','error','warn','debug','verbose'] });
 
-  // Parsers "globaux" pour l'API JSON classique
-  app.use(json({ limit: '1mb' }));
-  app.use(urlencoded({ extended: true }));
+  // Pour des IP correctes derrière proxy
+  (app.getHttpAdapter().getInstance() as any).set('trust proxy', 1);
 
-  // Parser TEXTE brut uniquement pour /cs2/logs (logs CS2)
-  app.use(
-    '/cs2/logs',
-    bodyParser.text({
-      // traite TOUT ce qui arrive sur /cs2/logs comme du texte brut
-      type: () => true,
-      limit: '2mb',
-    }),
-  );
+  // ✅ 1) TEXTE brut UNIQUEMENT pour /cs2/logs (d’abord)
+  app.use('/cs2/logs', bodyParser.text({ type: () => true, limit: '2mb' }));
 
-  // ==> Ajoute un prefix global pour TOUTE l’API…
-  // … mais EXCLUT explicitement l’endpoint des logs pour le garder sans /api
+  // ❗ 2) Parsers globaux — mais seulement sous /api
+  app.use('/api', json({ limit: '1mb' }));
+  app.use('/api', urlencoded({ extended: true }));
+
+  // 3) Prefix global /api en excluant /cs2/logs (comme tu l’avais)
   app.setGlobalPrefix('api', {
     exclude: [
       { path: 'cs2/logs', method: RequestMethod.ALL },
-      { path: 'cs2/logs/(.*)', method: RequestMethod.ALL }, // si tu as des sous-routes
+      { path: 'cs2/logs/(.*)', method: RequestMethod.ALL },
     ],
   });
 
-  // (Optionnel) CORS si tu as un front séparé
+
   // app.enableCors({ origin: true, credentials: true });
-  app.useLogger(['log', 'error', 'warn', 'debug', 'verbose']);
   await app.listen(8081);
 }
 bootstrap();

@@ -1,13 +1,12 @@
 import {
   Controller, Post, Body, Req, UnauthorizedException, ForbiddenException,
-  HttpCode, Query, BadRequestException, Logger
+  HttpCode, Query, BadRequestException, Logger, Headers
 } from '@nestjs/common';
 import type { Request } from 'express';
 import { Cs2LogsService, LogCtx } from './cs2-logs.service';
 import { MatchStateService } from '@app/state/match-state.service';
 
-
-// Utils IP identiques à ta version
+// ================= Utils IP (inchangés) =================
 function normalizeIpv4(ip: string): string {
   const m = ip.match(/(\d{1,3}\.){3}\d{1,3}$/);
   return m ? m[0] : ip;
@@ -37,30 +36,28 @@ export class Cs2LogsController {
   private readonly allowed: string[] = (process.env.ALLOWED_IPS || '')
     .split(',').map(s => s.trim()).filter(Boolean);
 
-  constructor(private readonly svc: Cs2LogsService,private readonly matchState: MatchStateService) {}
   private readonly logger = new Logger('CS2-LOGS');
+
+  constructor(
+    private readonly svc: Cs2LogsService,
+    private readonly matchState: MatchStateService
+  ) {}
 
   @Post()
   @HttpCode(200)
   async receive(
-    
     @Req() req: Request,
     @Body() body: any,
-    @Query('matchId') matchIdFromQuery?: string,
-    @Query('map') map?: string,
+    @Headers('x-server-id') headerServerId?: string, // [MOD] lis X-Server-ID dans les headers (prioritaire sur query)
     @Query('server') serverQ?: string,
-    @Query('matchId') matchIdQ?: string,
+    @Query('serverId') serverIdQ?: string,
+    @Query('matchId') matchIdQ?: string,           // [MOD] supprime le doublon matchIdFromQuery/m
     @Query('m') matchIdShort?: string,
-    @Query('serverId') serverIdQ?: string, 
+    @Query('map') map?: string,
     @Query('round') roundQ?: string,
     @Query('tick') tickQ?: string,
   ) {
-    const serverId = serverIdQ ?? serverQ ?? null;
-    let matchId = matchIdQ ?? matchIdShort ?? null;
-    if (!matchId && serverId) {
-      matchId = await this.matchState.getServerMatch(serverId);
-    }
-    // 1) Auth token (identique)
+    // ===== 1) Auth token (ne pas logger la valeur du token) =====
     const token = req.header('x-cs2-token') || (typeof req.query.token === 'string' ? req.query.token : undefined);
     if (process.env.CS2_TOKEN) {
       if (!token || token !== process.env.CS2_TOKEN) {
@@ -68,7 +65,7 @@ export class Cs2LogsController {
       }
     }
 
-    // 2) Filtrage IP (identique)
+    // ===== 2) Filtrage IP (avec trust proxy côté main.ts) =====
     if (this.allowed.length > 0) {
       const clientIp =
         (req.headers['x-forwarded-for'] as string)?.split(',')[0]?.trim() ||
@@ -78,27 +75,48 @@ export class Cs2LogsController {
       }
     }
 
-    // 4) Contexte optionnel via query
+    // ===== 3) ServerId & Content-Type =====
+    // [MOD] priorité au header X-Server-ID, puis query serverId/server
+    const serverId = headerServerId ?? serverIdQ ?? serverQ ?? null;
 
+    // [MOD] contrôle (souple) du Content-Type pour NDJSON
+    const ct = (req.headers['content-type'] || '').split(';')[0].toLowerCase();
+    const isNdjson = ct === 'application/x-ndjson';
+
+    // ===== 4) Résolution du matchId via query ou Redis =====
+    let matchId = matchIdQ ?? matchIdShort ?? null;
+    if (!matchId && serverId) {
+      matchId = await this.matchState.getServerMatch(serverId);
+    }
+
+    // ===== 5) Construction du contexte =====
+    // [MOD] propage map/round/tick + marque serverBound si matchId résolu
     const ctx: LogCtx = {
-  serverId: (serverId ?? 'unknown'),    // <- garanti string
-  matchId: (matchId ?? null),
-  map: null, round: null, tick: null,
-  source: 'logs', recvAt: Date.now(), lineTs: null, serverBound: !!matchId,
-};
+      serverId: (serverId ?? 'unknown'),
+      matchId: (matchId ?? null),
+      map: map ?? null,
+      round: roundQ ? (Number(roundQ) || null) : null,
+      tick: tickQ ? (Number(tickQ) || null) : null,
+      source: 'logs',
+      recvAt: Date.now(),
+      lineTs: null,
+      serverBound: !!matchId,
+    };
 
-    // 5) Normalisation du body (identique)
-    const text =
-      typeof body === 'string' ? body :
-      Buffer.isBuffer(body) ? body.toString('utf8') :
-      JSON.stringify(body ?? '');
+    // ===== 6) Lecture du body =====
+    // [MOD] comme /cs2/logs est parsé en texte brut, @Body() est (normalement) string
+    //      on force en string proprement, sans Buffer/JSON.stringify
+    const text = String(body ?? '');
 
-    let t = text.replace(/\0/g, ''); // nettoyage léger
+    // [MOD] nettoyage mineur (NUL chars)
+    let t = text.replace(/\0/g, '');
+
+    // [MOD] log sans le token pour éviter la fuite
+    this.logger.debug(`RX serverId=${serverId ?? '∅'} matchId=${matchId ?? '∅'} ct=${ct} bodyLen=${t.length}`);
+
+    // ===== 7) Gestion blocs JSON round_stats (inchangée) =====
     const blocks = this.findRoundStatsBlocks(t);
-    this.logger.debug(`RX serverId=${serverId ?? '∅'} matchId=${matchId ?? '∅'} token=${token ?? '∅'} bodyLen=${body?.length ?? 0} content= ${body ?? '∅'}`,);
 
-
-    
     if (blocks.length) {
       let last = 0;
 
@@ -124,9 +142,10 @@ export class Cs2LogsController {
         await this.svc.handleLogLine(ctx, line);
       }
     } else {
-      // Pas de bloc JSON : traitement ligne par ligne classique
+      // ===== 8) NDJSON vs lignes simples =====
+      // [MOD] si NDJSON, chaque ligne est une "entrée" (1 log par ligne)
+      //       sinon, fallback: on traite comme lignes simples (ta logique actuelle)
       const lines = t.split(/\r?\n/).map(l => l.trim()).filter(Boolean);
-
       for (const line of lines) {
         await this.svc.handleLogLine(ctx, line);
       }
