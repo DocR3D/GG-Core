@@ -1,6 +1,7 @@
 import type { BaseEvent } from './base.event';
 import { EventTypes } from './event.types';
 import type { CommandEvent } from './command.event';
+import { GameSide } from '@app/state';
 
 export type EventKind = 'primary' | 'telemetry';
 export type Team = 'T' | 'CT';
@@ -9,7 +10,7 @@ export type TeamRoundWinReason = 'bomb_exploded' | 'defused' | 'elim' | 'time';
 export type PlayerRefLogs = {
   name: string;
   steamId: string;
-  team: 'TERRORIST' | 'CT' | 'SPECTATOR' | 'Unassigned';
+  team: GameSide;
 };
 
 // ————————————————————————————

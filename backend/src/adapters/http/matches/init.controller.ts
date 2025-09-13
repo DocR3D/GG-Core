@@ -36,7 +36,7 @@ export class MatchInitController {
       await this.matchState.setTeams(matchId, dto.teams);
     }
     if (dto.serverId) {
-      await this.matchState.setServerMatch(dto.serverId, matchId);
+      await this.matchState.setServerIdToMatchId(dto.serverId, matchId);
       this.logger.debug(`BOUND server "${dto.serverId}" -> match "${matchId}"`);
     }
     return { ok: true };

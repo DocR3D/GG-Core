@@ -7,7 +7,7 @@ export class AdminController {
 
   @Post('bind')
   async bind(@Body() b: { serverId:string; matchId:string }) {
-    await this.ms.setServerMatch(b.serverId, b.matchId);
+    await this.ms.setServerIdToMatchId(b.serverId, b.matchId);
     return { ok: true };
   }
 

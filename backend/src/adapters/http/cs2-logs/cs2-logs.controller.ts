@@ -91,7 +91,7 @@ export class Cs2LogsController {
     let matchIdHint = matchIdQ ?? undefined;
     if (!matchIdHint && serverIdHint) {
       // fallback: si on n’a pas matchId dans l’event, on tentera ce hint
-      try { matchIdHint = await this.matchState.getServerMatch(serverIdHint) ?? undefined; } catch {}
+      try { matchIdHint = await this.matchState.getMatchIdFromServerId(serverIdHint) ?? undefined; } catch {}
     }
 
     // ===== 4) Normalisation input: NDJSON | Array | Single =====

@@ -1,17 +1,16 @@
 // src/application/commands/match-commands.service.ts
-import { Injectable, Logger, Inject, BadRequestException } from '@nestjs/common';
+import { Injectable, Logger, Inject, BadRequestException, forwardRef } from '@nestjs/common';
 import type Redis from 'ioredis';
 import { REDIS_CMD, REDIS_PUB } from '@adapters/redis/redis.tokens';
-import { MatchStateService } from '../state/match-state.service';
-import { MatchPhaseService } from '../phase/match-phase.service';
+import { GameSide, MatchStateService } from '../state/match-state.service';
+import { MatchPhaseService } from '@app/phase/match-phase.service';
 
 import { redisConst } from '../state/redis-keys';
 import * as crypto from 'crypto';
 import { MatchPhase as MP } from '@domain/phase.types';
 
 // ⚠️ Idéalement, importe depuis un type canonique partagé (ex: @adapters/ws/dto/events.dto)
-type TeamSide = 'CT' | 'T';
-type Actor = { name: string; steamId?: string; teamSide: TeamSide; channel?: 'say' | 'say_team' };
+type Actor = { name: string; steamId?: string; teamSide: GameSide; channel?: 'say' | 'say_team' };
 type Phase = 'warmup' | 'knife'| 'knife_decision' | 'live' | 'halftime' | 'overtime' | 'postgame';
 
 
@@ -27,14 +26,15 @@ const DEFAULT_CTX: Required<NextPhaseContext> = {
   needOvertime: false,
 };
 type AgentAction =
-  | { id: string; ts: number; type: 'action'; serverId: string; action: 'tac_timeout';  payload: { matchId: string; teamSide: TeamSide; teamLogical: 'home'|'away'; seconds: number }; source?: any }
+  | { id: string; ts: number; type: 'action'; serverId: string; action: 'tac_timeout';  payload: { matchId: string; teamSide: GameSide; teamLogical: 'home'|'away'; seconds: number }; source?: any }
   | { id: string; ts: number; type: 'action'; serverId: string; action: 'tech_timeout'; payload: { matchId: string; seconds: number };                                      source?: any }
-  | { id: string; ts: number; type: 'action'; serverId: string; action: 'unpause';      payload: { matchId: string; teamSide?: TeamSide };                                  source?: any }
+  | { id: string; ts: number; type: 'action'; serverId: string; action: 'unpause';      payload: { matchId: string; teamSide?: GameSide };                                  source?: any }
   | { id: string; ts: number; type: 'action'; serverId: string; action: 'say';          payload: { text: string };                                                      source?: any }
-  | { id: string; ts: number; type: 'action'; serverId: string; action: 'say_team';     payload: { team: TeamSide; text: string };                                      source?: any }
+  | { id: string; ts: number; type: 'action'; serverId: string; action: 'say_team';     payload: { team: GameSide; text: string };                                      source?: any }
   | { id: string; ts: number; type: 'action'; serverId: string; action: 'knife';        payload: { matchId: string };                                                      source?: any }
   | { id: string; ts: number; type: 'action'; serverId: string; action: 'restart';      payload: { matchId: string; delay?: number };                                       source?: any }
   | { id: string; ts: number; type: 'action'; serverId: string; action: 'exec_cfg';     payload: { matchId: string;name: string;vars?: Record<string, string>;  };   source?: any }
+  | { id: string; ts: number; type: 'action'; serverId: string; action: 'rcon';     payload: { text: string };                                                             source?: any }
   | { id: string; ts: number; type: 'action'; serverId: string; action: 'changelevel';  payload: { map: string };                                                          source?: any };
 
 const agentActionsCh = (serverId: string) => `ggbot:agent:${serverId}:actions`;
@@ -75,6 +75,7 @@ export class MatchCommandsService {
 
   constructor(
     private readonly ms: MatchStateService,
+    @Inject(forwardRef(() => MatchPhaseService))
     private readonly mps: MatchPhaseService,
     @Inject(REDIS_CMD) private readonly redis: Redis,
     @Inject(REDIS_PUB) private readonly pub: Redis,
@@ -166,7 +167,7 @@ export class MatchCommandsService {
     return { ok: true };
   }
 
-  async sayTeam(opts: { serverId: string; team: TeamSide; message: string }) {
+  async sayTeam(opts: { serverId: string; team: GameSide; message: string }) {
     if (!opts.serverId) throw new BadRequestException('serverId requis');
     const msg: AgentAction = {
       id: uuid(), ts: Date.now(), type: 'action', serverId: opts.serverId,
@@ -176,7 +177,7 @@ export class MatchCommandsService {
     return { ok: true };
   }
 
-  async knife(opts: { serverId?: string; matchId?: string; vars?: Record<string,string> }) {
+  async exec(opts: { serverId?: string; matchId?: string; cfgName: string, vars?: Record<string,string> }) {
     const { serverId, matchId } = await this.resolveServerAndMatch(opts);
     const msg: AgentAction = {
       id: uuid(),
@@ -186,12 +187,23 @@ export class MatchCommandsService {
       action: 'exec_cfg',
       payload: {
         matchId,
-        name: 'ggbot/knife.cfg',   // ⬅️ fichier à exécuter
+        name: opts.cfgName,   // ⬅️ fichier à exécuter
         ...(opts.vars ? { vars: opts.vars } : {}) // optionnel: variables du cfg
       },
       source: { via: 'admin' },
     };
+    
     await this.publishToAgent(serverId, msg);
+    return { ok: true };
+  }
+
+  async rcon(opts: { serverId?: string; matchId?: string; command: string}) {
+    if (!opts.serverId) throw new BadRequestException('serverId requis');
+    const msg: AgentAction = {
+      id: uuid(), ts: Date.now(), type: 'action', serverId: opts.serverId,
+      action: 'rcon', payload: { text: opts.command }, source: { via: 'admin' },
+    };
+    await this.publishToAgent(opts.serverId, msg);
     return { ok: true };
   }
 
@@ -227,12 +239,12 @@ export class MatchCommandsService {
     return { ok: true, serverId: sid, matchId: mid };
   }
 
-  async ensureInitMatch(serverId: string, matchId?: string, sides?: { home: TeamSide; away: TeamSide }, opts: InitOpts = {}) {
+  async ensureInitMatch(serverId: string, matchId?: string, sides?: { home: GameSide; away: GameSide }, opts: InitOpts = {}) {
     const sid = String(serverId || '').trim();
     if (!sid) throw new BadRequestException('serverId requis');
 
-    const wantHome: TeamSide = sides?.home ?? 'CT';
-    const wantAway: TeamSide = sides?.away ?? 'T';
+    const wantHome: GameSide = sides?.home ?? 'CT';
+    const wantAway: GameSide = sides?.away ?? 'T';
     if (wantHome === wantAway) throw new BadRequestException(`sides invalides: home=${wantHome} away=${wantAway}`);
 
     let mid = String(matchId || '').trim();
@@ -367,6 +379,17 @@ export class MatchCommandsService {
     await this.say({ serverId, message: '[match] stopped by admin' });
     return { ok: true };
   }
+
+  async  swapSides(opts: { matchId: string }): Promise<void>{
+    const { serverId, matchId } = await this.resolveServerAndMatch(opts);
+    this.rcon({
+      serverId,
+      matchId:opts.matchId,
+      command:"mp_swapteams"
+    })
+
+  }
+
 }
 /**
  * Détermine la phase suivante, en pure function.
@@ -400,3 +423,4 @@ export function resolveNextPhase(
       return MP.KNIFE_CHOICE;
   }
 }
+

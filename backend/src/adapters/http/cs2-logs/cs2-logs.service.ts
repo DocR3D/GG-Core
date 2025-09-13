@@ -37,7 +37,7 @@ export class Cs2LogsService {
       // ⬇️ fallback si l’agent n’a pas mis matchId
       if (!ev.matchId && ev.serverId) {
         try {
-          ev.matchId = await this.matchStateService.getServerMatch(ev.serverId) ?? undefined;
+          ev.matchId = await this.matchStateService.getMatchIdFromServerId(ev.serverId) ?? undefined;
         } catch { /* ignore */ }
       }
       await this.publisher.publish('ggbot:events', ev);

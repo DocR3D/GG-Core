@@ -1,17 +1,15 @@
 // src/application/subscribers/chat-commands.handler.ts
-import { Injectable, Logger } from '@nestjs/common';
-import { MatchStateService } from '../state/match-state.service';
+import { Injectable, Logger, Inject, forwardRef } from '@nestjs/common';
+import { GameSide, MatchStateService } from '../state/match-state.service';
 import { MatchCommandsService } from '@app/commands/match-commands.service';
 import { CommandEvent } from '@domain/types/command.event';
 import { MatchPhaseService } from '@app/phase/match-phase.service';
-
-type TeamSide = 'CT' | 'T';
+import { RuleRegistry } from '@app/rules/rule.registry';
+import { MatchPhase } from '@domain/phase.types';
+import { statSync } from 'fs';
 type Channel = 'say' | 'say_team';
 
 const CMD_COOLDOWN_MS = 1000;
-const ALLOWED = new Set([
-  'pause','unpause','tech','tac','start','knife','stop','ready','unready','timeout','restart','init'
-]);
 
 @Injectable()
 export class ChatCommandHandler {
@@ -21,16 +19,14 @@ export class ChatCommandHandler {
 
   constructor(
     private readonly matchState: MatchStateService,
+      @Inject(forwardRef(() => MatchCommandsService))
     private readonly matchCommandService: MatchCommandsService,
     private readonly matchPhaseService: MatchPhaseService,
+    private readonly registry: RuleRegistry,
+    
   ) {}
 
   private key(matchId: string, who: string) { return `${matchId}:${who}`; }
-  private normTeam(t: any): TeamSide | 'spec' {
-    if (t === 'CT') return 'CT';
-    if (t === 'T' || t === 'TERRORIST') return 'T';
-    return 'spec';
-  }
   private normChan(c: any): Channel { return c === 'say_team' ? 'say_team' : 'say'; }
 
   async handle(ev: CommandEvent): Promise<void> {
@@ -49,12 +45,7 @@ export class ChatCommandHandler {
       return;
     }
 
-    if (!ALLOWED.has(command)) {
-      this.logger.debug(`[COMMAND] ignored not-allowed "${command}"`);
-      return;
-    }
-
-    const side  = this.normTeam(sender.team);
+    const side  = sender.team;
     const chan  = this.normChan(sender.channel);
     const who   = sender.steamId ?? sender.name ?? 'unknown';
     const k     = this.key(ev.matchId, who);
@@ -69,12 +60,21 @@ export class ChatCommandHandler {
     this.lastByPlayer.set(k, now);
 
     // seules les équipes actives peuvent lancer la plupart des commandes
-    if (side === 'spec' && command !== 'init') {
+    if (side === 'SPECTATOR' && command !== 'init') {
       this.logger.debug(`[COMMAND] ignored from spectator: ${who} cmd=${command}`);
       return;
     }
 
-    if (!(await this.matchPhaseService.isAllowed(ev.matchId, command))) return;
+    const phase = await this.matchPhaseService.getPhase(ev.matchId);
+    const rule  = this.registry.getRule(phase);
+
+    if(!rule.canCommand?.(ev)) return;
+
+    this.logger.debug(
+  `[RulesRouter] command dispatch: phase="${phase}" ` +
+  `rule=${rule?.constructor?.name} hasHandler=${typeof (rule as any)?.onCommandExecuted === 'function'}`
+);  
+    await rule.onCommandExecuted?.(ev);
 
 
     this.logger.debug(`[COMMAND] ${command} by=${who} team=${side} chan=${chan} params=${JSON.stringify(params)} match=${ev.matchId}`);
@@ -89,7 +89,7 @@ export class ChatCommandHandler {
         await this.matchCommandService.tacticalTimeout({
           serverId: ev.serverId,
           matchId: ev.matchId,
-          actor: { name: sender.name, steamId: sender.steamId ?? undefined, teamSide: side as TeamSide, channel: chan },
+          actor: { name: sender.name, steamId: sender.steamId ?? undefined, teamSide: side as GameSide, channel: chan },
         });
         break;
       }
@@ -97,7 +97,7 @@ export class ChatCommandHandler {
         await this.matchCommandService.technicalTimeout({
           serverId: ev.serverId,
           matchId: ev.matchId,
-          actor: { name: sender.name, steamId: sender.steamId ?? undefined, teamSide: side as TeamSide, channel: chan },
+          actor: { name: sender.name, steamId: sender.steamId ?? undefined, teamSide: side as GameSide, channel: chan },
         });
         break;
       }
@@ -105,7 +105,7 @@ export class ChatCommandHandler {
         await this.matchCommandService.unpause({
           serverId: ev.serverId,
           matchId: ev.matchId,
-          actor: { name: sender.name, steamId: sender.steamId ?? undefined, teamSide: side as TeamSide, channel: chan },
+          actor: { name: sender.name, steamId: sender.steamId ?? undefined, teamSide: side as GameSide, channel: chan },
         });
         break;
       }
@@ -113,22 +113,19 @@ export class ChatCommandHandler {
         await this.matchCommandService.startLive({
           serverId: ev.serverId,
           matchId: ev.matchId,
-          actor: { name: sender.name, steamId: sender.steamId ?? undefined, teamSide: side as TeamSide, channel: chan },
+          actor: { name: sender.name, steamId: sender.steamId ?? undefined, teamSide: side as GameSide, channel: chan },
         });
         break;
       }
       case 'knife': {
-        await this.matchCommandService.knife({
-          serverId: ev.serverId,
-          matchId: ev.matchId,
-        });
+        this.matchPhaseService.startPhaseCountdown(ev.matchId,MatchPhase.KNIFE_LIVE,5,ev.serverId);
         break;
       }
       case 'restart': {
         await this.matchCommandService.restartGame({
           serverId: ev.serverId,
           matchId: ev.matchId,
-          actor: { name: sender.name, steamId: sender.steamId ?? undefined, teamSide: side as TeamSide, channel: chan },
+          actor: { name: sender.name, steamId: sender.steamId ?? undefined, teamSide: side as GameSide, channel: chan },
         });
         break;
       }
@@ -136,7 +133,7 @@ export class ChatCommandHandler {
         await this.matchCommandService.setReady({
           serverId: ev.serverId,
           matchId: ev.matchId,
-          actor: { name: sender.name, steamId: sender.steamId ?? undefined, teamSide: side as TeamSide, channel: chan },
+          actor: { name: sender.name, steamId: sender.steamId ?? undefined, teamSide: side as GameSide, channel: chan },
           ready: true,
         });
         break;
@@ -145,7 +142,7 @@ export class ChatCommandHandler {
         await this.matchCommandService.setReady({
           serverId: ev.serverId,
           matchId: ev.matchId,
-          actor: { name: sender.name, steamId: sender.steamId ?? undefined, teamSide: side as TeamSide, channel: chan },
+          actor: { name: sender.name, steamId: sender.steamId ?? undefined, teamSide: side as GameSide, channel: chan },
           ready: false,
         });
         break;
@@ -154,7 +151,7 @@ export class ChatCommandHandler {
         await this.matchCommandService.stopMatch({
           serverId: ev.serverId,
           matchId: ev.matchId,
-          actor: { name: sender.name, steamId: sender.steamId ?? undefined, teamSide: side as TeamSide, channel: chan },
+          actor: { name: sender.name, steamId: sender.steamId ?? undefined, teamSide: side as GameSide, channel: chan },
         });
         break;
       }

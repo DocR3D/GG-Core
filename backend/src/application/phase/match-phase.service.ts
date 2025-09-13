@@ -6,128 +6,117 @@ import { redisConst } from '../state/redis-keys';
 import { MatchCommandsService } from '@app/commands/match-commands.service';
 
 import { MatchPhase, Phase} from '@domain/phase.types';
-
-
-const ALLOW: Record<MatchPhase, ReadonlySet<String>> = {
-  [MatchPhase.WARMUP_MAIN]:  new Set(['ready','unready','start_knife','pause_tech']),
-  [MatchPhase.KNIFE_WARMUP]: new Set(['abort_knife','pause_tech']),
-  [MatchPhase.KNIFE_LIVE]:   new Set(['abort_knife','pause_tech']),
-  [MatchPhase.KNIFE_CHOICE]: new Set(['stay','switch','pause_tech']),
-  [MatchPhase.LIVE_MAIN]:    new Set(['pause_tac','pause_tech','unpause','restart_round']),
-  [MatchPhase.PAUSED_TAC]:   new Set(['unpause','pause_tech']),
-  [MatchPhase.PAUSED_TECH]:  new Set(['unpause']),
-};
+import { RuleRegistry } from '@app/rules/rule.registry';
+import { BaseRule } from '@domain/rules';
+import { ACTIONS_PORT, type ActionsPort } from '@app/ports/actions.port';
+import { ModuleRef } from '@nestjs/core';
 
 @Injectable()
 export class MatchPhaseService {
   private readonly logger = new Logger(MatchPhaseService.name);
   private timers = new Map<string, NodeJS.Timeout>(); // par matchId
+  private rules!: RuleRegistry; // sera résolu après boot
+  private readonly phaseByMatch = new Map<string, MatchPhase>();
 
-  constructor(
-    @Inject(REDIS_CMD) private readonly redis: Redis,
-    @Inject(REDIS_PUB) private readonly pub: Redis,
-        @Inject(forwardRef(() => MatchCommandsService))
-    private readonly mcs: MatchCommandsService, 
-  ) {}
+constructor(
+  @Inject(REDIS_CMD) private readonly redis: Redis,
+  @Inject(REDIS_PUB) private readonly pub: Redis,
+  @Inject(ACTIONS_PORT) private readonly actions: ActionsPort,
+      private readonly moduleRef: ModuleRef,            // ⬅️ NEW
+) {
+}
+  onModuleInit() {
+    // strict:false = autorise la recherche “dans les parents”
+    this.rules = this.moduleRef.get(RuleRegistry, { strict: false });
+    if (!this.rules) {
+      this.logger.error('RuleRegistry introuvable (ModuleRef). Vérifie RulesModule dans AppModule.');
+    }
+  }
 
   async isBothReady(matchId: string): Promise<boolean> {
     const h = await this.redis.hgetall(redisConst.ready(matchId)); // "ready" => ta clé hset(home/away)
     return h.home === '1' && h.away === '1';
   }
 
-  async startPhaseCountdown(matchId: string, nextPhase: MatchPhase, seconds = 5, serverId?: string) {
-    const lockKey = redisConst.phaseLock(matchId);
-    const pendingKey = redisConst.phasePending(matchId);
+public async startPhaseCountdown(
+  matchId: string,
+  nextPhase: MatchPhase,
+  seconds: number,
+  serverId?: string
+): Promise<void> {
+  const lockKey = redisConst.phaseLock(matchId);
+  const pendingKey = redisConst.phasePending(matchId);
 
-    // 1) Try lock (évite doublons). TTL = seconds + marge.
-  // lock: SET key value EX ttl NX
-  const got = await this.redis.set(
-    lockKey,
-    String(Date.now()),
-    'EX',
-    seconds + 10,
-    'NX',
-  ); // 'OK' si lock acquis, sinon null
+  let remain = Math.max(0, Math.floor(seconds ?? 0));
 
-  if (!got) return; // un countdown est déjà en cours
+  // Lock (évite doublons)
+  const got = await this.redis.set(lockKey, String(Date.now()), 'EX', remain + 10, 'NX');
+  if (!got) return; // déjà en cours
 
-  // pending: SET key value EX ttl
-  await this.redis.set(
-    pendingKey,
-    nextPhase,
-    'EX',
-    seconds + 15,
-  );
+  // Pending (phase cible)
+  await this.redis.set(pendingKey, String(nextPhase), 'EX', remain + 15);
 
-    // 3) double-check ready + pas en pause
-    if (!(await this.isBothReady(matchId)) || (await this.isMatchPaused(matchId))) {
-      await this.cancelPhaseCountdown(matchId, 'not_ready_or_paused');
+  // Si pas prêts/pausé, annule d’emblée
+  if (!(await this.isBothReady(matchId)) || (await this.isMatchPaused(matchId))) {
+    await this.cancelPhaseCountdown(matchId, 'not_ready_or_paused');
+    return;
+  }
+
+  // 0s -> applique tout de suite
+  if (remain === 0) {
+    await this.pub.publish('ggbot:events', JSON.stringify({
+      v: 1, type: 'phase:countdown', matchId, serverId, timestamp: Date.now(),
+      source: 'system', kind: 'primary', payload: { nextPhase, remain: 0 },
+    }));
+    await this.applyPhase(matchId, nextPhase, serverId);
+    this.timers.delete(matchId);
+    return;
+  }
+
+  if (serverId) await this.actions.say({ serverId, message: `Début de ${nextPhase} dans ${remain} secondes…` });
+  await this.pub.publish('ggbot:events', JSON.stringify({
+    v: 1, type: 'phase:countdown', matchId, serverId, timestamp: Date.now(),
+    source: 'system', kind: 'primary', payload: { nextPhase, remain },
+  }));
+
+  const tick = async () => {
+    remain -= 1;
+
+    await this.redis.expire(lockKey, remain + 10);
+    await this.redis.expire(pendingKey, remain + 12);
+
+    if (!(await this.isBothReady(matchId))) {
+      await this.cancelPhaseCountdown(matchId, 'team_unready'); return;
+    }
+    if (await this.isMatchPaused(matchId)) {
+      await this.cancelPhaseCountdown(matchId, 'paused'); return;
+    }
+    if (!(await this.redis.get(lockKey))) {
+      await this.cancelPhaseCountdown(matchId, 'lock_lost', { keepPending: false }); return;
+    }
+
+    if (remain > 0) {
+      if (serverId) await this.actions.say({ serverId, message: `Début de ${nextPhase} dans ${remain}…` });
+      await this.pub.publish('ggbot:events', JSON.stringify({
+        v: 1, type: 'phase:countdown', matchId, serverId, timestamp: Date.now(),
+        source: 'system', kind: 'primary', payload: { nextPhase, remain },
+      }));
+      const t = setTimeout(tick, 1000);
+      this.timers.set(matchId, t);
       return;
     }
 
-    // 4) boucle 1s
-    let remain = seconds;
+    // Terminé
+    await this.applyPhase(matchId, nextPhase, serverId);
+    const t = this.timers.get(matchId);
+    if (t) clearTimeout(t);
+    this.timers.delete(matchId);
+  };
 
-    // 4.a message initial
-    if (serverId) await this.mcs.say({ serverId, message: `Début de ${nextPhase} dans ${remain} secondes…` });
-    await this.pub.publish('ggbot:events', JSON.stringify({
-        v: 1,
-        type: 'phase:countdown',
-        matchId,
-        serverId,
-        timestamp: Date.now(),
-        source: 'system',
-        kind: 'primary',
-        payload: { nextPhase, remain },
-        }));
+  const t = setTimeout(tick, 1000);
+  this.timers.set(matchId, t);
+}
 
-    const tick = async () => {
-      remain -= 1;
-
-      // Garder le lock "vivant" (optionnel): on peut le prolonger
-      await this.redis.expire(lockKey, remain + 10);
-      await this.redis.expire(pendingKey, remain + 12);
-
-      // Conditions d’annulation
-      if (!(await this.isBothReady(matchId))) {
-        await this.cancelPhaseCountdown(matchId, 'team_unready');
-        return;
-      }
-      if (await this.isMatchPaused(matchId)) {
-        await this.cancelPhaseCountdown(matchId, 'paused');
-        return;
-      }
-      const stillLocked = await this.redis.get(lockKey);
-      if (!stillLocked) {
-        // lock perdu → une autre instance a pris la main
-        await this.cancelPhaseCountdown(matchId, 'lock_lost', { keepPending: false });
-        return;
-      }
-
-      if (remain > 0) {
-        if (serverId) await this.mcs.say({ serverId, message: `Début de ${nextPhase} dans ${remain}…` });
-        await this.pub.publish('ggbot:events', JSON.stringify({
-            v: 1,
-            type: 'phase:countdown',
-            matchId,
-            serverId,
-            timestamp: Date.now(),
-            source: 'system',
-            kind: 'primary',
-            payload: { nextPhase, remain },
-            }));
-         const t = setTimeout(tick, 1000);
-         this.timers.set(matchId, t);
-         return;
-      }
-
-      // 5) countdown terminé → appliquer la phase
-      await this.applyPhase(matchId, nextPhase, serverId);
-    };
-
-    const t = setTimeout(tick, 1000);
-    this.timers.set(matchId, t);
-  }
 
   async cancelPhaseCountdown(
     matchId: string,
@@ -178,7 +167,7 @@ export class MatchPhaseService {
             payload: { phase},
             }));
     
-    if (serverId) await this.mcs.say({ serverId, message: `➡️ Phase: ${phase}` });
+    if (serverId) await this.actions.say({ serverId, message: `➡️ Phase: ${phase}` });
 
     // exécuter la logique dédiée (ex: restart, knife, live, etc.)
     await this.runPhase(matchId, phase, serverId);
@@ -192,32 +181,22 @@ export class MatchPhaseService {
 
   // Route la logique (tu peux déplacer ceci ailleurs si tu préfères)
   private async runPhase(matchId: string, phase: MatchPhase, serverId?: string) {
-    switch (phase) {
-      case MatchPhase.KNIFE_LIVE:
-        await this.mcs.knife({matchId, serverId});
-        break;
-      case MatchPhase.LIVE_MAIN:
-        await this.mcs.runLive(matchId, serverId); // (ex: mp_restartgame 1, say "live in 3..2..1")
-        break;
-      /*case 'halftime':
-        await this.mcs.runHalftime(matchId, serverId);
-        break;
-      case 'overtime':
-        await this.mcs.runOvertime(matchId, serverId);
-        break; */
-      case MatchPhase.WARMUP_MAIN:
-        await this.mcs.runPostgame(matchId, serverId);
-        break;
-    }
-  }
-  async isAllowed(matchId: string, cmd: String): Promise<boolean> {
-    const phase = await this.getPhase(matchId);
-    return ALLOW[phase]?.has(cmd) ?? false;
+    this.phaseByMatch.set(matchId, phase);
+    const rule = this.rules.getRule(phase);
+    await rule.onStart?.({ matchId, phase, ts: Date.now() });
   }
 
   async getPhase(matchId: string): Promise<MatchPhase> {
-    const v = await this.redis.get(redisConst.phase(matchId));
-    return (v as MatchPhase) || MatchPhase.WARMUP_MAIN;
-    // Option: set par défaut si absent
+    // 1) cache mémoire
+    const cached = this.phaseByMatch.get(matchId);
+    if (cached) return cached;
+
+    // 2) lire directement Redis
+    const raw = await this.redis.get(redisConst.phase(matchId));
+    const phase = (raw as MatchPhase) || MatchPhase.WARMUP_MAIN;
+
+    // 3) mettre en cache et retourner
+    this.phaseByMatch.set(matchId, phase);
+    return phase;
   }
 }

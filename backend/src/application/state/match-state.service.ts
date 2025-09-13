@@ -10,6 +10,7 @@ import { TimeoutsService } from './timeouts.service';
 import { TeamsRosterService, type PlayerInfo } from './teams-roster.service';
 import { EconomyService, type TeamEconomyMeta } from './economy.service';
 import { SnapshotQuery } from './snapshot.query';
+import { TeamSide } from '@domain/rules';
 
 @Injectable()
 export class MatchStateService {
@@ -24,11 +25,14 @@ export class MatchStateService {
   // ───────────────────────────────────────────────────────────────────────────
   // Server ↔ Match binding
   // ───────────────────────────────────────────────────────────────────────────
-  setServerMatch(serverId: string, matchId: string, ttlSec?: number) {
+  setServerIdToMatchId(serverId: string, matchId: string, ttlSec?: number) {
     return this.sidesScore.setServerMatch(serverId, matchId, ttlSec);
   }
-  getServerMatch(serverId: string) {
-    return this.sidesScore.getServerMatch(serverId);
+  getMatchIdFromServerId(serverId: string) {
+    return this.sidesScore.getMatchIdFromServerId(serverId);
+  }
+  getServerIdFromMatchId(matchId: string) {
+    return this.sidesScore.getServerIdFromMatchId(matchId);
   }
 
   // ───────────────────────────────────────────────────────────────────────────
@@ -44,10 +48,21 @@ export class MatchStateService {
     return this.sidesScore.swapSides(matchId);
   }
   sideToLogical(matchId: string, side: GameSide) {
+    if(side == 'TERRORIST') side = "T";
     return this.sidesScore.sideToLogical(matchId, side);
   }
+
   logicalToSide(matchId: string, logical: Logical) {
     return this.sidesScore.logicalToSide(matchId, logical);
+  }
+  applyKnifeResult(matchId: string, winnerSide: 'CT' | 'T'){
+    return this.sidesScore.applyKnifeResult(matchId, winnerSide);
+  }
+  getKnifeResult(matchId: string) :Promise<{
+      side: TeamSide | null;
+      logical: Logical | null;
+    }>{
+    return this.sidesScore.getKnifeWinner(matchId);
   }
 
   initScore(matchId: string) {
@@ -60,6 +75,7 @@ export class MatchStateService {
     return this.sidesScore.incRound(matchId);
   }
   addPoint(matchId: string, winner: GameSide) {
+    if(winner == 'TERRORIST') winner = "T";
     return this.sidesScore.addPoint(matchId, winner);
   }
   getPhase(matchId: string) {
@@ -143,6 +159,7 @@ export class MatchStateService {
     return this.economy.setTeamLossStreak(matchId, logical, streak);
   }
   updateEconomyOnRoundEnd(matchId: string, winnerSide: GameSide) {
+    if(winnerSide == 'TERRORIST') winnerSide = "T";
     return this.economy.updateEconomyOnRoundEnd(matchId, winnerSide);
   }
   roundEnd(
@@ -150,6 +167,7 @@ export class MatchStateService {
     winnerSide: GameSide,
     playerEconomy?: { steamId: string; money: number; equip: number }[],
   ) {
+    if(winnerSide == 'TERRORIST') winnerSide = "T";
     return this.economy.roundEnd(matchId, winnerSide, playerEconomy);
   }
 

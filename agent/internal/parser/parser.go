@@ -78,11 +78,6 @@ func grp(re *regexp.Regexp, line, name string) string {
 	return m[idx]
 }
 
-// Commandes autorisées
-var allowed = map[string]struct{}{
-	"init": {}, "pause": {}, "unpause": {}, "tech": {}, "tac": {}, "start": {}, "knife": {},
-	"stop": {}, "ready": {}, "unready": {}, "timeout": {}, "restart": {},
-}
 var cmdPrefixes = []string{"!", "/"}
 
 // NEW: petit tampon pour réordonner spawned→threw
@@ -131,19 +126,17 @@ func TryParse(line string) (string, json.RawMessage, bool) {
 		// a) COMMAND si préfixe + whitelist
 		if isCommand(msg) {
 			cmd, params := splitCommand(msg)
-			if _, ok := allowed[cmd]; ok {
-				payload := events.CommandPayload{
-					Command:    cmd,
-					Parameters: params,
-				}
-				payload.Sender.Name = name
-				payload.Sender.SteamID = steam
-				payload.Sender.Team = mapTeamForCommand(team)
-				payload.Sender.Channel = channel
-				raw, _ := json.Marshal(payload)
-
-				return events.EvCommand, raw, true
+			payload := events.CommandPayload{
+				Command:    cmd,
+				Parameters: params,
 			}
+			payload.Sender.Name = name
+			payload.Sender.SteamID = steam
+			payload.Sender.Team = mapTeamForCommand(team)
+			payload.Sender.Channel = channel
+			raw, _ := json.Marshal(payload)
+
+			return events.EvCommand, raw, true
 		}
 
 		// b) CHAT normal

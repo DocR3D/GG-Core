@@ -117,7 +117,7 @@ export class WsBroadcaster implements OnModuleInit {
           const sid = typeof base.serverId === 'string' && base.serverId.trim() ? base.serverId : null;
           if ((!base.matchId || base.matchId === 'unknown') && sid) {
             try {
-              const mid = await this.matchState.getServerMatch(sid); // sid est string ici
+              const mid = await this.matchState.getMatchIdFromServerId(sid); // sid est string ici
               if (mid) base.matchId = mid; // getServerMatch: Promise<string | null>
             } catch {}
           }

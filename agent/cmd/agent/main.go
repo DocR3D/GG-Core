@@ -388,6 +388,15 @@ func execAction(ctx context.Context, cfg AgentConfig, act *AgentAction) error {
 		})
 		log.Printf("[agent:%s] RCON mp_restartgame -> %q err=%v", cfg.ServerID, out, err)
 		return err
+	case "rcon":
+		msg := strings.TrimSpace(act.Payload.Message)
+		out, err := withRcon(ctx, cfg, func(ctx context.Context, c *myrcon.Client) (string, error) {
+			log.Printf("[agent:%s] RCON Say(%q)", cfg.ServerID, msg)
+			return c.Send(ctx, msg)
+		})
+		log.Printf("[agent:%s] RCON Say -> %q err=%v", cfg.ServerID, out, err)
+		return err
+
 	case "exec_cfg":
 		name := strings.TrimSpace(act.Payload.Name)
 		if name == "" {

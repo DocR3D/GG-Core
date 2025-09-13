@@ -31,5 +31,9 @@ export const redisConst = {
   knifeWinner:  (m: string) => `match:${m}:knife:winner`,            // 'home' | 'away'
   knifeChoiceT: (m: string) => `match:${m}:knife:choice_deadline`,   // ts ms
 
+  knifeWinnerSide:    (matchId: string) => `match:${matchId}:knife_winner_side`,    // 'CT' | 'T'
+  knifeWinnerLogical: (matchId: string) => `match:${matchId}:knife_winner_logical`, // 'home' | 'away'
+  knifeChoice:        (matchId: string) => `match:${matchId}:knife_choice`,         // 'pending' | 'stay' | 'switch'
+
 
 } as const;

@@ -64,7 +64,7 @@ export class CommandsProcessorService{
     }
 
     // 2) Résoudre matchId depuis serverId
-    const matchId = await this.ms.getServerMatch(cmd.serverId);
+    const matchId = await this.ms.getMatchIdFromServerId(cmd.serverId);
     if (!matchId) {
       this.logger.warn(`No match bound to server ${cmd.serverId} — refusing command ${mapped.action}`);
       return;

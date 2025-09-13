@@ -5,6 +5,7 @@ import { REDIS_SUB } from '@adapters/redis/redis.tokens';
 import { MatchEventsHandler } from './match-events.handler';
 import { ChatCommandHandler } from './chat-commands.handler';
 import { MatchStateService } from '@app/state/match-state.service';
+import { RuleRegistry } from '@app/rules/rule.registry';
 
 @Injectable()
 export class EventsRouterSubscriber implements OnModuleInit, OnModuleDestroy {
@@ -47,7 +48,7 @@ export class EventsRouterSubscriber implements OnModuleInit, OnModuleDestroy {
     const sid = typeof ev.serverId === 'string' && ev.serverId.trim() ? ev.serverId : null;
     if ((!ev.matchId || ev.matchId === 'unknown') && sid) {
       try {
-        const mid = await this.matchState.getServerMatch(sid);
+        const mid = await this.matchState.getMatchIdFromServerId(sid);
         if (mid) ev.matchId = mid;
       } catch {}
     }
