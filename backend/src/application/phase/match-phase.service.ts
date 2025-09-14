@@ -1,48 +1,43 @@
 // src/application/services/match-phase.service.ts
-import { Injectable, Logger, Inject, forwardRef } from '@nestjs/common';
+import { Injectable, Logger, Inject, forwardRef, Optional } from '@nestjs/common';
 import type Redis from 'ioredis';
 import { REDIS_CMD, REDIS_PUB } from '@adapters/redis/redis.tokens';
 import { redisConst } from '../state/redis-keys';
-import { MatchCommandsService } from '@app/commands/match-commands.service';
 
 import { MatchPhase, Phase} from '@domain/phase.types';
 import { RuleRegistry } from '@app/rules/rule.registry';
-import { BaseRule } from '@domain/rules';
 import { ACTIONS_PORT, type ActionsPort } from '@app/ports/actions.port';
-import { ModuleRef } from '@nestjs/core';
+import { RuleContextFactory } from '@domain/rules/rule-context-factory';
+import { EventTypes } from '@domain/types/event.types';
 
 @Injectable()
 export class MatchPhaseService {
   private readonly logger = new Logger(MatchPhaseService.name);
   private timers = new Map<string, NodeJS.Timeout>(); // par matchId
-  private rules!: RuleRegistry; // sera résolu après boot
   private readonly phaseByMatch = new Map<string, MatchPhase>();
+  private cache = new Map<string, MatchPhase>(); // 🔒 cache fort cohérent
+  registry: any;
 
-constructor(
-  @Inject(REDIS_CMD) private readonly redis: Redis,
-  @Inject(REDIS_PUB) private readonly pub: Redis,
-  @Inject(ACTIONS_PORT) private readonly actions: ActionsPort,
-      private readonly moduleRef: ModuleRef,            // ⬅️ NEW
-) {
-}
-  onModuleInit() {
-    // strict:false = autorise la recherche “dans les parents”
-    this.rules = this.moduleRef.get(RuleRegistry, { strict: false });
-    if (!this.rules) {
-      this.logger.error('RuleRegistry introuvable (ModuleRef). Vérifie RulesModule dans AppModule.');
-    }
-  }
+  constructor(
+    @Inject(REDIS_CMD) private readonly redis: Redis,
+    @Inject(REDIS_PUB) private readonly pub: Redis,
+    @Inject(ACTIONS_PORT) private readonly actions: ActionsPort,
+    private readonly rcF: RuleContextFactory,   // OK une fois exporté + importé
+  ) {}
 
   async isBothReady(matchId: string): Promise<boolean> {
     const h = await this.redis.hgetall(redisConst.ready(matchId)); // "ready" => ta clé hset(home/away)
     return h.home === '1' && h.away === '1';
+  }
+  async setReady(matchId: string, logical: 'home'|'away', ready: boolean) {
+    await this.redis.hset(redisConst.ready(matchId), logical, ready ? 1 : 0);
   }
 
 public async startPhaseCountdown(
   matchId: string,
   nextPhase: MatchPhase,
   seconds: number,
-  serverId?: string
+  serverId: string
 ): Promise<void> {
   const lockKey = redisConst.phaseLock(matchId);
   const pendingKey = redisConst.phasePending(matchId);
@@ -146,7 +141,7 @@ public async startPhaseCountdown(
     this.logger.debug(`[${matchId}] countdown cancelled: ${reason}`);
   }
 
-  private async applyPhase(matchId: string, phase: MatchPhase, serverId?: string) {
+  private async applyPhase(matchId: string, phase: MatchPhase, serverId: string) {
     const lockKey = redisConst.phaseLock(matchId);
     const pendingKey = redisConst.phasePending(matchId);
     const phaseKey = redisConst.phase(matchId);
@@ -158,19 +153,19 @@ public async startPhaseCountdown(
     // notifier
     await this.pub.publish('ggbot:events', JSON.stringify({
             v: 1,
-            type: 'phase:changed',
+            type: EventTypes.PHASE_CHANGED,
             matchId,
             serverId,
             timestamp: Date.now(),
             source: 'system',
             kind: 'primary',
-            payload: { phase},
+            payload: { newPhase: phase, t: Date.now()},
             }));
     
     if (serverId) await this.actions.say({ serverId, message: `➡️ Phase: ${phase}` });
 
+    
     // exécuter la logique dédiée (ex: restart, knife, live, etc.)
-    await this.runPhase(matchId, phase, serverId);
   }
 
   // À adapter : si tu as déjà une gestion pause en Redis
@@ -179,24 +174,28 @@ public async startPhaseCountdown(
     return pause === 'paused';
   }
 
-  // Route la logique (tu peux déplacer ceci ailleurs si tu préfères)
-  private async runPhase(matchId: string, phase: MatchPhase, serverId?: string) {
-    this.phaseByMatch.set(matchId, phase);
-    const rule = this.rules.getRule(phase);
-    await rule.onStart?.({ matchId, phase, ts: Date.now() });
-  }
 
   async getPhase(matchId: string): Promise<MatchPhase> {
-    // 1) cache mémoire
-    const cached = this.phaseByMatch.get(matchId);
+    const cached = this.cache.get(matchId);
     if (cached) return cached;
 
-    // 2) lire directement Redis
-    const raw = await this.redis.get(redisConst.phase(matchId));
-    const phase = (raw as MatchPhase) || MatchPhase.WARMUP_MAIN;
-
-    // 3) mettre en cache et retourner
-    this.phaseByMatch.set(matchId, phase);
+    const key = redisConst.phase(matchId);
+    const val = (await this.redis.get(key)) as MatchPhase | null;
+    const phase = val ?? MatchPhase.WARMUP_MAIN;
+    this.cache.set(matchId, phase);
     return phase;
+  }
+
+  async setPhase(matchId: string, phase: MatchPhase): Promise<void> {
+    const key = redisConst.phase(matchId); // ⚠️ vérifie que c’est la même clé partout
+    await this.redis.set(key, phase);
+    this.cache.set(matchId, phase);
+    this.logger.debug(`[setPhase] match=${matchId} -> ${phase}`);
+  }
+  
+    /** Optionnel: transitions autorisées (anti-regression vers warmup_main) */
+  canTransition(from: MatchPhase, to: MatchPhase): boolean {
+    if (from === MatchPhase.KNIFE_LIVE && to === MatchPhase.WARMUP_MAIN) return false; // 🚫
+    return true;
   }
 }

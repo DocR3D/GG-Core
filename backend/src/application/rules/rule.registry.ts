@@ -1,7 +1,7 @@
 import { Injectable } from "@nestjs/common";
 import { KnifeRule } from "./knife.rule";
 import { PhaseRule } from "@domain/rules";
-import { DefaultRule } from "./default.rule";
+import { WarmupRule } from "./warmup.rule";
 import { MatchPhase } from "@domain/phase.types";
 import { KnifeChoiceRule } from "./knife_choice.rule";
 import { LiveRule } from "./live_rule";
@@ -11,7 +11,7 @@ import { LiveRule } from "./live_rule";
 export class RuleRegistry {
   constructor(
     private readonly knifeRule: KnifeRule,
-    private readonly defaultRule: DefaultRule,
+    private readonly WarmupRule: WarmupRule,
     private readonly knifeChoice: KnifeChoiceRule,
     private readonly LiveRule: LiveRule,
 
@@ -20,10 +20,12 @@ export class RuleRegistry {
 
   getRule(phase: MatchPhase): PhaseRule {
     switch (phase) {
+      case MatchPhase.KNIFE_WARMUP:     return this.WarmupRule;
+      case MatchPhase.WARMUP_MAIN:      return this.WarmupRule;
       case MatchPhase.KNIFE_LIVE:       return this.knifeRule;
       case MatchPhase.KNIFE_CHOICE:     return this.knifeChoice; // ou une KnifeChoiceRule si séparée
       case MatchPhase.LIVE_MAIN:        return this.LiveRule; // ou une KnifeChoiceRule si séparée
-      default:                          return this.defaultRule;
+      default:                          return this.WarmupRule;
       }
     }
 }

@@ -1,78 +1,69 @@
-// application/rules/knife.rule.ts
-import { BadRequestException, forwardRef, Inject, Injectable, Logger } from '@nestjs/common';
-import { BaseRule, LogicalTeam, PhaseRule, RuleContext} from '@domain/rules';
-import { MatchStateService } from '../state/match-state.service';
-import { CommandEvent } from '@domain/types/command.event';
-import { KillEvent, PlayerRefLogs, TeamRoundWinEvent } from '@domain/types/match.event';
-import { MatchCommandsService } from '@app/commands/match-commands.service';
-import { MatchPhaseService } from '@app/phase/match-phase.service';
-import * as actionsPort from '@app/ports/actions.port';
+// src/domain/rules/knife-choice.rule.ts
+import { BaseRule, PhaseRule, RuleContext } from '@domain/rules';
+import type { CommandEvent } from '@domain/types/command.event';
 import { MatchPhase } from '@domain/phase.types';
-export type TeamSide = 'CT'|'T';
 
-
-type SteamId = string;
-type KnifeState = {
-  playersHome: Set<SteamId>;
-  playersAway: Set<SteamId>;
-  deathsHome:  Set<SteamId>;
-  deathsAway:  Set<SteamId>;
-};
-
-@Injectable()
 export class KnifeChoiceRule extends BaseRule implements PhaseRule {
-  private state = new Map<string, KnifeState>();
-  private readonly logger = new Logger(KnifeChoiceRule.name);
+  name = 'knife_choice' as const;
 
-  constructor(
-    private readonly mss: MatchStateService,
-    @Inject(actionsPort.ACTIONS_PORT) private readonly mps: actionsPort.ActionsPort,
-    // Si tu envoies les actions directement via le service concret :
-    private readonly mcs: MatchCommandsService,
-    @Inject(forwardRef(() => MatchPhaseService)) private readonly phases: MatchPhaseService, // ✅
+  // côté front, seuls ces messages ont du sens ici
+  publicTypes = new Set<string>([
+    'match:state',
+    'pause:update',
+  ]) as any;
 
-    // Si tu préfères le port : @Inject(ACTIONS_PORT) private readonly actions: ActionsPort,
-  ) {super(); }
+  constructor() {
+    super();
+    this.commands.set('stay', this.onStay.bind(this));
+    this.commands.set('switch', this.onSwitch.bind(this));
+    this.commands.set('swap', this.onSwitch.bind(this));
+  }
 
-  override async onStart(ctx: RuleContext) {
-    let serverId = await this.mss.getServerIdFromMatchId(ctx.matchId);
-    if (!serverId) {
-      throw new BadRequestException(`Aucun serveur lié au match ${ctx.matchId}`);
+  // === Lifecycle ============================================================
+  async onEnter(ctx: RuleContext) {
+    // Annonce utilisateur
+    await ctx.say('[knife] Choix du vainqueur: tapez !stay pour garder vos sides, !switch pour échanger.');
+    await ctx.ws.push(ctx.matchId, 'match:state', await ctx.matchStateService.getSnapshot(ctx.matchId));
+  }
+
+  async onExit(_: RuleContext) {}
+
+  // === Commands =============================================================
+  private async onStay(cmd: CommandEvent, ctx: RuleContext) {
+    const knife = await ctx.matchStateService.getKnifeResult(cmd.matchId);
+    if (!knife) return ctx.say('[knife] Pas de résultat.');
+
+    // seul le vainqueur peut choisir
+    if (cmd.payload.sender.team !== knife.side) return;
+
+    const serverId = cmd.serverId ?? (await ctx.matchStateService.getServerIdFromMatchId(cmd.matchId));
+
+    await ctx.say('[knife] Choix: STAY. Passage au live…');
+    // Lance le live avec un petit compte à rebours (ex: 5s)
+    await ctx.phase.startPhaseCountdown(cmd.matchId, MatchPhase.LIVE_MAIN, 5, serverId);
+
+    await ctx.ws.push(cmd.matchId, 'match:state', await ctx.matchStateService.getSnapshot(cmd.matchId));
+    await ctx.pubEvent('knife_choice', { choice: 'stay', by: cmd.payload.sender.name });
+  }
+
+  private async onSwitch(cmd: CommandEvent, ctx: RuleContext) {
+    const knife = await ctx.matchStateService.getKnifeResult(cmd.matchId);
+    if (!knife) return ctx.say('[knife] Pas de résultat.');
+
+    if (cmd.payload.sender.team !== knife.side) return;
+
+    const serverId = cmd.serverId ?? (await ctx.matchStateService.getServerIdFromMatchId(cmd.matchId));
+
+    // swap des sides (Redis + projection)
+    const swapped = await ctx.matchStateService.swapSides(cmd.matchId);
+    if (swapped) {
+      await ctx.ws.push(cmd.matchId, 'sides:swapped', {});
     }
-    this.mcs.exec({
-      serverId,
-      matchId: ctx.matchId, 
-      cfgName: "ggbot/warmup.cfg"
-    });
+
+    await ctx.say('[knife] Choix: SWITCH. Passage au live…');
+    await ctx.phase.startPhaseCountdown(cmd.matchId, MatchPhase.LIVE_MAIN, 5, serverId);
+
+    await ctx.ws.push(cmd.matchId, 'match:state', await ctx.matchStateService.getSnapshot(cmd.matchId));
+    await ctx.pubEvent('knife_choice', { choice: 'switch', by: cmd.payload.sender.name });
   }
-
-  override async onKill(ev: KillEvent) {
-
-  }
-
-  override async onRoundEnd(ctx: TeamRoundWinEvent) {
-    const st = this.state.get(ctx.matchId); if (!st) return;
-  }
-
-  // Optionnel: limiter les commandes durant knife (ex: interdire !pause des joueurs)
- override canCommand?(_: CommandEvent): boolean {
-   return true;
-  }
-  override async onCommandExecuted(command: CommandEvent) {
-        const knifeWinner = await this.mss.getKnifeResult(command.matchId);
-
-    this.logger.debug("OnCommandCalled : " + command.payload.command + "From" +(command.payload.sender.team != knifeWinner.side) )
-    if(command.payload.sender.team != knifeWinner.side) return;
-    if(command.payload.command == "stay"){
-
-    }else if (command.payload.command == "swap"){
-      this.mss.swapSides(command.matchId);
-      this.mps.swapSides({matchId:command.matchId});
-    }else{
-      return;
-    }
-    this.phases.startPhaseCountdown(command.matchId, MatchPhase.LIVE_MAIN,7,command.serverId);
-  }
-
-  
 }

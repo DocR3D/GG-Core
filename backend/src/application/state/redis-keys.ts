@@ -2,38 +2,38 @@ export const redisConst = {
   // Liaison serveur ↔ match
   serverMatch: (serverId: string) => `server:${serverId}:currentMatch`,
   matchServer: (matchId: string) => `match:${matchId}:server`,
-  
+
+  // Bus d’événements
   eventsPrimary: (serverId: string) => `ggbot:events_primary:${serverId}`,
-  // Match-level keys existantes
-  sides:       (matchId: string) => `match:${matchId}:sides`,
-  score:       (matchId: string) => `match:${matchId}:score`,
-  timeouts:    (matchId: string) => `match:${matchId}:timeouts`,
-  teams:       (matchId: string) => `match:${matchId}:teams`,
-  playersHash: (matchId: string) => `match:${matchId}:players`,
-  lineupHome:  (matchId: string) => `match:${matchId}:lineup:home`,
-  lineupAway:  (matchId: string) => `match:${matchId}:lineup:away`,
+
+  // Match-level (séparés)
+  phase:        (m: string) => `match:${m}:phase`,          // string
+  phasePending: (m: string) => `match:${m}:phase:pending`,  // string
+  phaseLock:    (m: string) => `match:${m}:phase:lock`,     // string
+  pause:        (m: string) => `match:${m}:pause`,          // hash { state, ... }
+  clock:        (m: string) => `match:${m}:clock`,          // hash { phaseEndsAt, ... }
+
+  sides:        (m: string) => `match:${m}:sides`,          // hash { home, away } -> 'CT'|'T'
+  score:        (m: string) => `match:${m}:score`,          // hash { ct, t }
+  timeouts:     (m: string) => `match:${m}:timeouts`,       // hash
+  teams:        (m: string) => `match:${m}:teams`,          // hash
+  ready:        (m: string) => `match:${m}:ready`,          // hash { home, away } -> '0'|'1'
+  playersHash:  (m: string) => `match:${m}:players`,
+  lineupHome:   (m: string) => `match:${m}:lineup:home`,
+  lineupAway:   (m: string) => `match:${m}:lineup:away`,
 
   // Économie
-  economyTeam: (matchId: string) => `match:${matchId}:economy:team`,
-  moneyHash:   (matchId: string) => `match:${matchId}:money`,
-  equipHash:   (matchId: string) => `match:${matchId}:equip`,
+  economyTeam:  (m: string) => `match:${m}:economy:team`,
+  moneyHash:    (m: string) => `match:${m}:money`,
+  equipHash:    (m: string) => `match:${m}:equip`,
 
-  // Nouveaux pour état/horloge/ready
-  state:       (matchId: string) => `match:${matchId}:state`,   // phase, subphase, round, etc.
-  clock:       (matchId: string) => `match:${matchId}:clock`,   // phaseEndsAt, pauseEndsAt, etc.
-  ready:       (matchId: string) => `match:${matchId}:ready`,   // home=0|1, away=0|1
-  seq:         (matchId: string) => `match:${matchId}:seq`,     // incrément global pour WS/events
-  phase:       (matchId: string) => `match:${matchId}:phase`,        // string
-  phasePending:(matchId: string) => `match:${matchId}:phase:pending`,// string
-  phaseLock:   (matchId: string) => `match:${matchId}:phase:lock`,   // string (SET NX EX)
-  pause:       (matchId: string) => `match:${matchId}:pause`,        // hash { state, ... } optionnel
+  // Séquence WS
+  seq:          (m: string) => `match:${m}:seq`,
 
-  knifeWinner:  (m: string) => `match:${m}:knife:winner`,            // 'home' | 'away'
-  knifeChoiceT: (m: string) => `match:${m}:knife:choice_deadline`,   // ts ms
-
-  knifeWinnerSide:    (matchId: string) => `match:${matchId}:knife_winner_side`,    // 'CT' | 'T'
-  knifeWinnerLogical: (matchId: string) => `match:${matchId}:knife_winner_logical`, // 'home' | 'away'
-  knifeChoice:        (matchId: string) => `match:${matchId}:knife_choice`,         // 'pending' | 'stay' | 'switch'
-
-
+  // Knife
+  knifeWinner:        (m: string) => `match:${m}:knife:winner`,            // 'home'|'away'
+  knifeWinnerSide:    (m: string) => `match:${m}:knife_winner_side`,       // 'CT'|'T'
+  knifeWinnerLogical: (m: string) => `match:${m}:knife_winner_logical`,    // 'home'|'away'
+  knifeChoice:        (m: string) => `match:${m}:knife_choice`,            // 'pending'|'stay'|'switch'
+  knifeChoiceT:       (m: string) => `match:${m}:knife:choice_deadline`,   // ts ms
 } as const;

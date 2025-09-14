@@ -2,8 +2,6 @@ import { Injectable, Inject, Logger, BadRequestException } from '@nestjs/common'
 import type Redis from 'ioredis';
 import { REDIS_CMD } from '@adapters/redis/redis.tokens';
 import { redisConst } from './redis-keys';
-import { TeamSide } from '@domain/rules';
-
 export type GameSide = 'CT' | 'T' | 'TERRORIST';
 export type Logical = 'home' | 'away';
 export type Phase = 'freeze' | 'live' | 'intermission' | 'paused' | 'timeout' | 'ended' | 'knife' | 'tech_timeout';
@@ -36,12 +34,12 @@ export class SidesScoreService {
       await this.redis.set(key, matchId);
       await this.redis.set(redisConst.matchServer(matchId), serverId);    }
   }
-  async getMatchIdFromServerId(serverId: string): Promise<string | null> {
+  async getMatchIdFromServerId(serverId: string): Promise<string | undefined> {
     const key = this.serverMatchKey(serverId);
-    return (await this.redis.get(key)) as string | null;
+    return (await this.redis.get(key)) as string | undefined;
   }
 
-  async getServerIdFromMatchId(matchId: string): Promise<string | null> {
+  async getServerIdFromMatchId(matchId: string): Promise<string | undefined> {
     // Exemple : tu récupères les agents actifs
     const agentsKeys = await this.redis.keys('server:*:currentMatch');
     for (const key of agentsKeys) {
@@ -49,7 +47,7 @@ export class SidesScoreService {
       const mid = await this.redis.get(key);
       if (mid === matchId) return sid;
     }
-    return null;
+    return undefined;
 }
 
   // ─────────────────────────────────────────────────────────────────────────────
@@ -195,7 +193,7 @@ export class SidesScoreService {
   }
 
   async getKnifeWinner(matchId: string): Promise<{
-    side: TeamSide | null;
+    side: GameSide | null;
     logical: Logical | null;
   }> {
     const [sideRaw, logicalRaw] = await this.redis.mget(
@@ -204,7 +202,7 @@ export class SidesScoreService {
       redisConst.knifeChoice(matchId),
     );
 
-    let side = (sideRaw as TeamSide) ?? null;
+    let side = (sideRaw as GameSide) ?? null;
     let logical = (logicalRaw as Logical) ?? null;
 
     // Si tu n’avais stocké que le side, on peut dériver logical via le mapping courant

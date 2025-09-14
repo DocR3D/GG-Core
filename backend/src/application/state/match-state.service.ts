@@ -10,8 +10,6 @@ import { TimeoutsService } from './timeouts.service';
 import { TeamsRosterService, type PlayerInfo } from './teams-roster.service';
 import { EconomyService, type TeamEconomyMeta } from './economy.service';
 import { SnapshotQuery } from './snapshot.query';
-import { TeamSide } from '@domain/rules';
-
 @Injectable()
 export class MatchStateService {
   constructor(
@@ -59,7 +57,7 @@ export class MatchStateService {
     return this.sidesScore.applyKnifeResult(matchId, winnerSide);
   }
   getKnifeResult(matchId: string) :Promise<{
-      side: TeamSide | null;
+      side: GameSide | null;
       logical: Logical | null;
     }>{
     return this.sidesScore.getKnifeWinner(matchId);
@@ -168,6 +166,7 @@ export class MatchStateService {
     playerEconomy?: { steamId: string; money: number; equip: number }[],
   ) {
     if(winnerSide == 'TERRORIST') winnerSide = "T";
+    this.economy.updateEconomyOnRoundEnd(matchId,winnerSide);
     return this.economy.roundEnd(matchId, winnerSide, playerEconomy);
   }
 

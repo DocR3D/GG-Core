@@ -1,19 +1,22 @@
+// src/application/subscribers/events-router.subscriber.ts
 import { Injectable, OnModuleInit, OnModuleDestroy, Logger, Inject } from '@nestjs/common';
 import type Redis from 'ioredis';
-import { isCommand, MatchEvent } from '@domain/types/match.event';
 import { REDIS_SUB } from '@adapters/redis/redis.tokens';
+
+import { isCommand, AnyEvent } from '@domain/types/match.event';
 import { MatchEventsHandler } from './match-events.handler';
 import { ChatCommandHandler } from './chat-commands.handler';
 import { MatchStateService } from '@app/state/match-state.service';
-import { RuleRegistry } from '@app/rules/rule.registry';
 
 @Injectable()
 export class EventsRouterSubscriber implements OnModuleInit, OnModuleDestroy {
   private readonly logger = new Logger(EventsRouterSubscriber.name);
 
-  // Aligné avec ce que Cs2LogsService publie
+  // Aligne-toi sur ce que publient tes producteurs (agent/logs/etc.)
   private readonly channels = ['ggbot:events'] as const;
-  private onMessageBound = (channel: string, message: string) => this.onMessage(channel, message);
+
+  private onMessageBound = (channel: string, message: string) =>
+    this.onMessage(channel, message);
 
   constructor(
     @Inject(REDIS_SUB) private readonly sub: Redis,
@@ -33,32 +36,50 @@ export class EventsRouterSubscriber implements OnModuleInit, OnModuleDestroy {
     try { await this.sub.unsubscribe(...this.channels); } catch {}
   }
 
+  // =========================================================================
+  // Routing
+  // =========================================================================
   private async onMessage(channel: string, msg: string) {
-    let ev: MatchEvent;
+    // 1) Parse JSON
+    let ev: AnyEvent | null = null;
     try {
       ev = JSON.parse(msg);
     } catch {
       this.logger.warn(`Invalid JSON on ${channel}`);
       return;
     }
-    if (!ev?.type) {
-      //this.logger.debug(`[SUB=${channel}] skip non-match payload`);
-      return;
-    }
-    const sid = typeof ev.serverId === 'string' && ev.serverId.trim() ? ev.serverId : null;
-    if ((!ev.matchId || ev.matchId === 'unknown') && sid) {
+    if (!ev || typeof ev !== 'object' || !('type' in ev)) return;
+
+    // 2) Filtre "kind" (ne traite que le flux principal)
+    //    (garde ta convention: kind: 'primary' | 'telemetry' | ...)
+    if ((ev as any).kind && (ev as any).kind !== 'primary') return;
+
+    // 3) Résoudre matchId s'il manque mais qu'on a serverId
+    if ((!ev.matchId || ev.matchId === 'unknown') && !!ev.serverId) {
       try {
-        const mid = await this.matchState.getMatchIdFromServerId(sid);
-        if (mid) ev.matchId = mid;
-      } catch {}
+        const mid = await this.matchState.getMatchIdFromServerId(ev.serverId);
+        if (mid) (ev as any).matchId = mid;
+      } catch {
+        // ignore, on garde le matchId tel quel
+      }
     }
+
+    // 4) Si toujours pas de matchId → on ignore (inutile de spammer les logs)
+    if (!ev.matchId) return;
 
     this.logger.debug(`[SUB=${channel}] ${ev.type} m=${ev.matchId}`);
 
-    if (isCommand(ev)) {
-      await this.chatCommandHandler.handle(ev);
-    } else {
-      await this.matchEventsHandler.handle(ev);
+    // 5) Route: commandes vs événements
+    try {
+      if (isCommand(ev)) {
+        await this.chatCommandHandler.handle(ev);
+      } else {
+        await this.matchEventsHandler.handle(ev);
+      }
+    } catch (e) {
+      this.logger.error(
+        `Routing failed: type=${(ev as any).type} match=${ev.matchId} err=${(e as Error)?.message}`,
+      );
     }
   }
 }

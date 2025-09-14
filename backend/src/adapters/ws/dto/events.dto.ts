@@ -37,7 +37,8 @@ export type WsEventType =
   | 'defuse:begin'
   | 'defuse:abort'
   | 'team_round_win'   // ← remplace 'round:win'
-  | 'player_blinded';
+  | 'player_blinded'
+  | 'knife:result';
 //  | 'grenade_landed'  // activer quand prêt
 //  | 'bomb:planted' | 'bomb:begin' | 'defuse:begin' | 'defuse:abort' // si tu exposes ces events
 
@@ -57,6 +58,14 @@ export type BombBeginEvent = BaseWsEvent<'bomb:begin', {
   player: PlayerRef;
   site: 'A'|'B';
 }>;
+
+export type KnifeResult = BaseWsEvent<'knife:result', {
+  counts: { 
+    home: number,
+    away: number
+   },
+}>;
+
 
 export type DefuseBeginEventWs = BaseWsEvent<'defuse:begin', {
   player: PlayerRef;
@@ -264,6 +273,7 @@ export type MatchWsEvent =
   | DefuseBeginEventWs
   | DefuseAbortEventWs
   // NEW:
+  | KnifeResult
   | GrenadeThrowEvent
   | PlayerBlindedEvent
   | TeamRoundWinEvent; // ← ajouté ici

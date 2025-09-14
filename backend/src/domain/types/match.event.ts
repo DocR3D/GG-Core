@@ -1,5 +1,5 @@
 import type { BaseEvent } from './base.event';
-import { EventTypes } from './event.types';
+import { EventType, EventTypes } from './event.types';
 import type { CommandEvent } from './command.event';
 import { GameSide } from '@app/state';
 
@@ -116,10 +116,14 @@ export type PlayerBlindedEvent = BaseEvent<typeof EventTypes.PLAYER_BLINDED, {
   entindex?: string;
 }>;
 
-// ————————————————————————————
-export type GenericMatchEvent = BaseEvent<string, Record<string, any>>;
+export type PhaseChangeEvent = BaseEvent<typeof EventTypes.PHASE_CHANGED, {
+  newPhase: string; at?: number;
+}>;
 
-export type MatchEvent =
+// ————————————————————————————
+export type GenericMatchEvent = BaseEvent<EventType, Record<string, any>>;
+
+export type AnyEvent =
   | RoundStartEvent
   | MatchPausedEvent
   | MatchUnpausedEvent
@@ -138,6 +142,7 @@ export type MatchEvent =
   | GrenadeLandEvent
   | PlayerBlindedEvent
   | CommandEvent
+  | PhaseChangeEvent
   | GenericMatchEvent;
 
 export type EventByType = {
@@ -157,39 +162,40 @@ export type EventByType = {
   [EventTypes.GRENADE_THROW]: GrenadeThrowEvent;
   [EventTypes.GRENADE_LAND]: GrenadeLandEvent;
   [EventTypes.PLAYER_BLINDED]: PlayerBlindedEvent;
+  [EventTypes.PHASE_CHANGED]: PhaseChangeEvent
   [EventTypes.COMMAND]: CommandEvent;
 };
 
 // ————————————————————————————
 // Type guards
 // ————————————————————————————
-export const isTeamRoundWin = (e: MatchEvent): e is TeamRoundWinEvent =>
+export const isTeamRoundWin = (e: AnyEvent): e is TeamRoundWinEvent =>
   e.type === EventTypes.TEAM_ROUND_WIN;
-export const isRoundStart = (e: MatchEvent): e is RoundStartEvent =>
+export const isRoundStart = (e: AnyEvent): e is RoundStartEvent =>
   e.type === EventTypes.ROUND_START;
-export const isBombPlanted = (e: MatchEvent): e is BombPlantedEvent =>
+export const isBombPlanted = (e: AnyEvent): e is BombPlantedEvent =>
   e.type === EventTypes.BOMB_PLANTED;
-export const isSfuiTargetBombed = (e: MatchEvent): e is SfuiTargetBombedEvent =>
+export const isSfuiTargetBombed = (e: AnyEvent): e is SfuiTargetBombedEvent =>
   e.type === EventTypes.SFUI_TARGET_BOMBED;
-export const isKill = (e: MatchEvent): e is KillEvent =>
+export const isKill = (e: AnyEvent): e is KillEvent =>
   e.type === EventTypes.KILL;
-export const isPlayerConnected = (e: MatchEvent): e is PlayerConnectedEvent =>
+export const isPlayerConnected = (e: AnyEvent): e is PlayerConnectedEvent =>
   e.type === EventTypes.PLAYER_CONNECTED;
-export const isPlayerDisconnected = (e: MatchEvent): e is PlayerDisconnectedEvent =>
+export const isPlayerDisconnected = (e: AnyEvent): e is PlayerDisconnectedEvent =>
   e.type === EventTypes.PLAYER_DISCONNECTED;
-export const isNameChange = (e: MatchEvent): e is PlayerNameChangeEvent =>
+export const isNameChange = (e: AnyEvent): e is PlayerNameChangeEvent =>
   e.type === EventTypes.PLAYER_NAME_CHANGE;
-export const isDefuseBegin = (e: MatchEvent): e is DefuseBeginEvent =>
+export const isDefuseBegin = (e: AnyEvent): e is DefuseBeginEvent =>
   e.type === EventTypes.DEFUSE_BEGIN;
-export const isDefuseAbort = (e: MatchEvent): e is DefuseAbortEvent =>
+export const isDefuseAbort = (e: AnyEvent): e is DefuseAbortEvent =>
   e.type === EventTypes.DEFUSE_ABORT;
-export const isItemPurchase = (e: MatchEvent): e is ItemPurchaseEvent =>
+export const isItemPurchase = (e: AnyEvent): e is ItemPurchaseEvent =>
   e.type === EventTypes.ITEM_PURCHASE;
-export const isGrenadeThrow = (e: MatchEvent): e is GrenadeThrowEvent =>
+export const isGrenadeThrow = (e: AnyEvent): e is GrenadeThrowEvent =>
   e.type === EventTypes.GRENADE_THROW;
-export const isGrenadeLand = (e: MatchEvent): e is GrenadeLandEvent =>
+export const isGrenadeLand = (e: AnyEvent): e is GrenadeLandEvent =>
   e.type === EventTypes.GRENADE_LAND;
-export const isPlayerBlinded = (e: MatchEvent): e is PlayerBlindedEvent =>
+export const isPlayerBlinded = (e: AnyEvent): e is PlayerBlindedEvent =>
   e.type === EventTypes.PLAYER_BLINDED;
-export const isCommand = (e: MatchEvent): e is CommandEvent =>
+export const isCommand = (e: AnyEvent): e is CommandEvent =>
   e.type === EventTypes.COMMAND;

@@ -24,6 +24,9 @@ export const EventTypes = {
   GRENADE_THROW:  'grenade_throw',
   GRENADE_LAND:   'grenade_land',
   PLAYER_BLINDED: 'player_blinded',
+
+  PHASE_CHANGED: 'phase_changed',
+
 } as const;
 
 export type EventType = typeof EventTypes[keyof typeof EventTypes];

@@ -34,7 +34,7 @@ type AgentAction =
   | { id: string; ts: number; type: 'action'; serverId: string; action: 'knife';        payload: { matchId: string };                                                      source?: any }
   | { id: string; ts: number; type: 'action'; serverId: string; action: 'restart';      payload: { matchId: string; delay?: number };                                       source?: any }
   | { id: string; ts: number; type: 'action'; serverId: string; action: 'exec_cfg';     payload: { matchId: string;name: string;vars?: Record<string, string>;  };   source?: any }
-  | { id: string; ts: number; type: 'action'; serverId: string; action: 'rcon';     payload: { text: string };                                                             source?: any }
+  | { id: string; ts: number; type: 'action'; serverId: string; action: 'rcon';         payload: { text: string };                                                             source?: any }
   | { id: string; ts: number; type: 'action'; serverId: string; action: 'changelevel';  payload: { map: string };                                                          source?: any };
 
 const agentActionsCh = (serverId: string) => `ggbot:agent:${serverId}:actions`;
@@ -56,7 +56,6 @@ const matchSidesKey = redisConst.sides;
 const matchScoreKey = redisConst.score;
 const matchTosKey   = redisConst.timeouts;
 const matchTeamsKey = redisConst.teams;
-const matchStateKey = redisConst.state;
 const matchClockKey = redisConst.clock;
 const matchReadyKey = redisConst.ready;
 const matchSeqKey   = redisConst.seq;
@@ -164,7 +163,7 @@ export class MatchCommandsService {
       action: 'say', payload: { text: opts.message }, source: { via: 'admin' },
     };
     await this.publishToAgent(opts.serverId, msg);
-    return { ok: true };
+    return;
   }
 
   async sayTeam(opts: { serverId: string; team: GameSide; message: string }) {
@@ -174,7 +173,7 @@ export class MatchCommandsService {
       action: 'say_team', payload: { team: opts.team, text: opts.message }, source: { via: 'admin' },
     };
     await this.publishToAgent(opts.serverId, msg);
-    return { ok: true };
+    return ;
   }
 
   async exec(opts: { serverId?: string; matchId?: string; cfgName: string, vars?: Record<string,string> }) {
@@ -279,20 +278,6 @@ export class MatchCommandsService {
     hset(matchTosKey(mid), 'awayTech', 0);
 
     set(matchTeamsKey(mid), JSON.stringify(teams));
-
-    hset(matchStateKey(mid), 'phase', phase);
-    hset(matchStateKey(mid), 'subphase', subphase);
-    hset(matchStateKey(mid), 'round', 0);
-    hset(matchStateKey(mid), 'ot', 0);
-    if (opts.map)          hset(matchStateKey(mid), 'map', opts.map);
-    if (opts.seriesBestOf) hset(matchStateKey(mid), 'seriesBestOf', opts.seriesBestOf);
-    hset(matchStateKey(mid), 'seriesHome', 0);
-    hset(matchStateKey(mid), 'seriesAway', 0);
-    hset(matchStateKey(mid), 'whoPaused', 'none');
-    hset(matchStateKey(mid), 'pauseReason', '');
-    hset(matchStateKey(mid), 'requesterName', '');
-    hset(matchStateKey(mid), 'requesterSteamId', '');
-    hset(matchStateKey(mid), 'lastUpdateTs', now);
 
     hset(matchClockKey(mid), 'phaseEndsAt', 0);
     hset(matchClockKey(mid), 'pauseEndsAt', 0);

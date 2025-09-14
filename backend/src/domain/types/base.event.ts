@@ -1,7 +1,9 @@
+import { EventType } from "./event.types";
+
 export type EventSource = 'logs' | 'cstv' | 'manual';
 export type EventKind = 'primary' | 'telemetry';
 
-export interface BaseEvent<TType extends string, TPayload = unknown> {
+export interface BaseEvent<TType extends EventType, TPayload = unknown> {
   v: 1;
   id: string;
   timestamp: number;
@@ -14,6 +16,6 @@ export interface BaseEvent<TType extends string, TPayload = unknown> {
   round?: number;
   tick?: number;
 
-  type: TType;
+  type: TType;        // <- maintenant = EventType (pas string)
   payload: TPayload;
 }

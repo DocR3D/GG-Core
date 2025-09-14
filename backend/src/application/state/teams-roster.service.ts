@@ -13,6 +13,17 @@ export type PlayerInfo = {
   joinedTs?: number;
 };
 
+type TeamsDoc = {
+  home_id?: string | null;
+  away_id?: string | null;
+  ct_id?: string | null;
+  t_id?: string | null;
+  home_name?: string | null;
+  away_name?: string | null;
+  ct_name?: string | null;
+  t_name?: string | null;
+};
+
 @Injectable()
 export class TeamsRosterService {
   constructor(
@@ -21,25 +32,42 @@ export class TeamsRosterService {
   ) {}
 
   // ─────────────────────────────────────────────────────────────────────────────
-  // Teams (optionnel) — noms/ids pour UI
+  // Teams (string JSON) — noms/ids pour UI
   // ─────────────────────────────────────────────────────────────────────────────
   async setTeams(
     matchId: string,
-    ids: { home_id?: string; away_id?: string; ct_id?: string; t_id?: string; home_name?: string; away_name?: string; ct_name?: string; t_name?: string },
+    ids: Partial<TeamsDoc>,
   ) {
     const key = redisConst.teams(matchId);
-    const fields: Record<string, string> = {};
-    for (const [k, v] of Object.entries(ids)) if (v != null) fields[k] = String(v);
-    if (Object.keys(fields).length) await this.redis.hset(key, fields);
+
+    // merge propre sur JSON (évite d’écraser ce qui existe)
+    const prevRaw = await this.redis.get(key);
+    const prev: TeamsDoc = safeParseTeams(prevRaw);
+    const next: TeamsDoc = { ...prev, ...ids };
+
+    await this.redis.set(key, JSON.stringify(next));   // ← SET (string)
   }
 
   async getScoreWithTeams(matchId: string) {
-    const [t, ct] = await this.redis.hmget(redisConst.score(matchId), 't', 'ct');
-    const team = await this.redis.hgetall(redisConst.teams(matchId));
-    const sides = await this.sidesScore.getSides(matchId);
+    const [t, ct, teamsRaw, sides] = await Promise.all([
+      this.redis.hmget(redisConst.score(matchId), 't', 'ct'),
+      // NOTE: hmget renvoie un tableau, pas besoin ici — on récupère t,ct ci-dessous
+      // Correction: on relit les deux valeurs séparément depuis le tuple ci-dessus
+      // mais pour la clarté on peut renommer :
+      // [tStr, ctStr] = await this.redis.hmget(...)
+      this.redis.get(redisConst.teams(matchId)),        // ← GET (string)
+      this.sidesScore.getSides(matchId),
+    ]).then(([tcArr, teamsRaw, sides]) => {
+      const [tStr, ctStr] = tcArr as unknown as [string | null, string | null];
+      return [tStr, ctStr, teamsRaw, sides] as const;
+    });
 
-    const derivedCtId = team?.ct_id ?? (sides ? (sides.home === 'CT' ? team?.home_id : team?.away_id) : null);
-    const derivedTId  = team?.t_id  ?? (sides ? (sides.home === 'T'  ? team?.home_id : team?.away_id) : null);
+    const team = safeParseTeams(teamsRaw);
+
+    const derivedCtId =
+      team?.ct_id ?? (sides ? (sides.home === 'CT' ? team?.home_id : team?.away_id) : null);
+    const derivedTId  =
+      team?.t_id  ?? (sides ? (sides.home === 'T'  ? team?.home_id : team?.away_id) : null);
 
     return {
       matchId,
@@ -149,4 +177,10 @@ export class TeamsRosterService {
 
 function toInt(v?: string | null): number {
   return v == null ? 0 : Number.parseInt(v, 10) || 0;
+}
+
+function safeParseTeams(raw: string | null): TeamsDoc {
+  if (!raw) return {};
+  try { return (JSON.parse(raw) as TeamsDoc) ?? {}; }
+  catch { return {}; }
 }
