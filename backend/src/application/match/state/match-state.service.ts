@@ -59,6 +59,7 @@ export class MatchStateService {
   getKnifeResult(matchId: string) :Promise<{
       side: GameSide | null;
       logical: Logical | null;
+      team: { id: string | null; name: string | null } | null;
     }>{
     return this.sidesScore.getKnifeWinner(matchId);
   }

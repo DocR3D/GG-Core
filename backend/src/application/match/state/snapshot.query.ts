@@ -1,4 +1,4 @@
-import { Injectable, Inject } from '@nestjs/common';
+import { Injectable, Inject, Logger } from '@nestjs/common';
 import type Redis from 'ioredis';
 import { REDIS_CMD } from '@adapters/redis/redis.tokens';
 import { redisConst } from './redis-keys';
@@ -15,19 +15,33 @@ type TeamsDoc = {
   away_name?: string | null;
 };
 
+type TeamsHash = Partial<Record<
+  'ct_id' | 't_id' | 'home_id' | 'away_id' | 'ct_name' | 't_name' | 'home_name' | 'away_name',
+  string
+>>;
+
 @Injectable()
 export class SnapshotQuery {
+  private readonly logger = new Logger(SnapshotQuery.name);
+
   constructor(
     @Inject(REDIS_CMD) private readonly redis: Redis,
     private readonly sidesScore: SidesScoreService,
   ) {}
 
+  /**
+   * Lecture snapshot complet (teams en Hash).
+   * Migre automatiquement la clé teams si elle est encore stockée en JSON String.
+   */
   async getSnapshot(matchId: string) {
+    // 0) Teams en Hash (avec migration auto au besoin)
+    const teamsHash = await this.readTeamsHashWithAutoMigrate(matchId);
+    const teams = mapTeamsHashToDoc(teamsHash);
+
     const [
       sides,
       scoreHash,
-      timeoutsHash, // (laisse-le si tu l'utilises ailleurs; sinon pourra être retiré plus tard)
-      teamsRaw,
+      timeoutsHash,
       econTeam,
       playersMoney,
       playersEquip,
@@ -38,7 +52,6 @@ export class SnapshotQuery {
       this.sidesScore.getSides(matchId),
       this.redis.hgetall(redisConst.score(matchId)),
       this.redis.hgetall(redisConst.timeouts(matchId)),
-      this.redis.get(redisConst.teams(matchId)),
       this.redis.hgetall(redisConst.economyTeam(matchId)),
       this.redis.hgetall(redisConst.moneyHash(matchId)),
       this.redis.hgetall(redisConst.equipHash(matchId)),
@@ -47,8 +60,7 @@ export class SnapshotQuery {
       this.redis.lrange(redisConst.lineupAway(matchId), 0, -1),
     ]);
 
-    const teams: TeamsDoc = safeParseTeams(teamsRaw);
-
+    // Résolution ct_id / t_id si non fournis explicitement
     const ctId =
       (teams.ct_id ?? null) ??
       (sides ? (sides.home === 'CT' ? (teams.home_id ?? null) : (teams.away_id ?? null)) : null);
@@ -75,19 +87,17 @@ export class SnapshotQuery {
     const homeBank = sum(homeIds);
     const awayBank = sum(awayIds);
 
-    // ————————————
-    // Pause & banques tactiques (nouveau modèle)
-    // ————————————
+    // Pause
     const pauseState = (pauseHash?.state as 'paused' | 'none') || 'none';
     const pauseReason = (pauseHash?.reason as 'tactical' | 'technical' | 'admin' | undefined) || undefined;
     const pauseTeam = (pauseHash?.team as 'home' | 'away' | 'system' | undefined) || undefined;
     const startedAtMs = toInt(pauseHash?.started_at) || 0;
 
-    // Banques tactiques “persistées”
+    // Banques tactiques persistées
     const tacHomeSec = toInt(pauseHash?.tac_bank_home) || 0;
     const tacAwaySec = toInt(pauseHash?.tac_bank_away) || 0;
 
-    // Pendant une pause TACTIQUE, on montre aussi une vue "effective" (banque - temps écoulé)
+    // Vue effective pendant pause tactique
     const now = Date.now();
     const elapsedSec = (pauseState === 'paused' && pauseReason === 'tactical' && startedAtMs)
       ? Math.max(0, Math.floor((now - startedAtMs) / 1000))
@@ -109,32 +119,24 @@ export class SnapshotQuery {
         round: toInt(scoreHash?.round) || 1,
         phase: (scoreHash?.phase as Phase) ?? 'freeze',
       },
-
-      // ⚠️ Section "timeouts" devient une banque en secondes (tactiques).
-      // Garde l'ancien timeoutsHash si tu l’exposes encore côté UI ; sinon, tu peux le retirer plus tard.
       timeouts: {
-        // banques “persistées” (valeur de référence)
         homeTacSec: tacHomeSec,
         awayTacSec: tacAwaySec,
-        // vue “live” pendant une pause tactique (utilisable pour countdown UI)
         effective: {
           homeTacSec: effectiveHomeTacSec,
           awayTacSec: effectiveAwayTacSec,
-          elapsedSec, // utile au front
+          elapsedSec,
         },
-        // champs techniques hérités (optionnels / legacy) — à déprécier
+        // legacy (à déprécier si non utilisé côté UI)
         homeTech: toInt(timeoutsHash?.homeTech),
         awayTech: toInt(timeoutsHash?.awayTech),
       },
-
-      // Nouvel objet "pause" clair pour le front
       pause: {
-        state: pauseState,                 // 'paused' | 'none'
-        reason: pauseReason,               // 'tactical' | 'technical' | 'admin' | undefined
-        team: pauseTeam,                   // 'home' | 'away' | 'system' | undefined
-        startedAt: startedAtMs || null,    // ts ms ou null
+        state: pauseState,
+        reason: pauseReason,
+        team: pauseTeam,
+        startedAt: startedAtMs || null,
       },
-
       teams: {
         ct_id: ctId,
         t_id: tId,
@@ -145,7 +147,6 @@ export class SnapshotQuery {
         home_name: teams.home_name ?? null,
         away_name: teams.away_name ?? null,
       },
-
       economy: {
         round: toInt(econTeam?.round) || toInt(scoreHash?.round) || 1,
         home_loss_streak: toInt(econTeam?.home_loss_streak),
@@ -158,36 +159,71 @@ export class SnapshotQuery {
       },
     };
   }
+
+  /**
+   * Lit le hash teams. Si vide, tente de lire l’ancienne String JSON
+   * et migre automatiquement vers le hash.
+   */
+  private async readTeamsHashWithAutoMigrate(matchId: string): Promise<TeamsHash> {
+    const key = redisConst.teams(matchId);
+
+    // 1) Essayer en Hash
+    const h = await this.redis.hgetall(key);
+    if (Object.keys(h).length > 0) {
+      return h as TeamsHash;
+    }
+
+    // 2) Fallback migration depuis ancienne String JSON
+    const raw = await this.redis.get(key);
+    if (!raw) return {};
+
+    try {
+      const o = JSON.parse(raw) as any;
+      const mapped: TeamsHash = {
+        ct_id: o.ct_id ?? o.ct?.id,
+        t_id: o.t_id ?? o.t?.id,
+        home_id: o.home_id ?? o.home?.id,
+        home_name: o.home_name ?? o.home?.name,
+        away_id: o.away_id ?? o.away?.id,
+        away_name: o.away_name ?? o.away?.name,
+        ct_name: o.ct_name ?? o.ct?.name,
+        t_name: o.t_name ?? o.t?.name,
+      };
+
+      // Ecrire le Hash et supprimer l’ancienne String
+      const flatEntries = Object.entries(mapped)
+        .filter(([, v]) => v != null) as [string, string][];
+      if (flatEntries.length > 0) {
+        await this.redis.hset(key, Object.fromEntries(flatEntries));
+      }
+      await this.redis.del(key); // supprime l'ancienne String (même nom de clé)
+
+      this.logger.log(`[teams:migrate] Migrated JSON→Hash for ${key}`);
+      return mapped;
+    } catch (e) {
+      this.logger.warn(`[teams:migrate] Failed to parse JSON for ${key}: ${String(e)}`);
+      return {};
+    }
+  }
 }
 
+// —————————————————————
+// Helpers
+// —————————————————————
 
 function toInt(v?: string | null): number {
   return v == null ? 0 : Number.parseInt(v, 10) || 0;
 }
 
-function safeParseTeams(raw: string | null): TeamsDoc {
-  if (!raw) {
-    return {
-      ct_id: null, t_id: null,
-      home_id: null, away_id: null,
-      ct_name: null, t_name: null,
-      home_name: null, away_name: null,
-    };
-  }
-  try {
-    const obj = JSON.parse(raw) as TeamsDoc;
-    return obj ?? {
-      ct_id: null, t_id: null,
-      home_id: null, away_id: null,
-      ct_name: null, t_name: null,
-      home_name: null, away_name: null,
-    };
-  } catch {
-    return {
-      ct_id: null, t_id: null,
-      home_id: null, away_id: null,
-      ct_name: null, t_name: null,
-      home_name: null, away_name: null,
-    };
-  }
+function mapTeamsHashToDoc(h: TeamsHash): TeamsDoc {
+  return {
+    ct_id: h.ct_id ?? null,
+    t_id: h.t_id ?? null,
+    home_id: h.home_id ?? null,
+    away_id: h.away_id ?? null,
+    ct_name: h.ct_name ?? null,
+    t_name: h.t_name ?? null,
+    home_name: h.home_name ?? null,
+    away_name: h.away_name ?? null,
+  };
 }

@@ -192,29 +192,45 @@ export class SidesScoreService {
 
   }
 
-  async getKnifeWinner(matchId: string): Promise<{
+async getKnifeWinner(matchId: string): Promise<{
     side: GameSide | null;
     logical: Logical | null;
+    team: { id: string | null; name: string | null } | null;
   }> {
+    // Récupère side et logical stockés
     const [sideRaw, logicalRaw] = await this.redis.mget(
       redisConst.knifeWinnerSide(matchId),
       redisConst.knifeWinnerLogical(matchId),
-      redisConst.knifeChoice(matchId),
     );
 
-    let side = (sideRaw as GameSide) ?? null;
+    const side = (sideRaw as GameSide) ?? null;
     let logical = (logicalRaw as Logical) ?? null;
 
-    // Si tu n’avais stocké que le side, on peut dériver logical via le mapping courant
+    // Récupère les équipes
+    const teams = await this.redis.hgetall(redisConst.teams(matchId));
+    const home = { id: teams.home_id ?? null, name: teams.home_name ?? null };
+    const away = { id: teams.away_id ?? null, name: teams.away_name ?? null };
+
+    // Si logical n’est pas stocké → on peut le déduire via sides
     if (!logical && side) {
-      const [homeSide, awaySide] = await this.redis.hmget(redisConst.sides(matchId), 'home', 'away');
+      const [homeSide, awaySide] = await this.redis.hmget(
+        redisConst.sides(matchId),
+        'home',
+        'away',
+      );
       if (side === homeSide) logical = 'home';
       else if (side === awaySide) logical = 'away';
     }
 
-    return { side, logical};
+    // Associe logical -> team
+    let team: { id: string | null; name: string | null } | null = null;
+    if (logical === 'home') team = home;
+    else if (logical === 'away') team = away;
+
+    return { side, logical, team };
   }
 }
+
 
 // ───────────── helpers ─────────────
 function isSide(s: any): s is GameSide {

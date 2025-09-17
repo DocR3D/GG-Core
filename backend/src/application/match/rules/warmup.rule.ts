@@ -48,12 +48,13 @@ export class WarmupRule extends BaseRule implements PhaseRule {
     }
   }
 
-  say() : SaySpec {
+  async say(rct: RuleContext) : Promise<SaySpec> {
+    let state = await rct.state.getSnapshot(rct.matchId);
     return [
       {
         mode: MessageMode.Chain,
         items: [
-          { text: '>>> Équipe A vs Équipe B <<<', intervalMs: 30_000 },
+          { text: `>>> ${state.teams.home_name} vs ${state.teams.away_name} <<<`, intervalMs: 20_000 },
           { text: 'Tapez !ready quand vous êtes prêts.', intervalMs: 20_000 },
         ],
       },

@@ -5,7 +5,7 @@ import { RuleContext } from './Rule-Context';
 import { SaySpec } from '@app/match/messages/messages.types';
 
 export interface PhaseRule {
-say?(): SaySpec;
+  say?(rct: RuleContext): Promise<SaySpec>;
   canHandle(t: EventType): boolean;
   handle(ev: AnyEvent, ctx: RuleContext): Promise<void>;
   canHandleCommand?(cmd: string): boolean;
@@ -18,7 +18,7 @@ say?(): SaySpec;
 export abstract class BaseRule implements PhaseRule {
   protected readonly events = new Map<EventType, (ev: AnyEvent, ctx: RuleContext) => Promise<void>>();
   protected readonly commands = new Map<string, (cmd: CommandEvent, ctx: RuleContext) => Promise<void>>();
-  say?(): SaySpec;
+  async say?(rct: RuleContext): Promise<SaySpec>;
   canHandle(t: EventType) { return this.events.has(t); }
   async handle(ev: AnyEvent, ctx: RuleContext) { const f = this.events.get(ev.type); if (f) await f(ev as any, ctx); }
   canHandleCommand(cmd: string) { return this.commands.has(cmd); }

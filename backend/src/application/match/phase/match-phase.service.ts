@@ -205,7 +205,7 @@ private async applyPhase(
   // 2) Démarrer les messages de la NOUVELLE phase
   const rule = this.registry.getRule(newPhase);
   if (serverId && rule?.say) {
-    const spec = rule.say();
+    const spec = await rule.say(this.rcF.make({matchId,serverId}));
     if (spec) this.messageService.startPhase(matchId, newPhase, serverId, spec);
   }
 

@@ -223,13 +223,28 @@ export class MatchCommandsService {
     return { ok: true, serverId: sid, matchId: mid };
   }
 
-  async ensureInitMatch(serverId: string, matchId?: string, sides?: { home: GameSide; away: GameSide }, opts: InitOpts = {}) {
+/**
+   * Nouvelle signature :
+   *  - serverId (obligatoire)
+   *  - matchId (optionnel)
+   *  - mapName (optionnel → par défaut "de_inferno")
+   *  - homeName (optionnel → par défaut "Home_<slug>")
+   *  - awayName (optionnel → par défaut "Away_<slug>")
+   */
+  async ensureInitMatch(
+    serverId: string,
+    matchId?: string,
+    mapName?: string,
+    homeName?: string,
+    awayName?: string,
+    opts: InitOpts = {},
+  ) {
     const sid = String(serverId || '').trim();
     if (!sid) throw new BadRequestException('serverId requis');
 
-    const wantHome: GameSide = sides?.home ?? 'CT';
-    const wantAway: GameSide = sides?.away ?? 'T';
-    if (wantHome === wantAway) throw new BadRequestException(`sides invalides: home=${wantHome} away=${wantAway}`);
+    // sides par défaut : home=CT, away=T (on ne les demande plus à la commande)
+    const wantHome: GameSide = 'CT';
+    const wantAway: GameSide = 'T';
 
     let mid = String(matchId || '').trim();
     if (!mid || mid === 'unknown') {
@@ -238,52 +253,89 @@ export class MatchCommandsService {
     }
 
     const slug = mid.slice(2, 6);
-    const teams = { home: { id: `th-${slug}`, name: `Home_${slug}` }, away: { id: `ta-${slug}`, name: `Away_${slug}` } };
+
+    const home_name = (homeName ?? `Home_${slug}`).trim();
+    const away_name = (awayName ?? `Away_${slug}`).trim();
+
+    const teams = {
+      home: { id: `th-${slug}`, name: home_name },
+      away: { id: `ta-${slug}`, name: away_name },
+    };
+
+    const map_name = (mapName ?? opts.map ?? 'de_inferno').trim();
 
     const now = Date.now();
     const pipe = this.redis.multi();
 
-    const hset = opts.reset ? (k: string, f: string, v: any) => pipe.hset(k, f, v) : (k: string, f: string, v: any) => pipe.hsetnx(k, f, v);
-    const set  = opts.reset ? (k: string, v: any) => pipe.set(k, v)   : (k: string, v: any) => pipe.setnx(k, v);
+    // helpers "nx ou pas" selon reset
+    const hset = opts.reset
+      ? (k: string, f: string, v: any) => pipe.hset(k, f, v)
+      : (k: string, f: string, v: any) => pipe.hsetnx(k, f, v);
 
-    pipe.set(redisConst.serverMatch(sid), mid);
-    pipe.set(redisConst.matchServer(mid), sid);
+    const set = opts.reset
+      ? (k: string, v: any) => pipe.set(k, v)
+      : (k: string, v: any) => pipe.setnx(k, v);
 
-    hset(matchSidesKey(mid), 'home', wantHome);
-    hset(matchSidesKey(mid), 'away', wantAway);
-    hset(matchScoreKey(mid), 'ct', 0);
-    hset(matchScoreKey(mid), 't', 0);
+    // liens server <-> match
+pipe.set(redisConst.serverMatch(sid), mid);   // ← pas de NX
+pipe.set(redisConst.matchServer(mid), sid);   // ← pas de NX
 
-    hset(matchTosKey(mid), 'homeTac', 4);
-    hset(matchTosKey(mid), 'awayTac', 4);
-    hset(matchTosKey(mid), 'homeTech', 0);
-    hset(matchTosKey(mid), 'awayTech', 0);
+    // sides (toujours hash)
+    hset(redisConst.sides(mid), 'home', wantHome);
+    hset(redisConst.sides(mid), 'away', wantAway);
 
-    set(matchTeamsKey(mid), JSON.stringify(teams));
+    // score (hash)
+    hset(redisConst.score(mid), 'ct', 0);
+    hset(redisConst.score(mid), 't', 0);
+    hset(redisConst.score(mid), 'round', 1);
+    hset(redisConst.score(mid), 'phase', 'freeze');
 
-    hset(matchClockKey(mid), 'phaseEndsAt', 0);
-    hset(matchClockKey(mid), 'pauseEndsAt', 0);
-    hset(matchClockKey(mid), 'roundFreezeMs', 15000);
-    hset(matchClockKey(mid), 'tacTimeoutMs', 30000);
-    hset(matchClockKey(mid), 'techTimeoutMs', 0);
-    hset(matchClockKey(mid), 'createdAt', now);
+    // timeouts (banques tactiques) — hash
+    hset(redisConst.timeouts(mid), 'homeTac', 4);
+    hset(redisConst.timeouts(mid), 'awayTac', 4);
+    hset(redisConst.timeouts(mid), 'homeTech', 0);
+    hset(redisConst.timeouts(mid), 'awayTech', 0);
 
-    hset(matchReadyKey(mid), 'home', 0);
-    hset(matchReadyKey(mid), 'away', 0);
+    // teams en HASH (plus de JSON string)
+    hset(redisConst.teams(mid), 'home_id', teams.home.id);
+    hset(redisConst.teams(mid), 'home_name', teams.home.name);
+    hset(redisConst.teams(mid), 'away_id', teams.away.id);
+    hset(redisConst.teams(mid), 'away_name', teams.away.name);
+    // ct_id / t_id optionnels (souvent dérivés via sides) — on les laisse vides ici
 
-    set(matchSeqKey(mid), '0');
+    // map en HASH
+    hset(redisConst.map(mid), 'name', map_name);
+    hset(redisConst.map(mid), 'set_at', String(now));
+
+    // horloges (hash)
+    hset(redisConst.clock(mid), 'phaseEndsAt', 0);
+    hset(redisConst.clock(mid), 'pauseEndsAt', 0);
+    hset(redisConst.clock(mid), 'roundFreezeMs', 15000);
+    hset(redisConst.clock(mid), 'tacTimeoutMs', 30000);
+    hset(redisConst.clock(mid), 'techTimeoutMs', 0);
+    hset(redisConst.clock(mid), 'createdAt', now);
+
+    // ready flags (hash)
+    hset(redisConst.ready(mid), 'home', 0);
+    hset(redisConst.ready(mid), 'away', 0);
+
+    // séquence (string)
+    set(redisConst.seq(mid), '0');
 
     await pipe.exec();
 
-    await this.pauseMatchService.initTacBanks(mid); 
+    // init banques tactiques dans pause service (si tu utilises ce modèle)
+    await this.pauseMatchService.initTacBanks(mid);
 
     this.logger.log(
-      `[init] server=${sid} match=${mid} sides=${wantHome}/${wantAway} phase=${MatchPhase.WARMUP_MAIN} reset=${!!opts.reset}` +
-      (opts.map ? ` map=${opts.map}` : '') +
-      (opts.seriesBestOf ? ` bo${opts.seriesBestOf}` : '')
+      `[init] server=${sid} match=${mid} sides=${wantHome}/${wantAway} map=${map_name} phase=${MatchPhase.WARMUP_MAIN} reset=${!!opts.reset}` +
+      (opts.seriesBestOf ? ` bo${opts.seriesBestOf}` : ''),
     );
-    this.mps.startPhaseCountdown(mid,MatchPhase.WARMUP_MAIN,0,sid);
 
+    // démarrage immédiat en warmup
+    this.mps.startPhaseCountdown(mid, MatchPhase.WARMUP_MAIN, 0, sid);
+
+    return { matchId: mid, map: map_name, home: teams.home, away: teams.away };
   }
 
   // ---------------- ALIAS demandés par le ChatCommandHandler ----------------

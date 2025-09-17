@@ -31,55 +31,50 @@ export class ChatCommandHandler {
   private global = new Map<string, (ev: CommandEvent) => Promise<void>>();
 
   // init paresseux du registre pour éviter de binder 20x
-  private ensureGlobalInit() {
-    if (this.global.size) return;
+private ensureGlobalInit() {
+  if (this.global.size) return;
 
-    const actor = (ev: CommandEvent) => ({
-      name: ev.payload.sender.name,
-      steamId: ev.payload.sender.steamId ?? undefined,
-      teamSide: ev.payload.sender.team as GameSide,
-      channel: this.normChan(ev.payload.sender.channel),
-    });
+  this.global.set('init', async (ev) => {
+    const p = (ev.payload.parameters ?? []).map(s => String(s).trim()).filter(Boolean);
 
-    // init avancé (map / sides) – tu gardes ta logique telle quelle
-    this.global.set('init', async (ev) => {
-      const p = ev.payload.parameters ?? [];
-      const toSide = (s?: string): 'CT'|'T'|undefined => {
-        if (!s) return undefined;
-        const u = s.toUpperCase();
-        if (u === 'CT') return 'CT';
-        if (u === 'T' || u === 'TERRORIST') return 'T';
-        return undefined;
-      };
+    // Supporte:
+    //  - 4 params: matchId, mapName, homeName, awayName
+    //  - 3 params: mapName, homeName, awayName
+    //  - 2/1 params: partiels (on mettra des défauts)
+    let matchIdParam: string | undefined;
+    let mapName: string | undefined;
+    let homeName: string | undefined;
+    let awayName: string | undefined;
 
-      let matchIdParam: string | undefined;
-      let map: string | undefined;
-      let home: 'CT'|'T' = 'CT';
-      let away: 'CT'|'T' = 'T';
+    if (p.length >= 4) {
+      [matchIdParam, mapName, homeName, awayName] = p;
+    } else if (p.length === 3) {
+      [mapName, homeName, awayName] = p;
+    } else if (p.length === 2) {
+      [mapName, homeName] = p;
+    } else if (p.length === 1) {
+      [mapName] = p;
+    }
 
-      if (p.length >= 4) {
-        matchIdParam = p[0]; map = p[1];
-        home = toSide(p[2]) ?? 'CT';
-        away = toSide(p[3]) ?? (home === 'CT' ? 'T' : 'CT');
-      } else if (p.length === 3) {
-        map = p[0];
-        home = toSide(p[1]) ?? 'CT';
-        away = toSide(p[2]) ?? 'T';
-      } else if (p.length === 2) {
-        home = toSide(p[0]) ?? 'CT';
-        away = toSide(p[1]) ?? 'T';
-      }
+    const { matchId } = await this.matchCmds.ensureInitMatch(
+      ev.serverId,
+      matchIdParam ?? ev.matchId ?? undefined,
+      mapName,        // peut être undefined → défaut côté ensureInitMatch
+      homeName,       // idem
+      awayName,       // idem
+      {},             // opts
+    );
 
-      await this.matchCmds.ensureInitMatch(
-        ev.serverId,
-        matchIdParam ?? ev.matchId ?? undefined,
-        { home, away },
-        { map }
-      );
+    // Changelevel si une map explicite a été fournie
+    if (mapName) {
+      await this.matchCmds.changeLevel({ serverId: ev.serverId, map: mapName });
+    }
 
-      if (map) await this.matchCmds.changeLevel({ serverId: ev.serverId, map });
-    });
-  }
+    // (optionnel) feedback console/say
+    this.logger.log(`[cmd:init] server=${ev.serverId} match=${matchId} map=${mapName ?? '(default)'} home=${homeName ?? '(default)'} away=${awayName ?? '(default)'}`);
+  });
+}
+
 
   // ================================ ENTRYPOINT ==============================
   async handle(ev: CommandEvent): Promise<void> {

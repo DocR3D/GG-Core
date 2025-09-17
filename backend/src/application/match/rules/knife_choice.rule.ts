@@ -68,13 +68,15 @@ export class KnifeChoiceRule extends BaseRule implements PhaseRule {
     await ctx.pubEvent('knife_choice', { choice: 'switch', by: cmd.payload.sender.name });
   }
 
-  say() : SaySpec {
-    let a = "Equipe A"
+  async say(rct: RuleContext) : Promise<SaySpec> {
+    let state = await rct.state.getSnapshot(rct.matchId);
+    let winner = await rct.orch.getKnifeResult(rct.matchId);
     return [
       {
         mode: MessageMode.Chain,
         items: [
-          { text: `>>> ${a} vs Équipe B <<<`, intervalMs: 20_000 },
+          { text: `>>> ${state.teams.home_name} vs ${state.teams.away_name} <<<`, intervalMs: 20_000 },
+          { text: ` ${winner.team?.name} a gagné le knife `, intervalMs: 20_000},
           { text: 'Tapez !switch si vous voulez swap et !stay sinon.', intervalMs: 20_000 },
         ],
       },
