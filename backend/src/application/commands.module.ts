@@ -3,7 +3,7 @@ import { Module, forwardRef } from '@nestjs/common';
 import { MatchCommandsService } from '@app/commands/match-commands.service';
 import { MatchStateModule } from '@app/match-state.module';
 import { RedisModule } from '@adapters/redis/redis.module';
-import { PhaseModule } from '@app/phase/phase.module';
+import { PhaseModule } from '@app/match/phase/phase.module';
 import { ACTIONS_PORT } from '@app/ports/actions.port';
 
 // src/application/commands.module.ts

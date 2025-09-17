@@ -65,6 +65,9 @@ var nadeSpawnedRe = regexp.MustCompile(`^(?i)(?P<nade>Molotov|Flashbang|Smokegre
 // --- Player blinded ---
 var blindedRe = regexp.MustCompile(`^"(?P<vname>[^"<]+)<\d+><(?P<vsteam>[^>]*)><(?P<vteam>[^>]+)>"\s+blinded\s+for\s+(?P<dur>\d+(?:\.\d+)?)\s+by\s+"(?P<aname>[^"<]+)<\d+><(?P<asteam>[^>]*)><(?P<ateam>[^>]+)>"\s+from\s+(?P<nade>flashbang)\s+entindex\s+(?P<ent>\d+)$`)
 
+// --- Freeze time started ---
+var freezeStartRe = regexp.MustCompile(`(?i)^Starting\s+(?:pre-?round\s+)?Freeze\s+period(?:\b.*)?$`)
+
 // Helpers extraction par nom de groupe
 func grp(re *regexp.Regexp, line, name string) string {
 	idx := re.SubexpIndex(name)
@@ -427,6 +430,9 @@ func TryParse(line string) (string, json.RawMessage, bool) {
 		return events.EvPlayerBlinded, mustJSON(payload), true
 	}
 
+	if freezeStartRe.MatchString(line) {
+		return events.EvRoundFreezeStart, mustJSON(map[string]any{}), true
+	}
 	// pas de match → aucun event
 	return "", nil, false
 }

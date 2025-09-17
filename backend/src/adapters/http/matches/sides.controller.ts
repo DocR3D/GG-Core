@@ -1,6 +1,6 @@
 // src/adapters/http/matches/sides.controller.ts
 import { Controller, Param, Patch, Get, Body } from '@nestjs/common';
-import { MatchStateService, type GameSide, CoreSide, type Logical } from '@app/state/match-state.service';
+import { MatchStateService, type GameSide, CoreSide, type Logical } from '@app/match/state/match-state.service';
 
 type SetSidesDto = Partial<CoreSide>; // {home?: 'CT'|'T', away?: 'CT'|'T'}
 

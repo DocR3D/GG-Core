@@ -1,20 +1,25 @@
 // src/domain/rules/rule-context.ts
-import type { MatchStateService } from '@app/state/match-state.service';
-import type { MatchPhaseService } from '@app/phase/match-phase.service';
-import type { MatchCommandsService } from '@app/commands/match-commands.service';
-import type { WsBroadcaster } from '@adapters/ws/ws-broadcaster.service';
+import type { MatchStateService } from '@app/match/state/match-state.service';
+import type { MatchOrchestrator } from '@app/match/match-orchestrator.services';
 
 export type RuleContext = {
   matchId: string;
-  serverId: string; // utile pour say()
+  serverId?: string;
 
-  // Services
-  matchStateService: MatchStateService;
-  phase: MatchPhaseService;
-  commands: MatchCommandsService;
-  ws: WsBroadcaster;
+  // write
+  orch: MatchOrchestrator;
 
-  // Helpers “opinionated”
+  // read-only
+  state: Pick<
+    MatchStateService,
+    | 'getSnapshot'
+    | 'getScore'
+    | 'getServerIdFromMatchId'
+    | 'getMatchIdFromServerId'
+    | 'getPlayers'              // 👈 ajoute ceci
+  >;
+
+  // helpers conservés
   say: (msg: string) => Promise<void>;
   pubEvent: (type: string, payload: any) => Promise<void>;
 };

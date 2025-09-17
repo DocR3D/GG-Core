@@ -1,14 +1,15 @@
 // src/application/subscribers/match-events.handler.ts
 import { Injectable, Logger } from '@nestjs/common';
 import type { AnyEvent, PhaseChangeEvent } from '@domain/types/match.event';
-import { RuleRegistry } from '@app/rules/rule.registry';
-import { MatchPhaseService } from '@app/phase/match-phase.service';
-import { MatchStateService } from '@app/state/match-state.service';
+import { RuleRegistry } from '@app/match/rules/rule.registry';
+import { MatchPhaseService } from '@app/match/phase/match-phase.service';
+import { MatchStateService } from '@app/match/state/match-state.service';
 import { RuleContextFactory } from '@domain/rules/rule-context-factory';
 import { EventTypes } from '@domain/types/event.types';
-import { redisConst } from '@app/state/redis-keys';
+import { redisConst } from '@app/match/state/redis-keys';
 import { RedisSafeService } from '@adapters/redis/redis.service';
 import { MatchPhase } from '@domain/phase.types';
+import { MatchOrchestrator } from '@app/match/match-orchestrator.services';
 
 @Injectable()
 export class MatchEventsHandler {
@@ -18,6 +19,7 @@ export class MatchEventsHandler {
     private readonly registry: RuleRegistry,
     private readonly phase: MatchPhaseService,
     private readonly mss: MatchStateService,          // pour quelques effets globaux (pause…)
+    private readonly matchOrchestrator: MatchOrchestrator,          // pour quelques effets globaux (pause…)
     private readonly ctxFactory: RuleContextFactory,  // construit RuleContext { matchId, serverId, ... }
     private readonly redisSafe: RedisSafeService,
   ) {}
@@ -81,7 +83,22 @@ async handle(ev: AnyEvent & { serverId?: string }): Promise<void> {
         const cached = (this.phase as any)?.cache?.get?.(matchId);
         this.logger.verbose(`[MatchEventsHandler] phase-check match=${matchId} cache=${cached} redis=${raw}`);
       } catch { /* noop debug */ }
-
+      switch (ev.type) {
+        case EventTypes.ROUND_START:
+          this.matchOrchestrator.onRoundStart(ev);
+          break;
+        case EventTypes.BOMB_PLANTED:
+          this.matchOrchestrator.onBombPlanted(ev);
+          break;
+        case EventTypes.TEAM_ROUND_WIN:
+          this.matchOrchestrator.onRoundEnd(ev);
+          break;
+        case EventTypes.ROUND_FREEZE_START:
+          this.matchOrchestrator.onFreezeTimeStart(ev);
+          break;
+        default:
+          break;
+      }
       // 3) Flux normal: dispatch vers la règle en cours
       const phase = await this.phase.getPhase(matchId);
       const rule  = this.registry.getRule(phase);
@@ -128,6 +145,8 @@ async handle(ev: AnyEvent & { serverId?: string }): Promise<void> {
         `MatchEventsHandler failed: type=${(ev as any)?.type} match=${(ev as any)?.matchId} err=${(e as Error)?.message}`,
       );
     }
+
+
   }
 
 

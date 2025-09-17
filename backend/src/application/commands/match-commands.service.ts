@@ -2,12 +2,14 @@
 import { Injectable, Logger, Inject, BadRequestException, forwardRef } from '@nestjs/common';
 import type Redis from 'ioredis';
 import { REDIS_CMD, REDIS_PUB } from '@adapters/redis/redis.tokens';
-import { GameSide, MatchStateService } from '../state/match-state.service';
-import { MatchPhaseService } from '@app/phase/match-phase.service';
+import { GameSide, Logical, MatchStateService } from '../match/state/match-state.service';
+import { MatchPhaseService } from '@app/match/phase/match-phase.service';
 
-import { redisConst } from '../state/redis-keys';
+import { redisConst } from '../match/state/redis-keys';
 import * as crypto from 'crypto';
-import { MatchPhase as MP } from '@domain/phase.types';
+import { PauseMatchService } from '@app/match/pause/pause-match.service';
+import { ACTIONS_PORT } from '@app/ports/actions.port';
+import { MatchPhase } from '@domain/phase.types';
 
 // ⚠️ Idéalement, importe depuis un type canonique partagé (ex: @adapters/ws/dto/events.dto)
 type Actor = { name: string; steamId?: string; teamSide: GameSide; channel?: 'say' | 'say_team' };
@@ -26,8 +28,7 @@ const DEFAULT_CTX: Required<NextPhaseContext> = {
   needOvertime: false,
 };
 type AgentAction =
-  | { id: string; ts: number; type: 'action'; serverId: string; action: 'tac_timeout';  payload: { matchId: string; teamSide: GameSide; teamLogical: 'home'|'away'; seconds: number }; source?: any }
-  | { id: string; ts: number; type: 'action'; serverId: string; action: 'tech_timeout'; payload: { matchId: string; seconds: number };                                      source?: any }
+  | { id: string; ts: number; type: 'action'; serverId: string; action: 'pause';        payload: { matchId: string};}
   | { id: string; ts: number; type: 'action'; serverId: string; action: 'unpause';      payload: { matchId: string; teamSide?: GameSide };                                  source?: any }
   | { id: string; ts: number; type: 'action'; serverId: string; action: 'say';          payload: { text: string };                                                      source?: any }
   | { id: string; ts: number; type: 'action'; serverId: string; action: 'say_team';     payload: { team: GameSide; text: string };                                      source?: any }
@@ -39,10 +40,6 @@ type AgentAction =
 
 const agentActionsCh = (serverId: string) => `ggbot:agent:${serverId}:actions`;
 function uuid() { return crypto.randomUUID?.() ?? crypto.randomBytes(16).toString('hex'); }
-
-type MatchPhase =
-  | 'idle' | 'warmup' | 'knife' | 'live' | 'halftime' | 'overtime'
-  | 'paused' | 'timeout_t' | 'timeout_ct' | 'tech_pause' | 'ended';
 
 interface InitOpts {
   phase?: MatchPhase;
@@ -78,6 +75,7 @@ export class MatchCommandsService {
     private readonly mps: MatchPhaseService,
     @Inject(REDIS_CMD) private readonly redis: Redis,
     @Inject(REDIS_PUB) private readonly pub: Redis,
+    private readonly pauseMatchService: PauseMatchService
   ) {}
 
   // --------- Helpers
@@ -105,43 +103,21 @@ export class MatchCommandsService {
 
   // --------- Actions principales
 
-  async tacticalTimeout(opts: { serverId?: string; matchId?: string; actor: Actor; seconds?: number }) {
-    const { actor } = opts;
-    const seconds = Math.max(5, Math.min(60, opts.seconds ?? 30));
+
+  async pause(opts: { serverId?: string; matchId?: string; }) {
     const { serverId, matchId } = await this.resolveServerAndMatch(opts);
-
-    const logical = await this.ms.sideToLogical(matchId, actor.teamSide);
-    if (!logical) {
-      this.logger.warn(`[TACTICAL_TIMEOUT] SIDE_MISMATCH server=${serverId} match=${matchId} side=${actor.teamSide}`);
-      return { ok: false, code: 'SIDE_MISMATCH' as const };
-    }
-
-    const left = await this.ms.decrTac(matchId, logical);
-    if (left < 0) return { ok: false, code: 'TIMEOUTS_NOT_INITIALIZED' as const };
-    if (left === 0) return { ok: false, code: 'TIMEOUTS_EXHAUSTED' as const };
-
     const msg: AgentAction = {
       id: uuid(), ts: Date.now(), type: 'action', serverId,
-      action: 'tac_timeout',
-      payload: { matchId, teamSide: actor.teamSide, teamLogical: logical, seconds },
-      source: { via: 'chat', player: actor },
+      action: 'pause',
+      payload: { matchId },
     };
-    await this.publishToAgent(serverId, msg);
-    return { ok: true, remaining: left };
-  }
 
-  async technicalTimeout(opts: { serverId?: string; matchId?: string; seconds?: number; reason?: string,actor?: Actor }) {
-    const { serverId, matchId } = await this.resolveServerAndMatch(opts);
-    const seconds = Math.max(10, Math.min(180, opts.seconds ?? 60));
-    const msg: AgentAction = {
-      id: uuid(), ts: Date.now(), type: 'action', serverId,
-      action: 'tech_timeout',
-      payload: { matchId, seconds },
-      source: { via: 'admin', reason: opts.reason ?? null },
-    };
+    // 👉 On envoie l'action à l'agent, et C'EST TOUT.
     await this.publishToAgent(serverId, msg);
+
     return { ok: true };
   }
+
 
   async unpause(opts: { serverId?: string; matchId?: string; actor?: Actor }) {
     const { serverId, matchId } = await this.resolveServerAndMatch(opts);
@@ -151,12 +127,21 @@ export class MatchCommandsService {
       payload: { matchId, teamSide: opts.actor?.teamSide },
       source: opts.actor ? { via: 'chat', player: opts.actor } : { via: 'admin' },
     };
+
     await this.publishToAgent(serverId, msg);
-    await this.ms.setPhase(matchId, 'live'); // NEW: on reflète côté state
+
+    // ✅ Ici oui: on clôt la pause côté état/messages
+    await this.pauseMatchService.resume(matchId);
+
+    // ❌ NE PAS forcer la phase:
+    // await this.ms.setPhase(matchId, 'live');
+
     return { ok: true };
   }
 
-  async say(opts: { serverId: string; message: string }) {
+
+  async say(serverId: string, message: string) {
+    let opts = {serverId,message}
     if (!opts.serverId) throw new BadRequestException('serverId requis');
     const msg: AgentAction = {
       id: uuid(), ts: Date.now(), type: 'action', serverId: opts.serverId,
@@ -255,9 +240,6 @@ export class MatchCommandsService {
     const slug = mid.slice(2, 6);
     const teams = { home: { id: `th-${slug}`, name: `Home_${slug}` }, away: { id: `ta-${slug}`, name: `Away_${slug}` } };
 
-    const phase: MatchPhase = opts.phase ?? 'warmup';
-    const subphase = phase === 'knife' ? 'preknife' : phase === 'live' ? 'live_freeze' : '';
-
     const now = Date.now();
     const pipe = this.redis.multi();
 
@@ -293,14 +275,15 @@ export class MatchCommandsService {
 
     await pipe.exec();
 
+    await this.pauseMatchService.initTacBanks(mid); 
+
     this.logger.log(
-      `[init] server=${sid} match=${mid} sides=${wantHome}/${wantAway} phase=${phase} reset=${!!opts.reset}` +
+      `[init] server=${sid} match=${mid} sides=${wantHome}/${wantAway} phase=${MatchPhase.WARMUP_MAIN} reset=${!!opts.reset}` +
       (opts.map ? ` map=${opts.map}` : '') +
       (opts.seriesBestOf ? ` bo${opts.seriesBestOf}` : '')
     );
+    this.mps.startPhaseCountdown(mid,MatchPhase.WARMUP_MAIN,0,sid);
 
-    return { ok: true, serverId: sid, matchId: mid, sides: { home: wantHome, away: wantAway }, teams,
-      state: { phase, subphase, round: 0, ot: 0, map: opts.map ?? null, seriesBestOf: opts.seriesBestOf ?? null } };
   }
 
   // ---------------- ALIAS demandés par le ChatCommandHandler ----------------
@@ -308,7 +291,6 @@ export class MatchCommandsService {
   // NEW: !start → on met la phase à live + on demande unpause à l’agent
   async startLive(opts: { serverId?: string; matchId?: string; actor?: Actor }) {
     const { serverId, matchId } = await this.resolveServerAndMatch(opts);
-    await this.ms.setPhase(matchId, 'live');
     await this.unpause({ serverId, matchId, actor: opts.actor });
     return { ok: true };
   }
@@ -337,10 +319,10 @@ export class MatchCommandsService {
     const newStatus = opts.ready ? 'ready' : 'not ready';
 
     // 🔹 Message
-    await this.say({
+    await this.say(
       serverId,
-      message: `[status] ${opts.actor.name}: ${oldStatus} → ${newStatus}`
-    });
+      `[status] ${opts.actor.name}: ${oldStatus} → ${newStatus}`
+    );
     if (!opts.ready) {
       await this.mps.cancelPhaseCountdown(matchId, 'team_unready');
     }
@@ -361,7 +343,7 @@ export class MatchCommandsService {
   async stopMatch(opts: { serverId?: string; matchId?: string; actor?: Actor }) {
     const { serverId, matchId } = await this.resolveServerAndMatch(opts);
     await this.ms.setPhase(matchId, 'ended');
-    await this.say({ serverId, message: '[match] stopped by admin' });
+    await this.say( serverId, '[match] stopped by admin');
     return { ok: true };
   }
 
@@ -388,24 +370,24 @@ export class MatchCommandsService {
 export function resolveNextPhase(
   current: Phase | null | undefined,
   ctx?: NextPhaseContext
-): MP {
+): MatchPhase {
   const C = { ...DEFAULT_CTX, ...(ctx || {}) };
 
   if (!current) {
-    return C.knifeEnabled ? MP.KNIFE_LIVE : MP.LIVE_MAIN;
+    return C.knifeEnabled ? MatchPhase.KNIFE_LIVE : MatchPhase.LIVE_MAIN;
   }
 
   switch (current) {
     case 'knife':
       // Après le knife, on passe live (1ère mi-temps)
-      return MP.KNIFE_CHOICE;
+      return MatchPhase.KNIFE_CHOICE;
 
     case 'knife_decision':
-      return MP.LIVE_MAIN
+      return MatchPhase.LIVE_MAIN
 
     case 'postgame':
     default:
-      return MP.KNIFE_CHOICE;
+      return MatchPhase.KNIFE_CHOICE;
   }
 }
 

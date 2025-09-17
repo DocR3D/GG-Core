@@ -1,6 +1,6 @@
 // src/adapters/http/matches/init.controller.ts
 import { Controller, Param, Post, Body,Get, Patch } from '@nestjs/common';
-import { MatchStateService} from '@app/state/match-state.service';
+import { MatchStateService} from '@app/match/state/match-state.service';
 
 
 @Controller('matches/:id/economy')

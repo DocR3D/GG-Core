@@ -26,19 +26,25 @@ export class SnapshotQuery {
     const [
       sides,
       scoreHash,
-      timeoutsHash,
-      teamsRaw,                     // ← string JSON
+      timeoutsHash, // (laisse-le si tu l'utilises ailleurs; sinon pourra être retiré plus tard)
+      teamsRaw,
       econTeam,
       playersMoney,
       playersEquip,
+      pauseHash,
+      homeIds,
+      awayIds,
     ] = await Promise.all([
       this.sidesScore.getSides(matchId),
       this.redis.hgetall(redisConst.score(matchId)),
       this.redis.hgetall(redisConst.timeouts(matchId)),
-      this.redis.get(redisConst.teams(matchId)),         // ← GET (string)
+      this.redis.get(redisConst.teams(matchId)),
       this.redis.hgetall(redisConst.economyTeam(matchId)),
       this.redis.hgetall(redisConst.moneyHash(matchId)),
       this.redis.hgetall(redisConst.equipHash(matchId)),
+      this.redis.hgetall(redisConst.pause(matchId)),
+      this.redis.lrange(redisConst.lineupHome(matchId), 0, -1),
+      this.redis.lrange(redisConst.lineupAway(matchId), 0, -1),
     ]);
 
     const teams: TeamsDoc = safeParseTeams(teamsRaw);
@@ -51,6 +57,7 @@ export class SnapshotQuery {
       (teams.t_id ?? null) ??
       (sides ? (sides.home === 'T' ? (teams.home_id ?? null) : (teams.away_id ?? null)) : null);
 
+    // Players $ / equip
     const players: Record<string, { money: number; equip: number }> = {};
     const ids = new Set([
       ...Object.keys(playersMoney || {}),
@@ -63,15 +70,35 @@ export class SnapshotQuery {
       };
     }
 
-    // banques agrégées
+    // Banks agrégées
     const sum = (arr: string[]) => arr.reduce((acc, id) => acc + (players[id]?.money || 0), 0);
-    const [homeIds, awayIds] = await Promise.all([
-      this.redis.lrange(redisConst.lineupHome(matchId), 0, -1),
-      this.redis.lrange(redisConst.lineupAway(matchId), 0, -1),
-    ]);
-
     const homeBank = sum(homeIds);
     const awayBank = sum(awayIds);
+
+    // ————————————
+    // Pause & banques tactiques (nouveau modèle)
+    // ————————————
+    const pauseState = (pauseHash?.state as 'paused' | 'none') || 'none';
+    const pauseReason = (pauseHash?.reason as 'tactical' | 'technical' | 'admin' | undefined) || undefined;
+    const pauseTeam = (pauseHash?.team as 'home' | 'away' | 'system' | undefined) || undefined;
+    const startedAtMs = toInt(pauseHash?.started_at) || 0;
+
+    // Banques tactiques “persistées”
+    const tacHomeSec = toInt(pauseHash?.tac_bank_home) || 0;
+    const tacAwaySec = toInt(pauseHash?.tac_bank_away) || 0;
+
+    // Pendant une pause TACTIQUE, on montre aussi une vue "effective" (banque - temps écoulé)
+    const now = Date.now();
+    const elapsedSec = (pauseState === 'paused' && pauseReason === 'tactical' && startedAtMs)
+      ? Math.max(0, Math.floor((now - startedAtMs) / 1000))
+      : 0;
+
+    let effectiveHomeTacSec = tacHomeSec;
+    let effectiveAwayTacSec = tacAwaySec;
+    if (pauseState === 'paused' && pauseReason === 'tactical') {
+      if (pauseTeam === 'home') effectiveHomeTacSec = Math.max(0, tacHomeSec - elapsedSec);
+      if (pauseTeam === 'away') effectiveAwayTacSec = Math.max(0, tacAwaySec - elapsedSec);
+    }
 
     return {
       matchId,
@@ -82,12 +109,32 @@ export class SnapshotQuery {
         round: toInt(scoreHash?.round) || 1,
         phase: (scoreHash?.phase as Phase) ?? 'freeze',
       },
+
+      // ⚠️ Section "timeouts" devient une banque en secondes (tactiques).
+      // Garde l'ancien timeoutsHash si tu l’exposes encore côté UI ; sinon, tu peux le retirer plus tard.
       timeouts: {
-        homeTac: toInt(timeoutsHash?.homeTac),
-        awayTac: toInt(timeoutsHash?.awayTac),
+        // banques “persistées” (valeur de référence)
+        homeTacSec: tacHomeSec,
+        awayTacSec: tacAwaySec,
+        // vue “live” pendant une pause tactique (utilisable pour countdown UI)
+        effective: {
+          homeTacSec: effectiveHomeTacSec,
+          awayTacSec: effectiveAwayTacSec,
+          elapsedSec, // utile au front
+        },
+        // champs techniques hérités (optionnels / legacy) — à déprécier
         homeTech: toInt(timeoutsHash?.homeTech),
         awayTech: toInt(timeoutsHash?.awayTech),
       },
+
+      // Nouvel objet "pause" clair pour le front
+      pause: {
+        state: pauseState,                 // 'paused' | 'none'
+        reason: pauseReason,               // 'tactical' | 'technical' | 'admin' | undefined
+        team: pauseTeam,                   // 'home' | 'away' | 'system' | undefined
+        startedAt: startedAtMs || null,    // ts ms ou null
+      },
+
       teams: {
         ct_id: ctId,
         t_id: tId,
@@ -98,6 +145,7 @@ export class SnapshotQuery {
         home_name: teams.home_name ?? null,
         away_name: teams.away_name ?? null,
       },
+
       economy: {
         round: toInt(econTeam?.round) || toInt(scoreHash?.round) || 1,
         home_loss_streak: toInt(econTeam?.home_loss_streak),
@@ -111,6 +159,7 @@ export class SnapshotQuery {
     };
   }
 }
+
 
 function toInt(v?: string | null): number {
   return v == null ? 0 : Number.parseInt(v, 10) || 0;

@@ -3,7 +3,7 @@ export const EventTypes = {
   BOMB_PLANTED:       'bomb_planted',
   BEGIN_BOMB_PLANT:   'begin_bomb_plant',
   TEAM_ROUND_WIN:     'team_round_win',
-  SFUI_TARGET_BOMBED: 'sfui_target_bombed', // corrigé
+  SFUI_TARGET_BOMBED: 'sfui_notice_target_bombed',
   KILL:               'kill',
 
   PLAYER_CONNECTED:    'player_connected',    // corrigé
@@ -25,8 +25,11 @@ export const EventTypes = {
   GRENADE_LAND:   'grenade_land',
   PLAYER_BLINDED: 'player_blinded',
 
+  PHASE_COUNTDOWN_CANCELLED: 'phase_change_canceled',
   PHASE_CHANGED: 'phase_changed',
 
+  ROUND_FREEZE_START: 'round_freeze_start',
+  
 } as const;
 
 export type EventType = typeof EventTypes[keyof typeof EventTypes];

@@ -1,6 +1,6 @@
 // src/adapters/http/matches/init.controller.ts
 import { Controller, Param, Post, Body, Logger } from '@nestjs/common';
-import { MatchStateService, type GameSide } from '@app/state/match-state.service';
+import { MatchStateService, type GameSide } from '@app/match/state/match-state.service';
 
 type InitDto = {
   home?: GameSide;          // 'CT' | 'T' (défaut: 'CT')

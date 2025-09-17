@@ -1,5 +1,5 @@
 import { Controller, Param, Body, Post, Patch, Delete, Get } from '@nestjs/common';
-import { MatchStateService } from '@app/state/match-state.service';
+import { MatchStateService } from '@app/match/state/match-state.service';
 
 @Controller('matches/:id/players')
 export class PlayersController {

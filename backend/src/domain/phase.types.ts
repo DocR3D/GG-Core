@@ -24,5 +24,12 @@ export enum MatchPhase {
   PAUSED_TECH  = 'paused_tech',
 }
 
+export enum RoundPhase {
+  WARMUP = 'warmup',
+  FREEZE  = 'freeze',
+  LIVE = 'live',
+  BOMB_PLANTED   = 'bomb_planted',
+  END     = "end",
+}
 // Les phases qu’on peut cibler via un countdown (on ne “va pas” vers warmup)
 export type NextPhase = Exclude<Phase, 'warmup'>;

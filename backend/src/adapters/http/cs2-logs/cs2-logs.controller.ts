@@ -4,7 +4,7 @@ import {
 } from '@nestjs/common';
 import type { Request } from 'express';
 import { Cs2LogsService } from './cs2-logs.service';
-import { MatchStateService } from '@app/state/match-state.service';
+import { MatchStateService } from '@app/match/state/match-state.service';
 
 // ================= Utils IP =================
 function normalizeIpv4(ip: string): string {

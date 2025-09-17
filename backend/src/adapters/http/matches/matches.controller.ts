@@ -1,6 +1,6 @@
 // matches.controller.ts
 import { Controller, Patch, Get, Param, Body } from '@nestjs/common';
-import { MatchStateService } from '@app/state/match-state.service';
+import { MatchStateService } from '@app/match/state/match-state.service';
 
 type SetTeamsDto = {
   home_id?: string;

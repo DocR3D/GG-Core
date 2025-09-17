@@ -2,7 +2,7 @@
 import { BaseRule, PhaseRule, RuleContext } from '@domain/rules';
 import { EventTypes, type EventType } from '@domain/types/event.types';
 import type { KillEvent, TeamRoundWinEvent } from '@domain/types/match.event';
-import type { Logical } from '@app/state/sides-score.service';
+import type { Logical } from '@app/match/state/sides-score.service';
 import { MatchPhase } from '@domain/phase.types';
 import { Logger } from '@nestjs/common';
 
@@ -37,7 +37,7 @@ export class KnifeRule extends BaseRule implements PhaseRule {
 
   // === Lifecycle ============================================================
   async onEnter(ctx: RuleContext) {
-    const rosters = await ctx.matchStateService.getPlayers(ctx.matchId);
+    const rosters = await ctx.state.getPlayers(ctx.matchId);
     this.state.set(ctx.matchId, {
       playersHome: new Set((rosters.home ?? []).map(p => p.steamId).filter(Boolean)),
       playersAway: new Set((rosters.away ?? []).map(p => p.steamId).filter(Boolean)),
@@ -45,12 +45,12 @@ export class KnifeRule extends BaseRule implements PhaseRule {
       deathsAway:  new Set(),
     });
 
-    const serverId = ctx.serverId ?? (await ctx.matchStateService.getServerIdFromMatchId(ctx.matchId));
+    const serverId = ctx.serverId ?? (await ctx.state.getServerIdFromMatchId(ctx.matchId));
     if (!serverId) throw new Error(`Aucun serveur lié au match ${ctx.matchId}`);
 
-    await ctx.commands.exec({ serverId, matchId: ctx.matchId, cfgName: 'ggbot/knife.cfg' });
+    await ctx.orch.execCfg({ serverId, matchId: ctx.matchId}, 'ggbot/knife.cfg');
     await ctx.say('[knife] Knife round begins!');
-    await ctx.ws.push(ctx.matchId, 'match:state', await ctx.matchStateService.getSnapshot(ctx.matchId));
+    await ctx.orch.push(ctx.matchId, 'match:state', await ctx.state.getSnapshot(ctx.matchId));
   }
 
   async onExit(_: RuleContext) {
@@ -69,7 +69,7 @@ export class KnifeRule extends BaseRule implements PhaseRule {
       await ctx.say(`[knife][warn] team inconnu pour ${killed.name}: ${side}`);
       return;
     }
-    const logical = await ctx.matchStateService.sideToLogical(ev.matchId, side);
+    const logical = await ctx.orch.sideToLogical(ev.matchId, side);
     const key = this.normalizeId(killed.steamId, killed.name);
     
 
@@ -81,7 +81,7 @@ private async onTeamRoundWin(ev: TeamRoundWinEvent, ctx: RuleContext) {
   await ctx.say(`[knife] onTeamRoundWin payload=${JSON.stringify(ev.payload)}`);
 
   const st = this.state.get(ev.matchId);
-  const serverId = ctx.serverId ?? (await ctx.matchStateService.getServerIdFromMatchId(ev.matchId));
+  const serverId = ctx.serverId ?? (await ctx.state.getServerIdFromMatchId(ev.matchId));
   if (!serverId) {
     await ctx.say(`[knife][error] aucun serveur lié au match ${ev.matchId}`);
     return;
@@ -95,9 +95,9 @@ private async onTeamRoundWin(ev: TeamRoundWinEvent, ctx: RuleContext) {
       return;
     }
     try {
-      await ctx.matchStateService.applyKnifeResult(ev.matchId, winnerFromEvent);
-      await ctx.commands.exec({ serverId, matchId: ev.matchId, cfgName: 'ggbot/knife_undo.cfg' });
-      await ctx.phase.startPhaseCountdown(ev.matchId, MatchPhase.KNIFE_CHOICE, 0, serverId);
+      await ctx.orch.applyKnifeResult(ev.matchId, winnerFromEvent);
+      await ctx.orch.execCfg({ serverId, matchId: ev.matchId}, 'ggbot/knife_undo.cfg' );
+      await ctx.orch.startPhaseCountdown(ev.matchId, MatchPhase.KNIFE_CHOICE, 0, serverId);
     } catch (e) {
       await ctx.say(`[knife][error] fallback persist/transition: ${(e as Error)?.message ?? e}`);
     }
@@ -112,13 +112,13 @@ private async onTeamRoundWin(ev: TeamRoundWinEvent, ctx: RuleContext) {
   if (st.deathsAway.size === st.deathsHome.size) {
     const sideFromEvent = this.toTeamSide((ev.payload as any)?.winner);
     if (sideFromEvent) {
-      const logicalFromEvent = await ctx.matchStateService.sideToLogical(ev.matchId, sideFromEvent);
+      const logicalFromEvent = await ctx.orch.sideToLogical(ev.matchId, sideFromEvent);
       if (logicalFromEvent) winnerLogical = logicalFromEvent;
     }
   }
 
   // Convertit le gagnant logique en côté physique 'CT' | 'T'
-  let winnerSide = await ctx.matchStateService.logicalToSide(ev.matchId, winnerLogical);
+  let winnerSide = await ctx.orch.logicalToSide(ev.matchId, winnerLogical);
   if(winnerSide == undefined) return;
   await ctx.say(
     `[knife] Gagnant knife: ${winnerSide} (homeDeaths=${st.deathsHome.size}, awayDeaths=${st.deathsAway.size})`,
@@ -128,10 +128,10 @@ private async onTeamRoundWin(ev: TeamRoundWinEvent, ctx: RuleContext) {
 
   try {
     // Persiste le résultat avec le gagnant calculé/normalisé
-    await ctx.matchStateService.applyKnifeResult(ev.matchId, winSide);
+    await ctx.orch.applyKnifeResult(ev.matchId, winSide);
 
     // Notifie (optionnel)
-    await ctx.ws.push(ev.matchId, 'knife:result', {
+    await ctx.orch.push(ev.matchId, 'knife:result', {
       matchId: ev.matchId,
       side: winnerSide,
       logical: winnerLogical,
@@ -144,7 +144,7 @@ private async onTeamRoundWin(ev: TeamRoundWinEvent, ctx: RuleContext) {
 
   // Retire le cfg knife, puis transition vers KNIFE_CHOICE
   try {
-    await ctx.commands.exec({ serverId, matchId: ev.matchId, cfgName: 'ggbot/knife_undo.cfg' });
+    await ctx.orch.execCfg({ serverId, matchId: ev.matchId}, 'ggbot/knife_undo.cfg');
   } catch (e) {
     await ctx.say(`[knife][warn] knife_undo.cfg KO: ${(e as Error)?.message ?? e}`);
   }
@@ -152,9 +152,10 @@ private async onTeamRoundWin(ev: TeamRoundWinEvent, ctx: RuleContext) {
   // Verrouille et nettoie l’état pour éviter des doubles traitements
   (st as any).finished = true;
   this.state.delete(ev.matchId);
-
+  if(!ctx.serverId) ctx.serverId = await ctx.state.getServerIdFromMatchId(ev.matchId)
+  if(ctx.serverId) ctx.orch.startWarmup(ctx.serverId);
   try {
-    await ctx.phase.startPhaseCountdown(ev.matchId, MatchPhase.KNIFE_CHOICE, 0, serverId);
+    await ctx.orch.startPhaseCountdown(ev.matchId, MatchPhase.KNIFE_CHOICE, 0, serverId);
   } catch (e) {
     await ctx.say(`[knife][error] transition KNIFE_CHOICE KO: ${(e as Error)?.message ?? e}`);
   }

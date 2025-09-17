@@ -28,6 +28,7 @@ const (
 	EvNadeLanded       = "grenade_land"
 	EvPlayerBlinded    = "player_blinded"
 	EvGrenadeThrow     = "grenade_throw"
+	EvRoundFreezeStart = "round_freeze_start"
 )
 
 type EventSource string

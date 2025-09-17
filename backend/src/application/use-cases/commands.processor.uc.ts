@@ -1,6 +1,6 @@
 import { Inject, Injectable, Logger, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
 import Redis, { RedisOptions } from 'ioredis';
-import { MatchStateService } from '@app/state/match-state.service';
+import { MatchStateService } from '@app/match/state/match-state.service';
 import { REDIS_CMD, REDIS_PUB } from '@adapters/redis/redis.tokens';
 import { CommandEvent} from '@domain/types/command.event';
 

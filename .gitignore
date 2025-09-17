@@ -14,3 +14,18 @@ build
 Thumbs.db
 .vscode
 .idea
+
+# NodeJS
+node_modules/
+dist/
+
+# Logs
+logs/
+*.log
+*.jsonl
+
+# OS / IDE
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/

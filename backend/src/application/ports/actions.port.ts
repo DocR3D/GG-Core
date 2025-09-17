@@ -24,7 +24,7 @@ export interface ActionsPort {
   /**
    * Envoyer un message dans le chat serveur.
    */
-  say(opts: { serverId: string; message: string; channel?: 'say' | 'say_team' }): Promise<void>;
+  say(serverId: string, string): Promise<void>;
 
   /**
    * Déclencher un timeout tactique (par équipe).

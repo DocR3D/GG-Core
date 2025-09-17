@@ -8,6 +8,7 @@ export const redisConst = {
 
   // Match-level (séparés)
   phase:        (m: string) => `match:${m}:phase`,          // string
+  roundPhase:        (m: string) => `match:${m}:roundPhase`,          // string
   phasePending: (m: string) => `match:${m}:phase:pending`,  // string
   phaseLock:    (m: string) => `match:${m}:phase:lock`,     // string
   pause:        (m: string) => `match:${m}:pause`,          // hash { state, ... }

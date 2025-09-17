@@ -6,7 +6,7 @@ import { REDIS_SUB } from '@adapters/redis/redis.tokens';
 import { isCommand, AnyEvent } from '@domain/types/match.event';
 import { MatchEventsHandler } from './match-events.handler';
 import { ChatCommandHandler } from './chat-commands.handler';
-import { MatchStateService } from '@app/state/match-state.service';
+import { MatchStateService } from '@app/match/state/match-state.service';
 
 @Injectable()
 export class EventsRouterSubscriber implements OnModuleInit, OnModuleDestroy {

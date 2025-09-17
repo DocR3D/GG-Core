@@ -1,8 +1,8 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { BusPublisher } from '@app/bus/publisher';
-import { MatchIdResolver } from '@app/state/match-id.resolver';
+import { MatchIdResolver } from '@app/match/state/match-id.resolver';
 import type { LogCtx } from '@domain/logctx';
-import { MatchStateService } from '@app/state/match-state.service';
+import { MatchStateService } from '@app/match/state/match-state.service';
 
 type IncomingEvent = {
   v?: number;

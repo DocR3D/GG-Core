@@ -1,7 +1,7 @@
 import type { BaseEvent } from './base.event';
 import { EventType, EventTypes } from './event.types';
 import type { CommandEvent } from './command.event';
-import { GameSide } from '@app/state';
+import { GameSide } from '@app/match/state';
 
 export type EventKind = 'primary' | 'telemetry';
 export type Team = 'T' | 'CT';
@@ -120,6 +120,11 @@ export type PhaseChangeEvent = BaseEvent<typeof EventTypes.PHASE_CHANGED, {
   newPhase: string; at?: number;
 }>;
 
+export type RoundFreezeStartEvent = BaseEvent<
+  typeof EventTypes.ROUND_FREEZE_START,
+  {}
+>;
+
 // ————————————————————————————
 export type GenericMatchEvent = BaseEvent<EventType, Record<string, any>>;
 
@@ -143,6 +148,7 @@ export type AnyEvent =
   | PlayerBlindedEvent
   | CommandEvent
   | PhaseChangeEvent
+  | RoundFreezeStartEvent
   | GenericMatchEvent;
 
 export type EventByType = {
@@ -163,6 +169,7 @@ export type EventByType = {
   [EventTypes.GRENADE_LAND]: GrenadeLandEvent;
   [EventTypes.PLAYER_BLINDED]: PlayerBlindedEvent;
   [EventTypes.PHASE_CHANGED]: PhaseChangeEvent
+  [EventTypes.ROUND_FREEZE_START]: RoundFreezeStartEvent;
   [EventTypes.COMMAND]: CommandEvent;
 };
 
@@ -199,3 +206,5 @@ export const isPlayerBlinded = (e: AnyEvent): e is PlayerBlindedEvent =>
   e.type === EventTypes.PLAYER_BLINDED;
 export const isCommand = (e: AnyEvent): e is CommandEvent =>
   e.type === EventTypes.COMMAND;
+export const isRoundFreezeStart = (e: AnyEvent): e is RoundFreezeStartEvent =>
+  e.type === EventTypes.ROUND_FREEZE_START;

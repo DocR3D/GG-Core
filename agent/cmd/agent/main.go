@@ -341,7 +341,7 @@ func execAction(ctx context.Context, cfg AgentConfig, act *AgentAction) error {
 	log.Printf("[agent:%s] exec action=%s match=%s payload=%+v", cfg.ServerID, act.Action, act.Payload.MatchID, act.Payload)
 
 	switch act.Action {
-	case "tac_timeout", "tech_timeout":
+	case "tac_timeout", "tech_timeout", "pause":
 		out, err := withRcon(ctx, cfg, func(ctx context.Context, c *myrcon.Client) (string, error) {
 			log.Printf("[agent:%s] RCON PauseMatch()", cfg.ServerID)
 			return c.PauseMatch(ctx)
