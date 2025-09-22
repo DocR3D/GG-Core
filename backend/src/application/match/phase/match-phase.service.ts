@@ -2,16 +2,16 @@
 import { Injectable, Logger, Inject, forwardRef, Optional } from '@nestjs/common';
 import type Redis from 'ioredis';
 import { REDIS_CMD, REDIS_PUB } from '@adapters/redis/redis.tokens';
-import { redisConst } from '@app/match/state/redis-keys';
+import { redisConst } from '@app/match/state/redis.keys';
 
 import { MatchPhase, Phase, RoundPhase} from '@domain/phase.types';
-import { ACTIONS_PORT, type ActionsPort } from '@app/ports/actions.port';
-import { RuleContextFactory } from '@domain/rules/rule-context-factory';
-import { EventTypes } from '@domain/types/event.types';
-import { PauseMatchService } from '../pause/pause-match.service';
+import { RuleContextFactory } from '@app/rules/rule-context.factory';
+import { EventTypes } from '@domain/events/event.types';
+import { PauseMatchService } from '../pause/pause.service';
 import { BaseRule } from '@domain/rules';
 import { MessageService } from '../messages/message.service';
 import { RuleRegistry } from '../rules/rule.registry';
+import { MatchCommandsService } from '@app/commands/match-commands.service';
 
 @Injectable()
 export class MatchPhaseService {
@@ -24,7 +24,7 @@ export class MatchPhaseService {
   constructor(
     @Inject(REDIS_CMD) private readonly redis: Redis,
     @Inject(REDIS_PUB) private readonly pub: Redis,
-    @Inject(ACTIONS_PORT) private readonly actions: ActionsPort,
+@Inject(forwardRef(() => MatchCommandsService)) private readonly actions: MatchCommandsService,
     private readonly rcF: RuleContextFactory,   // OK une fois exporté + importé
     private readonly pauseMatchService: PauseMatchService,
     private readonly messageService: MessageService,

@@ -2,7 +2,7 @@ import { Inject, Injectable, Logger, OnModuleDestroy, OnModuleInit } from '@nest
 import Redis, { RedisOptions } from 'ioredis';
 import { MatchStateService } from '@app/match/state/match-state.service';
 import { REDIS_CMD, REDIS_PUB } from '@adapters/redis/redis.tokens';
-import { CommandEvent} from '@domain/types/command.event';
+import { CommandEvent} from '@domain/events/command.event';
 
 type AgentAction = {
   type: 'action';

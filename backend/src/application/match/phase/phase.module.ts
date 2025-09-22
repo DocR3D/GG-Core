@@ -1,36 +1,24 @@
-// src/application/match/phase/phase.module.ts
 import { Module, forwardRef } from '@nestjs/common';
 import { MatchPhaseService } from './match-phase.service';
-import { RedisModule } from '@adapters/redis/redis.module';
-import { CommandsModule } from '@app/commands.module';
+import { MatchStateModule } from '@app/match-state.module';
 import { RulesModule } from '@app/match/rules/rules.module';
+import { CommandsModule } from '@app/commands.module';
+import { MessageServiceModule } from '../messages/messages.module';  // 👈 ajout
 
-import { PauseMatchService } from '@app/match/pause/pause-match.service';
-// ⬇️ ajoute ces imports
-import { PeriodicScheduler } from '@app/shared/periodic/periodic-scheduler.service';
-import { PeriodicMessenger } from '@app/shared/periodic/periodic-messenger.service';
-import { MessageServiceModule } from '../messages/message.service.module';
-
+/**
+ * PhaseModule
+ * - Fournit MatchPhaseService (gestion des phases)
+ * - Dépend du state/rules/commands/messages
+ * - Référence circulaire avec CommandsModule => forwardRef
+ */
 @Module({
   imports: [
-    RedisModule,
-    CommandsModule,
-    MessageServiceModule,
-    forwardRef(() => RulesModule),
+    MatchStateModule,
+    RulesModule,
+    forwardRef(() => CommandsModule),
+    MessageServiceModule,  // 👈 ajouté pour MessageService
   ],
-  providers: [
-    MatchPhaseService,
-    PauseMatchService,
-    // ⬇️ nouveau
-    PeriodicScheduler,
-    PeriodicMessenger,
-  ],
-  exports: [
-    MatchPhaseService,
-    PauseMatchService,
-    // ⬇️ optionnel (si utilisé ailleurs)
-    PeriodicScheduler,
-    PeriodicMessenger,
-  ],
+  providers: [MatchPhaseService],
+  exports: [MatchPhaseService],
 })
 export class PhaseModule {}

@@ -3,8 +3,8 @@ import { KnifeRule } from "./knife.rule";
 import { PhaseRule } from "@domain/rules";
 import { WarmupRule } from "./warmup.rule";
 import { MatchPhase } from "@domain/phase.types";
-import { KnifeChoiceRule } from "./knife_choice.rule";
-import { LiveRule } from "./live_rule";
+import { KnifeChoiceRule } from "./knife-choice.rule";
+import { LiveRule } from "./live.rule";
 
 
 @Injectable()

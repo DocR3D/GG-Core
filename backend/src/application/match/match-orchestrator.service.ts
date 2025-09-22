@@ -3,26 +3,30 @@ import { Injectable, Logger, Inject, forwardRef } from '@nestjs/common';
 import type Redis from 'ioredis';
 import { REDIS_PUB } from '@adapters/redis/redis.tokens';
 
-import { PauseMatchService } from '@app/match/pause/pause-match.service';
+import { PauseMatchService } from '@app/match/pause/pause.service';
 import { MatchCommandsService } from '@app/commands/match-commands.service';
 import { GameSide, MatchStateService, type Logical } from '@app/match/state/match-state.service';
-import { WsBroadcaster } from '@adapters/ws/ws-broadcaster.service';
+import { WsBroadcaster } from '@adapters/ws/broadcaster.service';
 import { WsEventType } from '@adapters/ws/dto/events.dto';
-import { Audience } from '@domain/types/internal-events';
+import { Audience } from '@domain/events/internal-events';
 import { SidesScoreService } from './state';
-import { MatchPhase, RoundPhase } from '@domain/phase.types';
+import { MatchPhase, Phase, RoundPhase } from '@domain/phase.types';
 import { MatchPhaseService } from './phase/match-phase.service';
 import { match } from 'assert';
-import { RoundStartEvent, GenericMatchEvent, BombPlantedEvent, TeamRoundWinEvent, RoundFreezeStartEvent } from '@domain/types/match.event';
+import { RoundStartEvent, GenericMatchEvent, BombPlantedEvent, TeamRoundWinEvent, RoundFreezeStartEvent } from '@domain/events/match.event';
 import { WarmupRule } from './rules/warmup.rule';
 import { eventNames } from 'process';
 import { checkServerIdentity } from 'tls';
+import { ContextIdFactory } from '@nestjs/core';
+import { RuleContextFactory } from '@app/rules/rule-context.factory';
 
 
 type ResumeMeta = { source?: 'expired' | 'admin' | 'chat'; reason?: 'tactical'|'technical'|'admin' };
 
 @Injectable()
 export class MatchOrchestrator {
+
+
 
 
   private readonly log = new Logger(MatchOrchestrator.name);
@@ -35,9 +39,13 @@ export class MatchOrchestrator {
     private readonly pause: PauseMatchService,
     @Inject(forwardRef(() => MatchPhaseService))
     private readonly phase: MatchPhaseService,
+    @Inject(forwardRef(() => MatchCommandsService)) 
     private readonly cmds: MatchCommandsService,
     private readonly state: MatchStateService,
     private readonly sides: SidesScoreService,   // optionnel mais idéal
+    @Inject(forwardRef(() => RuleContextFactory))
+    private readonly ctxFactory: RuleContextFactory,
+
     @Inject(REDIS_PUB) private readonly pub: Redis,
   ) {}
 
@@ -270,13 +278,36 @@ export class MatchOrchestrator {
     this.phase.setRoundPhase(ev.matchId, RoundPhase.BOMB_PLANTED);
     this.log.debug("Bomb planted !");
   }
-  onRoundStart(ev: (RoundStartEvent & { serverId?: string; }) | (GenericMatchEvent & { serverId?: string; })) {
+
+  async onRoundStart(ev: (RoundStartEvent & { serverId?: string; }) | (GenericMatchEvent & { serverId?: string; })) {
         this.phase.setRoundPhase(ev.matchId, RoundPhase.LIVE);
+
+
+        const ctx = this.ctxFactory.make({ matchId: ev.matchId, serverId: ev.serverId });
+        const s = await ctx.state.getSnapshot(ctx.matchId); 
+        const HCT   = s.sides?.home === 'CT';
+        const ctBank = (HCT ? s.economy.home_bank : s.economy.away_bank) ?? 0;
+        const tBank  = (HCT ? s.economy.away_bank : s.economy.home_bank) ?? 0;
+        const ctLS   = (HCT ? s.economy.home_loss_streak : s.economy.away_loss_streak) ?? 0;
+        const tLS    = (HCT ? s.economy.away_loss_streak : s.economy.home_loss_streak) ?? 0;
+
+        this.log.log(
+          `ROUND ${s.score.round} [${s.score.phase}] | CT:${s.teams.ct_name} ${s.score.ct} (bank=${ctBank},ls=${ctLS}) | ` +
+          `T:${s.teams.t_name} ${s.score.t} (bank=${tBank},ls=${tLS}) | match=${s.matchId}`
+        );
+
         this.log.debug("Round Live !");
   }
 
   startWarmup(serverId: string) {
     this.cmds.rcon({serverId,command: "mp_warmup_start"})
+  }
+
+  setPhase(matchId: string, phase: Phase) {
+    this.sides.setPhase(matchId,phase)
+  }
+  async getPhase(matchId: string) {
+    return this.sides.getPhase(matchId)
   }
   
 }

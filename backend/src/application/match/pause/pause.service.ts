@@ -1,9 +1,9 @@
-// src/application/match/pause/pause-match.service.ts
+// src/application/match/pause/pause.service.ts
 import { Injectable, Logger, Inject } from '@nestjs/common';
 import type Redis from 'ioredis';
 
 import { REDIS_CMD } from '@adapters/redis/redis.tokens';
-import { redisConst } from '@app/match/state/redis-keys';
+import { redisConst } from '@app/match/state/redis.keys';
 import { Logical } from '../state';
 
 import { PeriodicMessenger } from '@app/shared/periodic/periodic-messenger.service';

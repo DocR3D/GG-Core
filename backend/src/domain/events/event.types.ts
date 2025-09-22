@@ -4,6 +4,8 @@ export const EventTypes = {
   BEGIN_BOMB_PLANT:   'begin_bomb_plant',
   TEAM_ROUND_WIN:     'team_round_win',
   SFUI_TARGET_BOMBED: 'sfui_notice_target_bombed',
+  BOMB_DEFUSED:       'bomb_defused',
+
   KILL:               'kill',
 
   PLAYER_CONNECTED:    'player_connected',    // corrigé

@@ -1,8 +1,9 @@
 // src/domain/rules/live.rule.ts
 import { BaseRule, PhaseRule, RuleContext } from '@domain/rules';
-import { EventTypes, type EventType } from '@domain/types/event.types';
-import type { KillEvent, RoundStartEvent, TeamRoundWinEvent } from '@domain/types/match.event';
-import type { CommandEvent } from '@domain/types/command.event';
+import { EventTypes, type EventType } from '@domain/events/event.types';
+import type { KillEvent, RoundStartEvent, TeamRoundWinEvent } from '@domain/events/match.event';
+import type { CommandEvent } from '@domain/events/command.event';
+import { Phase} from '@domain/phase.types';
 
 export class LiveRule extends BaseRule implements PhaseRule {
   name = 'live_main' as const;
@@ -53,6 +54,7 @@ export class LiveRule extends BaseRule implements PhaseRule {
 
     await ctx.say('[live] Passage en phase LIVE.');
     await ctx.orch.push(ctx.matchId, 'match:state', await ctx.state.getSnapshot(ctx.matchId));
+    ctx.orch.setPhase(ctx.matchId, "live_main")
   }
 
   async onExit(_: RuleContext) {
@@ -72,18 +74,7 @@ export class LiveRule extends BaseRule implements PhaseRule {
   }
 
   private async onTeamRoundWin(ev: TeamRoundWinEvent, ctx: RuleContext) {
-    // Mets à jour ton state/score côté service si tu as une méthode dédiée
-    // Exemple minimal : délègue au MatchStateService si existant.
-    // await ctx.mss.onTeamRoundWin(ctx.matchId, ev.payload.winner, /* economy? */);
 
-    // Envoie l'event de fin de round + maj score/snapshot
-    await ctx.orch.push(ev.matchId, 'round:end', {
-      winner: ev.payload.winner,
-      reason: ev.payload.reason ?? 'elim',
-    });
-    ctx.orch.roundEnd(ctx.matchId,ev.payload.winner);
-    // Dans tous les cas, renvoie un snapshot pour se resynchroniser
-    await ctx.orch.push(ev.matchId, 'match:state', await ctx.state.getSnapshot(ev.matchId));
   }
 
   private async onKill(ev: KillEvent, ctx: RuleContext) {

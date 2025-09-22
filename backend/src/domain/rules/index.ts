@@ -1,2 +1,2 @@
-export * from './Rule-Context';
+export * from './rule-context';
 export * from './base.rule';

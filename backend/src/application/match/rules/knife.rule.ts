@@ -1,7 +1,7 @@
 // src/domain/rules/knife.rule.ts
 import { BaseRule, PhaseRule, RuleContext } from '@domain/rules';
-import { EventTypes, type EventType } from '@domain/types/event.types';
-import type { KillEvent, TeamRoundWinEvent } from '@domain/types/match.event';
+import { EventTypes, type EventType } from '@domain/events/event.types';
+import type { KillEvent, TeamRoundWinEvent } from '@domain/events/match.event';
 import type { Logical } from '@app/match/state/sides-score.service';
 import { MatchPhase } from '@domain/phase.types';
 import { Logger } from '@nestjs/common';

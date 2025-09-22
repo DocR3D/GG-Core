@@ -1,9 +1,9 @@
 import { Injectable, Inject } from '@nestjs/common';
 import type Redis from 'ioredis';
 import { REDIS_CMD } from '@adapters/redis/redis.tokens';
-import { redisConst } from './redis-keys';
+import { redisConst } from './redis.keys';
 import { SidesScoreService, GameSide, Logical } from './sides-score.service';
-import { TeamsRosterService } from './teams-roster.service';
+import { TeamsRosterService } from './rosters.service';
 
 export type TeamEconomyMeta = {
   round: number;

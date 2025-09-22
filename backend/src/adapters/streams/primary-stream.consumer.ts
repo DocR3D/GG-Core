@@ -1,7 +1,7 @@
 import { Inject, Injectable, Logger, OnModuleDestroy } from '@nestjs/common';
 import type Redis from 'ioredis';
 import { REDIS_CMD } from '@adapters/redis/redis.tokens';
-import { redisConst } from '@app/match/state/redis-keys';
+import { redisConst } from '@app/match/state/redis.keys';
 
 type OnMessage = (fields: Map<string,string>) => Promise<void>;
 

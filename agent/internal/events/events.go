@@ -11,6 +11,7 @@ const (
 	EvBombPlanted      = "bomb_planted"
 	EvTeamRoundWin     = "team_round_win"
 	EvSfuiTargetBombed = "sfui_notice_target_bombed"
+	EvBombDefused      = "bomb_defused"
 	EvKill             = "kill"
 	EvPlayerConnected  = "player_connect"
 	EvPlayerDisc       = "player_disconnect"

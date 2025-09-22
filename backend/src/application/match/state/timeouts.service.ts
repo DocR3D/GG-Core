@@ -1,7 +1,7 @@
 import { Injectable, Inject } from '@nestjs/common';
 import type Redis from 'ioredis';
 import { REDIS_CMD } from '@adapters/redis/redis.tokens';
-import { redisConst } from './redis-keys';
+import { redisConst } from './redis.keys';
 
 export type Logical = 'home' | 'away';
 

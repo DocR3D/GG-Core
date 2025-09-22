@@ -1,25 +1,38 @@
 import { Module, forwardRef } from '@nestjs/common';
+
+import { MatchStateModule } from '@app/match-state.module';
+import { MatchOrchestratorModule } from '@app/match/match-orchestrator.module';
+import { CommandsModule } from '@app/commands.module';
+import { RedisModule } from '@adapters/redis/redis.module';
+
 import { RuleRegistry } from './rule.registry';
 import { WarmupRule } from './warmup.rule';
 import { KnifeRule } from './knife.rule';
-import { LiveRule } from './live_rule';
-import { KnifeChoiceRule } from './knife_choice.rule';
+import { KnifeChoiceRule } from './knife-choice.rule';
+import { LiveRule } from './live.rule';
 
-import { MatchStateModule } from '@app/match-state.module';
-import { CommandsModule } from '@app/commands.module';
-import { PhaseModule } from '@app/match/phase/phase.module';
-import { MatchOrchestratorModule } from '@app/match/match-orchestrator.module'; // 👈 new
-
-import { RuleContextFactory } from '@domain/rules/rule-context-factory';
+// On garde l'import que tu souhaites :
+import { RuleContextFactory } from '@app/rules/rule-context.factory';
 
 @Module({
   imports: [
-    forwardRef(() => MatchStateModule),
-    forwardRef(() => CommandsModule),
-    forwardRef(() => PhaseModule),
-    forwardRef(() => MatchOrchestratorModule), // 👈 new
+    RedisModule,                        // REDIS_PUB
+    MatchStateModule,                   // MatchStateService
+    forwardRef(() => MatchOrchestratorModule), // MatchOrchestrator
+    forwardRef(() => CommandsModule),          // MatchCommandsService
   ],
-  providers: [RuleRegistry, WarmupRule, KnifeRule, KnifeChoiceRule, LiveRule, RuleContextFactory],
-  exports:   [RuleRegistry, KnifeRule, KnifeChoiceRule, LiveRule, RuleContextFactory],
+  providers: [
+    WarmupRule,
+    KnifeRule,
+    KnifeChoiceRule,
+    LiveRule,
+    RuleRegistry,
+    RuleContextFactory,
+  ],
+  exports: [
+    RuleRegistry,
+    RuleContextFactory,
+    WarmupRule, KnifeRule, KnifeChoiceRule, LiveRule,
+  ],
 })
 export class RulesModule {}

@@ -3,8 +3,8 @@ import { Module, forwardRef } from '@nestjs/common';
 import { RedisModule } from '@adapters/redis/redis.module';
 import { MatchStateModule } from '@app/match-state.module';
 import { MatchGateway } from './match.gateway';
-import { RealtimeEmitter } from './realtime.emitter';
-import { WsBroadcaster } from './ws-broadcaster.service';
+import { RealtimeEmitter } from './ws-emitter.internal';
+import { WsBroadcaster } from './broadcaster.service';
 import { SocketAuthGuard } from './socket.auth.guard';
 
 @Module({

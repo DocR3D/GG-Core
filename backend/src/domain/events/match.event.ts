@@ -47,6 +47,12 @@ export type BombPlantedEvent = BaseEvent<typeof EventTypes.BOMB_PLANTED, {
   site?: 'A' | 'B';
 }>;
 
+export type BombDefusedEvent = BaseEvent<typeof EventTypes.BOMB_DEFUSED, {
+  defuser?: PlayerRefLogs;
+  site?: 'A' | 'B';
+}>;
+
+
 export type TeamRoundWinEvent = BaseEvent<typeof EventTypes.TEAM_ROUND_WIN, {
   winner: Team;
   reason?: TeamRoundWinReason;
@@ -138,6 +144,7 @@ export type AnyEvent =
   | PlayerDisconnectedEvent
   | PlayerNameChangeEvent
   | BombPlantedEvent
+  | BombDefusedEvent
   | TeamRoundWinEvent
   | SfuiTargetBombedEvent
   | KillEvent
@@ -154,6 +161,7 @@ export type AnyEvent =
 export type EventByType = {
   [EventTypes.ROUND_START]: RoundStartEvent;
   [EventTypes.BOMB_PLANTED]: BombPlantedEvent;
+  [EventTypes.BOMB_DEFUSED]: BombDefusedEvent;
   [EventTypes.TEAM_ROUND_WIN]: TeamRoundWinEvent;
   [EventTypes.SFUI_TARGET_BOMBED]: SfuiTargetBombedEvent;
   [EventTypes.KILL]: KillEvent;

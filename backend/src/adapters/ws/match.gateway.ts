@@ -9,7 +9,7 @@ import {
 
 import { UseGuards, Logger } from '@nestjs/common'; // <-- UseGuards vient d'ici
 import type { Server, Socket } from 'socket.io';
-import { RealtimeEmitter } from './realtime.emitter';
+import { RealtimeEmitter } from './ws-emitter.internal';
 import { SocketAuthGuard } from './socket.auth.guard';
 import * as jwt from 'jsonwebtoken';
 

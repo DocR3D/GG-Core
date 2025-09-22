@@ -1,11 +1,11 @@
 // src/application/subscribers/chat-commands.handler.ts
 import { Injectable, Logger } from '@nestjs/common';
-import { RuleContextFactory } from '@domain/rules/rule-context-factory';
+import { RuleContextFactory } from '@app/rules/rule-context.factory';
 import { RuleRegistry } from '@app/match/rules/rule.registry';
 import { MatchPhaseService } from '@app/match/phase/match-phase.service';
 import { MatchCommandsService } from '@app/commands/match-commands.service';
 import { MatchPhase } from '@domain/phase.types';
-import type { CommandEvent } from '@domain/types/command.event';
+import type { CommandEvent } from '@domain/events/command.event';
 
 type GameSide = 'CT' | 'T' | 'SPECTATOR';
 type Channel  = 'say' | 'say_team';

@@ -26,6 +26,7 @@ var worldRe = regexp.MustCompile(`^World triggered "(?P<cause>[^"]+)" on "(?P<vi
 var roundStartRe = regexp.MustCompile(`^World triggered "Round_Start"`)
 var teamWinRe = regexp.MustCompile(`^Team "(?P<winner>TERRORIST|CT)" triggered "(?P<sfui>SFUI_Notice_[A-Za-z_]+)"`)
 var bombPlantedRe = regexp.MustCompile(`^"(?P<planter>[^"<]+)<\d+><(?P<psteam>\[U:[^]]+\]|\w+:[^>]+|)><(?P<pteam>CT|TERRORIST)>" triggered "Planted_The_Bomb"(?: \(Site (?P<site>[AB])\))?`)
+var bombDefusedRe = regexp.MustCompile(`^L\s(\d{2}/\d{2}/\d{4})\s-\s(\d{2}:\d{2}:\d{2}):\sTeam\s"([^"]+)"\striggered\s"([^"]+)"\s\(CT\s"(\d+)"\)\s\(T\s"(\d+)"\)$`)
 
 // --- Pause / unpause ---
 var pauseRe = regexp.MustCompile(`^(?:(?:Match\s+Paused)|(?:Game\s+Paused)|(?:server_cvar:\s*mp_pause_match))`)
@@ -155,6 +156,30 @@ func TryParse(line string) (string, json.RawMessage, bool) {
 
 		raw, _ := json.Marshal(payload)
 		return events.EvChatMessage, raw, true
+	}
+	if bombDefusedRe.MatchString(line) {
+		team := events.NormTeam(grp(bombDefusedRe, line, "team")) // "CT"
+		ctStr := grp(bombDefusedRe, line, "ct")
+		tStr := grp(bombDefusedRe, line, "t")
+
+		ct, _ := strconv.Atoi(ctStr)
+		tt, _ := strconv.Atoi(tStr)
+
+		// event est optionnel : ne le mets que si ta regex a un groupe "event"
+		evName := grp(bombDefusedRe, line, "event") // ex: "SFUI_Notice_Bomb_Defused"
+		if evName == "" {
+			evName = "SFUI_Notice_Bomb_Defused"
+		}
+
+		payload := map[string]any{
+			"kind":   "bomb",
+			"type":   "defused",
+			"winner": team, // CT
+			"score":  map[string]int{"CT": ct, "T": tt},
+			"event":  evName,
+		}
+
+		return events.EvBombDefused, mustJSON(payload), true
 	}
 
 	if killRe.MatchString(line) {

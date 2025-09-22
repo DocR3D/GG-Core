@@ -2,11 +2,11 @@
 import { Inject, Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import type Redis from 'ioredis';
 import { REDIS_SUB } from '@adapters/redis/redis.tokens';
-import { RealtimeEmitter } from './realtime.emitter';
-import { SeqService } from '@app/match/state/seq.service';
+import { RealtimeEmitter } from './ws-emitter.internal';
+import { SeqService } from '@app/match/state/sequence.service';
 import { MatchStateService } from '@app/match/state/match-state.service';
 
-import type { Audience, InternalEvent } from '@domain/types/internal-events';
+import type { Audience, InternalEvent } from '@domain/events/internal-events';
 import type {
   BaseWsEvent,
   WsEventType,

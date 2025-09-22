@@ -1,10 +1,10 @@
 import { Injectable, Inject, Logger, BadRequestException } from '@nestjs/common';
 import type Redis from 'ioredis';
 import { REDIS_CMD } from '@adapters/redis/redis.tokens';
-import { redisConst } from './redis-keys';
+import { redisConst } from './redis.keys';
+import { Phase } from '@domain/phase.types';
 export type GameSide = 'CT' | 'T' | 'TERRORIST';
 export type Logical = 'home' | 'away';
-export type Phase = 'freeze' | 'live' | 'intermission' | 'paused' | 'timeout' | 'ended' | 'knife' | 'tech_timeout';
 export type CoreSide = { home: GameSide; away: GameSide };
 
 @Injectable()

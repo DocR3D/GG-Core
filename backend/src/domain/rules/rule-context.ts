@@ -1,6 +1,6 @@
 // src/domain/rules/rule-context.ts
 import type { MatchStateService } from '@app/match/state/match-state.service';
-import type { MatchOrchestrator } from '@app/match/match-orchestrator.services';
+import type { MatchOrchestrator } from '@app/match/match-orchestrator.service';
 
 export type RuleContext = {
   matchId: string;

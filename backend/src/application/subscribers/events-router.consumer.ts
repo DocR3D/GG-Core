@@ -1,9 +1,9 @@
-// src/application/subscribers/events-router.subscriber.ts
+// src/application/subscribers/events-router.consumer.ts
 import { Injectable, OnModuleInit, OnModuleDestroy, Logger, Inject } from '@nestjs/common';
 import type Redis from 'ioredis';
 import { REDIS_SUB } from '@adapters/redis/redis.tokens';
 
-import { isCommand, AnyEvent } from '@domain/types/match.event';
+import { isCommand, AnyEvent } from '@domain/events/match.event';
 import { MatchEventsHandler } from './match-events.handler';
 import { ChatCommandHandler } from './chat-commands.handler';
 import { MatchStateService } from '@app/match/state/match-state.service';

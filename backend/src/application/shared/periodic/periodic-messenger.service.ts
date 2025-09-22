@@ -1,9 +1,10 @@
+import { MatchCommandsService } from '@app/commands/match-commands.service';
 // application/shared/periodic/periodic-messenger.service.ts
-import { Injectable, Inject, Logger } from '@nestjs/common';
+import { Injectable, Inject, Logger, OnModuleInit } from '@nestjs/common';
 import type Redis from 'ioredis';
 import { PeriodicScheduler } from './periodic-scheduler.service';
-import * as actionsPort from '@app/ports/actions.port';
 import { REDIS_CMD } from '@adapters/redis/redis.tokens';
+import { ModuleRef } from '@nestjs/core';
 
 export type ComputeResult = { text: string } | { stop: true };
 export type ComputeFn = () => Promise<ComputeResult>;
@@ -18,14 +19,19 @@ export interface MessageSpec {
 }
 
 @Injectable()
-export class PeriodicMessenger {
+export class PeriodicMessenger implements OnModuleInit {
   private readonly logger = new Logger(PeriodicMessenger.name);
+  private commands!: MatchCommandsService;   // 👈 lazy
 
   constructor(
     private readonly scheduler: PeriodicScheduler,
-    @Inject(actionsPort.ACTIONS_PORT) private readonly actions: actionsPort.ActionsPort,
+    private readonly moduleRef: ModuleRef,   // 👈 injection moduleRef
     @Inject(REDIS_CMD) private readonly redis: Redis,
   ) {}
+
+  onModuleInit() {
+    this.commands = this.moduleRef.get(MatchCommandsService, { strict: false });
+  }
 
   schedule(spec: MessageSpec) {
     const { id, intervalMs, serverId, compute, lockKey } = spec;
@@ -65,7 +71,7 @@ export class PeriodicMessenger {
 
         // 3) Say
         this.logger.debug(`[say] id=${id} -> "${res.text}"`);
-        await this.actions.say( serverId,  res.text);
+        await this.commands.say( serverId,  res.text);
         this.logger.debug(`[say] id=${id} OK`);
       } catch (e) {
         this.logger.error(`[tick] id=${id} error: ${(e as Error)?.message}`, e as any);

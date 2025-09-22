@@ -1,8 +1,9 @@
 import { Injectable, Inject, Logger } from '@nestjs/common';
 import type Redis from 'ioredis';
 import { REDIS_CMD } from '@adapters/redis/redis.tokens';
-import { redisConst } from './redis-keys';
-import { SidesScoreService, Phase } from './sides-score.service';
+import { redisConst } from './redis.keys';
+import { SidesScoreService} from './sides-score.service';
+import { Phase } from '@domain/phase.types';
 
 type TeamsDoc = {
   ct_id?: string | null;

@@ -1,7 +1,7 @@
 // application/shared/periodic/message-presets.ts
 import type Redis from 'ioredis';
 import { fmtMmSs } from './periodic-messenger.service';
-import { redisConst } from '@app/match/state/redis-keys';
+import { redisConst } from '@app/match/state/redis.keys';
 
 // Helpers ID/lock
 const tacId = (m: string) => `pause:tac:${m}`;

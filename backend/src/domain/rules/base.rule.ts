@@ -1,7 +1,7 @@
-import { AnyEvent } from '@domain/types/match.event';
-import { CommandEvent } from '@domain/types/command.event';
-import { EventType } from '@domain/types/event.types';
-import { RuleContext } from './Rule-Context';
+import { AnyEvent } from '@domain/events/match.event';
+import { CommandEvent } from '@domain/events/command.event';
+import { EventType } from '@domain/events/event.types';
+import { RuleContext } from './rule-context';
 import { SaySpec } from '@app/match/messages/messages.types';
 
 export interface PhaseRule {

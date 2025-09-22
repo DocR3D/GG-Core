@@ -3,13 +3,13 @@ import {
   SidesScoreService,
   type GameSide,
   type Logical,
-  type Phase,
   type CoreSide,
 } from './sides-score.service';
 import { TimeoutsService } from './timeouts.service';
-import { TeamsRosterService, type PlayerInfo } from './teams-roster.service';
+import { TeamsRosterService, type PlayerInfo } from './rosters.service';
 import { EconomyService, type TeamEconomyMeta } from './economy.service';
 import { SnapshotQuery } from './snapshot.query';
+import { Phase } from '@domain/phase.types';
 @Injectable()
 export class MatchStateService {
   constructor(
@@ -174,12 +174,12 @@ export class MatchStateService {
   // ───────────────────────────────────────────────────────────────────────────
   // Snapshot (read-only)
   // ───────────────────────────────────────────────────────────────────────────
-  getSnapshot(matchId: string) {
-    return this.snapshotQ.getSnapshot(matchId);
+  async getSnapshot(matchId: string) {
+    return await this.snapshotQ.getSnapshot(matchId);
   }
 }
 
 // Re-export des types pour compatibilité avec l’ancien import depuis ce fichier
-export type { GameSide, Logical, Phase, CoreSide } from './sides-score.service';
-export type { PlayerInfo } from './teams-roster.service';
+export type { GameSide, Logical, CoreSide } from './sides-score.service';
+export type { PlayerInfo } from './rosters.service';
 export type { TeamEconomyMeta } from './economy.service';

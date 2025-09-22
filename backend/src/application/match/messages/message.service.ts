@@ -1,5 +1,5 @@
 // message.service.ts
-import { Injectable, Logger } from '@nestjs/common';
+import { forwardRef, Inject, Injectable, Logger } from '@nestjs/common';
 
 // 🔁 1) Utilise **tes** types comme source unique de vérité
 import {
@@ -18,6 +18,7 @@ export class MessageService {
   private groups = new Map<string, Set<NodeJS.Timeout>>();
 
   constructor(
+    @Inject(forwardRef(() => MatchCommandsService))
     private readonly cmds: MatchCommandsService,
   ) {}
 

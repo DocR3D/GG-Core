@@ -10,9 +10,12 @@ import { CommandsModule } from '@app/commands.module';   // ⬅️ NEW
 import { WsModule } from '@adapters/ws/ws.module';
 
 import { MatchEventsHandler } from './match-events.handler';
-import { EventsRouterSubscriber } from './events-router.subscriber';
+import { EventsRouterSubscriber } from './events-router.consumer';
 import { ChatCommandHandler } from './chat-commands.handler'; // vérifie le nom exact de la classe
 import { MatchOrchestratorModule } from '@app/match/match-orchestrator.module';
+import { PhaseEventsHandler } from './phase-events.handler';
+import { RoundEventsHandler } from './round-events.handler';
+import { KillAndBombEventsHandler } from './kill-bomb-events.handler';
 
 @Module({
   imports: [
@@ -20,14 +23,17 @@ import { MatchOrchestratorModule } from '@app/match/match-orchestrator.module';
     forwardRef(() => MatchOrchestratorModule),
     PhaseModule,
     RulesModule,
-    CommandsModule,     // ⬅️ NEW: expose MatchCommandsService ici
+    CommandsModule,
     BusModule,
     WsModule,
   ],
   providers: [
     MatchEventsHandler,
+    PhaseEventsHandler,
+    RoundEventsHandler,
+    KillAndBombEventsHandler,
     EventsRouterSubscriber,
-    ChatCommandHandler, // ou ChatCommandHandler selon ton fichier
+    ChatCommandHandler,
   ],
   exports: [
     MatchEventsHandler,

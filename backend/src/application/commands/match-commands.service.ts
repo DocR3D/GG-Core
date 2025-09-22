@@ -5,11 +5,11 @@ import { REDIS_CMD, REDIS_PUB } from '@adapters/redis/redis.tokens';
 import { GameSide, Logical, MatchStateService } from '../match/state/match-state.service';
 import { MatchPhaseService } from '@app/match/phase/match-phase.service';
 
-import { redisConst } from '../match/state/redis-keys';
+import { redisConst } from '../match/state/redis.keys';
 import * as crypto from 'crypto';
-import { PauseMatchService } from '@app/match/pause/pause-match.service';
-import { ACTIONS_PORT } from '@app/ports/actions.port';
+import { PauseMatchService } from '@app/match/pause/pause.service';
 import { MatchPhase } from '@domain/phase.types';
+
 
 // ⚠️ Idéalement, importe depuis un type canonique partagé (ex: @adapters/ws/dto/events.dto)
 type Actor = { name: string; steamId?: string; teamSide: GameSide; channel?: 'say' | 'say_team' };
@@ -394,7 +394,7 @@ pipe.set(redisConst.matchServer(mid), sid);   // ← pas de NX
   // NEW: !stop → on met fin au match (phase=ended) et petit message serveur
   async stopMatch(opts: { serverId?: string; matchId?: string; actor?: Actor }) {
     const { serverId, matchId } = await this.resolveServerAndMatch(opts);
-    await this.ms.setPhase(matchId, 'ended');
+    await this.ms.setPhase(matchId, 'postgame');
     await this.say( serverId, '[match] stopped by admin');
     return { ok: true };
   }

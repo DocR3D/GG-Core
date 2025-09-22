@@ -1,6 +1,6 @@
 // src/domain/rules/knife-choice.rule.ts
 import { BaseRule, PhaseRule, RuleContext } from '@domain/rules';
-import type { CommandEvent } from '@domain/types/command.event';
+import type { CommandEvent } from '@domain/events/command.event';
 import { MatchPhase } from '@domain/phase.types';
 import { MessageMode, SaySpec } from '../messages/messages.types';
 

@@ -1,23 +1,15 @@
 // src/application/commands.module.ts
-import { Module, forwardRef } from '@nestjs/common';
-import { MatchCommandsService } from '@app/commands/match-commands.service';
-import { MatchStateModule } from '@app/match-state.module';
+import { Module } from '@nestjs/common';
 import { RedisModule } from '@adapters/redis/redis.module';
-import { PhaseModule } from '@app/match/phase/phase.module';
-import { ACTIONS_PORT } from '@app/ports/actions.port';
+import { MatchCommandsService } from './commands/match-commands.service';
+import { PauseMatchService } from './match/pause/pause.service';
+import { MatchStateModule } from './match-state.module';
+import { PhaseModule } from './match/phase/phase.module';
+import { PeriodicModule } from './shared/periodic/periodic.module';  // 👈
 
-// src/application/commands.module.ts
 @Module({
-  imports: [
-    RedisModule,
-    forwardRef(() => PhaseModule),     // OK
-    forwardRef(() => MatchStateModule),
-  ],
-  providers: [
-    MatchCommandsService,
-    { provide: ACTIONS_PORT, useExisting: MatchCommandsService },
-  ],
-  exports: [ACTIONS_PORT, MatchCommandsService],
+  imports: [RedisModule, MatchStateModule, PhaseModule, PeriodicModule], // 👈 ajouté
+  providers: [MatchCommandsService, PauseMatchService],
+  exports: [MatchCommandsService, PauseMatchService],
 })
 export class CommandsModule {}
-
