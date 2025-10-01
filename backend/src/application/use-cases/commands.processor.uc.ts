@@ -66,14 +66,14 @@ export class CommandsProcessorService{
     // 2) Résoudre matchId depuis serverId
     const matchId = await this.ms.getMatchIdFromServerId(cmd.serverId);
     if (!matchId) {
-      this.logger.warn(`No match bound to server ${cmd.serverId} — refusing command ${mapped.action}`);
+      this.logger.warn(`No match bound to server ${cmd.serverId} - refusing command ${mapped.action}`);
       return;
     }
 
     // 3) Charger sides (CT/T) pour convertir en équipe logique home/away
     const sides = await this.ms.getSides(matchId);
     if (!sides) {
-      this.logger.warn(`No sides set for match ${matchId} — refusing command ${mapped.action}`);
+      this.logger.warn(`No sides set for match ${matchId} - refusing command ${mapped.action}`);
       return;
     }
     const logicalTeam: 'home' | 'away' =
@@ -83,7 +83,7 @@ export class CommandsProcessorService{
     if (mapped.action === 'pause' && mapped.payload?.kind === 'tac') {
       const remain = await this.ms.decrTac(matchId, logicalTeam);
       if (remain < 0) {
-        this.logger.warn(`Timeouts hash missing for match ${matchId} — init before using tac`);
+        this.logger.warn(`Timeouts hash missing for match ${matchId} - init before using tac`);
         return;
       }
       if (remain === 0) {

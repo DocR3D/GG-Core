@@ -21,8 +21,7 @@ func (a *RconAdapter) Exec(ctx context.Context, cmd string) (string, error) {
 	if (a.Cfg == AgentConfig{}) {
 		return "", fmt.Errorf("RconAdapter: cfg vide")
 	}
-	// ⚠️ Utilise la VRAIE méthode de ton client. D’après ton main, tu as c.Send(ctx, "mp_restartgame 1")
-	// donc on utilise Send ici aussi.
+
 	return withRcon(ctx, a.Cfg, func(ctx context.Context, cli *myrcon.Client) (string, error) {
 		return cli.Send(ctx, cmd)
 	})

@@ -13,7 +13,7 @@ async function bootstrap() {
   // ✅ 1) TEXTE brut UNIQUEMENT pour /cs2/logs (d’abord)
   app.use('/cs2/logs', bodyParser.text({ type: () => true, limit: '2mb' }));
 
-  // ❗ 2) Parsers globaux — mais seulement sous /api
+  // ❗ 2) Parsers globaux - mais seulement sous /api
   app.use('/api', json({ limit: '1mb' }));
   app.use('/api', urlencoded({ extended: true }));
 

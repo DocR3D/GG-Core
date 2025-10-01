@@ -8,7 +8,7 @@ export type TeamRoundWinReason = 'bomb_exploded' | 'defused' | 'elim' | 'time';
 // Côté WS, on garde un type court + spec pour les canaux chat/overlay
 export type TeamSide = Team; // 'T' | 'CT'
 
-// —————————————————————————————————————————————————————————————————————————————
+// -----------------------------------------------------------------------------
 // Énum des types WS
 
 export type WsEventType =
@@ -91,7 +91,7 @@ export type TeamRoundWinEvent = BaseWsEvent<'team_round_win', {
 }>;
 
 
-// match:state — snapshot synthétique
+// match:state - snapshot synthétique
 export interface MatchStatePayload {
   teams: { home: { name: string }; away: { name: string } };
   sides: { home: TeamSide; away: TeamSide };  // mapping logique -> côté (CT/T)
@@ -147,8 +147,8 @@ export type RoundStartEvent = BaseWsEvent<'round:start', RoundStartPayload>;
 // round:end
 export interface RoundEndPayload {
   round: number;
-  winner: TeamSide;                  // <— aligné sur Team
-  reason?: TeamRoundWinReason;       // <— mêmes libellés que match.event.ts
+  winner: TeamSide;                  // <- aligné sur Team
+  reason?: TeamRoundWinReason;       // <- mêmes libellés que match.event.ts
   scoreAfter?: ScorePayload;
 }
 export type RoundEndEvent = BaseWsEvent<'round:end', RoundEndPayload>;

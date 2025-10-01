@@ -34,7 +34,7 @@ export class Cs2LogsService {
         this.logger.warn(`Drop invalid event: ${JSON.stringify(ev)}`);
         continue;
       }
-      // ⬇️ fallback si l’agent n’a pas mis matchId
+      // ⬇ fallback si l’agent n’a pas mis matchId
       if (!ev.matchId && ev.serverId) {
         try {
           ev.matchId = await this.matchStateService.getMatchIdFromServerId(ev.serverId) ?? undefined;

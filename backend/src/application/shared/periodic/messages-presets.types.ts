@@ -10,7 +10,7 @@ const warmId = (m: string) => `warmup:${m}`;
 const knifeId = (m: string) => `knifechoice:${m}`;
 const lockKeyFor = (id: string) => `lock:periodic:${id}`;
 
-// ——— PAUSE TACTIQUE — messages banque restante
+// --- PAUSE TACTIQUE - messages banque restante
 export function buildTacPauseSpec(opts: {
   matchId: string;
   serverId: string;
@@ -52,12 +52,12 @@ export function buildTacPauseSpec(opts: {
 
       console.log(`[preset:tac] elapsed=${elapsed}s remaining=${remaining}s bankH=${bankHome} bankA=${bankAway}`);
 
-      return { text: `⏸ Tac ${team} — banque restante: ${fmtMmSs(remaining)}` };
+      return { text: `⏸ Tac ${team} - banque restante: ${fmtMmSs(remaining)}` };
     },
   };
 }
 
-// ——— PAUSE TECHNIQUE — rappel sans durée
+// --- PAUSE TECHNIQUE - rappel sans durée
 export function buildTecPauseSpec(opts: {
   matchId: string;
   serverId: string;
@@ -86,12 +86,12 @@ export function buildTecPauseSpec(opts: {
       }
 
       const team = (h.team as 'home' | 'away') ?? 'system';
-      return { text: `⏸ Tec ${team} — pas de durée de fin` };
+      return { text: `⏸ Tec ${team} - pas de durée de fin` };
     },
   };
 }
 
-// ——— WARMUP — annonce ready/unready
+// --- WARMUP - annonce ready/unready
 export function buildWarmupReadySpec(opts: {
   matchId: string;
   serverId: string;
@@ -122,12 +122,12 @@ export function buildWarmupReadySpec(opts: {
         !away ? '🚩 away: !ready' : '🚩 away: prêt',
       ].join(' • ');
 
-      return { text: `🔧 Warmup — ${msg}` };
+      return { text: `🔧 Warmup - ${msg}` };
     },
   };
 }
 
-// ——— POST-KNIFE — invite à choisir swap/stay
+// --- POST-KNIFE - invite à choisir swap/stay
 export function buildKnifeChoiceSpec(opts: {
   matchId: string;
   serverId: string;
@@ -153,7 +153,7 @@ export function buildKnifeChoiceSpec(opts: {
       const winner = await redis.get(redisConst.knifeWinner(matchId));
       const who = winner ?? '?';
 
-      return { text: `🔪 Knife gagné par ${who} — tapez !swap ou !stay` };
+      return { text: `🔪 Knife gagné par ${who} - tapez !swap ou !stay` };
     },
   };
 

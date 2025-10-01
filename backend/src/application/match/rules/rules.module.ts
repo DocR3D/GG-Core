@@ -1,38 +1,32 @@
 import { Module, forwardRef } from '@nestjs/common';
-
-import { MatchStateModule } from '@app/match-state.module';
-import { MatchOrchestratorModule } from '@app/match/match-orchestrator.module';
-import { CommandsModule } from '@app/commands.module';
-import { RedisModule } from '@adapters/redis/redis.module';
+import { RedisModule } from '../../../adapters/redis/redis.module';
+import { MatchStateModule } from '../../match-state.module';
+import { CommandsModule } from '../../commands.module';
+import { MatchOrchestratorModule } from '../match-orchestrator.module';
 
 import { RuleRegistry } from './rule.registry';
-import { WarmupRule } from './warmup.rule';
-import { KnifeRule } from './knife.rule';
-import { KnifeChoiceRule } from './knife-choice.rule';
-import { LiveRule } from './live.rule';
-
-// On garde l'import que tu souhaites :
-import { RuleContextFactory } from '@app/rules/rule-context.factory';
+import { RuleContextFactory } from '../../rules/rule-context.factory';
+import { ReadyCommand } from '@app/match/commands/ready.command';
+import { PauseCommand } from '../commands/pause.command';
+import { KnifeChoiceCommand } from '../commands/knife-choice.command';
 
 @Module({
   imports: [
-    RedisModule,                        // REDIS_PUB
-    MatchStateModule,                   // MatchStateService
-    forwardRef(() => MatchOrchestratorModule), // MatchOrchestrator
-    forwardRef(() => CommandsModule),          // MatchCommandsService
+    RedisModule,
+    MatchStateModule,
+    // On garde les forwardRef car le RuleRegistry et le RuleContextFactory
+    // peuvent avoir besoin de services provenant de ces modules.
+    forwardRef(() => CommandsModule),
+    forwardRef(() => MatchOrchestratorModule),
   ],
   providers: [
-    WarmupRule,
-    KnifeRule,
-    KnifeChoiceRule,
-    LiveRule,
+    // On ne fournit QUE les services. Les règles ne sont plus des providers.
     RuleRegistry,
     RuleContextFactory,
+    ReadyCommand, // ReadyCommand est une dépendance, on le garde ici.
+    PauseCommand,
+    KnifeChoiceCommand, // 👈 2. AJOUTEZ la commande à la liste des providers
   ],
-  exports: [
-    RuleRegistry,
-    RuleContextFactory,
-    WarmupRule, KnifeRule, KnifeChoiceRule, LiveRule,
-  ],
+  exports: [RuleRegistry, RuleContextFactory],
 })
 export class RulesModule {}

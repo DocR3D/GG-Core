@@ -57,13 +57,6 @@ export class MatchPhaseService {
   // Marque la phase cible (pending)
   await this.redis.set(pendingKey, String(nextPhase), 'EX', remain + 15);
 
-  // Préconditions
-  const ready = await this.isBothReady(matchId);
-  const paused = await this.pauseMatchService.isPaused(matchId);
-  if (!ready || paused) {
-    await this.cancelPhaseCountdown(matchId, 'not_ready_or_paused');
-    return;
-  }
 
   // Helper: annoncé seulement à 60/30/20/10 et 5..1 (évite le spam)
   const shouldAnnounce = (t: number) =>
@@ -94,11 +87,6 @@ export class MatchPhaseService {
     // Prolonge les TTLs pendant le compte
     await this.redis.expire(lockKey, remain + 10);
     await this.redis.expire(pendingKey, remain + 12);
-
-    // Conditions d’annulation / gel
-    if (!(await this.isBothReady(matchId))) {
-      await this.cancelPhaseCountdown(matchId, 'team_unready', { keepPending: true }); return;
-    }
     if (await this.pauseMatchService.isPaused(matchId)) {
       await this.cancelPhaseCountdown(matchId, 'paused', { keepPending: true }); return;
     }

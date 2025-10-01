@@ -13,9 +13,9 @@ export type PlayerRefLogs = {
   team: GameSide;
 };
 
-// ————————————————————————————
+// ----------------------------
 // Core match events
-// ————————————————————————————
+// ----------------------------
 export type RoundStartEvent = BaseEvent<typeof EventTypes.ROUND_START, {}>;
 export type MatchPausedEvent = BaseEvent<typeof EventTypes.MATCH_PAUSED, {}>;
 export type MatchUnpausedEvent = BaseEvent<typeof EventTypes.MATCH_UNPAUSED, {}>;
@@ -92,9 +92,9 @@ export type KillEvent = BaseEvent<typeof EventTypes.KILL,
     }
 >;
 
-// ————————————————————————————
+// ----------------------------
 // Nouveaux events (agent Go)
-// ————————————————————————————
+// ----------------------------
 export type ItemPurchaseEvent = BaseEvent<typeof EventTypes.ITEM_PURCHASE, {
   player: PlayerRefLogs;
   weapon: string;
@@ -131,7 +131,7 @@ export type RoundFreezeStartEvent = BaseEvent<
   {}
 >;
 
-// ————————————————————————————
+// ----------------------------
 export type GenericMatchEvent = BaseEvent<EventType, Record<string, any>>;
 
 export type AnyEvent =
@@ -181,9 +181,9 @@ export type EventByType = {
   [EventTypes.COMMAND]: CommandEvent;
 };
 
-// ————————————————————————————
+// ----------------------------
 // Type guards
-// ————————————————————————————
+// ----------------------------
 export const isTeamRoundWin = (e: AnyEvent): e is TeamRoundWinEvent =>
   e.type === EventTypes.TEAM_ROUND_WIN;
 export const isRoundStart = (e: AnyEvent): e is RoundStartEvent =>

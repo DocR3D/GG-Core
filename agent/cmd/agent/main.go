@@ -297,7 +297,7 @@ func splitLines(s string) []string {
 func runActionsSubscriber(ctx context.Context, cfg AgentConfig, rdb *redis.Client) {
 	chName := cfg.Redis.ActionsChannel
 	if strings.TrimSpace(chName) == "" {
-		log.Printf("[agent:%s] no redis actionsChannel configured — actions disabled", cfg.ServerID)
+		log.Printf("[agent:%s] no redis actionsChannel configured - actions disabled", cfg.ServerID)
 		return
 	}
 	sub := rdb.Subscribe(ctx, chName)
@@ -469,7 +469,7 @@ func withRcon(ctx context.Context, cfg AgentConfig, fn func(context.Context, *my
 
 	out, err := fn(ctx, rconCli)
 	if err != nil {
-		log.Printf("[agent:%s] RCON cmd error: %v — closing to force reconnect", cfg.ServerID, err)
+		log.Printf("[agent:%s] RCON cmd error: %v - closing to force reconnect", cfg.ServerID, err)
 		_ = rconCli.Close()
 		rconCli = nil
 	}
@@ -481,7 +481,7 @@ func ensureRcon(ctx context.Context, c *myrcon.Client) error {
 		if err := c.Connect(ctx); err == nil {
 			return nil
 		} else {
-			// 1er échec — retente
+			// 1er échec - retente
 			time.Sleep(100 * time.Millisecond)
 			return c.Connect(ctx)
 		}

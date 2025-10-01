@@ -51,7 +51,7 @@ export class SidesScoreService {
 }
 
   // ─────────────────────────────────────────────────────────────────────────────
-  // Sides (source de vérité) — Hash {home:'CT'|'T', away:'CT'|'T'}
+  // Sides (source de vérité) - Hash {home:'CT'|'T', away:'CT'|'T'}
   // Migration depuis legacy String JSON si besoin.
   // ─────────────────────────────────────────────────────────────────────────────
   async setSides(matchId: string, sides: CoreSide) {

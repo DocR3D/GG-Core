@@ -1,4 +1,3 @@
-// src/application/match/pause/pause.service.ts
 import { Injectable, Logger, Inject } from '@nestjs/common';
 import type Redis from 'ioredis';
 
@@ -34,6 +33,9 @@ const tacId = (m: string) => `pause:tac:${m}`; // namespace "pause"
 const tecId = (m: string) => `pause:tec:${m}`;
 const lockKeyFor = (id: string) => `lock:periodic:${id}`;
 
+// Verrou court pour éviter double activation si plusieurs observateurs voient "freeze"
+const activateLock = (m: string) => `pause:lock:activate:${m}`;
+
 @Injectable()
 export class PauseMatchService {
   private readonly logger = new Logger(PauseMatchService.name);
@@ -47,9 +49,9 @@ export class PauseMatchService {
     return redisConst.pause(matchId);
   }
 
-  // —————————————————————————————————————————————————————
+  // -----------------------------------------------------
   // Queries
-  // —————————————————————————————————————————————————————
+  // -----------------------------------------------------
   async isPaused(matchId: string): Promise<boolean> {
     const s = await this.redis.hget(this.key(matchId), 'state');
     return s === 'paused';
@@ -67,9 +69,18 @@ export class PauseMatchService {
     };
   }
 
-  // —————————————————————————————————————————————————————
+  /**
+   * Phase courante ('live' | 'freeze' | 'end' | null)
+   * Lit la clé de phase déjà présente dans ton state.
+   */
+  async getPhase(matchId: string): Promise<'live' | 'freeze' | 'end' | null> {
+    const v = await this.redis.get(redisConst.phase(matchId));
+    return v === 'live' || v === 'freeze' || v === 'end' ? v : null;
+  }
+
+  // -----------------------------------------------------
   // Actions
-  // —————————————————————————————————————————————————————
+  // -----------------------------------------------------
   /**
    * pause(...):
    * - armOnly = true  → armement (stockage JSON) sans déclencher la pause
@@ -122,7 +133,7 @@ export class PauseMatchService {
       return;
     }
 
-    // Application immédiate
+    // Application immédiate (état "paused")
     await this.redis.hset(key, {
       state: 'paused',
       reason: opts.reason,
@@ -147,6 +158,50 @@ export class PauseMatchService {
   }
 
   /**
+   * À appeler à l'ENTRÉE en FREEZE (depuis MatchPhaseService).
+   * - Consomme la demande armée la plus ancienne
+   * - Applique l'état "paused" + planifie les messages (pas de RCON ici)
+   * Retourne { activated, reason, team, durationSec } si une pause a été activée.
+   */
+  async tryActivateAtFreeze(
+    matchId: string,
+  ): Promise<{ activated: boolean; reason?: PauseReason; team?: Logical | 'system'; durationSec?: number }> {
+    // évite la course si plusieurs listeners appellent en même temps
+    const gotLock = await this.redis.set(activateLock(matchId), '1', 'EX', 3, 'NX');
+    if (!gotLock) return { activated: false };
+
+    try {
+      if (await this.isPaused(matchId)) return { activated: false };
+
+      const { consumed, pick } = await this.consumeArmed(matchId);
+      if (!consumed || !pick) return { activated: false };
+
+      const duration = pick.req.durationSec ?? (pick.req.reason === 'tactical' ? 30 : 60);
+
+      // applique l'état "paused" (messages périodiques inclus), sans RCON
+      await this.pause(matchId, /* serverId */ 'n/a', {
+        reason: pick.req.reason,
+        team: pick.team === 'system' ? 'system' : (pick.team as Logical),
+        durationSec: duration,
+        armOnly: false,
+        by: pick.req.by,
+      });
+
+      return {
+        activated: true,
+        reason: pick.req.reason,
+        team: pick.team === 'system' ? 'system' : (pick.team as Logical),
+        durationSec: duration,
+      };
+    } catch (err) {
+      this.logger.error(`[tryActivateAtFreeze] match=${matchId} error`, err as any);
+      return { activated: false };
+    } finally {
+      await this.redis.del(activateLock(matchId));
+    }
+  }
+
+  /**
    * Consomme une requête de pause armée (sans déclencher la pause).
    * L’appelant décide si/ quand appliquer la pause (ex: au prochain FREEZE).
    */
@@ -158,7 +213,7 @@ export class PauseMatchService {
 
       // Si déjà en pause, on NE consomme PAS pour ne pas perdre la demande.
       if (h.state === 'paused') {
-        this.logger.debug(`[consumeArmed] match=${matchId} already paused — keep armed slots`);
+        this.logger.debug(`[consumeArmed] match=${matchId} already paused - keep armed slots`);
         return { consumed: false };
       }
 
@@ -187,7 +242,7 @@ export class PauseMatchService {
         `[consumeArmed] match=${matchId} consumed armed request team=${pick.team} reason=${pick.req.reason} by=${JSON.stringify(pick.req.by)}`
       );
 
-      // Ne PAS lancer la pause ici — on laisse l’appelant décider
+      // Ne PAS lancer la pause ici - on laisse l’appelant décider
       return { consumed: true, pick };
     } catch (err) {
       this.logger.error(`[consumeArmed] error match=${matchId}`, err as any);
@@ -195,9 +250,9 @@ export class PauseMatchService {
     }
   }
 
-  // —————————————————————————————————————————————————————
+  // -----------------------------------------------------
   // Resume
-  // —————————————————————————————————————————————————————
+  // -----------------------------------------------------
   /**
    * Remet l'état à "none" et coupe les messages périodiques "pause".
    * Débite la banque tactique en fonction du temps réellement passé en pause.
@@ -229,9 +284,9 @@ export class PauseMatchService {
     await this.redis.hset(key, { state: 'none', reason: '', team: '', started_at: '', until: '' });
   }
 
-  // —————————————————————————————————————————————————————
+  // -----------------------------------------------------
   // Banks
-  // —————————————————————————————————————————————————————
+  // -----------------------------------------------------
   async initTacBanks(matchId: string, secondsPerTeam = 300): Promise<void> {
     await this.redis.hset(this.key(matchId), {
       tac_bank_home: String(secondsPerTeam),
@@ -269,9 +324,9 @@ export class PauseMatchService {
     return { allowed: false, why: 'unknown_reason' };
   }
 
-  // —————————————————————————————————————————————————————
+  // -----------------------------------------------------
   // Auto message flags (optionnels)
-  // —————————————————————————————————————————————————————
+  // -----------------------------------------------------
   async armAutoMessage(matchId: string): Promise<void> {
     const key = this.key(matchId);
     await this.redis.hset(key, { auto_message_armed: '1' });

@@ -143,21 +143,34 @@ export class MatchOrchestrator {
   }
   // src/application/match/match-orchestrator.service.ts (extrait)
 
-  async applyPauseIfArmed(ev: (GenericMatchEvent & { serverId?: string; }) | (RoundFreezeStartEvent & { serverId?: string; })) {
-    const res = await this.pause.consumeArmed(ev.matchId);
-    if (res.consumed && res.pick) {
-      // 1) Appliquer la pause côté état + messages périodiques
-      await this.pause.pause(ev.matchId, ev.serverId!, { reason: 'tactical', team: res.pick.team });
+async applyPauseIfArmed(
+  ev: (GenericMatchEvent & { serverId?: string }) | (RoundFreezeStartEvent & { serverId?: string })
+) {
+  const res = await this.pause.consumeArmed(ev.matchId);
+  if (res.consumed && res.pick) {
+    const reason = res.pick.req.reason;
+    const duration = res.pick.req.durationSec ?? (reason === 'tactical' ? 30 : 60);
 
-      // 2) Demander la pause à l'agent (ingame)
-      await this.cmds.pause(ev);
+    // 1) Appliquer la pause côté état + messages périodiques
+    await this.pause.pause(ev.matchId, ev.serverId!, {
+      reason,
+      team: res.pick.team,
+      durationSec: duration,
+      armOnly: false,
+      by: res.pick.req.by,
+    });
 
-      if (res.pick.team !== 'system') {
-        const bank = await this.pause.getTacBank(ev.matchId, res.pick.team);
-        this.armAutoUnpause(ev.matchId, ev.serverId!, bank);
-      }
+    // 2) Demander la pause à l'agent (ingame)
+    await this.cmds.pause(ev);
+
+    // 3) Auto-unpause si pause tactique
+    if (reason === 'tactical' && res.pick.team !== 'system') {
+      const bank = await this.pause.getTacBank(ev.matchId, res.pick.team);
+      this.armAutoUnpause(ev.matchId, ev.serverId!, bank);
     }
   }
+}
+
 
   async execCfg(
     ids: { matchId?: string; serverId?: string },

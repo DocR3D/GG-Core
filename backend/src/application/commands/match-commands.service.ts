@@ -290,7 +290,7 @@ pipe.set(redisConst.matchServer(mid), sid);   // ← pas de NX
     hset(redisConst.score(mid), 'round', 1);
     hset(redisConst.score(mid), 'phase', 'freeze');
 
-    // timeouts (banques tactiques) — hash
+    // timeouts (banques tactiques) - hash
     hset(redisConst.timeouts(mid), 'homeTac', 4);
     hset(redisConst.timeouts(mid), 'awayTac', 4);
     hset(redisConst.timeouts(mid), 'homeTech', 0);
@@ -301,7 +301,7 @@ pipe.set(redisConst.matchServer(mid), sid);   // ← pas de NX
     hset(redisConst.teams(mid), 'home_name', teams.home.name);
     hset(redisConst.teams(mid), 'away_id', teams.away.id);
     hset(redisConst.teams(mid), 'away_name', teams.away.name);
-    // ct_id / t_id optionnels (souvent dérivés via sides) — on les laisse vides ici
+    // ct_id / t_id optionnels (souvent dérivés via sides) - on les laisse vides ici
 
     // map en HASH
     hset(redisConst.map(mid), 'name', map_name);
@@ -333,7 +333,7 @@ pipe.set(redisConst.matchServer(mid), sid);   // ← pas de NX
     );
 
     // démarrage immédiat en warmup
-    this.mps.startPhaseCountdown(mid, MatchPhase.WARMUP_MAIN, 0, sid);
+    this.mps.startPhaseCountdown(mid, MatchPhase.WARMUP_MAIN, 30, sid);
 
     return { matchId: mid, map: map_name, home: teams.home, away: teams.away };
   }

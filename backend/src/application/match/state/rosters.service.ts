@@ -32,7 +32,7 @@ export class TeamsRosterService {
   ) {}
 
   // ─────────────────────────────────────────────────────────────────────────────
-  // Teams (string JSON) — noms/ids pour UI
+  // Teams (string JSON) - noms/ids pour UI
   // ─────────────────────────────────────────────────────────────────────────────
   async setTeams(
     matchId: string,
@@ -51,7 +51,7 @@ export class TeamsRosterService {
   async getScoreWithTeams(matchId: string) {
     const [t, ct, teamsRaw, sides] = await Promise.all([
       this.redis.hmget(redisConst.score(matchId), 't', 'ct'),
-      // NOTE: hmget renvoie un tableau, pas besoin ici — on récupère t,ct ci-dessous
+      // NOTE: hmget renvoie un tableau, pas besoin ici - on récupère t,ct ci-dessous
       // Correction: on relit les deux valeurs séparément depuis le tuple ci-dessus
       // mais pour la clarté on peut renommer :
       // [tStr, ctStr] = await this.redis.hmget(...)

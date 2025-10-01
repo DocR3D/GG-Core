@@ -35,7 +35,6 @@ export class SnapshotQuery {
    * Migre automatiquement la clé teams si elle est encore stockée en JSON String.
    */
   async getSnapshot(matchId: string) {
-    // 0) Teams en Hash (avec migration auto au besoin)
     const teamsHash = await this.readTeamsHashWithAutoMigrate(matchId);
     const teams = mapTeamsHashToDoc(teamsHash);
 
@@ -208,9 +207,9 @@ export class SnapshotQuery {
   }
 }
 
-// —————————————————————
+// ---------------------
 // Helpers
-// —————————————————————
+// ---------------------
 
 function toInt(v?: string | null): number {
   return v == null ? 0 : Number.parseInt(v, 10) || 0;

@@ -124,7 +124,7 @@ export class WsBroadcaster implements OnModuleInit {
       }
       this.logger.debug(`📩 RX on ${_channel}: ${raw.slice(0, 240)}${raw.length > 240 ? '…' : ''}`);
 
-      // ——— Normalisation → InternalEvent ———
+      // --- Normalisation → InternalEvent ---
       let ev: InternalEvent | null;
       if (base?.name) {
         // déjà un InternalEvent
@@ -286,7 +286,7 @@ async push(
 }
 }
 
-// ————— Helpers —————
+// ----- Helpers -----
 
 function toTeamSide(team: string): 'CT'|'T'|'spec' {
   if (team === 'CT') return 'CT';

@@ -16,7 +16,7 @@ export type InternalEventName =
   | 'AGENT_ACTION'
   | 'AGENT_RESULT'
   | 'LOG_RAW'
-  // Parser Go — événements “primaires”
+  // Parser Go - événements “primaires”
   | 'TEAM_ROUND_WIN'
   | 'BOMB_PLANTED'
   | 'BEGIN_BOMB_PLANT'

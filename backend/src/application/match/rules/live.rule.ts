@@ -1,14 +1,14 @@
 // src/domain/rules/live.rule.ts
+
 import { BaseRule, PhaseRule, RuleContext } from '@domain/rules';
 import { EventTypes, type EventType } from '@domain/events/event.types';
 import type { KillEvent, RoundStartEvent, TeamRoundWinEvent } from '@domain/events/match.event';
 import type { CommandEvent } from '@domain/events/command.event';
-import { Phase} from '@domain/phase.types';
+import { PauseCommand } from '@app/match/commands/pause.command';
 
 export class LiveRule extends BaseRule implements PhaseRule {
   name = 'live_main' as const;
 
-  /** Types “visibles” côté front pendant le live */
   publicTypes = new Set<EventType>([
     EventTypes.ROUND_START,
     EventTypes.TEAM_ROUND_WIN,
@@ -18,23 +18,23 @@ export class LiveRule extends BaseRule implements PhaseRule {
     'pause:update' as EventType,
     'sides:swapped' as EventType,
     'chat:public' as EventType,
-    // ajoute ici tes télémétries si besoin:
     'grenade_throw' as EventType,
     'player_blinded' as EventType,
   ]);
 
-  constructor() {
+  constructor(
+    private readonly pauseCmd: PauseCommand
+  ) {
     super();
-    // — table de dispatch des events Live
     this.events.set(EventTypes.ROUND_START, this.onRoundStart.bind(this));
     this.events.set(EventTypes.TEAM_ROUND_WIN, this.onTeamRoundWin.bind(this));
     this.events.set(EventTypes.KILL, this.onKill.bind(this));
 
-    // — (optionnel) commandes live courantes (adaptable à tes services)
-    this.commands.set('pause', this.onTacTimeout.bind(this));
-    this.commands.set('unpause', this.onUnpause.bind(this));
-    this.commands.set('tac', this.onTacTimeout.bind(this));        // ex: !tac 30
-    this.commands.set('tech', this.onTechTimeout.bind(this));      // ex: !tech 60
+    // Délégation des commandes à la nouvelle classe
+    this.commands.set('pause', this.onCommand.bind(this));
+    this.commands.set('unpause', this.onCommand.bind(this));
+    this.commands.set('tac', this.onCommand.bind(this));
+    this.commands.set('tech', this.onCommand.bind(this));
   }
 
   // =========================================================================
@@ -44,7 +44,6 @@ export class LiveRule extends BaseRule implements PhaseRule {
     const serverId = ctx.serverId ?? (await ctx.state.getServerIdFromMatchId(ctx.matchId));
     if (!serverId) throw new Error(`Aucun serveur lié au match ${ctx.matchId}`);
 
-    // Applique le mode compétitif, termine warmup, restart la game
     await ctx.orch.rcon({
       serverId,
       matchId: ctx.matchId,
@@ -65,61 +64,31 @@ export class LiveRule extends BaseRule implements PhaseRule {
   // Events
   // =========================================================================
   private async onRoundStart(ev: RoundStartEvent, ctx: RuleContext) {
-    // Broadcast round:start tel quel (ou mappe en DTO si besoin)
     await ctx.orch.push(ev.matchId, 'round:start', {
       round: ev.round,
-      // ajoute ce que tu as dans ev.payload si utile au front
       ...(ev as any).payload ?? {},
     });
   }
 
   private async onTeamRoundWin(ev: TeamRoundWinEvent, ctx: RuleContext) {
-
+    // La logique de score est gérée par le service de score
   }
 
   private async onKill(ev: KillEvent, ctx: RuleContext) {
-    // Forward au front (tu peux mapper le payload si nécessaire)
     await ctx.orch.push(ev.matchId, 'kill', {
-      ...(ev as KillEvent).payload, // killer, victim, weapon, headshot, positions…
+      ...(ev as KillEvent).payload,
       round: ev.round,
       tick: ev.tick,
     });
   }
 
   // =========================================================================
-  // Commands (optionnel)
+  // Commands
   // =========================================================================
-
-  private async onUnpause(cmd: CommandEvent, ctx: RuleContext) {
-   // await ctx.mss.setPaused(cmd.matchId, false);
-    await ctx.orch.push(cmd.matchId, 'pause:update', { paused: false, by: cmd.payload.sender?.name });
-    ctx.orch.resume({
-      serverId:ctx.serverId,
-      matchId: ctx.matchId,
-    })
-    await ctx.say('[live] Reprise du match.');
-  }
-
-  private async onTacTimeout(cmd: CommandEvent, ctx: RuleContext) {
-    if(cmd.payload.sender.team == "T" || cmd.payload.sender.team == "CT"){ 
-     let logicalTeam =  await ctx.orch.sideToLogical(ctx.matchId, cmd.payload.sender.team)
-      if(!logicalTeam) return
-
-      ctx.orch.requestPauseTactical({
-        serverId:ctx.serverId,
-        matchId:ctx.matchId,
-      },logicalTeam);
-    }
-  }
-
-  private async onTechTimeout(cmd: CommandEvent, ctx: RuleContext) {
-        if(cmd.payload.sender.team == "T" || cmd.payload.sender.team == "CT"){ 
-     let logicalTeam =  await ctx.orch.sideToLogical(ctx.matchId, cmd.payload.sender.team)
-      if(!logicalTeam) return
-
-      ctx.orch.pauseTechnical({
-        serverId:ctx.serverId,
-        matchId:ctx.matchId}, logicalTeam);
+  private async onCommand(cmd: CommandEvent, ctx: RuleContext) {
+    const handled = await this.pauseCmd.handle(cmd, ctx);
+    if (!handled) {
+      // Gérer le cas où la commande n'est pas gérée par le service de commande
     }
   }
 }
