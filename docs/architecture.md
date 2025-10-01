@@ -16,13 +16,13 @@ Chaque service a une responsabilité claire : collecte, orchestration, stockage 
                                │
         ┌──────────────────────┴───────────────────────┐
         │                                              │
-┌───────▼───────┐                              ┌───────▼───────┐
-│   Agent Go    │                              │   Agent Go    │
-│  (Server #1)  │                              │  (Server #2)  │
-│  RCON + Logs  │                              │  RCON + Logs  │
-└───────┬───────┘                              └───────┬───────┘
-        │                                              │
-        └──────────────────┬───────────────────────────┘
+    ┌───────▼───────┐                              ┌───────▼───────┐
+    │   Agent Go    │                              │   Agent Go    │
+    │  (Server #1)  │                              │  (Server #2)  │
+    │  RCON + Logs  │                              │  RCON + Logs  │
+    └───────┬───────┘                              └───────┬───────┘
+            │                                              │
+            └──────────────────┬───────────────────────────┘
                            │  Pub/Sub events
                            ▼
                      ┌──────────────┐
@@ -37,14 +37,14 @@ Chaque service a une responsabilité claire : collecte, orchestration, stockage 
                │   (état + API + WebSocket) │
                └───────────┬────────────────┘
                            │
-        ┌──────────────────┴─────────────────────┐
-        │                                        │
-┌───────▼────────────┐                  ┌────────▼────────┐
-│    PostgreSQL      │                  │ Frontend Next.js│
-│ (historique, SOoT) │                  │   (live + admin)│
-│ events_primary/    │                  └─────────────────┘
-│ events_secondary   │
-└────────────────────┘
+            ┌──────────────┴─────────────────────────┐
+            │                                        │
+    ┌───────▼────────────┐                  ┌────────▼────────┐ 
+    │    PostgreSQL      │                  │ Frontend Next.js│
+    │ (historique, SOoT) │                  │   (live + admin)│
+    │ events_primary/    │                  └─────────────────┘
+    │ events_secondary   │
+    └────────────────────┘
 
 SOoT = Source of Truth historique (vérité absolue).
 
