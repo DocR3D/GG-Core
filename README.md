@@ -29,9 +29,9 @@ Prévu :
 ### Installation
 ```bash
 git clone https://github.com/DocR3D/GG-Core.git
-cd GG-Core
-cp .env.example .env
-docker compose up -d
+cd GG-Core/infra
+docker compose -f docker-compose.dev.yml up -d --build
+docker compose -f docker-compose.dev.yml logs -f
 ```
 
 - Frontend : http://localhost:3000  
