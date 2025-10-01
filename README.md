@@ -5,7 +5,7 @@ Contrôle des matchs (knife, swap, pauses, OT), collecte des événements, API +
 
 ---
 
-## 🛠️ Technologies
+##  Technologies
 
 - **Backend** : NestJS (TypeScript)
 - **Frontend** : Next.js (React)
@@ -20,7 +20,7 @@ Prévu :
 
 ---
 
-## 🚀 Démarrage rapide
+##  Démarrage rapide
 
 ### Prérequis
 - Docker + Docker Compose
@@ -28,8 +28,8 @@ Prévu :
 
 ### Installation
 ```bash
-git clone https://github.com/ton-compte/ebot-plus.git
-cd ebot-plus
+git clone https://github.com/DocR3D/GG-Core.git
+cd GG-Core
 cp .env.example .env
 docker compose up -d
 ```
@@ -48,7 +48,7 @@ logaddress_add_http "http://<BACKEND_HOST>:8081/cs2/logs"
 
 ---
 
-## 📁 Structure du dépôt
+##  Structure du dépôt
 ```
 /agent       # Go: RCON, logs HTTP, (CSTV optionnel)
 /backend     # NestJS: API, état des matchs, WS
