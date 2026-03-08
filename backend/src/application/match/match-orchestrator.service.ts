@@ -12,12 +12,7 @@ import { Audience } from '@domain/events/internal-events';
 import { SidesScoreService } from './state';
 import { MatchPhase, Phase, RoundPhase } from '@domain/phase.types';
 import { MatchPhaseService } from './phase/match-phase.service';
-import { match } from 'assert';
 import { RoundStartEvent, GenericMatchEvent, BombPlantedEvent, TeamRoundWinEvent, RoundFreezeStartEvent } from '@domain/events/match.event';
-import { WarmupRule } from './rules/warmup.rule';
-import { eventNames } from 'process';
-import { checkServerIdentity } from 'tls';
-import { ContextIdFactory } from '@nestjs/core';
 import { RuleContextFactory } from '@app/rules/rule-context.factory';
 
 
@@ -114,32 +109,25 @@ export class MatchOrchestrator {
     const { serverId, matchId } = await this.resolve(ids);
 
     // Autorisation (banque dispo, pas déjà en pause…)
-    const chk = await this.pause.isPauseAllowed(matchId, { reason: 'tactical', team });
+    const chk = await this.pause.isPauseAllowed(matchId, { reason: ‘tactical’, team });
     if (!chk.allowed) return { ok: false, why: chk.why };
-    if(await this.phase.getRoundPhase(matchId) != RoundPhase.FREEZE){
-      this.cmds.say(serverId, "La demande de pause a été enregistré ! ");
-      this.pause.pause(matchId,serverId,{reason:'tactical',team,armOnly:true});
-      return { ok: true };
-    }else{
-    const { serverId, matchId } = await this.resolve(ids);
 
-    // Autorisation (banque dispo, pas déjà en pause…)
-    const chk = await this.pause.isPauseAllowed(matchId, { reason: 'tactical', team });
-    if (!chk.allowed) return { ok: false, why: chk.why };
-      // Côté in-game + état pause: laisse faire la commande haut-niveau existante
-      // (elle publie l'action agent + pose l'état pause) :contentReference[oaicite:0]{index=0}
-      await this.cmds.pause({ serverId, matchId});
-
-      // Armer le timer auto-unpause depuis l’orchestrateur (V1 “solution 2”)
-      // 👉 IMPORTANT : enlève le setTimeout interne actuel dans PauseMatchService.startTactical
-      // pour éviter un double timer. :contentReference[oaicite:1]{index=1}
-      this.pause.pause(matchId,serverId,{reason:'tactical',team})
-      const bank = await this.pause.getTacBank(matchId, team);
-      this.armAutoUnpause(matchId, serverId, bank);
-
-      await this.notify('pause:started', { matchId, serverId, reason: 'tactical', team });
+    const roundPhase = await this.phase.getRoundPhase(matchId);
+    if (roundPhase !== RoundPhase.FREEZE) {
+      // Pas en freeze : on arme la pause pour la prochaine freeze time
+      await this.cmds.say(serverId, “La demande de pause a été enregistrée !”);
+      await this.pause.pause(matchId, serverId, { reason: ‘tactical’, team, armOnly: true });
       return { ok: true };
     }
+
+    // En freeze : pause immédiate
+    await this.cmds.pause({ serverId, matchId });
+    await this.pause.pause(matchId, serverId, { reason: ‘tactical’, team });
+    const bank = await this.pause.getTacBank(matchId, team);
+    this.armAutoUnpause(matchId, serverId, bank);
+
+    await this.notify(‘pause:started’, { matchId, serverId, reason: ‘tactical’, team });
+    return { ok: true };
   }
   // src/application/match/match-orchestrator.service.ts (extrait)
 
@@ -280,15 +268,15 @@ async applyPauseIfArmed(
 
   async onFreezeTimeStart(ev: (GenericMatchEvent & { serverId?: string; }) | (RoundFreezeStartEvent & { serverId?: string; })) {
     this.log.debug("Freeze time started !")
-    this.phase.setRoundPhase(ev.matchId, RoundPhase.FREEZE);
-    this.applyPauseIfArmed(ev);
+    await this.phase.setRoundPhase(ev.matchId, RoundPhase.FREEZE);
+    await this.applyPauseIfArmed(ev);
   }
-  onRoundEnd(ev: (TeamRoundWinEvent & { serverId?: string; }) | (GenericMatchEvent & { serverId?: string; })) {
-    this.phase.setRoundPhase(ev.matchId, RoundPhase.END);
+  async onRoundEnd(ev: (TeamRoundWinEvent & { serverId?: string; }) | (GenericMatchEvent & { serverId?: string; })) {
+    await this.phase.setRoundPhase(ev.matchId, RoundPhase.END);
     this.log.debug("Round ended !");
-    }
-  onBombPlanted(ev: (BombPlantedEvent & { serverId?: string; }) | (GenericMatchEvent & { serverId?: string; })) {
-    this.phase.setRoundPhase(ev.matchId, RoundPhase.BOMB_PLANTED);
+  }
+  async onBombPlanted(ev: (BombPlantedEvent & { serverId?: string; }) | (GenericMatchEvent & { serverId?: string; })) {
+    await this.phase.setRoundPhase(ev.matchId, RoundPhase.BOMB_PLANTED);
     this.log.debug("Bomb planted !");
   }
 

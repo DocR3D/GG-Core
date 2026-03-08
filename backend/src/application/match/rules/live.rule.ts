@@ -71,7 +71,17 @@ export class LiveRule extends BaseRule implements PhaseRule {
   }
 
   private async onTeamRoundWin(ev: TeamRoundWinEvent, ctx: RuleContext) {
-    // La logique de score est gérée par le service de score
+    const winner = (ev.payload as any)?.winner as string | undefined;
+    if (!winner) return;
+
+    await ctx.orch.roundEnd(ev.matchId, winner as any);
+
+    const snapshot = await ctx.state.getSnapshot(ev.matchId);
+    await ctx.orch.push(ev.matchId, 'score:update', {
+      score: snapshot.score,
+      sides: snapshot.sides,
+      teams: snapshot.teams,
+    });
   }
 
   private async onKill(ev: KillEvent, ctx: RuleContext) {

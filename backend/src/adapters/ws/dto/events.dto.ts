@@ -38,9 +38,12 @@ export type WsEventType =
   | 'defuse:abort'
   | 'team_round_win'   // ← remplace 'round:win'
   | 'player_blinded'
-  | 'knife:result';
+  | 'knife:result'
+  | 'player:connected'
+  | 'player:disconnected'
+  | 'player:name_change'
+  | 'item:purchase';
 //  | 'grenade_landed'  // activer quand prêt
-//  | 'bomb:planted' | 'bomb:begin' | 'defuse:begin' | 'defuse:abort' // si tu exposes ces events
 
 export interface BaseWsEvent<TType extends WsEventType, TPayload> {
   type: TType;
@@ -246,6 +249,26 @@ export interface PlayerBlindedPayload {
 }
 export type PlayerBlindedEvent = BaseWsEvent<'player_blinded', PlayerBlindedPayload>;
 
+export type PlayerConnectedWsEvent = BaseWsEvent<'player:connected', {
+  player: PlayerRef;
+}>;
+
+export type PlayerDisconnectedWsEvent = BaseWsEvent<'player:disconnected', {
+  player: { name: string; steamId: string };
+  reason?: string;
+}>;
+
+export type PlayerNameChangeWsEvent = BaseWsEvent<'player:name_change', {
+  steamId: string;
+  oldName: string;
+  newName: string;
+}>;
+
+export type ItemPurchaseWsEvent = BaseWsEvent<'item:purchase', {
+  player: PlayerRef;
+  weapon: string;
+}>;
+
 // // grenade_landed (optionnel, plus tard)
 // export interface GrenadeLandedPayload {
 //   grenade: string;
@@ -276,7 +299,11 @@ export type MatchWsEvent =
   | KnifeResult
   | GrenadeThrowEvent
   | PlayerBlindedEvent
-  | TeamRoundWinEvent; // ← ajouté ici
+  | TeamRoundWinEvent
+  | PlayerConnectedWsEvent
+  | PlayerDisconnectedWsEvent
+  | PlayerNameChangeWsEvent
+  | ItemPurchaseWsEvent;
 
 /* ====== Admin / Agent / Debug ====== */
 

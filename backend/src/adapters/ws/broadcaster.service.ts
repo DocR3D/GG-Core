@@ -192,14 +192,15 @@ export class WsBroadcaster implements OnModuleInit {
 
         // Grenades / blinded
         case 'GRENADE_THROW':     send('grenade_throw'); break;
-        case 'GRENADE_LAND':      send('grenade_landed' as any /* ajoute-le si tu l’as dans WsEventType */); break;
+        // grenade_landed non exposé côté WS pour l’instant (type commenté dans events.dto.ts)
+        case ‘GRENADE_LAND’:      break;
         case 'PLAYER_BLINDED':    send('player_blinded'); break;
 
         // Divers joueurs / achats
-        case 'PLAYER_CONNECTED':    send('player:connected'  as any); break;
-        case 'PLAYER_DISCONNECTED': send('player:disconnected' as any); break;
-        case 'PLAYER_NAME_CHANGE':  send('player:name_change' as any); break;
-        case 'ITEM_PURCHASE':       send('item:purchase'      as any); break;
+        case 'PLAYER_CONNECTED':    send('player:connected'); break;
+        case 'PLAYER_DISCONNECTED': send('player:disconnected'); break;
+        case 'PLAYER_NAME_CHANGE':  send('player:name_change'); break;
+        case 'ITEM_PURCHASE':       send('item:purchase'); break;
         case 'PHASE_COUNTDOWN':
           send('phase:countdown', asWs('phase:countdown' as WsEventType, ev, ev.payload, ev.seq!, ev.ts!));
           break;
@@ -213,7 +214,8 @@ export class WsBroadcaster implements OnModuleInit {
           break;
 
         // SFUI bombed (fallback rare, utile overlay)
-        case 'SFUI_TARGET_BOMBED':  send('sfui:target_bombed' as any); break;
+        // sfui:target_bombed non exposé côté WS (pas dans WsEventType)
+        case 'SFUI_TARGET_BOMBED':  break;
 
         case 'CHAT_PUBLIC': {
           if (!toAdmin) break;

@@ -23,7 +23,7 @@ export class MatchEventsHandler {
   ) {}
 
   async handle(ev: AnyEvent & { serverId?: string }): Promise<void> {
-    // normalisation du matchId (inchangé)
+    // normalisation du matchId
     let matchId: string | undefined =
       ev.matchId && ev.matchId !== 'unknown' ? ev.matchId : undefined;
     if (!matchId && ev.serverId) {
@@ -35,31 +35,28 @@ export class MatchEventsHandler {
     }
     if (!matchId) return;
 
-        // dispatch aux règles
+    const evWithMatch = { ...ev, matchId };
+
+    // 1) Handlers transverses (état round, phase, bomb) — indépendants des règles
+    if (await this.phaseHandler.handle(evWithMatch)) return;
+    await this.roundHandler.handle(evWithMatch);
+    await this.combatHandler.handle(evWithMatch);
+
+    // 2) Dispatch à la règle active pour la logique métier de la phase
     const phase = await this.phase.getPhase(matchId);
     const rule = this.registry.getRule(phase);
     if (!rule) return;
 
-    const ctx = await this.ctxFactory.make({ matchId, serverId: ev.serverId });
+    const ctx = this.ctxFactory.make({ matchId, serverId: ev.serverId });
     try {
-      if (typeof (rule as any)?.events?.get === 'function' && (rule as any).events.has(ev.type)) {
-        await (rule as any).events.get(ev.type)(ev, ctx);
-      } else if (typeof (rule as any)?.handle === 'function' && (rule as any).canHandle?.(ev.type)) {
-        await (rule as any).handle(ev, ctx);
+      if ((rule as any).events?.has(ev.type)) {
+        await (rule as any).events.get(ev.type)(evWithMatch, ctx);
+      } else if (typeof (rule as any).canHandle === 'function' && (rule as any).canHandle(ev.type)) {
+        await (rule as any).handle(evWithMatch, ctx);
       }
     } catch (err) {
-      this.logger.error(`[MatchEventsHandler] rule dispatch failed: ${err}`);
+      this.logger.error(`[MatchEventsHandler] rule dispatch failed for type=${ev.type}: ${err}`);
     }
-  
-    // cas spécial phase
-    if (await this.phaseHandler.handle({ ...ev, matchId })) return;
-
-    // round
-    if (await this.roundHandler.handle({ ...ev, matchId })) return;
-
-    // kill & bomb
-    if (await this.combatHandler.handle({ ...ev, matchId })) return;
-
   }
 }
 

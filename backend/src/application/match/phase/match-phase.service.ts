@@ -246,12 +246,12 @@ private async applyPhase(
   }
 
   async setRoundPhase(matchId: string, roundPhase: RoundPhase) {
-    const key = redisConst.phase(matchId);
+    const key = redisConst.roundPhase(matchId);
     await this.redis.set(key, roundPhase);
   }
 
   async getRoundPhase(matchId: string): Promise<RoundPhase> {
-    const key = redisConst.phase(matchId);
+    const key = redisConst.roundPhase(matchId);
     return (await this.redis.get(key)) as RoundPhase ?? RoundPhase.WARMUP;
   }
 }
