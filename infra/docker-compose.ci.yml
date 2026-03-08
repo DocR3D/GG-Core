@@ -1,0 +1,84 @@
+# =============================================================================
+# GG-Core — Docker Compose CI (smoke test uniquement)
+# Les builds typecheck/Go sont faits dans le Dockerfile multi-stage.
+# Usage : docker compose -f infra/docker-compose.ci.yml up --build --abort-on-container-exit --exit-code-from smoke
+# =============================================================================
+
+services:
+
+  # ── Redis ──────────────────────────────────────────────────────────────────
+  redis:
+    image: redis:7-alpine
+    container_name: ggcore-ci-redis
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 2s
+      timeout: 1s
+      retries: 10
+
+  # ── Backend (typecheck + build + runtime dans le même Dockerfile.ci) ───────
+  backend:
+    build:
+      context: ../backend
+      dockerfile: Dockerfile.ci
+    container_name: ggcore-ci-backend
+    environment:
+      PORT: "8081"
+      WS_PATH: "/ws"
+      JWT_SECRET: "ci-secret"
+      REDIS_URL: "redis://redis:6379"
+      SERVER_IDS: "srv-a"
+      NODE_ENV: "production"
+    depends_on:
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:8081/api/health"]
+      interval: 3s
+      timeout: 2s
+      retries: 15
+      start_period: 10s
+
+  # ── Smoke test ─────────────────────────────────────────────────────────────
+  smoke:
+    image: alpine:3.20
+    container_name: ggcore-ci-smoke
+    depends_on:
+      backend:
+        condition: service_healthy
+    command:
+      - sh
+      - -c
+      - |
+        set -e
+        echo "=== Smoke tests GG-Core ==="
+
+        BASE="http://backend:8081"
+
+        # 1. Health check
+        echo "--- 1/3 GET /api/health"
+        HEALTH=$$(wget -qO- "$$BASE/api/health")
+        echo "    response: $$HEALTH"
+        echo "    OK"
+
+        # 2. Snapshot d'un match inexistant → ne doit pas retourner 500
+        echo "--- 2/3 GET /api/matches/ci-test/snapshot"
+        CODE=$$(wget --server-response -qO/dev/null "$$BASE/api/matches/ci-test/snapshot" 2>&1 \
+          | grep "HTTP/" | awk '{print $$2}' | tail -1)
+        echo "    HTTP $$CODE"
+        if [ "$$CODE" = "500" ]; then echo "FAIL: 500 inattendu"; exit 1; fi
+        echo "    OK (200 ou 404 accepte)"
+
+        # 3. Init match
+        echo "--- 3/3 POST /api/matches/init"
+        CODE=$$(wget --server-response -qO/dev/null \
+          --post-data='{"matchId":"ci-match","serverId":"srv-a"}' \
+          --header='Content-Type: application/json' \
+          "$$BASE/api/matches/init" 2>&1 \
+          | grep "HTTP/" | awk '{print $$2}' | tail -1)
+        echo "    HTTP $$CODE"
+        if [ "$$CODE" = "500" ]; then echo "FAIL: 500 sur init"; exit 1; fi
+        echo "    OK"
+
+        echo ""
+        echo "=== Tous les smoke tests sont passes ==="

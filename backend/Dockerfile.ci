@@ -1,0 +1,25 @@
+# =============================================================================
+# GG-Core Backend — Image CI (typecheck + build + runtime)
+# =============================================================================
+FROM node:20-alpine AS deps
+WORKDIR /app
+COPY package*.json ./
+RUN npm ci --silent
+
+# ── Typecheck ────────────────────────────────────────────────────────────────
+FROM deps AS typecheck
+COPY . .
+RUN npx tsc --noEmit --project tsconfig.build.json
+
+# ── Build ────────────────────────────────────────────────────────────────────
+FROM typecheck AS build
+RUN npm run build
+
+# ── Runtime ──────────────────────────────────────────────────────────────────
+FROM node:20-alpine AS runtime
+WORKDIR /app
+COPY --from=deps /app/node_modules ./node_modules
+COPY --from=build /app/dist ./dist
+COPY package*.json ./
+EXPOSE 8081
+CMD ["node", "dist/main.js"]

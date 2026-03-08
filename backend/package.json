@@ -10,7 +10,8 @@
     "start:dev": "nest start --watch",
     "start:prod": "node dist/main.js",
     "lint": "eslint \"src/**/*.ts\" --fix",
-    "postbuild": "tsc-alias -p tsconfig.build.json"
+    "postbuild": "tsc-alias -p tsconfig.build.json",
+    "typecheck": "tsc --noEmit --project tsconfig.build.json"
   },
   "dependencies": {
     "@nestjs/common": "^10.0.0",
