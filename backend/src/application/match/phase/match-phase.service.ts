@@ -197,7 +197,7 @@ private async applyPhase(
     if (spec) this.messageService.startPhase(matchId, newPhase, serverId, spec);
   }
 
-  // 3) Diffuse l’événement + feedback ingame
+  // 3) Diffuse l'événement + feedback ingame
   await this.pub.publish('ggbot:events', JSON.stringify({
     v: 1,
     type: EventTypes.PHASE_CHANGED,
@@ -233,7 +233,7 @@ private async applyPhase(
   }
 
   async setPhase(matchId: string, phase: MatchPhase): Promise<void> {
-    const key = redisConst.phase(matchId); // ⚠️ vérifie que c’est la même clé partout
+    const key = redisConst.phase(matchId); // ⚠️ vérifie que c'est la même clé partout
     await this.redis.set(key, phase);
     this.cache.set(matchId, phase);
     this.logger.debug(`[setPhase] match=${matchId} -> ${phase}`);

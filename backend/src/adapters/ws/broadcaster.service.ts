@@ -62,7 +62,7 @@ export class WsBroadcaster implements OnModuleInit {
         case 'agent:result':        return 'AGENT_RESULT';
         case 'log:raw':             return 'LOG_RAW';
 
-        // Nouveaux événements “primaires” du parser Go
+        // Nouveaux événements "primaires" du parser Go
         case 'team_round_win':      return 'TEAM_ROUND_WIN';
         case 'bomb_planted':        return 'BOMB_PLANTED';
         case 'begin_bomb_plant':    return 'BEGIN_BOMB_PLANT';
@@ -154,7 +154,7 @@ export class WsBroadcaster implements OnModuleInit {
         } as InternalEvent;
       }
 
-      // assure l’ordre & l’horodatage
+      // assure l'ordre & l'horodatage
       ev.seq = ev.seq ?? await this.seq.next(ev.matchId);
       ev.ts = ev.ts ?? Date.now();
 
@@ -177,7 +177,7 @@ export class WsBroadcaster implements OnModuleInit {
         case 'SIDES_SWAPPED':     send('sides:swapped'); break;
         case 'MATCH_STATE':       send('match:state'); break;
 
-        // ✅ corriger l’event WS pour coller à events.dto.ts
+        // ✅ corriger l'event WS pour coller à events.dto.ts
         case 'TEAM_ROUND_WIN':    send('team_round_win'); break;
 
         // Bomb / defuse
@@ -186,14 +186,14 @@ export class WsBroadcaster implements OnModuleInit {
         case 'DEFUSE_BEGIN':      send('defuse:begin',  asWs('defuse:begin'  as WsEventType, ev, ev.payload, ev.seq!, ev.ts!)); break;
         case 'DEFUSE_ABORT':      send('defuse:abort',  asWs('defuse:abort'  as WsEventType, ev, ev.payload, ev.seq!, ev.ts!)); break;
 
-        // Pause explicite (si l’agent envoie match_paused/unpaused)
+        // Pause explicite (si l'agent envoie match_paused/unpaused)
         case 'MATCH_PAUSED':      send('pause:update',  asWs('pause:update'  as WsEventType, ev, { state: 'paused' },   ev.seq!, ev.ts!)); break;
         case 'MATCH_UNPAUSED':    send('pause:update',  asWs('pause:update'  as WsEventType, ev, { state: 'unpaused' }, ev.seq!, ev.ts!)); break;
 
         // Grenades / blinded
         case 'GRENADE_THROW':     send('grenade_throw'); break;
-        // grenade_landed non exposé côté WS pour l’instant (type commenté dans events.dto.ts)
-        case ‘GRENADE_LAND’:      break;
+        // grenade_landed non exposé côté WS pour l'instant (type commenté dans events.dto.ts)
+        case 'GRENADE_LAND':      break;
         case 'PLAYER_BLINDED':    send('player_blinded'); break;
 
         // Divers joueurs / achats

@@ -57,7 +57,7 @@ export class LiveRule extends BaseRule implements PhaseRule {
   }
 
   async onExit(_: RuleContext) {
-    // no-op pour l’instant
+    // no-op pour l'instant
   }
 
   // =========================================================================

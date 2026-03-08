@@ -244,7 +244,7 @@ export interface PlayerBlindedPayload {
   victim: PlayerRef;
   attacker: PlayerRef;
   grenade: 'flashbang';
-  duration: number | string; // le parser envoie pour l’instant une string
+  duration: number | string; // le parser envoie pour l'instant une string
   entindex?: string;
 }
 export type PlayerBlindedEvent = BaseWsEvent<'player_blinded', PlayerBlindedPayload>;
@@ -339,7 +339,7 @@ export type AgentResultEvent = BaseWsEvent<'agent:result', AgentResultPayload>;
 /* ===================== Helpers de mapping parser → WS ===================== */
 
 // Mappe les valeurs team issues des logs parser (PlayerRefLogs.team)
-// vers un TeamSide court ou 'spec' pour l’UI.
+// vers un TeamSide court ou 'spec' pour l'UI.
 export const toTeamSide = (t: TeamFromLogs | TeamSide | undefined): TeamSide | 'spec' => {
   if (!t) return 'spec';
   if (t === 'CT' || t === 'T') return t;

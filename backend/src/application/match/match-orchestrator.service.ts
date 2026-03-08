@@ -55,7 +55,7 @@ export class MatchOrchestrator {
     return { serverId, matchId };
   }
 
-    // programme un timer; à l’échéance on re-vérifie l’état et on resume si la banque est à 0
+    // programme un timer; à l'échéance on re-vérifie l'état et on resume si la banque est à 0
     private armAutoUnpause(matchId: string, serverId: string, seconds: number) {
     this.disarmAutoUnpause(matchId); // idempotent
     const delayMs = Math.max(0, Math.floor(seconds)) * 1000;
@@ -109,24 +109,24 @@ export class MatchOrchestrator {
     const { serverId, matchId } = await this.resolve(ids);
 
     // Autorisation (banque dispo, pas déjà en pause…)
-    const chk = await this.pause.isPauseAllowed(matchId, { reason: ‘tactical’, team });
+    const chk = await this.pause.isPauseAllowed(matchId, { reason: 'tactical', team });
     if (!chk.allowed) return { ok: false, why: chk.why };
 
     const roundPhase = await this.phase.getRoundPhase(matchId);
     if (roundPhase !== RoundPhase.FREEZE) {
       // Pas en freeze : on arme la pause pour la prochaine freeze time
-      await this.cmds.say(serverId, “La demande de pause a été enregistrée !”);
-      await this.pause.pause(matchId, serverId, { reason: ‘tactical’, team, armOnly: true });
+      await this.cmds.say(serverId, 'La demande de pause a ete enregistree !');
+      await this.pause.pause(matchId, serverId, { reason: 'tactical', team, armOnly: true });
       return { ok: true };
     }
 
     // En freeze : pause immédiate
     await this.cmds.pause({ serverId, matchId });
-    await this.pause.pause(matchId, serverId, { reason: ‘tactical’, team });
+    await this.pause.pause(matchId, serverId, { reason: 'tactical', team });
     const bank = await this.pause.getTacBank(matchId, team);
     this.armAutoUnpause(matchId, serverId, bank);
 
-    await this.notify(‘pause:started’, { matchId, serverId, reason: ‘tactical’, team });
+    await this.notify('pause:started', { matchId, serverId, reason: 'tactical', team });
     return { ok: true };
   }
   // src/application/match/match-orchestrator.service.ts (extrait)
@@ -199,7 +199,7 @@ async applyPauseIfArmed(
     this.disarmAutoUnpause(matchId); // stoppe un éventuel timer
 
     await this.pause.resume(matchId);        // débit banque + stop périodiques + reset état :contentReference[oaicite:3]{index=3}
-    await this.cmds.unpause({ serverId, matchId }); // agent “unpause” + phase=live côté state existant :contentReference[oaicite:4]{index=4}
+    await this.cmds.unpause({ serverId, matchId }); // agent "unpause" + phase=live côté state existant :contentReference[oaicite:4]{index=4}
 
     await this.notify('pause:resumed', {
       matchId,
