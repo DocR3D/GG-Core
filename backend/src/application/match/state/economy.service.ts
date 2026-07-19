@@ -83,16 +83,16 @@ export class EconomyService {
 
   /**
    * Orchestration de fin de round.
-   * 1) Score++
-   * 2) MAJ loss streak / bonus
-   * 3) MAJ économies joueurs (facultatif)
+   * NOTE: le score n'est plus incrémenté ici — il est set absolument par TeamScoreHandler
+   *       à partir des events team_score de l'agent (source de vérité CS2).
+   * 1) MAJ loss streak / bonus
+   * 2) MAJ économies joueurs (facultatif)
    */
   async roundEnd(
     matchId: string,
     winnerSide: GameSide,
     playerEconomy?: { steamId: string; money: number; equip: number }[],
   ) {
-    await this.sidesScore.addPoint(matchId, winnerSide);
     await this.updateEconomyOnRoundEnd(matchId, winnerSide);
 
     if (playerEconomy && playerEconomy.length) {

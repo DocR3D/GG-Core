@@ -12,6 +12,8 @@ import { BaseRule } from '@domain/rules';
 import { MessageService } from '../messages/message.service';
 import { RuleRegistry } from '../rules/rule.registry';
 import { MatchCommandsService } from '@app/commands/match-commands.service';
+import { MatchHistoryRepository } from '@adapters/postgres/match-history.repository';
+import { MatchRepository } from '@adapters/postgres/match.repository';
 
 @Injectable()
 export class MatchPhaseService {
@@ -24,11 +26,13 @@ export class MatchPhaseService {
   constructor(
     @Inject(REDIS_CMD) private readonly redis: Redis,
     @Inject(REDIS_PUB) private readonly pub: Redis,
-@Inject(forwardRef(() => MatchCommandsService)) private readonly actions: MatchCommandsService,
-    private readonly rcF: RuleContextFactory,   // OK une fois exporté + importé
+    @Inject(forwardRef(() => MatchCommandsService)) private readonly actions: MatchCommandsService,
+    private readonly rcF: RuleContextFactory,
     private readonly pauseMatchService: PauseMatchService,
     private readonly messageService: MessageService,
     private readonly registry: RuleRegistry,
+    private readonly historyRepo: MatchHistoryRepository,
+    private readonly matchRepo: MatchRepository,
   ) {}
 
   async isBothReady(matchId: string): Promise<boolean> {
@@ -212,6 +216,13 @@ private async applyPhase(
   if (serverId) {
     await this.actions.say(serverId, `➡️ Phase: ${newPhase}`);
   }
+
+  // 4) Persistance PostgreSQL
+  this.matchRepo.findDbIdByRedisId(matchId).then(dbId => {
+    if (dbId !== null) {
+      this.historyRepo.insert({ id_match: dbId, event_type: `phase:${newPhase}` }).catch(() => {});
+    }
+  }).catch(() => {});
 
   this.logger.log(`[${matchId}] phase changed → ${newPhase} (stopAll applied)`);
 }

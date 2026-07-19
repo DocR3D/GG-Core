@@ -6,18 +6,14 @@ import { SidesScoreService} from './sides-score.service';
 import { Phase } from '@domain/phase.types';
 
 type TeamsDoc = {
-  ct_id?: string | null;
-  t_id?: string | null;
   home_id?: string | null;
   away_id?: string | null;
-  ct_name?: string | null;
-  t_name?: string | null;
   home_name?: string | null;
   away_name?: string | null;
 };
 
 type TeamsHash = Partial<Record<
-  'ct_id' | 't_id' | 'home_id' | 'away_id' | 'ct_name' | 't_name' | 'home_name' | 'away_name',
+  'home_id' | 'away_id' | 'home_name' | 'away_name',
   string
 >>;
 
@@ -60,15 +56,6 @@ export class SnapshotQuery {
       this.redis.lrange(redisConst.lineupAway(matchId), 0, -1),
     ]);
 
-    // Résolution ct_id / t_id si non fournis explicitement
-    const ctId =
-      (teams.ct_id ?? null) ??
-      (sides ? (sides.home === 'CT' ? (teams.home_id ?? null) : (teams.away_id ?? null)) : null);
-
-    const tId =
-      (teams.t_id ?? null) ??
-      (sides ? (sides.home === 'T' ? (teams.home_id ?? null) : (teams.away_id ?? null)) : null);
-
     // Players $ / equip
     const players: Record<string, { money: number; equip: number }> = {};
     const ids = new Set([
@@ -110,12 +97,16 @@ export class SnapshotQuery {
       if (pauseTeam === 'away') effectiveAwayTacSec = Math.max(0, tacAwaySec - elapsedSec);
     }
 
+    const homeIsCt = sides?.home === 'CT';
+    const homeSide = sides?.home ?? 'CT';
+    const awaySide = sides?.away ?? 'T';
+
     return {
       matchId,
-      sides,
+      homeIsct: homeIsCt,
       score: {
-        t: toInt(scoreHash?.t),
-        ct: toInt(scoreHash?.ct),
+        home: homeIsCt ? toInt(scoreHash?.ct) : toInt(scoreHash?.t),
+        away: homeIsCt ? toInt(scoreHash?.t) : toInt(scoreHash?.ct),
         round: toInt(scoreHash?.round) || 1,
         phase: (scoreHash?.phase as Phase) ?? 'freeze',
       },
@@ -138,14 +129,8 @@ export class SnapshotQuery {
         startedAt: startedAtMs || null,
       },
       teams: {
-        ct_id: ctId,
-        t_id: tId,
-        home_id: teams.home_id ?? null,
-        away_id: teams.away_id ?? null,
-        ct_name: teams.ct_name ?? 'CT',
-        t_name: teams.t_name ?? 'T',
-        home_name: teams.home_name ?? null,
-        away_name: teams.away_name ?? null,
+        home: { id: teams.home_id ?? null, name: teams.home_name ?? null, side: homeSide },
+        away: { id: teams.away_id ?? null, name: teams.away_name ?? null, side: awaySide },
       },
       economy: {
         round: toInt(econTeam?.round) || toInt(scoreHash?.round) || 1,
@@ -167,10 +152,13 @@ export class SnapshotQuery {
   private async readTeamsHashWithAutoMigrate(matchId: string): Promise<TeamsHash> {
     const key = redisConst.teams(matchId);
 
-    // 1) Essayer en Hash
-    const h = await this.redis.hgetall(key);
-    if (Object.keys(h).length > 0) {
-      return h as TeamsHash;
+    // 1) Essayer en Hash (WRONGTYPE si la clé est encore une String)
+    let h: TeamsHash = {};
+    try {
+      h = await this.redis.hgetall(key);
+      if (Object.keys(h).length > 0) return h as TeamsHash;
+    } catch {
+      // clé de type String → migration ci-dessous
     }
 
     // 2) Fallback migration depuis ancienne String JSON
@@ -180,14 +168,10 @@ export class SnapshotQuery {
     try {
       const o = JSON.parse(raw) as any;
       const mapped: TeamsHash = {
-        ct_id: o.ct_id ?? o.ct?.id,
-        t_id: o.t_id ?? o.t?.id,
         home_id: o.home_id ?? o.home?.id,
         home_name: o.home_name ?? o.home?.name,
         away_id: o.away_id ?? o.away?.id,
         away_name: o.away_name ?? o.away?.name,
-        ct_name: o.ct_name ?? o.ct?.name,
-        t_name: o.t_name ?? o.t?.name,
       };
 
       // Supprimer l'ancienne String AVANT d'écrire le Hash (même clé)
@@ -217,12 +201,8 @@ function toInt(v?: string | null): number {
 
 function mapTeamsHashToDoc(h: TeamsHash): TeamsDoc {
   return {
-    ct_id: h.ct_id ?? null,
-    t_id: h.t_id ?? null,
     home_id: h.home_id ?? null,
     away_id: h.away_id ?? null,
-    ct_name: h.ct_name ?? null,
-    t_name: h.t_name ?? null,
     home_name: h.home_name ?? null,
     away_name: h.away_name ?? null,
   };

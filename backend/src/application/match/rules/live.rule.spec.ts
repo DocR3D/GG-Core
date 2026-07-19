@@ -29,8 +29,8 @@ function makeCtx() {
       getServerIdFromMatchId: jest.fn().mockResolvedValue(SERVER_ID),
       getSnapshot: jest.fn().mockResolvedValue({
         score: { home: 0, away: 1 },
-        sides: { home: 'T', away: 'CT' },
-        teams: { home_name: 'TeamA', away_name: 'TeamB' },
+        homeIsct: true,
+        teams: { home: { name: 'TeamA' }, away: { name: 'TeamB' } },
       }),
     },
   } as any;
@@ -103,7 +103,7 @@ describe('TC-07 — LiveRule : round gagné par désamorçage', () => {
       'score:update',
       expect.objectContaining({
         score: expect.any(Object),
-        sides: expect.any(Object),
+        homeIsct: expect.anything(),
         teams: expect.any(Object),
       }),
     );

@@ -7,7 +7,8 @@ import { TimeoutsService } from '@app/match/state/timeouts.service';
 import { TeamsRosterService } from '@app/match/state/rosters.service';
 import { EconomyService } from '@app/match/state/economy.service';
 import { SnapshotQuery } from '@app/match/state/snapshot.query';
-import { SeqService } from '@app/match/state/sequence.service';   // 👈
+import { SeqService } from '@app/match/state/sequence.service';
+import { SeriesStateService } from '@app/match/state/series-state.service';
 
 @Module({
   imports: [RedisModule],
@@ -18,7 +19,8 @@ import { SeqService } from '@app/match/state/sequence.service';   // 👈
     TeamsRosterService,
     EconomyService,
     SnapshotQuery,
-    SeqService,   // 👈
+    SeqService,
+    SeriesStateService,
   ],
   exports: [
     MatchStateService,
@@ -27,7 +29,8 @@ import { SeqService } from '@app/match/state/sequence.service';   // 👈
     TeamsRosterService,
     EconomyService,
     SnapshotQuery,
-    SeqService,   // 👈
+    SeqService,
+    SeriesStateService,
   ],
 })
 export class MatchStateModule {}

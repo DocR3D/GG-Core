@@ -44,7 +44,7 @@ export class KnifeChoiceRule extends BaseRule implements PhaseRule {
       {
         mode: MessageMode.Chain,
         items: [
-          { text: `>>> ${state.teams.home_name} vs ${state.teams.away_name} <<<`, intervalMs: 20_000 },
+          { text: `>>> ${state.teams.home.name} vs ${state.teams.away.name} <<<`, intervalMs: 20_000 },
           { text: `>>> ${winner.team?.name} a remporté le knife round<<<`, intervalMs: 20_000 },
           { text: 'Tapez !ready quand vous êtes prêts.', intervalMs: 20_000 },
         ],

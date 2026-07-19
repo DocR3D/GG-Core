@@ -28,7 +28,7 @@ type Options struct {
 
 var (
 	semiSplit   = regexp.MustCompile(`\s*;\s*`)
-	commentTrim = regexp.MustCompile(`\s*(?://|#|;).*?$`)
+	commentTrim = regexp.MustCompile(`\s*(?://|#).*?$`)
 	varRefRe    = regexp.MustCompile(`\$\{([a-zA-Z0-9_.-]+)\}`)
 )
 

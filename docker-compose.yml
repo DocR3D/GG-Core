@@ -1,0 +1,143 @@
+# Dev environment — lancé depuis la racine du repo
+# Usage :
+#   docker compose up -d                       # redis + postgres + backend (hot-reload)
+#   docker compose --profile agent up -d       # + manager Go + agent
+#   docker compose --profile cs2 up -d         # + serveur CS2 (lourd, ~25 Go)
+#   docker compose --profile tools up -d       # + log-drain Redis
+#   docker compose --profile agent --profile cs2 up -d  # tout sauf log-drain
+
+services:
+  # ── Infra ────────────────────────────────────────────────────────────────────
+  redis:
+    image: redis:7-alpine
+    container_name: ggcore-redis
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 3s
+      timeout: 1s
+      retries: 10
+
+  postgres:
+    image: postgres:16-alpine
+    container_name: ggcore-postgres
+    environment:
+      POSTGRES_USER: ggcore
+      POSTGRES_PASSWORD: ggcore
+      POSTGRES_DB: ggcore
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./infra/sql/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ggcore"]
+      interval: 3s
+      timeout: 1s
+      retries: 10
+
+  # ── Backend NestJS (hot-reload) ───────────────────────────────────────────────
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile.nest.dev
+    container_name: ggcore-backend
+    volumes:
+      - ./backend:/app
+      - /app/node_modules
+    environment:
+      PORT: "8081"
+      WS_PATH: "/ws"
+      JWT_SECRET: "dev-change-me"
+      REDIS_URL: "redis://redis:6379"
+      DATABASE_URL: "postgresql://ggcore:ggcore@postgres:5432/ggcore"
+      SERVER_IDS: "srv-a"
+      USE_HTTP_PARSE: "false"
+      CORS_ORIGIN: "http://localhost:3000"
+      CHOKIDAR_USEPOLLING: "1"
+      WATCHPACK_POLLING: "true"
+    depends_on:
+      redis:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+    ports:
+      - "8081:8081"
+    restart: unless-stopped
+
+  # ── Agent Go (manager + agentd) ───────────────────────────────────────────────
+  # Requiert : agents.d/srv-a.yaml configuré avec IP + RCON de ton serveur CS2
+  manager:
+    profiles: [agent]
+    build:
+      context: .
+      dockerfile: infra/Dockerfile
+    container_name: ggbot-manager
+    depends_on:
+      redis:
+        condition: service_healthy
+    environment:
+      CFG_BASE: /app/cfg
+    volumes:
+      - ./agents.d:/etc/ggbot/agents.d:ro
+      - ./agent/cfg:/app/cfg:ro
+    command:
+      - -agents-dir
+      - /etc/ggbot/agents.d
+      - -agent-bin
+      - /app/agentd
+      - -redis
+      - redis://redis:6379
+    ports:
+      - "8082:8082"
+      - "8083:8083"
+    restart: unless-stopped
+
+  # ── Serveur CS2 conteneurisé (optionnel, ~25 Go) ─────────────────────────────
+  cs2:
+    profiles: [cs2]
+    image: joedwards32/cs2
+    container_name: ggcore-cs2
+    environment:
+      CS2_RCONPW: "123456"
+      CS2_PORT: "27015"
+      CS2_MAXPLAYERS: "10"
+      CS2_GAMETYPE: "0"
+      CS2_GAMEMODE: "1"
+      CS2_STARTMAP: "de_dust2"
+      CS2_SERVER_HOSTNAME: "GGCore Dev"
+      CS2_ADDITIONAL_ARGS: >-
+        +log on
+        -console
+        -usercon
+        +logaddress_add_http "http://host.docker.internal:8082/logs?token=tonSuperSecret"
+    volumes:
+      - cs2_data:/home/steam/cs2-dedicated
+    ports:
+      - "27015:27015/tcp"
+      - "27015:27015/udp"
+      - "27020:27020/udp"
+    restart: unless-stopped
+
+  # ── Log drain Redis → fichier JSONL ──────────────────────────────────────────
+  log-drain:
+    profiles: [tools]
+    build:
+      context: ./tools/log-drain
+      dockerfile: Dockerfile
+    container_name: ggcore-log-drain
+    environment:
+      REDIS_URL: redis://redis:6379
+      REDIS_PATTERN: "ggbot:*"
+      LOG_FILE: /var/log/ggbot/redis-events.jsonl
+    volumes:
+      - ./infra/logs:/var/log/ggbot
+    depends_on:
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
+  cs2_data:

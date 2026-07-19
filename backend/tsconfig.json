@@ -6,9 +6,8 @@
       "@app/*": ["application/*"],
       "@adapters/*": ["adapters/*"]
     },
-    "module": "nodenext",
-    "moduleResolution": "nodenext",
-    "resolvePackageJsonExports": true,
+    "module": "commonjs",
+    "moduleResolution": "node",
     "esModuleInterop": true,
     "isolatedModules": true,
     "declaration": true,
@@ -28,11 +27,11 @@
     "noFallthroughCasesInSwitch": false
     
   },
-  "ts-node": { 
-    "require": ["tsconfig-paths/register"] 
+  "ts-node": {
+    "require": ["tsconfig-paths/register"]
   },
   "scripts": {
-  "start:dev": "nest start --watch"
-}
-  
+    "start:dev": "nest start --watch"
+  },
+  "exclude": ["node_modules", "dist", "jest.config.ts", "**/*.spec.ts"]
 }

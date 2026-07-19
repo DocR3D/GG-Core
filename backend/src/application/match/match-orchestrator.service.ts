@@ -1,5 +1,6 @@
 // src/application/match/match-orchestrator.service.ts
 import { Injectable, Logger, Inject, forwardRef } from '@nestjs/common';
+import { randomUUID } from 'crypto';
 import type Redis from 'ioredis';
 import { REDIS_PUB } from '@adapters/redis/redis.tokens';
 
@@ -14,6 +15,10 @@ import { MatchPhase, Phase, RoundPhase } from '@domain/phase.types';
 import { MatchPhaseService } from './phase/match-phase.service';
 import { RoundStartEvent, GenericMatchEvent, BombPlantedEvent, TeamRoundWinEvent, RoundFreezeStartEvent } from '@domain/events/match.event';
 import { RuleContextFactory } from '@app/rules/rule-context.factory';
+import { MatchRepository } from '@adapters/postgres/match.repository';
+import { MatchHistoryRepository } from '@adapters/postgres/match-history.repository';
+import { SeriesRepository } from '@adapters/postgres/series.repository';
+import { SeriesStateService } from './state/series-state.service';
 
 
 type ResumeMeta = { source?: 'expired' | 'admin' | 'chat'; reason?: 'tactical'|'technical'|'admin' };
@@ -34,14 +39,17 @@ export class MatchOrchestrator {
     private readonly pause: PauseMatchService,
     @Inject(forwardRef(() => MatchPhaseService))
     private readonly phase: MatchPhaseService,
-    @Inject(forwardRef(() => MatchCommandsService)) 
+    @Inject(forwardRef(() => MatchCommandsService))
     private readonly cmds: MatchCommandsService,
     private readonly state: MatchStateService,
-    private readonly sides: SidesScoreService,   // optionnel mais idéal
+    private readonly sides: SidesScoreService,
     @Inject(forwardRef(() => RuleContextFactory))
     private readonly ctxFactory: RuleContextFactory,
-
     @Inject(REDIS_PUB) private readonly pub: Redis,
+    private readonly matchRepo: MatchRepository,
+    private readonly historyRepo: MatchHistoryRepository,
+    private readonly seriesRepo: SeriesRepository,
+    private readonly seriesState: SeriesStateService,
   ) {}
 
   // ---------------------------------------------------------------------------
@@ -274,7 +282,73 @@ async applyPauseIfArmed(
   async onRoundEnd(ev: (TeamRoundWinEvent & { serverId?: string; }) | (GenericMatchEvent & { serverId?: string; })) {
     await this.phase.setRoundPhase(ev.matchId, RoundPhase.END);
     this.log.debug("Round ended !");
+
+    const matchPhase = await this.phase.getPhase(ev.matchId);
+    const isKnifeRound = matchPhase === MatchPhase.KNIFE_LIVE || matchPhase === MatchPhase.KNIFE_WARMUP;
+
+    if (isKnifeRound) {
+      this.log.debug(`[${ev.matchId}] Round couteau ignoré (phase=${matchPhase})`);
+      return;
+    }
+
+    // Persistance PostgreSQL : score + MatchHistory
+    try {
+      const snapshot = await this.state.getSnapshot(ev.matchId);
+      const dbId = await this.matchRepo.findDbIdByRedisId(ev.matchId);
+      if (dbId !== null) {
+        await this.matchRepo.updateScore(dbId, snapshot.score.home, snapshot.score.away);
+        await this.historyRepo.insert({
+          id_match: dbId,
+          event_type: 'round:end',
+          round: snapshot.score.round,
+          score_equipe1: snapshot.score.home,
+          score_equipe2: snapshot.score.away,
+          id_ct: snapshot.homeIsct ? snapshot.teams.home.id : snapshot.teams.away.id,
+          id_t:  snapshot.homeIsct ? snapshot.teams.away.id : snapshot.teams.home.id,
+          data: { ...(ev as any) },
+        });
+      }
+    } catch (e) {
+      this.log.warn(`[${ev.matchId}] Erreur persistance round:end: ${e}`);
+    }
   }
+  async onRoundEndScore(ev: GenericMatchEvent & { serverId?: string }): Promise<void> {
+    const matchPhase = await this.phase.getPhase(ev.matchId);
+    if (matchPhase === MatchPhase.KNIFE_LIVE || matchPhase === MatchPhase.KNIFE_WARMUP) {
+      this.log.debug(`[${ev.matchId}] ROUND_END score ignoré — round couteau (phase=${matchPhase})`);
+      return;
+    }
+
+    const payload = ev.payload as { scoreCt?: number; scoreT?: number };
+    const scoreCt = payload?.scoreCt ?? 0;
+    const scoreT  = payload?.scoreT  ?? 0;
+
+    // Mise à jour Redis (score autoritaire CS2 — teamId=3 CT, teamId=2 T)
+    await this.state.setScoreFromTeamEvent(ev.matchId, 3, scoreCt);
+    await this.state.setScoreFromTeamEvent(ev.matchId, 2, scoreT);
+
+    // Mise à jour DB (corrige la valeur potentiellement périmée écrite par onRoundEnd)
+    const snapshot = await this.state.getSnapshot(ev.matchId);
+    try {
+      const dbId = await this.matchRepo.findDbIdByRedisId(ev.matchId);
+      if (dbId !== null) {
+        const homeScore = snapshot.homeIsct ? scoreCt : scoreT;
+        const awayScore = snapshot.homeIsct ? scoreT  : scoreCt;
+        await this.matchRepo.updateScore(dbId, homeScore, awayScore);
+        this.log.debug(`[${ev.matchId}] ROUND_END score DB corrigé: home=${homeScore} away=${awayScore}`);
+      }
+    } catch (e) {
+      this.log.warn(`[${ev.matchId}] Erreur persistance ROUND_END score: ${e}`);
+    }
+
+    // Push WS score:update
+    await this.push(ev.matchId, 'score:update', {
+      score:    snapshot.score,
+      homeIsct: snapshot.homeIsct,
+      teams:    snapshot.teams,
+    });
+  }
+
   async onBombPlanted(ev: (BombPlantedEvent & { serverId?: string; }) | (GenericMatchEvent & { serverId?: string; })) {
     await this.phase.setRoundPhase(ev.matchId, RoundPhase.BOMB_PLANTED);
     this.log.debug("Bomb planted !");
@@ -286,15 +360,16 @@ async applyPauseIfArmed(
 
         const ctx = this.ctxFactory.make({ matchId: ev.matchId, serverId: ev.serverId });
         const s = await ctx.state.getSnapshot(ctx.matchId); 
-        const HCT   = s.sides?.home === 'CT';
-        const ctBank = (HCT ? s.economy.home_bank : s.economy.away_bank) ?? 0;
-        const tBank  = (HCT ? s.economy.away_bank : s.economy.home_bank) ?? 0;
-        const ctLS   = (HCT ? s.economy.home_loss_streak : s.economy.away_loss_streak) ?? 0;
-        const tLS    = (HCT ? s.economy.away_loss_streak : s.economy.home_loss_streak) ?? 0;
+        const ctBank = (s.homeIsct ? s.economy.home_bank : s.economy.away_bank) ?? 0;
+        const tBank  = (s.homeIsct ? s.economy.away_bank : s.economy.home_bank) ?? 0;
+        const ctLS   = (s.homeIsct ? s.economy.home_loss_streak : s.economy.away_loss_streak) ?? 0;
+        const tLS    = (s.homeIsct ? s.economy.away_loss_streak : s.economy.home_loss_streak) ?? 0;
+        const ctTeam = s.homeIsct ? s.teams.home : s.teams.away;
+        const tTeam  = s.homeIsct ? s.teams.away : s.teams.home;
 
         this.log.log(
-          `ROUND ${s.score.round} [${s.score.phase}] | CT:${s.teams.ct_name} ${s.score.ct} (bank=${ctBank},ls=${ctLS}) | ` +
-          `T:${s.teams.t_name} ${s.score.t} (bank=${tBank},ls=${tLS}) | match=${s.matchId}`
+          `ROUND ${s.score.round} [${s.score.phase}] | CT:${ctTeam.name} ${s.score.home} (bank=${ctBank},ls=${ctLS}) | ` +
+          `T:${tTeam.name} ${s.score.away} (bank=${tBank},ls=${tLS}) | match=${s.matchId}`
         );
 
         this.log.debug("Round Live !");
@@ -310,5 +385,236 @@ async applyPauseIfArmed(
   async getPhase(matchId: string) {
     return this.sides.getPhase(matchId)
   }
-  
+
+  async onTeamSwap(ev: GenericMatchEvent & { serverId?: string }): Promise<void> {
+    await this.sides.forceSideSwap(ev.matchId);
+    this.log.debug(`[${ev.matchId}] TEAM_SWAP → sides swapped`);
+    const snapshot = await this.state.getSnapshot(ev.matchId);
+    await this.push(ev.matchId, 'sides:swapped', {
+      homeIsct: snapshot.homeIsct,
+      teams:    snapshot.teams,
+      score:    snapshot.score,
+    });
+  }
+
+  async onMatchStatusScore(ev: GenericMatchEvent & { serverId?: string }): Promise<void> {
+    const payload = ev.payload as { roundsPlayed?: number };
+    if (typeof payload?.roundsPlayed === 'number' && payload.roundsPlayed >= 0) {
+      await this.state.setRound(ev.matchId, payload.roundsPlayed + 1);
+      this.log.debug(`[${ev.matchId}] match_status_score → round=${payload.roundsPlayed + 1}`);
+    }
+  }
+
+  // ---------------------------------------------------------------------------
+  // Match lifecycle — halftime / overtime / fin de match
+  // ---------------------------------------------------------------------------
+
+  /**
+   * Déclenché quand le score atteint maxRounds/2 sans vainqueur (mi-temps).
+   * Swap des sides Redis + transition de phase vers HALFTIME.
+   */
+  async runHalftime(matchId: string): Promise<void> {
+    try {
+      const { serverId } = await this.resolve({ matchId });
+      // Swap sides en Redis (CT ↔ T)
+      await this.state.swapSides(matchId);
+      // Swap côté CS2 via RCON
+      await this.cmds.swapSides({ matchId });
+      // Transition phase
+      await this.phase.startPhaseCountdown(matchId, MatchPhase.HALFTIME, 3, serverId);
+      await this.push(matchId, 'match:halftime', {});
+      this.log.log(`[${matchId}] Halftime déclenché`);
+    } catch (e) {
+      this.log.error(`[${matchId}] runHalftime erreur: ${e}`);
+    }
+  }
+
+  /**
+   * Déclenché quand la régulation se termine sur une égalité avec overtime activé.
+   * Transition de phase vers OVERTIME.
+   */
+  async runOvertime(matchId: string): Promise<void> {
+    try {
+      const { serverId } = await this.resolve({ matchId });
+      const config = await this.state.getMatchConfig(matchId);
+      // Configurer l'OT côté CS2
+      await this.cmds.rcon({
+        serverId,
+        matchId,
+        command: `mp_overtime_enable 1; mp_overtime_maxrounds ${config.maxRounds}`,
+      });
+      // Transition phase
+      await this.phase.startPhaseCountdown(matchId, MatchPhase.OVERTIME, 3, serverId);
+      await this.push(matchId, 'match:overtime', { config });
+      this.log.log(`[${matchId}] Overtime déclenché (maxRounds=${config.maxRounds})`);
+    } catch (e) {
+      this.log.error(`[${matchId}] runOvertime erreur: ${e}`);
+    }
+  }
+
+  /**
+   * Fin définitive du match (vainqueur de régulation ou défaut d'overtime).
+   * - Transition vers POSTGAME
+   * - Broadcast WS match:ended
+   * - Marque le match 'finished' en base PostgreSQL
+   * - Libère la liaison Redis serveur ↔ match
+   */
+  async triggerMatchEnd(matchId: string, reason: string): Promise<void> {
+    try {
+      const { serverId } = await this.resolve({ matchId });
+
+      // 1. Transition phase → POSTGAME
+      await this.phase.startPhaseCountdown(matchId, MatchPhase.POSTGAME, 0, serverId);
+
+      // 2. Snapshot final + broadcast WS
+      const snapshot = await this.state.getSnapshot(matchId);
+      await this.push(matchId, 'match:ended', { reason, score: snapshot.score });
+
+      // 3. Marquer le match comme terminé en base
+      const dbId = await this.matchRepo.findDbIdByRedisId(matchId);
+      if (dbId !== null) {
+        await this.matchRepo.updateStatus(dbId, 'finished');
+      }
+
+      // 4. Progression de série (si le match appartient à une série)
+      const matchCfg = await this.state.getMatchConfig(matchId);
+      if (matchCfg.seriesId) {
+        await this.handleSeriesProgress(matchId, serverId, matchCfg.seriesId, snapshot);
+        return; // le serveur est libéré dans handleSeriesProgress si la série est terminée
+      }
+
+      // 5. Libérer le serveur — seulement pour les matchs hors-série
+      await this.state.freeServer(matchId);
+
+      this.log.log(`[${matchId}] Match terminé (reason=${reason}) — serveur libéré`);
+    } catch (e) {
+      this.log.error(`[${matchId}] triggerMatchEnd erreur: ${e}`);
+    }
+  }
+
+  // ---------------------------------------------------------------------------
+  // Progression de série (Bo3/Bo5)
+  // ---------------------------------------------------------------------------
+
+  private async handleSeriesProgress(
+    matchId: string,
+    serverId: string,
+    seriesId: string,
+    snapshot: Awaited<ReturnType<MatchStateService['getSnapshot']>>,
+  ): Promise<void> {
+    try {
+      // 1. Gagnant de la map (home > away → home gagne)
+      const mapWinner: 'home' | 'away' =
+        snapshot.score.home > snapshot.score.away ? 'home' : 'away';
+
+      // 2. Incrémenter le score de série en Redis + DB
+      const scores    = await this.seriesState.addWin(seriesId, mapWinner);
+      const seriesDbId = await this.seriesState.getDbId(seriesId);
+      if (seriesDbId !== null) {
+        await this.seriesRepo.updateScores(seriesDbId, scores.home, scores.away);
+      }
+
+      const seriescfg = await this.seriesState.getSeriesConfig(seriesId);
+      if (!seriescfg) {
+        this.log.warn(`[${matchId}] handleSeriesProgress: config série ${seriesId} introuvable`);
+        await this.state.freeServer(matchId);
+        return;
+      }
+
+      // 3. Vérifier si la série est terminée
+      if (this.seriesState.isOver(seriescfg.bo, scores)) {
+        const winner = this.seriesState.winner(seriescfg.bo, scores)!;
+        if (seriesDbId !== null) {
+          await this.seriesRepo.updateStatus(seriesDbId, 'finished', winner);
+        }
+        await this.push(matchId, 'series:ended', { seriesId, winner, scores });
+        await this.state.freeServer(matchId);
+        this.log.log(`[${seriesId}] Série terminée — gagnant=${winner} scores=${JSON.stringify(scores)}`);
+        return;
+      }
+
+      // 4. Série continue → prochaine map
+      const maps     = await this.seriesState.getMaps(seriesId);
+      const matchCfg = await this.state.getMatchConfig(matchId);
+      const currentNumber = matchCfg.mapNumber;
+      const nextNumber    = currentNumber + 1;
+      const nextMap       = maps[nextNumber - 1];
+
+      if (!nextMap) {
+        this.log.warn(`[${seriesId}] Pas de map ${nextNumber} configurée — série arrêtée`);
+        await this.state.freeServer(matchId);
+        return;
+      }
+
+      const isDecidingMap = nextNumber === seriescfg.bo;
+      const nextMatchId   = 'm-' + randomUUID().replace(/-/g, '').slice(0, 12);
+
+      this.log.log(
+        `[${seriesId}] Map ${currentNumber} terminée — lancement map ${nextNumber} (${nextMap.map}) ` +
+        `isDeciding=${isDecidingMap} match=${nextMatchId}`,
+      );
+
+      // 5. Enregistrer le nouveau matchId dans Redis série
+      await this.seriesState.setCurrentMatch(seriesId, nextNumber, nextMatchId);
+
+      // 6. Changer de map sur le serveur CS2 (changelevel + warmup via init.cfg)
+      await this.cmds.initMatch({ serverId, matchId: nextMatchId, map: nextMap.map });
+
+      // 7. Init Redis pour le nouveau match
+      const homeSide = nextMap.ctTeamLogical === 'home' ? 'CT' as const : 'T' as const;
+      await this.state.setSides(nextMatchId, { home: homeSide, away: homeSide === 'CT' ? 'T' : 'CT' });
+      await this.state.initScore(nextMatchId);
+      await this.state.initTimeouts(nextMatchId, 4, 4, 0, 0);
+      await this.state.setTeams(nextMatchId, {
+        home_id:   seriescfg.homeId,
+        away_id:   seriescfg.awayId,
+      });
+      await this.state.setMatchConfig(nextMatchId, {
+        overtimeEnabled: seriescfg.overtimeEnabled,
+        isDecidingMap,
+        seriesId,
+        mapNumber: nextNumber,
+      });
+      await this.state.setServerIdToMatchId(serverId, nextMatchId);
+
+      // 8. Créer la ligne Match en DB
+      const tournamentId = await this._resolveTournoiId(seriesDbId);
+      await this.matchRepo.insert({
+        match_redis_id: nextMatchId,
+        id_tournoi:     tournamentId,
+        series_id:      seriesDbId ?? undefined,
+        map_number:     nextNumber,
+        equipe1:        seriescfg.homeId,
+        equipe2:        seriescfg.awayId,
+      });
+
+      // 9. Phase WARMUP_MAIN pour le nouveau match (l'agent reçoit changelevel → init map)
+      this.phase.startPhaseCountdown(nextMatchId, MatchPhase.WARMUP_MAIN, 30, serverId);
+
+      // 10. Broadcast WS
+      await this.push(matchId, 'series:next_map', {
+        seriesId,
+        mapNumber: nextNumber,
+        map:       nextMap.map,
+        matchId:   nextMatchId,
+        scores,
+      });
+
+    } catch (e) {
+      this.log.error(`[${matchId}] handleSeriesProgress erreur: ${e}`);
+      await this.state.freeServer(matchId);
+    }
+  }
+
+  /** Retrouve le tournoiId depuis la DB série, ou null. */
+  private async _resolveTournoiId(seriesDbId: number | null): Promise<number | null> {
+    if (seriesDbId === null) return null;
+    try {
+      const row = await this.seriesRepo.findById(seriesDbId);
+      return row?.id_tournoi ?? null;
+    } catch {
+      return null;
+    }
+  }
+
 }

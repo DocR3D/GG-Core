@@ -20,6 +20,15 @@ export class RoundEventsHandler {
       case EventTypes.ROUND_FREEZE_START:
         await this.orchestrator.onFreezeTimeStart(ev);
         return false;
+      case EventTypes.ROUND_END:
+        await this.orchestrator.onRoundEndScore(ev);
+        return false;
+      case EventTypes.TEAM_SWAP:
+        await this.orchestrator.onTeamSwap(ev);
+        return false;
+      case EventTypes.MATCH_STATUS_SCORE:
+        await this.orchestrator.onMatchStatusScore(ev);
+        return false;
       default:
         return false;
     }

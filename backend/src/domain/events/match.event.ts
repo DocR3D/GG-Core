@@ -131,6 +131,21 @@ export type RoundFreezeStartEvent = BaseEvent<
   {}
 >;
 
+export type RoundEndEvent = BaseEvent<typeof EventTypes.ROUND_END, {
+  winner: Team;
+  reason?: string;
+  scoreCt: number;
+  scoreT: number;
+}>;
+
+export type TeamSwapEvent = BaseEvent<typeof EventTypes.TEAM_SWAP, {}>;
+
+export type MatchStatusScoreEvent = BaseEvent<typeof EventTypes.MATCH_STATUS_SCORE, {
+  scoreCt: number;
+  scoreT: number;
+  roundsPlayed: number;
+}>;
+
 // ----------------------------
 export type GenericMatchEvent = BaseEvent<EventType, Record<string, any>>;
 
@@ -156,6 +171,9 @@ export type AnyEvent =
   | CommandEvent
   | PhaseChangeEvent
   | RoundFreezeStartEvent
+  | RoundEndEvent
+  | TeamSwapEvent
+  | MatchStatusScoreEvent
   | GenericMatchEvent;
 
 export type EventByType = {
@@ -178,6 +196,7 @@ export type EventByType = {
   [EventTypes.PLAYER_BLINDED]: PlayerBlindedEvent;
   [EventTypes.PHASE_CHANGED]: PhaseChangeEvent
   [EventTypes.ROUND_FREEZE_START]: RoundFreezeStartEvent;
+  [EventTypes.ROUND_END]: RoundEndEvent;
   [EventTypes.COMMAND]: CommandEvent;
 };
 

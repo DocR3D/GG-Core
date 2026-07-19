@@ -113,7 +113,7 @@ describe('TC-02 — KnifeRule : flow knife → knife_choice', () => {
     expect(ctx.orch.applyKnifeResult).toHaveBeenCalledWith(MATCH_ID, 'CT');
     expect(ctx.orch.execCfg).toHaveBeenCalledWith(
       expect.objectContaining({ serverId: SERVER_ID }),
-      'ggbot/knife_undo.cfg',
+      'ggbot/competitive.cfg',
     );
     expect(ctx.orch.startPhaseCountdown).toHaveBeenCalledWith(
       MATCH_ID,

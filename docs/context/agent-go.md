@@ -60,17 +60,52 @@ redis:
   stateTtlSec: 10
 ```
 
-## Actions Redis reçues par l'agent (`ggbot:agent:<serverId>:actions`)
+## Deux canaux de commande vers l'agent (coexistent actuellement)
+
+### 1. Redis pub/sub — `ggbot:agent:<serverId>:actions` (historique)
 - `pause` / `unpause`
 - `say` — message ingame
 - `changelevel` — changer de map
 - `exec_cfg` — exécuter un fichier .cfg
 - `restart` — mp_restartgame
 
-## Fichiers .cfg disponibles
-- `agent/cfg/ggbot/knife.cfg` — 1 round, 5min, pas d'achat, couteau uniquement
-- `agent/cfg/ggbot/knife_undo.cfg` — annule knife
-- `agent/cfg/ggbot/warmup.cfg` — warmup
+### 2. HTTP direct — endpoints exposés par l'agent (`agent/cmd/agent/main.go`), utilisés par
+`AgentClientService` côté backend (voir `backend.md`). Le backend résout `baseUrl` = `http://{agent_host||ip}:{agent_port}`
+et le header `X-Agent-Token` depuis la table PostgreSQL `Server`.
+
+| Endpoint | Rôle |
+|---|---|
+| `GET /health` | Statut agent (RCON connecté, matchId courant) — pollé par `ServerProbeService` (~20s) |
+| `POST /init-match` | `{ matchId, map }` — changelevel + warmup infini |
+| `POST /say` | Message chat public |
+| `POST /say-team` | Message chat par équipe |
+| `POST /pause` / `POST /unpause` | Pause RCON directe |
+| `POST /changelevel` | `{ map }` |
+| `POST /restart` | `{ delay }` — mp_restartgame différé |
+| `POST /exec` | `{ name, matchId?, vars? }` — exécute un .cfg par son nom |
+| `POST /rcon` | `{ command }` — commande RCON brute |
+| `POST /admin-action` | `{ action, phase?, map?, score? }` — voir ci-dessous |
+
+> Les deux mécanismes ne sont pas unifiés : le sub Redis (`runActionsSubscriber`) tourne toujours en
+> parallèle du serveur HTTP. Ne pas supposer que l'un remplace l'autre sans vérifier `main.go`.
+
+### `/admin-action` en détail
+Traduit une action admin haut niveau en RCON/.cfg (implémente `docs/plans/admin-actions-api.md`) :
+- `pause_match` / `unpause_match` → RCON direct
+- `set_game_phase` avec `phase` = `warmup` | `knife` | `match_start` | `overtime` | `next_map`
+  → `handleAdminPhase()` exécute le .cfg correspondant (voir tableau ci-dessous)
+- Pas de commande CS2 vanilla pour forcer un score arbitraire : un `score` non-nul en entrée d'overtime
+  est loggué en WARN côté agent, le match redémarre quand même à 0-0 (score exact = hors scope V1, nécessiterait SourceMod)
+
+## Fichiers .cfg disponibles (`agent/cfg/ggbot/`)
+- `knife.cfg` — 1 round, 5min, pas d'achat, couteau uniquement
+- `warmup.cfg` — warmup standard
+- `init.cfg` — changelevel + warmup infini + `bot_kick`, utilisé à l'init d'un match/série
+- `competitive.cfg` — settings compétitifs (économie, freezetime, armes) appliqués avant tout `live_main`,
+  aussi bien après knife (map décisive) que directement (maps non-décisives d'une série)
+- `overtime.cfg` — `mp_overtime_enable 1` + restart, appliqué par `set_game_phase:overtime`
+
+> `knife_undo.cfg` a été supprimé (l'annulation du knife est maintenant gérée autrement côté backend/orchestrateur).
 
 ## Flow de données
 ```

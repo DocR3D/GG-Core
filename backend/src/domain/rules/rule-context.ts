@@ -16,7 +16,11 @@ export type RuleContext = {
     | 'getScore'
     | 'getServerIdFromMatchId'
     | 'getMatchIdFromServerId'
-    | 'getPlayers'              // 👈 ajoute ceci
+    | 'getPlayers'
+    | 'addRdyPlayer'
+    | 'getRdyCount'
+    | 'clearRdyPlayers'
+    | 'getMatchConfig'
   >;
 
   // helpers conservés

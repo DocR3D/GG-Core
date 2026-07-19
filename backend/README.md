@@ -23,7 +23,20 @@
 
 ## Description
 
-[Nest](https://github.com/nestjs/nest) framework TypeScript starter repository.
+Backend NestJS du projet GG-Core — gestion des matchs CS2 (Redis, WebSocket, RCON).
+
+## Configuration du pool de maps
+
+Le pool de maps est défini dans `config/maps.json`. Il est chargé et écrase Redis à chaque démarrage du backend.
+
+```json
+[
+  { "id": "de_dust2",  "name": "Dust II" },
+  { "id": "de_mirage", "name": "Mirage" }
+]
+```
+
+Pour modifier les maps disponibles : éditer `config/maps.json` puis redémarrer le backend. Aucun redéploiement de code nécessaire.
 
 ## Project setup
 

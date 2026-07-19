@@ -4,6 +4,7 @@ import { Module } from '@nestjs/common';
 import { RedisModule } from '@adapters/redis/redis.module';
 import { WsModule } from '@adapters/ws/ws.module';
 import { HttpModule } from './adapters/http/http.module';
+import { PostgresModule } from './adapters/postgres/postgres.module';
 // Si HttpModule importe déjà Cs2LogsModule, tu peux retirer l'import direct de Cs2LogsModule.
 import { Cs2LogsModule } from './adapters/http/cs2-logs/cs2-logs.module';
 
@@ -22,7 +23,7 @@ import { HealthController } from './adapters/http/health/health.controller';
 @Module({
   imports: [
     // adapters
-    RedisModule, WsModule, HttpModule, Cs2LogsModule,
+    PostgresModule, RedisModule, WsModule, HttpModule, Cs2LogsModule,
 
     // application
     BusModule,

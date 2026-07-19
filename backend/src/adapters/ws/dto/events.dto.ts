@@ -42,7 +42,15 @@ export type WsEventType =
   | 'player:connected'
   | 'player:disconnected'
   | 'player:name_change'
-  | 'item:purchase';
+  | 'item:purchase'
+  | 'server:status'
+  // Match lifecycle (émis par le backend sur events CS2 autoritaires)
+  | 'match:halftime'
+  | 'match:overtime'
+  | 'match:ended'
+  // Série (Bo1/Bo3/Bo5)
+  | 'series:ended'
+  | 'series:next_map';
 //  | 'grenade_landed'  // activer quand prêt
 
 export interface BaseWsEvent<TType extends WsEventType, TPayload> {

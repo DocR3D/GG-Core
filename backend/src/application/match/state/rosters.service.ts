@@ -16,12 +16,8 @@ export type PlayerInfo = {
 type TeamsDoc = {
   home_id?: string | null;
   away_id?: string | null;
-  ct_id?: string | null;
-  t_id?: string | null;
   home_name?: string | null;
   away_name?: string | null;
-  ct_name?: string | null;
-  t_name?: string | null;
 };
 
 @Injectable()
@@ -40,43 +36,46 @@ export class TeamsRosterService {
   ) {
     const key = redisConst.teams(matchId);
 
-    // merge propre sur JSON (évite d’écraser ce qui existe)
-    const prevRaw = await this.redis.get(key);
-    const prev: TeamsDoc = safeParseTeams(prevRaw);
-    const next: TeamsDoc = { ...prev, ...ids };
+    // Lit le hash existant (migration transparente si ancienne clé String)
+    let prev: TeamsDoc = {};
+    try {
+      prev = ((await this.redis.hgetall(key)) as TeamsDoc) ?? {};
+    } catch {
+      // Ancienne clé String → migre vers Hash
+      const raw = await this.redis.get(key);
+      prev = safeParseTeams(raw);
+      await this.redis.del(key);
+    }
 
-    await this.redis.set(key, JSON.stringify(next));   // ← SET (string)
+    const next: TeamsDoc = { ...prev, ...ids };
+    const entries = Object.entries(next).filter(([, v]) => v != null) as [string, string][];
+    if (entries.length > 0) {
+      await this.redis.hset(key, Object.fromEntries(entries));
+    }
   }
 
   async getScoreWithTeams(matchId: string) {
-    const [t, ct, teamsRaw, sides] = await Promise.all([
+    const [[tStr, ctStr], teamsHash, sides] = await Promise.all([
       this.redis.hmget(redisConst.score(matchId), 't', 'ct'),
-      // NOTE: hmget renvoie un tableau, pas besoin ici - on récupère t,ct ci-dessous
-      // Correction: on relit les deux valeurs séparément depuis le tuple ci-dessus
-      // mais pour la clarté on peut renommer :
-      // [tStr, ctStr] = await this.redis.hmget(...)
-      this.redis.get(redisConst.teams(matchId)),        // ← GET (string)
+      this.redis.hgetall(redisConst.teams(matchId)),
       this.sidesScore.getSides(matchId),
-    ]).then(([tcArr, teamsRaw, sides]) => {
-      const [tStr, ctStr] = tcArr as unknown as [string | null, string | null];
-      return [tStr, ctStr, teamsRaw, sides] as const;
-    });
+    ]);
 
-    const team = safeParseTeams(teamsRaw);
-
-    const derivedCtId =
-      team?.ct_id ?? (sides ? (sides.home === 'CT' ? team?.home_id : team?.away_id) : null);
-    const derivedTId  =
-      team?.t_id  ?? (sides ? (sides.home === 'T'  ? team?.home_id : team?.away_id) : null);
+    const team: TeamsDoc = (teamsHash as TeamsDoc) ?? {};
+    const homeIsCt = sides?.home === 'CT';
+    const homeSide = sides?.home ?? 'CT';
+    const awaySide = sides?.away ?? 'T';
 
     return {
       matchId,
-      score: { t: toInt(t), ct: toInt(ct) },
+      homeIsct: homeIsCt,
+      score: {
+        home: homeIsCt ? toInt(ctStr) : toInt(tStr),
+        away: homeIsCt ? toInt(tStr)  : toInt(ctStr),
+      },
       teams: {
-        ct:   { id: derivedCtId, name: team.ct_name ?? 'CT' },
-        t:    { id: derivedTId,  name: team.t_name ?? 'T'  },
-        home: team.home_name ? { id: team.home_id ?? null, name: team.home_name } : undefined,
-        away: team.away_name ? { id: team.away_id ?? null, name: team.away_name } : undefined,
+        home: { id: team.home_id ?? null, name: team.home_name ?? null, side: homeSide },
+        away: { id: team.away_id ?? null, name: team.away_name ?? null, side: awaySide },
       },
     };
   }
@@ -153,6 +152,16 @@ export class TeamsRosterService {
       home: homeIds.map(parse).filter(Boolean) as PlayerInfo[],
       away: awayIds.map(parse).filter(Boolean) as PlayerInfo[],
     };
+  }
+
+  async addRdyPlayer(matchId: string, steamId: string): Promise<number> {
+    return this.redis.sadd(redisConst.rdyPlayers(matchId), steamId);
+  }
+  async getRdyCount(matchId: string): Promise<number> {
+    return this.redis.scard(redisConst.rdyPlayers(matchId));
+  }
+  async clearRdyPlayers(matchId: string): Promise<void> {
+    await this.redis.del(redisConst.rdyPlayers(matchId));
   }
 
   async setPlayerMoney(matchId: string, steamId: string, money: number) {

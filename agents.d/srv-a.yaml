@@ -2,7 +2,7 @@ version: 1
 serverId: srv-a
 
 cs2:
-  addr: 172.21.192.1
+  addr: cs2   # nom du service Docker (réseau interne Compose)
   port: 27015
   rconPassword: "123456"
   rcon:

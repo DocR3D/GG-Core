@@ -69,6 +69,34 @@ var blindedRe = regexp.MustCompile(`^"(?P<vname>[^"<]+)<\d+><(?P<vsteam>[^>]*)><
 // --- Freeze time started ---
 var freezeStartRe = regexp.MustCompile(`(?i)^Starting\s+(?:pre-?round\s+)?Freeze\s+period(?:\b.*)?$`)
 
+// --- Score absolu (MatchStatus CS2 compétitif) ---
+// ex: MatchStatus: Team playing "CT": NAVI (score: 8)
+var matchStatusRe = regexp.MustCompile(`^MatchStatus:\s*Team\s+playing\s+"(?P<side>CT|TERRORIST)":\s*(?P<name>[^(]+?)\s*\(score:\s*(?P<score>\d+)`)
+
+// --- Round end avec scores inclus (souvent après SFUI notice) ---
+// ex: Team "CT" triggered "SFUI_Notice_CTs_Win" (CT "8") (T "4")
+var roundWithScoreRe = regexp.MustCompile(`^Team\s+"(?P<winner>TERRORIST|CT)"\s+triggered\s+"(?P<sfui>SFUI_Notice_[A-Za-z_]+)"\s+\(CT\s+"(?P<ct>\d+)"\)\s+\(T\s+"(?P<t>\d+)"\)`)
+
+// --- Événements world: fin de match / halftime / restart ---
+// ex: World triggered "cs_win_panel_match"
+var worldMatchEvtRe = regexp.MustCompile(`(?i)^World\s+triggered\s+"(?P<event>cs_win_panel_match|cs_intermission|begin_new_match)"`)
+
+// --- Conditions de fin de match ---
+// ex: World triggered "Match_End_Conditions" (mp_maxrounds "30") (mp_overtime_enable "1")
+var matchEndCondsWorldRe = regexp.MustCompile(`(?i)^World\s+triggered\s+"Match_End_Conditions".*\(mp_maxrounds\s+"?(?P<mr>\d+)"?\).*\(mp_overtime_enable\s+"?(?P<ot>\d+)"?\)`)
+
+// --- MatchStatus Score + RoundsPlayed ---
+// ex: MatchStatus: Score: 1:0 on map "de_ancient" RoundsPlayed: 1
+var matchStatusScoreRe = regexp.MustCompile(`^MatchStatus:\s*Score:\s*(?P<ct>\d+):(?P<t>\d+)\s+on\s+map\s+"[^"]*"\s+RoundsPlayed:\s*(?P<rp>-?\d+)`)
+
+// --- Game Over : fin définitive du match ---
+// ex: Game Over: competitive mg_active de_ancient score 13:6 after 13 min
+var gameOverRe = regexp.MustCompile(`^Game Over:\s+\S+\s+\S+\s+\S+\s+score\s+\d+:\d+\s+after\s+\d+\s+min`)
+
+// --- Team switch CT↔T (halftime) ---
+// ex: "Garitos<0><[U:1:37924580]>" switched from team <CT> to <TERRORIST>
+var teamSwitchRe = regexp.MustCompile(`^"[^"]+" switched from team <(?P<from>CT|TERRORIST)> to <(?P<to>CT|TERRORIST)>`)
+
 // Helpers extraction par nom de groupe
 func grp(re *regexp.Regexp, line, name string) string {
 	idx := re.SubexpIndex(name)
@@ -92,6 +120,10 @@ type queued struct {
 
 var deferred []queued
 
+// --- Pending team swap CT↔T ---
+var pendingSwapCTtoT int
+var pendingSwapTtoCT int
+
 type pend struct {
 	payload json.RawMessage
 	seenAt  time.Time
@@ -104,6 +136,12 @@ const pendingTTL = 2 * time.Second // ajuste si besoin
 // TryParse retourne (type, payloadJSON, ok)
 func TryParse(line string) (string, json.RawMessage, bool) {
 	line = StripCs2Prefix(strings.TrimSpace(line))
+
+	// Flush team_swap si on a des échanges CT↔T en attente et que la ligne courante n'est pas un switch
+	if pendingSwapCTtoT > 0 && pendingSwapTtoCT > 0 && !teamSwitchRe.MatchString(line) {
+		deferred = append([]queued{{typ: events.EvTeamSwap, payload: mustJSON(map[string]any{})}}, deferred...)
+		pendingSwapCTtoT, pendingSwapTtoCT = 0, 0
+	}
 
 	// NEW: si on a un event différé à sortir, on le renvoie *avant* de parser la nouvelle ligne
 	if len(deferred) > 0 {
@@ -257,18 +295,26 @@ func TryParse(line string) (string, json.RawMessage, bool) {
 			}), true
 		}
 
-		reason := "elim"
-		switch {
-		case strings.Contains(sfui, "target_bombed"):
-			reason = "bomb_exploded"
-		case strings.Contains(sfui, "target_saved"), strings.Contains(sfui, "bomb_defused"):
-			reason = "defused"
-		case strings.Contains(sfui, "wipe"), strings.Contains(sfui, "elimination"):
-			reason = "elim"
-		case strings.Contains(sfui, "round_timed_out"), strings.Contains(sfui, "round_draw"):
-			reason = "time"
-		}
+		reason := sfuiToReason(sfui)
 		payload := map[string]any{"winner": mapWinner(winner), "reason": reason}
+
+		// Si la ligne contient les scores explicites (CT "X") (T "Y"), différer un EvRoundEnd
+		if roundWithScoreRe.MatchString(line) {
+			ctStr := grp(roundWithScoreRe, line, "ct")
+			tStr := grp(roundWithScoreRe, line, "t")
+			ct, _ := strconv.Atoi(ctStr)
+			t, _ := strconv.Atoi(tStr)
+			deferred = append(deferred, queued{
+				typ: events.EvRoundEnd,
+				payload: mustJSON(events.RoundEndPayload{
+					Winner:  mapWinner(winner),
+					Reason:  reason,
+					ScoreCT: ct,
+					ScoreT:  t,
+				}),
+			})
+		}
+
 		return events.EvTeamRoundWin, mustJSON(payload), true
 	}
 
@@ -458,6 +504,77 @@ func TryParse(line string) (string, json.RawMessage, bool) {
 	if freezeStartRe.MatchString(line) {
 		return events.EvRoundFreezeStart, mustJSON(map[string]any{}), true
 	}
+
+	// MATCH_STATUS → team_score (score absolu par équipe)
+	// ex: MatchStatus: Team playing "CT": NAVI (score: 8)
+	if matchStatusRe.MatchString(line) {
+		side := grp(matchStatusRe, line, "side")
+		name := strings.TrimSpace(grp(matchStatusRe, line, "name"))
+		scoreStr := grp(matchStatusRe, line, "score")
+		score, _ := strconv.Atoi(scoreStr)
+		teamID := 2 // TERRORIST
+		if strings.EqualFold(side, "CT") {
+			teamID = 3
+		}
+		return events.EvTeamScore, mustJSON(events.TeamScorePayload{
+			TeamID:   teamID,
+			Score:    score,
+			TeamName: name,
+		}), true
+	}
+
+	// WORLD triggered: cs_win_panel_match | cs_intermission | begin_new_match
+	if worldMatchEvtRe.MatchString(line) {
+		evtName := strings.ToLower(grp(worldMatchEvtRe, line, "event"))
+		switch evtName {
+		case "cs_win_panel_match":
+			return events.EvMatchWinPanel, mustJSON(map[string]any{}), true
+		case "cs_intermission":
+			return events.EvMatchIntermission, mustJSON(map[string]any{}), true
+		case "begin_new_match":
+			return events.EvBeginNewMatch, mustJSON(map[string]any{}), true
+		}
+	}
+
+	// MATCH_END_CONDITIONS (win_rounds, max_rounds, overtime)
+	// ex: World triggered "Match_End_Conditions" (mp_maxrounds "30") (mp_overtime_enable "1")
+	if matchEndCondsWorldRe.MatchString(line) {
+		mrStr := grp(matchEndCondsWorldRe, line, "mr")
+		otStr := grp(matchEndCondsWorldRe, line, "ot")
+		mr, _ := strconv.Atoi(mrStr)
+		winRounds := mr/2 + 1
+		return events.EvMatchEndConditions, mustJSON(map[string]any{
+			"winRounds":       winRounds,
+			"maxRounds":       mr,
+			"overtimeEnabled": otStr == "1",
+		}), true
+	}
+
+	// MATCH_STATUS_SCORE — MatchStatus: Score: CT:T on map "..." RoundsPlayed: N
+	if matchStatusScoreRe.MatchString(line) {
+		ct, _ := strconv.Atoi(grp(matchStatusScoreRe, line, "ct"))
+		t, _ := strconv.Atoi(grp(matchStatusScoreRe, line, "t"))
+		rp, _ := strconv.Atoi(grp(matchStatusScoreRe, line, "rp"))
+		return events.EvMatchStatusScore, mustJSON(map[string]any{
+			"scoreCt": ct, "scoreT": t, "roundsPlayed": rp,
+		}), true
+	}
+
+	// GAME OVER — fin définitive du match
+	if gameOverRe.MatchString(line) {
+		return events.EvMatchWinPanel, mustJSON(map[string]any{}), true
+	}
+
+	// TEAM_SWITCH CT↔T — accumule pour former un team_swap
+	if teamSwitchRe.MatchString(line) {
+		if grp(teamSwitchRe, line, "from") == "CT" {
+			pendingSwapCTtoT++
+		} else {
+			pendingSwapTtoCT++
+		}
+		return "", nil, false
+	}
+
 	// pas de match → aucun event
 	return "", nil, false
 }
@@ -505,6 +622,21 @@ func mapTeamForCommand(team string) string {
 func mustJSON(v any) json.RawMessage {
 	b, _ := json.Marshal(v)
 	return b
+}
+
+func sfuiToReason(sfui string) string {
+	switch {
+	case strings.Contains(sfui, "target_bombed"):
+		return "bomb_exploded"
+	case strings.Contains(sfui, "target_saved"), strings.Contains(sfui, "bomb_defused"):
+		return "defused"
+	case strings.Contains(sfui, "wipe"), strings.Contains(sfui, "elimination"):
+		return "elim"
+	case strings.Contains(sfui, "round_timed_out"), strings.Contains(sfui, "round_draw"):
+		return "time"
+	default:
+		return "elim"
+	}
 }
 
 func mapWinner(csTeam string) string {

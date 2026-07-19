@@ -31,6 +31,14 @@ export class RealtimeEmitter {
     this.logger.debug(`[WS→admin:${matchId}] ${eventName} seq=${data?.seq} ts=${data?.ts}`);
   }
 
+  // Émetteur global admin (server:status, alertes système…)
+  roomGlobalAdmin() { return 'global:admin'; }
+  emitGlobalAdmin(eventName: string, data: any) {
+    if (!this.io) { this.logger.warn(`emitGlobalAdmin(${eventName}) without IO`); return; }
+    this.io.to(this.roomGlobalAdmin()).emit(eventName, data);
+    this.logger.debug(`[WS→global:admin] ${eventName}`);
+  }
+
   // NOUVEAU : émetteurs globaux (lobby)
   emitLobby(eventName: LobbyEventType, data: any) {
     if (!this.io) { this.logger.warn(`emitLobby(${eventName}) without IO`); return; }

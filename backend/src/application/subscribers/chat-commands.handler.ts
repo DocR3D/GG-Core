@@ -108,7 +108,7 @@ private ensureGlobalInit() {
     this.lastByPlayer.set(k, now);
 
     // 2) guard spectateur
-    if (side === 'SPECTATOR' && command !== 'init') {
+    if (side === 'SPECTATOR' && command !== 'init' && command !== 'admin') {
       this.logger.debug(`[COMMAND] ignored from spectator: ${who} cmd=${command}`);
       return;
     }

@@ -23,6 +23,7 @@ export const redisConst = {
   map:          (m: string) => `match:${m}:map`,            // hash { name, set_at }
 
   ready:        (m: string) => `match:${m}:ready`,          // hash
+  rdyPlayers:   (m: string) => `match:${m}:rdy_players`,   // Redis Set (steamIds)
   playersHash:  (m: string) => `match:${m}:players`,
   lineupHome:   (m: string) => `match:${m}:lineup:home`,
   lineupAway:   (m: string) => `match:${m}:lineup:away`,
@@ -35,10 +36,20 @@ export const redisConst = {
   // Séquence WS
   seq:          (m: string) => `match:${m}:seq`,
 
+  // Config serveur CS2 (mp_maxrounds, mp_overtime_enable, …)
+  matchConfig: (m: string) => `match:${m}:config`,          // hash
+
   // Knife
   knifeWinner:        (m: string) => `match:${m}:knife:winner`,
   knifeWinnerSide:    (m: string) => `match:${m}:knife_winner_side`,
   knifeWinnerLogical: (m: string) => `match:${m}:knife_winner_logical`,
   knifeChoice:        (m: string) => `match:${m}:knife_choice`,
   knifeChoiceT:       (m: string) => `match:${m}:knife:choice_deadline`,
+
+  // Série (Bo1/Bo3/Bo5)
+  seriesConfig:        (s: string) => `series:${s}:config`,        // hash: {bo, overtimeEnabled, homeId, awayId}
+  seriesScores:        (s: string) => `series:${s}:scores`,        // hash: {home, away} — victoires de maps
+  seriesMaps:          (s: string) => `series:${s}:maps`,          // string (JSON MapEntry[])
+  seriesMatch:         (s: string, n: number) => `series:${s}:match:${n}`, // string: matchId pour la map n
+  seriesDbId:          (s: string) => `series:${s}:dbId`,          // string: PG id de Series
 } as const;

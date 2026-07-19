@@ -2,6 +2,7 @@ import {
   Controller, Post, Body, Req, UnauthorizedException, ForbiddenException,
   HttpCode, Query, Logger, Headers, BadRequestException
 } from '@nestjs/common';
+import { ApiTags, ApiOperation, ApiHeader, ApiQuery } from '@nestjs/swagger';
 import type { Request } from 'express';
 import { Cs2LogsService } from './cs2-logs.service';
 import { MatchStateService } from '@app/match/state/match-state.service';
@@ -43,6 +44,7 @@ type IncomingEvent = {
   payload: unknown;
 };
 
+@ApiTags('cs2-logs')
 @Controller('cs2/logs')
 export class Cs2LogsController {
   private readonly allowed: string[] = (process.env.ALLOWED_IPS || '')
@@ -57,6 +59,11 @@ export class Cs2LogsController {
 
   @Post()
   @HttpCode(200)
+  @ApiOperation({ summary: 'Réception des events CS2 depuis l\'agent Go (usage interne)' })
+  @ApiHeader({ name: 'x-cs2-token', description: 'Token d\'authentification agent', required: false })
+  @ApiHeader({ name: 'x-server-id', description: 'ID du serveur CS2 émetteur', required: false })
+  @ApiQuery({ name: 'serverId', required: false, description: 'ID serveur (fallback header)' })
+  @ApiQuery({ name: 'matchId', required: false, description: 'ID match Redis (optionnel, résolu automatiquement)' })
   async receive(
     @Req() req: Request,
     @Body() body: any,

@@ -1,8 +1,0 @@
-FROM golang:1.23
-WORKDIR /app
-
-# Hot-reload avec reflex (compatible 1.23)
-RUN go install github.com/cespare/reflex@latest
-ENV PATH="/root/go/bin:${PATH}"
-
-CMD ["reflex", "-r", "\\.go$", "-s", "--", "sh", "-c", "go build -o ./tmp/ggbot-agent ./cmd/ggbot-agent && ./tmp/ggbot-agent -cmd agent -cfg /app/configs/default.yaml"]

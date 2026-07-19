@@ -48,7 +48,15 @@ export class SidesScoreService {
       if (mid === matchId) return sid;
     }
     return undefined;
-}
+  }
+
+  async clearServerMatch(matchId: string): Promise<void> {
+    const serverId = await this.redis.get(redisConst.matchServer(matchId));
+    if (serverId) {
+      await this.redis.del(this.serverMatchKey(serverId));
+    }
+    await this.redis.del(redisConst.matchServer(matchId));
+  }
 
   // ─────────────────────────────────────────────────────────────────────────────
   // Sides (source de vérité) - Hash {home:'CT'|'T', away:'CT'|'T'}
@@ -145,10 +153,75 @@ export class SidesScoreService {
     await this.redis.hincrby(redisConst.score(matchId), 'round', 1);
   }
 
+  async setRound(matchId: string, round: number): Promise<void> {
+    await this.redis.hset(redisConst.score(matchId), 'round', String(round));
+  }
+
+  async forceSideSwap(matchId: string): Promise<void> {
+    const sidesKey = redisConst.sides(matchId);
+    const h = await this.redis.hgetall(sidesKey);
+    if (h?.home && h?.away) {
+      await this.redis.hset(sidesKey, { home: h.away, away: h.home });
+    }
+  }
+
   async addPoint(matchId: string, winner: GameSide) {
     if(winner == 'TERRORIST') winner = "T";
     const field = winner === 'T' ? 't' : 'ct';
     await this.redis.hincrby(redisConst.score(matchId), field, 1);
+  }
+
+  /**
+   * Écrit le score absolu reçu d'un event team_score de l'agent CS2.
+   * teamId=2 → TERRORIST (field 't'), teamId=3 → CT (field 'ct').
+   * C'est la source de vérité ; on n'utilise plus addPoint() pour les matchs live.
+   */
+  async setScoreFromTeamEvent(matchId: string, teamId: number, score: number): Promise<void> {
+    const field = teamId === 3 ? 'ct' : 't';
+    await this.redis.hset(redisConst.score(matchId), field, score);
+  }
+
+  /** Récupère la config serveur stockée à l'init du match. */
+  async getMatchConfig(matchId: string): Promise<{
+    maxRounds: number;
+    winRounds: number;
+    overtimeEnabled: boolean;
+    isDecidingMap: boolean;
+    seriesId: string;
+    mapNumber: number;
+  }> {
+    const key = redisConst.matchConfig(matchId);
+    const [mr, wr, ot, dm, sid, mn] = await this.redis.hmget(
+      key, 'maxRounds', 'winRounds', 'overtimeEnabled', 'isDecidingMap', 'seriesId', 'mapNumber',
+    );
+    return {
+      maxRounds:      parseInt(mr  ?? '30', 10),
+      winRounds:      parseInt(wr  ?? '16', 10),
+      overtimeEnabled: (ot ?? '0') === '1',
+      isDecidingMap:   (dm ?? '1') === '1',
+      seriesId:        sid ?? '',
+      mapNumber:       parseInt(mn ?? '1', 10),
+    };
+  }
+
+  /** Persiste la config serveur reçue via match_end_conditions ou à l'init du match. */
+  async setMatchConfig(matchId: string, cfg: {
+    maxRounds?: number;
+    winRounds?: number;
+    overtimeEnabled?: boolean;
+    isDecidingMap?: boolean;
+    seriesId?: string;
+    mapNumber?: number;
+  }): Promise<void> {
+    const key = redisConst.matchConfig(matchId);
+    const fields: string[] = [];
+    if (cfg.maxRounds        !== undefined) fields.push('maxRounds',       String(cfg.maxRounds));
+    if (cfg.winRounds        !== undefined) fields.push('winRounds',       String(cfg.winRounds));
+    if (cfg.overtimeEnabled  !== undefined) fields.push('overtimeEnabled', cfg.overtimeEnabled  ? '1' : '0');
+    if (cfg.isDecidingMap    !== undefined) fields.push('isDecidingMap',   cfg.isDecidingMap    ? '1' : '0');
+    if (cfg.seriesId         !== undefined) fields.push('seriesId',        cfg.seriesId);
+    if (cfg.mapNumber        !== undefined) fields.push('mapNumber',       String(cfg.mapNumber));
+    if (fields.length) await this.redis.hset(key, ...fields);
   }
 
   async getPhase(matchId: string): Promise<Phase | null> {

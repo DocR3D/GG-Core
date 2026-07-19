@@ -1,0 +1,9 @@
+[
+  { "id": "de_dust2",    "name": "Dust II" },
+  { "id": "de_mirage",   "name": "Mirage" },
+  { "id": "de_inferno",  "name": "Inferno" },
+  { "id": "de_nuke",     "name": "Nuke" },
+  { "id": "de_overpass", "name": "Overpass" },
+  { "id": "de_ancient",  "name": "Ancient" },
+  { "id": "de_anubis",   "name": "Anubis" }
+]

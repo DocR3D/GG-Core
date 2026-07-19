@@ -30,6 +30,17 @@ const (
 	EvPlayerBlinded    = "player_blinded"
 	EvGrenadeThrow     = "grenade_throw"
 	EvRoundFreezeStart = "round_freeze_start"
+
+	// ---- Score / match-state events (CS2 authoritative) ----
+	EvTeamScore          = "team_score"           // score absolu par équipe (teamId + score)
+	EvRoundEnd           = "round_end"            // fin de round (winner + reason)
+	EvTeamInfo           = "team_info"            // nom d'équipe par teamid
+	EvMatchWinPanel      = "cs_win_panel_match"   // match terminé définitivement
+	EvMatchIntermission  = "cs_intermission"      // halftime ou fin de prolongation
+	EvBeginNewMatch      = "begin_new_match"      // restart / nouvelle map
+	EvMatchEndConditions = "match_end_conditions" // win_rounds + max_rounds du serveur
+	EvTeamSwap           = "team_swap"            // échange de côté CT↔T (halftime)
+	EvMatchStatusScore   = "match_status_score"   // MatchStatus: Score: CT:T RoundsPlayed: N
 )
 
 type EventSource string
@@ -85,6 +96,37 @@ type CommandPayload struct {
 		Team    string `json:"team"`    // "T" | "CT" | "SPECTATOR" | "Unassigned"
 		Channel string `json:"channel"` // "say" | "say_team"
 	} `json:"sender"`
+}
+
+// ---- Score / match-state payloads ----
+
+// TeamScorePayload est émis sur EvTeamScore.
+// teamId=2 → TERRORIST, teamId=3 → CT (constantes CS2 immuables).
+type TeamScorePayload struct {
+	TeamID         int    `json:"teamId"`
+	Score          int    `json:"score"`
+	FirstHalfScore int    `json:"firstHalfScore,omitempty"`
+	TeamName       string `json:"teamName,omitempty"`
+}
+
+// RoundEndPayload est émis sur EvRoundEnd.
+type RoundEndPayload struct {
+	Winner  string `json:"winner"`  // "CT" | "TERRORIST"
+	Reason  string `json:"reason"`  // sfui_notice_xxx
+	ScoreCT int    `json:"scoreCt"` // score CT à la fin du round
+	ScoreT  int    `json:"scoreT"`  // score T à la fin du round
+}
+
+// TeamInfoPayload est émis sur EvTeamInfo.
+type TeamInfoPayload struct {
+	TeamID   int    `json:"teamId"`
+	TeamName string `json:"teamName"`
+}
+
+// MatchEndConditionsPayload est émis sur EvMatchEndConditions.
+type MatchEndConditionsPayload struct {
+	WinRounds int `json:"winRounds"` // ex: 16
+	MaxRounds int `json:"maxRounds"` // ex: 30
 }
 
 // ---- Helpers ----

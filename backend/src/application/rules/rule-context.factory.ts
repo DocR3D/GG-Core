@@ -24,6 +24,10 @@ export class RuleContextFactory {
       getServerIdFromMatchId: this.mss.getServerIdFromMatchId.bind(this.mss),
       getMatchIdFromServerId: this.mss.getMatchIdFromServerId.bind(this.mss),
       getPlayers: this.mss.getPlayers.bind(this.mss),
+      addRdyPlayer: this.mss.addRdyPlayer.bind(this.mss),
+      getRdyCount: this.mss.getRdyCount.bind(this.mss),
+      clearRdyPlayers: this.mss.clearRdyPlayers.bind(this.mss),
+      getMatchConfig: this.mss.getMatchConfig.bind(this.mss),
     } as const;
 
     return {

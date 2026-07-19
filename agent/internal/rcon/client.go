@@ -28,6 +28,9 @@ func New(cfg Config) *Client { return &Client{cfg: cfg} }
 func (c *Client) Addr() string { return fmt.Sprintf("%s:%d", c.cfg.Host, c.cfg.Port) }
 
 func (c *Client) Connect(ctx context.Context) error {
+	if c.conn != nil {
+		return nil // déjà connecté, ne pas rouvrir
+	}
 	// deadline global
 	d := c.cfg.Timeout
 	if d <= 0 { d = 3 * time.Second }

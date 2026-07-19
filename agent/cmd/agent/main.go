@@ -5,7 +5,6 @@ package main
 // - Batches & forwards logs to backend via POST (NDJSON)
 // - Subscribes to Redis actions channel (ggbot:agent:<serverId>:actions)
 // - Executes RCON sequentially with reconnect/backoff
-// - Publishes heartbeat to Redis key (ggbot:agent:<serverId>:state) with TTL
 //
 // Build: go build -o agentd ./cmd/agent
 // Requires go modules:
@@ -41,7 +40,18 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
-// ---- Types (actions, config, heartbeat)
+// ---- Types (actions, config)
+
+type ScorePayload struct {
+	CT struct {
+		TeamID string `json:"team_id"`
+		Score  int    `json:"score"`
+	} `json:"ct"`
+	T struct {
+		TeamID string `json:"team_id"`
+		Score  int    `json:"score"`
+	} `json:"t"`
+}
 
 type AgentAction struct {
 	Type     string `json:"type"`
@@ -97,8 +107,6 @@ type AgentConfig struct {
 	Redis struct {
 		URL            string `yaml:"url"`
 		ActionsChannel string `yaml:"actionsChannel"`
-		StateKey       string `yaml:"stateKey"`
-		StateTtlSec    int    `yaml:"stateTtlSec"`
 	} `yaml:"redis"`
 
 	// Optionnel (si tu veux déjà poser GOTV avec port distinct)
@@ -108,22 +116,13 @@ type AgentConfig struct {
 		Port     int    `yaml:"port"`     // vide = défaut cs2.port+5
 		Password string `yaml:"password"` // tv_password si besoin
 	} `yaml:"cstv"`
+
+	// Endpoints de commande HTTP (appelés par le backend NestJS)
+	Commands struct {
+		Token string `yaml:"token"` // vide = pas d'auth (LAN interne OK)
+	} `yaml:"commands"`
 }
 
-type heartbeat struct {
-	TS   int64 `json:"ts"`
-	RCON struct {
-		Connected bool   `json:"connected"`
-		Addr      string `json:"addr"`
-	} `json:"rcon"`
-	Logs struct {
-		Bind    string `json:"bind"`
-		OK      bool   `json:"ok"`
-		Queue   int64  `json:"queue"`
-		Dropped int64  `json:"dropped"`
-	} `json:"logs"`
-	CurrentMatchID string `json:"currentMatchId,omitempty"`
-}
 
 // Enveloppe bus publiée sur ggbot:events
 type busEvent struct {
@@ -159,6 +158,23 @@ var (
 	rconAddr string
 )
 
+// match cache — partagé entre runEventsPusher et /health
+var (
+	cachedMatchIDMu  sync.RWMutex
+	cachedMatchIDVal = "unknown"
+)
+
+func getCachedMatchID() string {
+	cachedMatchIDMu.RLock()
+	defer cachedMatchIDMu.RUnlock()
+	return cachedMatchIDVal
+}
+func setCachedMatchID(v string) {
+	cachedMatchIDMu.Lock()
+	defer cachedMatchIDMu.Unlock()
+	cachedMatchIDVal = v
+}
+
 func main() {
 	flag.Parse()
 	setLogFlags()
@@ -182,9 +198,9 @@ func main() {
 	normalizeCS2(&cfg)
 
 	// 🔎 DEBUG config normalisée
-	log.Printf("[agent:%s] cfg: cs2.addr=%s (rconPwd? %t) logs.bind=%s backendPostURL=%s redis.url=%s actionsCh=%s stateKey=%s stateTTL=%ds cstv=%v:%d enabled=%t",
+	log.Printf("[agent:%s] cfg: cs2.addr=%s (rconPwd? %t) logs.bind=%s backendPostURL=%s redis.url=%s actionsCh=%s cstv=%v:%d enabled=%t",
 		cfg.ServerID, cfg.CS2.Addr, cfg.CS2.RconPassword != "",
-		cfg.Logs.Bind, cfg.Logs.BackendPostURL, cfg.Redis.URL, cfg.Redis.ActionsChannel, cfg.Redis.StateKey, cfg.Redis.StateTtlSec,
+		cfg.Logs.Bind, cfg.Logs.BackendPostURL, cfg.Redis.URL, cfg.Redis.ActionsChannel,
 		cfg.CSTV.Host, cfg.CSTV.Port, cfg.CSTV.Enabled)
 
 	if strings.TrimSpace(cfg.CS2.Addr) == "" {
@@ -202,9 +218,8 @@ func main() {
 	log.Printf("[agent:%s] redis connected: %s", cfg.ServerID, cfg.Redis.URL)
 
 	// Start components
-	go runLogsHTTP(ctx, cfg)
+	go runLogsHTTP(ctx, cfg, rdb)
 	go runEventsPusher(ctx, cfg, rdb) // ✅ nouveau: transforme log→events et XADD en Redis
-	go runHeartbeat(ctx, cfg, rdb)
 	go runActionsSubscriber(ctx, cfg, rdb)
 
 	// Graceful shutdown
@@ -234,7 +249,7 @@ func openRedis(url string) (*redis.Client, error) {
 
 // ---- Logs HTTP (intake)
 
-func runLogsHTTP(ctx context.Context, cfg AgentConfig) {
+func runLogsHTTP(ctx context.Context, cfg AgentConfig, rdb *redis.Client) {
 	mux := http.NewServeMux()
 	mux.HandleFunc("/logs", func(w http.ResponseWriter, r *http.Request) {
 		start := time.Now()
@@ -257,6 +272,7 @@ func runLogsHTTP(ctx context.Context, cfg AgentConfig) {
 
 		lines := splitLines(string(body))
 		for _, line := range lines {
+			log.Printf("[agent:%s] [CS2] %s", cfg.ServerID, line)
 			select {
 			case logQueue <- line:
 			default:
@@ -271,8 +287,281 @@ func runLogsHTTP(ctx context.Context, cfg AgentConfig) {
 		w.WriteHeader(http.StatusOK)
 	})
 
+	// ── Helpers partagés par les endpoints de commande ──────────────────────
+	checkCmdToken := func(w http.ResponseWriter, r *http.Request) bool {
+		if cfg.Commands.Token != "" {
+			if r.Header.Get("X-Agent-Token") != cfg.Commands.Token {
+				http.Error(w, "unauthorized", http.StatusUnauthorized)
+				return false
+			}
+		}
+		return true
+	}
+	requirePost := func(w http.ResponseWriter, r *http.Request) bool {
+		if r.Method != http.MethodPost {
+			w.WriteHeader(http.StatusMethodNotAllowed)
+			return false
+		}
+		return true
+	}
+	writeOK := func(w http.ResponseWriter) {
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"ok":true}`))
+	}
+	execHTTP := func(w http.ResponseWriter, r *http.Request, act *AgentAction) {
+		act.ServerID = cfg.ServerID
+		if err := execAction(r.Context(), cfg, act); err != nil {
+			log.Printf("[agent:%s] %s error: %v", cfg.ServerID, r.URL.Path, err)
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+		writeOK(w)
+	}
+
+	// GET /health — probe connectivité depuis le backend
+	mux.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {
+		if !checkCmdToken(w, r) {
+			return
+		}
+		ctx, cancel := context.WithTimeout(r.Context(), 500*time.Millisecond)
+		defer cancel()
+		_, rconErr := withRcon(ctx, cfg, func(ctx context.Context, c *myrcon.Client) (string, error) {
+			return c.Status(ctx)
+		})
+		matchId := getCachedMatchID()
+		var mid interface{}
+		if matchId != "" && matchId != "unknown" {
+			mid = matchId
+		}
+		b, _ := json.Marshal(map[string]interface{}{
+			"rconConnected":  rconErr == nil,
+			"currentMatchId": mid,
+			"ts":             time.Now().UnixMilli(),
+		})
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write(b)
+	})
+
+	// POST /init-match  {"matchId":"m-xxx","map":"de_dust2"}
+	mux.HandleFunc("/init-match", func(w http.ResponseWriter, r *http.Request) {
+		if !requirePost(w, r) || !checkCmdToken(w, r) {
+			return
+		}
+		var body struct {
+			MatchID string `json:"matchId"`
+			Map     string `json:"map"`
+		}
+		if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+			http.Error(w, "invalid json", http.StatusBadRequest)
+			return
+		}
+		if body.MatchID == "" || body.Map == "" {
+			http.Error(w, "matchId et map requis", http.StatusBadRequest)
+			return
+		}
+		setCachedMatchID(body.MatchID)
+		log.Printf("[agent:%s] init-match matchId=%s map=%s", cfg.ServerID, body.MatchID, body.Map)
+		act := &AgentAction{Action: "exec_cfg"}
+		act.Payload.Name = "ggbot/init.cfg"
+		act.Payload.Vars = map[string]string{"map": body.Map}
+		execHTTP(w, r, act)
+	})
+
+	// POST /say  {"text":"..."}
+	mux.HandleFunc("/say", func(w http.ResponseWriter, r *http.Request) {
+		if !requirePost(w, r) || !checkCmdToken(w, r) {
+			return
+		}
+		var body struct {
+			Text string `json:"text"`
+		}
+		if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+			http.Error(w, "invalid json", http.StatusBadRequest)
+			return
+		}
+		act := &AgentAction{Action: "say"}
+		act.Payload.Message = body.Text
+		execHTTP(w, r, act)
+	})
+
+	// POST /say-team  {"team":"CT","text":"..."}
+	mux.HandleFunc("/say-team", func(w http.ResponseWriter, r *http.Request) {
+		if !requirePost(w, r) || !checkCmdToken(w, r) {
+			return
+		}
+		var body struct {
+			Team string `json:"team"`
+			Text string `json:"text"`
+		}
+		if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+			http.Error(w, "invalid json", http.StatusBadRequest)
+			return
+		}
+		act := &AgentAction{Action: "say_team"}
+		act.Payload.TeamSide = body.Team
+		act.Payload.Message = body.Text
+		execHTTP(w, r, act)
+	})
+
+	// POST /pause  {}
+	mux.HandleFunc("/pause", func(w http.ResponseWriter, r *http.Request) {
+		if !requirePost(w, r) || !checkCmdToken(w, r) {
+			return
+		}
+		execHTTP(w, r, &AgentAction{Action: "pause"})
+	})
+
+	// POST /unpause  {}
+	mux.HandleFunc("/unpause", func(w http.ResponseWriter, r *http.Request) {
+		if !requirePost(w, r) || !checkCmdToken(w, r) {
+			return
+		}
+		execHTTP(w, r, &AgentAction{Action: "unpause"})
+	})
+
+	// POST /admin-action  {"action":"pause_match|unpause_match|set_game_phase","phase":"...","map":"...","score":{...}}
+	mux.HandleFunc("/admin-action", func(w http.ResponseWriter, r *http.Request) {
+		if !requirePost(w, r) || !checkCmdToken(w, r) {
+			return
+		}
+
+		var body struct {
+			Action string        `json:"action"`
+			Phase  string        `json:"phase,omitempty"`
+			Map    string        `json:"map,omitempty"`
+			Score  *ScorePayload `json:"score,omitempty"`
+		}
+		if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+			http.Error(w, "invalid json", http.StatusBadRequest)
+			return
+		}
+
+		ctx, cancel := context.WithTimeout(r.Context(), 30*time.Second)
+		defer cancel()
+
+		var execErr error
+		switch body.Action {
+		case "pause_match":
+			execErr = execAction(ctx, cfg, &AgentAction{Action: "pause"})
+		case "unpause_match":
+			execErr = execAction(ctx, cfg, &AgentAction{Action: "unpause"})
+		case "set_game_phase":
+			execErr = handleAdminPhase(ctx, cfg, body.Phase, body.Map, body.Score)
+		default:
+			http.Error(w, "action inconnue: "+body.Action, http.StatusBadRequest)
+			return
+		}
+
+		if execErr != nil {
+			if errors.Is(execErr, context.DeadlineExceeded) {
+				http.Error(w, "timeout", http.StatusGatewayTimeout)
+				return
+			}
+			log.Printf("[agent:%s] /admin-action error: %v", cfg.ServerID, execErr)
+			http.Error(w, execErr.Error(), http.StatusInternalServerError)
+			return
+		}
+		w.WriteHeader(http.StatusNoContent)
+	})
+
+	// POST /changelevel  {"map":"de_dust2"}
+	mux.HandleFunc("/changelevel", func(w http.ResponseWriter, r *http.Request) {
+		if !requirePost(w, r) || !checkCmdToken(w, r) {
+			return
+		}
+		var body struct {
+			Map string `json:"map"`
+		}
+		if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+			http.Error(w, "invalid json", http.StatusBadRequest)
+			return
+		}
+		act := &AgentAction{Action: "changelevel"}
+		act.Payload.Map = body.Map
+		execHTTP(w, r, act)
+	})
+
+	// POST /restart  {"delay":3}
+	mux.HandleFunc("/restart", func(w http.ResponseWriter, r *http.Request) {
+		if !requirePost(w, r) || !checkCmdToken(w, r) {
+			return
+		}
+		var body struct {
+			Delay int `json:"delay"`
+		}
+		body.Delay = 1 // défaut
+		json.NewDecoder(r.Body).Decode(&body)
+		cmd := fmt.Sprintf("mp_restartgame %d", max(1, body.Delay))
+		act := &AgentAction{Action: "rcon"}
+		act.Payload.Message = cmd
+		execHTTP(w, r, act)
+	})
+
+	// POST /exec  {"name":"ggbot/knife.cfg","vars":{"k":"v"},"matchId":"m-xxx"}
+	mux.HandleFunc("/exec", func(w http.ResponseWriter, r *http.Request) {
+		if !requirePost(w, r) || !checkCmdToken(w, r) {
+			return
+		}
+		var body struct {
+			Name    string            `json:"name"`
+			Vars    map[string]string `json:"vars,omitempty"`
+			MatchID string            `json:"matchId,omitempty"`
+		}
+		if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+			http.Error(w, "invalid json", http.StatusBadRequest)
+			return
+		}
+
+		// 1. Exécuter le cfg
+		act := &AgentAction{Action: "exec_cfg"}
+		act.ServerID = cfg.ServerID
+		act.Payload.Name = body.Name
+		act.Payload.Vars = body.Vars
+		if err := execAction(r.Context(), cfg, act); err != nil {
+			log.Printf("[agent:%s] /exec error: %v", cfg.ServerID, err)
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+
+		// 2. Après competitive.cfg → envoyer mp_overtime_enable depuis matchConfig Redis
+		if strings.Contains(body.Name, "competitive") && body.MatchID != "" && rdb != nil {
+			cfgKey := "match:" + body.MatchID + ":config"
+			val, _ := rdb.HGet(r.Context(), cfgKey, "overtimeEnabled").Result()
+			otCmd := "mp_overtime_enable 0" // défaut : off
+			if val == "1" {
+				otCmd = "mp_overtime_enable 1"
+			}
+			log.Printf("[agent:%s] knife_undo → overtime override: %s (matchId=%s)", cfg.ServerID, otCmd, body.MatchID)
+			otAct := &AgentAction{Action: "rcon"}
+			otAct.ServerID = cfg.ServerID
+			otAct.Payload.Message = otCmd
+			if err := execAction(r.Context(), cfg, otAct); err != nil {
+				log.Printf("[agent:%s] overtime RCON error: %v", cfg.ServerID, err)
+			}
+		}
+
+		writeOK(w)
+	})
+
+	// POST /rcon  {"command":"sv_cheats 1"}
+	mux.HandleFunc("/rcon", func(w http.ResponseWriter, r *http.Request) {
+		if !requirePost(w, r) || !checkCmdToken(w, r) {
+			return
+		}
+		var body struct {
+			Command string `json:"command"`
+		}
+		if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+			http.Error(w, "invalid json", http.StatusBadRequest)
+			return
+		}
+		act := &AgentAction{Action: "rcon"}
+		act.Payload.Message = body.Command
+		execHTTP(w, r, act)
+	})
+
 	logHTTPServer = &http.Server{Addr: cfg.Logs.Bind, Handler: mux}
-	log.Printf("[agent:%s] HTTP logs listening on http://%s/logs", cfg.ServerID, cfg.Logs.Bind)
+	log.Printf("[agent:%s] HTTP listening on http://%s (logs + commands)", cfg.ServerID, cfg.Logs.Bind)
 	if err := logHTTPServer.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
 		log.Printf("[agent:%s] logs http error: %v", cfg.ServerID, err)
 	}
@@ -369,6 +658,20 @@ func execAction(ctx context.Context, cfg AgentConfig, act *AgentAction) error {
 		log.Printf("[agent:%s] RCON Say -> %q err=%v", cfg.ServerID, out, err)
 		return err
 
+	case "say_team":
+		team := strings.TrimSpace(act.Payload.TeamSide)
+		msg := strings.TrimSpace(act.Payload.Message)
+		if msg == "" {
+			return fmt.Errorf("say_team: payload.text missing")
+		}
+		cmd := fmt.Sprintf("say_team [%s] %s", team, msg)
+		out, err := withRcon(ctx, cfg, func(ctx context.Context, c *myrcon.Client) (string, error) {
+			log.Printf("[agent:%s] RCON say_team cmd=%q", cfg.ServerID, cmd)
+			return c.Send(ctx, cmd)
+		})
+		log.Printf("[agent:%s] RCON say_team -> %q err=%v", cfg.ServerID, out, err)
+		return err
+
 	case "changelevel":
 		mp := strings.TrimSpace(act.Payload.Map)
 		if mp == "" {
@@ -424,8 +727,8 @@ func execAction(ctx context.Context, cfg AgentConfig, act *AgentAction) error {
 			Throttle:         75 * time.Millisecond,
 			MaxLines:         1000,
 			MaxLineLen:       512,
-			AllowChangeLevel: false,
-			WhitelistPrefix:  []string{"mp_", "sv_", "tv_", "bot_", "say", "echo"},
+			AllowChangeLevel: true,
+			WhitelistPrefix:  []string{"mp_", "sv_", "tv_", "bot_", "say", "echo", "changelevel"},
 			Resolver:         resolver,
 			Vars:             act.Payload.Vars, // peut être nil
 			Logger: func(format string, args ...any) {
@@ -443,6 +746,45 @@ func execAction(ctx context.Context, cfg AgentConfig, act *AgentAction) error {
 		log.Printf("[agent:%s] unknown action: %q (ignored)", cfg.ServerID, act.Action)
 		return nil
 	}
+}
+
+// handleAdminPhase traduit une phase admin en action RCON/cfg.
+func handleAdminPhase(ctx context.Context, cfg AgentConfig, phase, mapName string, score *ScorePayload) error {
+	act := &AgentAction{}
+	act.ServerID = cfg.ServerID
+	act.Payload.MatchID = getCachedMatchID()
+
+	switch phase {
+	case "warmup":
+		act.Action = "exec_cfg"
+		act.Payload.Name = "ggbot/warmup.cfg"
+	case "knife":
+		act.Action = "exec_cfg"
+		act.Payload.Name = "ggbot/knife.cfg"
+	case "match_start":
+		act.Action = "exec_cfg"
+		act.Payload.Name = "ggbot/competitive.cfg"
+		if score != nil && (score.CT.Score != 0 || score.T.Score != 0) {
+			log.Printf("[admin] WARN: score non-zero (%d-%d) non applicable sans plugin CS2",
+				score.CT.Score, score.T.Score)
+		}
+	case "overtime":
+		if score == nil {
+			return fmt.Errorf("score requis pour overtime")
+		}
+		act.Action = "exec_cfg"
+		act.Payload.Name = "ggbot/overtime.cfg"
+	case "next_map":
+		if mapName == "" {
+			return fmt.Errorf("map requise pour next_map")
+		}
+		act.Action = "changelevel"
+		act.Payload.Map = mapName
+	default:
+		return fmt.Errorf("phase inconnue: %s", phase)
+	}
+
+	return execAction(ctx, cfg, act)
 }
 
 // withRcon maintains a single connection with reconnect/backoff
@@ -487,44 +829,6 @@ func ensureRcon(ctx context.Context, c *myrcon.Client) error {
 		}
 	}
 	return fmt.Errorf("nil rcon client")
-}
-
-// ---- Heartbeat publisher
-
-func runHeartbeat(ctx context.Context, cfg AgentConfig, rdb *redis.Client) {
-	key := cfg.Redis.StateKey
-	if strings.TrimSpace(key) == "" {
-		log.Printf("[agent:%s] heartbeat disabled (no stateKey)", cfg.ServerID)
-		return
-	}
-	interval := 3 * time.Second
-	if cfg.Redis.StateTtlSec > 0 && cfg.Redis.StateTtlSec < 6 {
-		interval = time.Duration(cfg.Redis.StateTtlSec/2) * time.Second
-	}
-
-	for {
-		select {
-		case <-ctx.Done():
-			return
-		case <-time.After(interval):
-			hb := heartbeat{TS: time.Now().Unix()}
-			hb.RCON.Connected = rconCli != nil
-			hb.RCON.Addr = rconAddr
-			hb.Logs.Bind = cfg.Logs.Bind
-			hb.Logs.OK = true
-			hb.Logs.Queue = int64(len(logQueue))
-			hb.Logs.Dropped = atomic.LoadInt64(&droppedLogs)
-			b, _ := json.Marshal(&hb)
-			_ = rdb.Publish(ctx, "ggbot:events", b).Err() // live
-
-			exp := time.Duration(max(10, cfg.Redis.StateTtlSec)) * time.Second
-			if err := rdb.Set(ctx, key, string(b), exp).Err(); err != nil {
-				log.Printf("[agent:%s] heartbeat err: %v", cfg.ServerID, err)
-			} else {
-				log.Printf("[agent:%s] heartbeat -> key=%s ttl=%s value=%s", cfg.ServerID, key, exp, string(b))
-			}
-		}
-	}
 }
 
 // ---- Helpers
@@ -577,17 +881,14 @@ func normalizeCS2(cfg *AgentConfig) {
 // Champs: v,id,timestamp,source,kind,serverId,matchId,type,payload,(map?,round?,tick?)
 func runEventsPusher(ctx context.Context, cfg AgentConfig, rdb *redis.Client) {
 	const (
-		maxBatch        = 200
-		flushEvery      = 50 * time.Millisecond
-		maxLen          = 100_000
-		refreshMatchTTL = 1 * time.Second
+		maxBatch  = 200
+		flushEvery = 50 * time.Millisecond
+		maxLen    = 100_000
 	)
 
 	streamKey := "ggbot:events_primary:" + cfg.ServerID
 	pubChan := "ggbot:events"
 	serverID := cfg.ServerID
-
-	matchKey := "ggbot:server:" + serverID + ":currentMatch"
 
 	type entry struct {
 		streamVals map[string]any
@@ -596,24 +897,6 @@ func runEventsPusher(ctx context.Context, cfg AgentConfig, rdb *redis.Client) {
 	batch := make([]entry, 0, maxBatch)
 	ticker := time.NewTicker(flushEvery)
 	defer ticker.Stop()
-
-	// --- cache matchId ---
-	var cachedMatchID = "unknown"
-	var lastFetch time.Time
-	resolveMatchID := func() string {
-		// refresh au plus toutes les 1s
-		if time.Since(lastFetch) < refreshMatchTTL {
-			return cachedMatchID
-		}
-		lastFetch = time.Now()
-		mid, err := rdb.Get(ctx, matchKey).Result()
-		if err == nil && mid != "" {
-			cachedMatchID = mid
-			return cachedMatchID
-		}
-		// en cas d’erreur/clé absente on garde le dernier (ou "unknown")
-		return cachedMatchID
-	}
 
 	flush := func() {
 		if len(batch) == 0 {
@@ -651,8 +934,8 @@ func runEventsPusher(ctx context.Context, cfg AgentConfig, rdb *redis.Client) {
 			}
 
 			if typ, payloadJSON, ok := parser.TryParse(line); ok {
-				// ⬅️ récupère le matchId courant
-				matchID := resolveMatchID()
+				// ⬅️ récupère le matchId courant (set via /init-match)
+				matchID := getCachedMatchID()
 
 				ev := makeBaseEvent(serverID, matchID, typ, payloadJSON)
 

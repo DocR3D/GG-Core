@@ -96,7 +96,7 @@ private async onTeamRoundWin(ev: TeamRoundWinEvent, ctx: RuleContext) {
     }
     try {
       await ctx.orch.applyKnifeResult(ev.matchId, winnerFromEvent);
-      await ctx.orch.execCfg({ serverId, matchId: ev.matchId}, 'ggbot/knife_undo.cfg' );
+      await ctx.orch.execCfg({ serverId, matchId: ev.matchId}, 'ggbot/competitive.cfg' );
       await ctx.orch.startPhaseCountdown(ev.matchId, MatchPhase.KNIFE_CHOICE, 0, serverId);
     } catch (e) {
       await ctx.say(`[knife][error] fallback persist/transition: ${(e as Error)?.message ?? e}`);
@@ -144,9 +144,9 @@ private async onTeamRoundWin(ev: TeamRoundWinEvent, ctx: RuleContext) {
 
   // Retire le cfg knife, puis transition vers KNIFE_CHOICE
   try {
-    await ctx.orch.execCfg({ serverId, matchId: ev.matchId}, 'ggbot/knife_undo.cfg');
+    await ctx.orch.execCfg({ serverId, matchId: ev.matchId}, 'ggbot/competitive.cfg');
   } catch (e) {
-    await ctx.say(`[knife][warn] knife_undo.cfg KO: ${(e as Error)?.message ?? e}`);
+    await ctx.say(`[knife][warn] competitive.cfg KO: ${(e as Error)?.message ?? e}`);
   }
 
   // Verrouille et nettoie l'état pour éviter des doubles traitements

@@ -32,6 +32,9 @@ export class MatchStateService {
   getServerIdFromMatchId(matchId: string) {
     return this.sidesScore.getServerIdFromMatchId(matchId);
   }
+  freeServer(matchId: string) {
+    return this.sidesScore.clearServerMatch(matchId);
+  }
 
   // ───────────────────────────────────────────────────────────────────────────
   // Sides / Score / Phase
@@ -73,6 +76,9 @@ export class MatchStateService {
   incRound(matchId: string) {
     return this.sidesScore.incRound(matchId);
   }
+  setRound(matchId: string, round: number) {
+    return this.sidesScore.setRound(matchId, round);
+  }
   addPoint(matchId: string, winner: GameSide) {
     if(winner == 'TERRORIST') winner = "T";
     return this.sidesScore.addPoint(matchId, winner);
@@ -85,6 +91,26 @@ export class MatchStateService {
   }
   getScore(matchId: string) {
     return this.sidesScore.getScore(matchId);
+  }
+
+  /** Score absolu depuis l'agent (event team_score). teamId=2→T, 3→CT. */
+  setScoreFromTeamEvent(matchId: string, teamId: number, score: number) {
+    return this.sidesScore.setScoreFromTeamEvent(matchId, teamId, score);
+  }
+
+  getMatchConfig(matchId: string) {
+    return this.sidesScore.getMatchConfig(matchId);
+  }
+
+  setMatchConfig(matchId: string, cfg: {
+    maxRounds?: number;
+    winRounds?: number;
+    overtimeEnabled?: boolean;
+    isDecidingMap?: boolean;
+    seriesId?: string;
+    mapNumber?: number;
+  }) {
+    return this.sidesScore.setMatchConfig(matchId, cfg);
   }
 
   // ───────────────────────────────────────────────────────────────────────────
@@ -115,7 +141,7 @@ export class MatchStateService {
   // ───────────────────────────────────────────────────────────────────────────
   setTeams(
     matchId: string,
-    ids: { home_id?: string; away_id?: string; ct_id?: string; t_id?: string; home_name?: string; away_name?: string; ct_name?: string; t_name?: string },
+    ids: { home_id?: string; away_id?: string; home_name?: string; away_name?: string },
   ) {
     return this.teamsRoster.setTeams(matchId, ids);
   }
@@ -143,6 +169,15 @@ export class MatchStateService {
   }
   getPlayersEconomy(matchId: string) {
     return this.teamsRoster.getPlayersEconomy(matchId);
+  }
+  addRdyPlayer(matchId: string, steamId: string) {
+    return this.teamsRoster.addRdyPlayer(matchId, steamId);
+  }
+  getRdyCount(matchId: string) {
+    return this.teamsRoster.getRdyCount(matchId);
+  }
+  clearRdyPlayers(matchId: string) {
+    return this.teamsRoster.clearRdyPlayers(matchId);
   }
 
   // ───────────────────────────────────────────────────────────────────────────

@@ -10,6 +10,24 @@ services:
       timeout: 1s
       retries: 10
 
+  postgres:
+    image: postgres:16-alpine
+    container_name: ggcore-postgres-dev
+    environment:
+      POSTGRES_USER: ggcore
+      POSTGRES_PASSWORD: ggcore
+      POSTGRES_DB: ggcore
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./sql/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ggcore"]
+      interval: 3s
+      timeout: 1s
+      retries: 10
+
   backend:
     build:
       context: ../backend            # chemins relatifs au fichier compose (infra/)
@@ -22,6 +40,7 @@ services:
       WS_PATH: "/ws"
       JWT_SECRET: "dev-change-me"
       REDIS_URL: "redis://redis:6379"
+      DATABASE_URL: "postgresql://ggcore:ggcore@postgres:5432/ggcore"
       SERVER_IDS: "srv-a"
       USE_HTTP_PARSE: "false"
       CORS_ORIGIN: "http://localhost:3000"
@@ -29,6 +48,8 @@ services:
       WATCHPACK_POLLING: "true"
     depends_on:
       redis:
+        condition: service_healthy
+      postgres:
         condition: service_healthy
     ports:
       - "8081:8081"
@@ -56,6 +77,36 @@ services:
       - "8083:8083" # srv-b logs.bind must be 0.0.0.0:8083 (example)
     restart: unless-stopped
 
+  cs2:
+    image: joedwards32/cs2
+    container_name: ggcore-cs2-dev
+    environment:
+      CS2_RCONPW: "123456"
+      CS2_PORT: "27015"
+      CS2_MAXPLAYERS: "10"
+      CS2_GAMETYPE: "0"
+      CS2_GAMEMODE: "1"
+      CS2_STARTMAP: "de_dust2"
+      CS2_SERVER_HOSTNAME: "GGCore Dev"
+      CS2_ADDITIONAL_ARGS: >-
+        +log on
+        -console
+        -usercon
+        +game_type 0
+        +game_mode 1
+        -port 27015
+        +logaddress_add_http "http://host.docker.internal:8082/logs?token=tonSuperSecret"    
+    volumes:
+      - cs2_data:/home/steam/cs2-dedicated
+     # - ./cs2/gameserver.cfg:/home/steam/cs2-dedicated/game/csgo/cfg/gameserver.cfg:ro
+    ports:
+      - "27015:27015/tcp"   # RCON
+      - "27015:27015/udp"   # jeu
+      - "27020:27020/udp"   # CSTV
+    depends_on:
+      manager:
+        condition: service_started
+    restart: unless-stopped
 
   log-drain:
     build:
@@ -72,4 +123,6 @@ services:
         condition: service_healthy
     restart: unless-stopped
 
-
+volumes:
+  postgres_data:
+  cs2_data:

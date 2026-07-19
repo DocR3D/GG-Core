@@ -5,6 +5,7 @@ import { PauseMatchService } from './match/pause/pause.service';
 import { MatchStateModule } from './match-state.module';
 import { PhaseModule } from './match/phase/phase.module';
 import { PeriodicModule } from './shared/periodic/periodic.module';
+import { ServersModule } from '@adapters/http/servers/servers.module';
 
 // 1. Importer TOUTES vos commandes spécifiques ici
 import { ReadyCommand } from './match/commands/ready.command';
@@ -17,6 +18,7 @@ import { KnifeChoiceCommand } from './match/commands/knife-choice.command';
     MatchStateModule,
     forwardRef(() => PhaseModule), // Gardez le forwardRef, il est essentiel
     PeriodicModule,
+    ServersModule, // AgentClientService pour les commandes HTTP vers l'agent Go
   ],
   providers: [
     // Le service général

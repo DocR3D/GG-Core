@@ -1,43 +1,22 @@
 // src/adapters/http/matches/sides.controller.ts
-import { Controller, Param, Patch, Get, Body } from '@nestjs/common';
-import { MatchStateService, type GameSide, CoreSide, type Logical } from '@app/match/state/match-state.service';
+import { Controller, Param, Patch } from '@nestjs/common';
+import { ApiTags, ApiOperation, ApiParam, ApiOkResponse } from '@nestjs/swagger';
+import { MatchStateService } from '@app/match/state/match-state.service';
 
-type SetSidesDto = Partial<CoreSide>; // {home?: 'CT'|'T', away?: 'CT'|'T'}
-
+@ApiTags('matches')
 @Controller('matches/:id/sides')
 export class SidesController {
   constructor(private readonly matchState: MatchStateService) {}
 
-  // GET /matches/:id/sides  -> {home:'CT'|'T', away:'CT'|'T'}
-  @Get()
-  async get(@Param('id') matchId: string) {
-    return await this.matchState.getSides(matchId); // null si non init
-  }
-
-  // PATCH /matches/:id/sides  body: {home?, away?}
-  @Patch()
-  async set(@Param('id') matchId: string, @Body() dto: SetSidesDto) {
-    const current = (await this.matchState.getSides(matchId)) ?? { home: 'CT', away: 'T' as GameSide };
-    await this.matchState.setSides(matchId, { ...current, ...dto });
-    return { ok: true };
-  }
-
-  // PATCH /matches/:id/sides/swap
   @Patch('swap')
+  @ApiOperation({
+    summary: 'Swapper les sides CT/T',
+    description: 'Échange les sides CT/T entre home et away. À appeler à la mi-temps ou après le choix de side (knife choice). Met à jour `homeIsct` dans le snapshot.',
+  })
+  @ApiParam({ name: 'id', description: 'ID Redis du match', example: 'm-cs2-001' })
+  @ApiOkResponse({ schema: { example: { ok: true } } })
   async swap(@Param('id') matchId: string) {
-    const ok = await this.matchState.swapSides(matchId); // inverse home/away
+    const ok = await this.matchState.swapSides(matchId);
     return { ok };
-  }
-
-  // GET /matches/:id/sides/logical-to-side/:logical  -> 'CT'|'T'|null
-  @Get('logical-to-side/:logical')
-  async logicalToSide(@Param('id') matchId: string, @Param('logical') logical: Logical) {
-    return await this.matchState.logicalToSide(matchId, logical);
-  }
-
-  // GET /matches/:id/sides/side-to-logical/:side  -> 'home'|'away'|null
-  @Get('side-to-logical/:side')
-  async sideToLogical(@Param('id') matchId: string, @Param('side') side: GameSide) {
-    return await this.matchState.sideToLogical(matchId, side);
   }
 }

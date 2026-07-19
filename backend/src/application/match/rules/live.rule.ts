@@ -79,7 +79,7 @@ export class LiveRule extends BaseRule implements PhaseRule {
     const snapshot = await ctx.state.getSnapshot(ev.matchId);
     await ctx.orch.push(ev.matchId, 'score:update', {
       score: snapshot.score,
-      sides: snapshot.sides,
+      homeIsct: snapshot.homeIsct,
       teams: snapshot.teams,
     });
   }

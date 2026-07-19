@@ -16,6 +16,9 @@ import { MatchOrchestratorModule } from '@app/match/match-orchestrator.module';
 import { PhaseEventsHandler } from './phase-events.handler';
 import { RoundEventsHandler } from './round-events.handler';
 import { KillAndBombEventsHandler } from './kill-bomb-events.handler';
+import { TeamScoreHandler } from './team-score.handler';
+import { RegulationService } from './regulation.service';
+import { MatchEndHandler } from './match-end.handler';
 
 @Module({
   imports: [
@@ -32,6 +35,9 @@ import { KillAndBombEventsHandler } from './kill-bomb-events.handler';
     PhaseEventsHandler,
     RoundEventsHandler,
     KillAndBombEventsHandler,
+    TeamScoreHandler,
+    RegulationService,
+    MatchEndHandler,
     EventsRouterSubscriber,
     ChatCommandHandler,
   ],
