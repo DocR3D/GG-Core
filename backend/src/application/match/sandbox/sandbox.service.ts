@@ -794,7 +794,7 @@ export class SandboxService {
 /**
  * Nettoie les préfixes de conteneurs (ex: Pterodactyl stdout "10/25 09:28:58 [Server] L ...")
  */
-function cleanContainerLogPrefix(line: string): string {
+export function cleanContainerLogPrefix(line: string): string {
   const lIdx = line.indexOf('L ');
   if (lIdx !== -1 && lIdx < 40) {
     return line.slice(lIdx);
