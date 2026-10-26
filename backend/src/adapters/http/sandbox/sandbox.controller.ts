@@ -1,11 +1,12 @@
 // src/adapters/http/sandbox/sandbox.controller.ts
-import { Controller, Get, Post, Body, Param, Res, Header, HttpCode } from '@nestjs/common';
+import { Controller, Get, Post, Body, Param, Res, Header, HttpCode, Logger } from '@nestjs/common';
 import type { Response } from 'express';
 import { SandboxService } from '@app/match/sandbox/sandbox.service';
 import { InjectStateDto, InGameRestoreDto } from '@app/match/sandbox/sandbox.dto';
 
 @Controller('sandbox')
 export class SandboxController {
+  private readonly logger = new Logger(SandboxController.name);
   constructor(private readonly sandboxService: SandboxService) {}
 
   /**
@@ -15,6 +16,7 @@ export class SandboxController {
   @Get()
   @Header('Content-Type', 'text/html; charset=utf-8')
   getSandboxHtml(@Res() res: Response) {
+    this.logger.log('[Sandbox] GET /sandbox page chargée');
     const html = this.renderSandboxHtml();
     return res.send(html);
   }
@@ -24,6 +26,7 @@ export class SandboxController {
    */
   @Get('presets')
   getPresets() {
+    this.logger.log('[Sandbox] GET /sandbox/presets');
     return { ok: true, presets: this.sandboxService.getPresets() };
   }
 
@@ -32,6 +35,7 @@ export class SandboxController {
    */
   @Get('state/:matchId')
   async getState(@Param('matchId') matchId: string) {
+    this.logger.log(`[Sandbox] GET /sandbox/state/${matchId}`);
     const snapshot = await this.sandboxService.getState(matchId);
     return { ok: true, snapshot };
   }
@@ -42,6 +46,7 @@ export class SandboxController {
   @Post('inject')
   @HttpCode(200)
   async injectState(@Body() body: InjectStateDto) {
+    this.logger.log(`[Sandbox] POST /sandbox/inject: ${JSON.stringify(body)}`);
     const snapshot = await this.sandboxService.injectState(body);
     return { ok: true, snapshot };
   }
@@ -52,6 +57,7 @@ export class SandboxController {
   @Post('restore-ingame')
   @HttpCode(200)
   async restoreInGame(@Body() body: InGameRestoreDto) {
+    this.logger.log(`[Sandbox] POST /sandbox/restore-ingame: ${JSON.stringify(body)}`);
     const result = await this.sandboxService.restoreInGame(body);
     return result;
   }
