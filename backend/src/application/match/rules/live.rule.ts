@@ -158,10 +158,6 @@ export class LiveRule extends BaseRule implements PhaseRule {
 
           if (settings.warmupAtOvertime) {
             await ctx.say('[GG-Core] Prolongations : Tapez !ready quand vous êtes prêts.');
-          } else {
-            if (serverId) {
-              await ctx.orch.restartGame({ serverId, matchId: ev.matchId, delay: CS2_RULES.FAST_RESTART_DELAY_SEC });
-            }
           }
           return;
         } else {

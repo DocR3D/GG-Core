@@ -314,12 +314,12 @@ export class SandboxService {
         await new Promise((resolve) => setTimeout(resolve, 2000));
       }
 
-      // 1. Désactiver impérativement l'autopause de Valve (qui bloque sinon le round à 0:00),
-      // quitter le warmup et configurer le quota de bots
+      // 1. Désactiver impérativement l'autopause de Valve, activer les prolongations Valve natives
+      // et quitter le warmup
       await this.cmds.rcon({
         serverId,
         matchId,
-        command: 'mp_backup_restore_load_autopause 0; bot_quota 2; bot_quota_mode fill; bot_join_after_player 1; mp_warmup_end',
+        command: 'mp_backup_restore_load_autopause 0; mp_overtime_enable 1; mp_overtime_maxrounds 6; mp_overtime_startmoney 10000; mp_overtime_initial_defuse_team 0; bot_quota 2; bot_quota_mode fill; bot_join_after_player 1; mp_warmup_end',
       });
 
       // Attendre 500ms
@@ -335,14 +335,23 @@ export class SandboxService {
       // Attendre 800ms que le checkpoint soit appliqué par le moteur de jeu
       await new Promise((resolve) => setTimeout(resolve, 800));
 
-      // 3. Garantir la présence d'au moins 1 adversaire (bot_add), unpause explicite et restartgame
-      // pour que le round se relance immédiatement avec les joueurs vivants
+      // 3. Déterminer l'équilibrage des bots pour le test 1v1 (ne JAMAIS mettre de bot dans l'équipe du joueur)
+      // et unpause pour lancer le round. (NE JAMAIS appeler mp_restartgame 1 qui réinitialiserait le score à 0-0 !)
+      let botBalanceCmd = 'mp_unpause_match';
+      if (playersCt.length > 0 && playersT.length === 0) {
+        // Le joueur humain est en CT -> aucun bot en CT, 1 bot en T
+        botBalanceCmd = 'bot_kick ct; bot_add_t; mp_unpause_match';
+      } else if (playersT.length > 0 && playersCt.length === 0) {
+        // Le joueur humain est en T -> aucun bot en T, 1 bot en CT
+        botBalanceCmd = 'bot_kick t; bot_add_ct; mp_unpause_match';
+      }
+
       await this.cmds.rcon({
         serverId,
         matchId,
-        command: 'bot_quota 2; bot_quota_mode fill; bot_add; mp_unpause_match; mp_restartgame 1',
+        command: botBalanceCmd,
       });
-      this.logger.log(`[Sandbox] Séquence RCON exécutée (${serverId}): autopause 0 -> [500ms] -> ${rconCommand} -> [800ms] -> bot_add; unpause; restartgame 1`);
+      this.logger.log(`[Sandbox] Séquence RCON exécutée (${serverId}): autopause 0 -> [500ms] -> ${rconCommand} -> [800ms] -> ${botBalanceCmd}`);
     }
 
     // Également injecter l'état dans Redis pour cohérence immédiate du scoreboard backend
