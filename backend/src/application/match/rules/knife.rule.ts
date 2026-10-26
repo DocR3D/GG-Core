@@ -5,6 +5,8 @@ import type { KillEvent, TeamRoundWinEvent } from '@domain/events/match.event';
 import type { Logical } from '@app/match/state/sides-score.service';
 import { MatchPhase } from '@domain/phase.types';
 import { Logger } from '@nestjs/common';
+import { CS2_CFG } from '@domain/rules/rules.constants';
+import { isNonPlayingSide } from '@domain/side.types';
 
 type TeamSide = 'CT' | 'T';
 type SteamId = string;
@@ -48,7 +50,7 @@ export class KnifeRule extends BaseRule implements PhaseRule {
     const serverId = ctx.serverId ?? (await ctx.state.getServerIdFromMatchId(ctx.matchId));
     if (!serverId) throw new Error(`Aucun serveur lié au match ${ctx.matchId}`);
 
-    await ctx.orch.execCfg({ serverId, matchId: ctx.matchId}, 'ggbot/knife.cfg');
+    await ctx.orch.execCfg({ serverId, matchId: ctx.matchId}, CS2_CFG.KNIFE);
     await ctx.say('[knife] Knife round begins!');
     await ctx.orch.push(ctx.matchId, 'match:state', await ctx.state.getSnapshot(ctx.matchId));
   }
@@ -65,7 +67,7 @@ export class KnifeRule extends BaseRule implements PhaseRule {
     const killed = this.extractVictim(ev);
     if (!killed) return;
     // Ignorer les faux kills (redémarrage de map ou entités sans steamId / non-joueurs)
-    if (!killed.steamId || (killed.team as string) === 'Unassigned' || (killed.team as string) === 'SPECTATOR') return;
+    if (!killed.steamId || isNonPlayingSide(killed.team as string)) return;
     const side = this.toTeamSide(killed.team as any);
     if (!side) {
       await ctx.say(`[knife][warn] team inconnu pour ${killed.name}: ${side}`);
@@ -98,7 +100,7 @@ private async onTeamRoundWin(ev: TeamRoundWinEvent, ctx: RuleContext) {
     }
     try {
       await ctx.orch.applyKnifeResult(ev.matchId, winnerFromEvent);
-      await ctx.orch.execCfg({ serverId, matchId: ev.matchId}, 'ggbot/knife_undo.cfg' );
+      await ctx.orch.execCfg({ serverId, matchId: ev.matchId}, CS2_CFG.KNIFE_UNDO );
       await ctx.orch.startPhaseCountdown(ev.matchId, MatchPhase.KNIFE_CHOICE, 0, serverId);
     } catch (e) {
       await ctx.say(`[knife][error] fallback persist/transition: ${(e as Error)?.message ?? e}`);
@@ -146,7 +148,7 @@ private async onTeamRoundWin(ev: TeamRoundWinEvent, ctx: RuleContext) {
 
   // Retire le cfg knife, puis transition vers KNIFE_CHOICE
   try {
-    await ctx.orch.execCfg({ serverId, matchId: ev.matchId}, 'ggbot/knife_undo.cfg');
+    await ctx.orch.execCfg({ serverId, matchId: ev.matchId}, CS2_CFG.KNIFE_UNDO);
   } catch (e) {
     await ctx.say(`[knife][warn] knife_undo.cfg KO: ${(e as Error)?.message ?? e}`);
   }

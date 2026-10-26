@@ -1,7 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import {
   SidesScoreService,
-  type GameSide,
   type Logical,
   type CoreSide,
 } from './sides-score.service';
@@ -10,6 +9,18 @@ import { TeamsRosterService, type PlayerInfo } from './rosters.service';
 import { EconomyService, type TeamEconomyMeta } from './economy.service';
 import { SnapshotQuery } from './snapshot.query';
 import { Phase } from '@domain/phase.types';
+import { MatchSettings } from '@domain/match-settings.types';
+import {
+  GameSide,
+  CS2_SIDE_TERRORIST,
+  CS2_SIDE_T,
+  CS2_SIDE_CT,
+  normalizeSide,
+} from '@domain/side.types';
+
+export type { GameSide };
+export { CS2_SIDE_TERRORIST, CS2_SIDE_T, CS2_SIDE_CT, normalizeSide };
+
 @Injectable()
 export class MatchStateService {
   constructor(
@@ -46,21 +57,20 @@ export class MatchStateService {
     return this.sidesScore.swapSides(matchId);
   }
   sideToLogical(matchId: string, side: GameSide) {
-    if(side == 'TERRORIST') side = "T";
-    return this.sidesScore.sideToLogical(matchId, side);
+    return this.sidesScore.sideToLogical(matchId, normalizeSide(side));
   }
 
   logicalToSide(matchId: string, logical: Logical) {
     return this.sidesScore.logicalToSide(matchId, logical);
   }
-  applyKnifeResult(matchId: string, winnerSide: 'CT' | 'T'){
+  applyKnifeResult(matchId: string, winnerSide: 'CT' | 'T') {
     return this.sidesScore.applyKnifeResult(matchId, winnerSide);
   }
-  getKnifeResult(matchId: string) :Promise<{
-      side: GameSide | null;
-      logical: Logical | null;
-      team: { id: string | null; name: string | null } | null;
-    }>{
+  getKnifeResult(matchId: string): Promise<{
+    side: GameSide | null;
+    logical: Logical | null;
+    team: { id: string | null; name: string | null } | null;
+  }> {
     return this.sidesScore.getKnifeWinner(matchId);
   }
 
@@ -74,8 +84,10 @@ export class MatchStateService {
     return this.sidesScore.incRound(matchId);
   }
   addPoint(matchId: string, winner: GameSide) {
-    if(winner == 'TERRORIST') winner = "T";
-    return this.sidesScore.addPoint(matchId, winner);
+    return this.sidesScore.addPoint(matchId, normalizeSide(winner));
+  }
+  reconcileScore(matchId: string, ct: number, t: number) {
+    return this.sidesScore.reconcileScore(matchId, ct, t);
   }
   getPhase(matchId: string) {
     return this.sidesScore.getPhase(matchId);
@@ -85,6 +97,38 @@ export class MatchStateService {
   }
   getScore(matchId: string) {
     return this.sidesScore.getScore(matchId);
+  }
+
+  // ───────────────────────────────────────────────────────────────────────────
+  // Anti-eBot Bug Guards & Lifecycle State
+  // ───────────────────────────────────────────────────────────────────────────
+  getLastScoredRound(matchId: string) {
+    return this.sidesScore.getLastScoredRound(matchId);
+  }
+  setLastScoredRound(matchId: string, round: number) {
+    return this.sidesScore.setLastScoredRound(matchId, round);
+  }
+  isHalftimePlayed(matchId: string) {
+    return this.sidesScore.isHalftimePlayed(matchId);
+  }
+  setHalftimePlayed(matchId: string, played: boolean) {
+    return this.sidesScore.setHalftimePlayed(matchId, played);
+  }
+  getOvertimeCount(matchId: string) {
+    return this.sidesScore.getOvertimeCount(matchId);
+  }
+  setOvertimeCount(matchId: string, count: number) {
+    return this.sidesScore.setOvertimeCount(matchId, count);
+  }
+
+  // ───────────────────────────────────────────────────────────────────────────
+  // Settings (Warmup toggles, Overtime config, Postgame action)
+  // ───────────────────────────────────────────────────────────────────────────
+  getSettings(matchId: string) {
+    return this.sidesScore.getSettings(matchId);
+  }
+  setSettings(matchId: string, settings: Partial<MatchSettings>) {
+    return this.sidesScore.setSettings(matchId, settings);
   }
 
   // ───────────────────────────────────────────────────────────────────────────
@@ -158,17 +202,16 @@ export class MatchStateService {
     return this.economy.setTeamLossStreak(matchId, logical, streak);
   }
   updateEconomyOnRoundEnd(matchId: string, winnerSide: GameSide) {
-    if(winnerSide == 'TERRORIST') winnerSide = "T";
-    return this.economy.updateEconomyOnRoundEnd(matchId, winnerSide);
+    return this.economy.updateEconomyOnRoundEnd(matchId, normalizeSide(winnerSide));
   }
   roundEnd(
     matchId: string,
     winnerSide: GameSide,
     playerEconomy?: { steamId: string; money: number; equip: number }[],
   ) {
-    if(winnerSide == 'TERRORIST') winnerSide = "T";
-    this.economy.updateEconomyOnRoundEnd(matchId,winnerSide);
-    return this.economy.roundEnd(matchId, winnerSide, playerEconomy);
+    const norm = normalizeSide(winnerSide);
+    this.economy.updateEconomyOnRoundEnd(matchId, norm);
+    return this.economy.roundEnd(matchId, norm, playerEconomy);
   }
 
   // ───────────────────────────────────────────────────────────────────────────
@@ -179,7 +222,6 @@ export class MatchStateService {
   }
 }
 
-// Re-export des types pour compatibilité avec l’ancien import depuis ce fichier
-export type { GameSide, Logical, CoreSide } from './sides-score.service';
+export type { Logical, CoreSide } from './sides-score.service';
 export type { PlayerInfo } from './rosters.service';
 export type { TeamEconomyMeta } from './economy.service';

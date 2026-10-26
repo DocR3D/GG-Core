@@ -7,6 +7,8 @@ import { MatchCommandsService } from '@app/commands/match-commands.service';
 import { MatchPhase } from '@domain/phase.types';
 import type { CommandEvent } from '@domain/events/command.event';
 
+import { isNonPlayingSide } from '@domain/side.types';
+import { CS2_CHAT_COMMANDS } from '@domain/rules/rules.constants';
 type GameSide = 'CT' | 'T' | 'SPECTATOR';
 type Channel  = 'say' | 'say_team';
 
@@ -108,7 +110,7 @@ private ensureGlobalInit() {
     this.lastByPlayer.set(k, now);
 
     // 2) guard spectateur
-    if (side === 'SPECTATOR' && command !== 'init') {
+    if (isNonPlayingSide(side) && command !== CS2_CHAT_COMMANDS.INIT) {
       this.logger.debug(`[COMMAND] ignored from spectator: ${who} cmd=${command}`);
       return;
     }

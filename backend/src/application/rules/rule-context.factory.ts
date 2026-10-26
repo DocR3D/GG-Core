@@ -5,6 +5,7 @@ import { MatchOrchestrator } from '@app/match/match-orchestrator.service';
 import { MatchCommandsService } from '@app/commands/match-commands.service';
 import { REDIS_PUB } from '@adapters/redis/redis.tokens';
 import type Redis from 'ioredis';
+import { REDIS_CHANNELS } from '@app/match/state/redis.keys';
 
 @Injectable()
 export class RuleContextFactory {
@@ -24,6 +25,14 @@ export class RuleContextFactory {
       getServerIdFromMatchId: this.mss.getServerIdFromMatchId.bind(this.mss),
       getMatchIdFromServerId: this.mss.getMatchIdFromServerId.bind(this.mss),
       getPlayers: this.mss.getPlayers.bind(this.mss),
+      getSettings: this.mss.getSettings.bind(this.mss),
+      setSettings: this.mss.setSettings.bind(this.mss),
+      getLastScoredRound: this.mss.getLastScoredRound.bind(this.mss),
+      setLastScoredRound: this.mss.setLastScoredRound.bind(this.mss),
+      isHalftimePlayed: this.mss.isHalftimePlayed.bind(this.mss),
+      setHalftimePlayed: this.mss.setHalftimePlayed.bind(this.mss),
+      getOvertimeCount: this.mss.getOvertimeCount.bind(this.mss),
+      setOvertimeCount: this.mss.setOvertimeCount.bind(this.mss),
     } as const;
 
     return {
@@ -40,7 +49,7 @@ export class RuleContextFactory {
 
       pubEvent: async (type: string, payload: any) => {
         await this.pub.publish(
-          'ggbot:events',
+          REDIS_CHANNELS.EVENTS,
           JSON.stringify({
             v: 1,
             type,

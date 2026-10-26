@@ -3,6 +3,7 @@ import { BusPublisher } from '@adapters/bus/publisher';
 import { MatchIdResolver } from '@app/match/state/match-id.resolver';
 import type { LogCtx } from '@app/shared/logging/logctx';
 import { MatchStateService } from '@app/match/state/match-state.service';
+import { REDIS_CHANNELS } from '@app/match/state/redis.keys';
 
 type IncomingEvent = {
   v?: number;
@@ -43,7 +44,7 @@ export class Cs2LogsService {
           }
         } catch { /* ignore */ }
       }
-      await this.publisher.publish('ggbot:events', ev);
+      await this.publisher.publish(REDIS_CHANNELS.EVENTS, ev);
     }
   }
 }

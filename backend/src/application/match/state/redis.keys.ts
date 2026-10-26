@@ -1,10 +1,21 @@
+export const REDIS_CHANNELS = {
+  /** Canal principal Pub/Sub de distribution des événements de match */
+  EVENTS: 'ggbot:events',
+  /** Canal spécifique de flux primaire CS2 par serveur */
+  eventsPrimary: (serverId: string) => `ggbot:events_primary:${serverId}`,
+  /** Canal de commande RCON vers un agent spécifique */
+  agentActions: (serverId: string) => `ggbot:agent:${serverId}:actions`,
+} as const;
+
 export const redisConst = {
   // Liaison serveur ↔ match
   serverMatch: (serverId: string) => `server:${serverId}:currentMatch`,
   matchServer: (matchId: string) => `match:${matchId}:server`,
 
-  // Bus d’événements
-  eventsPrimary: (serverId: string) => `ggbot:events_primary:${serverId}`,
+  // Bus d’événements & Canaux Pub/Sub
+  events: REDIS_CHANNELS.EVENTS,
+  eventsPrimary: REDIS_CHANNELS.eventsPrimary,
+  agentActions: REDIS_CHANNELS.agentActions,
 
   // Match-level
   phase:        (m: string) => `match:${m}:phase`,
@@ -19,7 +30,13 @@ export const redisConst = {
   timeouts:     (m: string) => `match:${m}:timeouts`,       // hash
   teams:        (m: string) => `match:${m}:teams`,          // hash
 
-  // 🔹 NEW: map (hash)
+  // Settings & Lifecycle
+  settings:     (m: string) => `match:${m}:settings`,       // hash
+  lastScoredRound: (m: string) => `match:${m}:last_scored_round`,
+  halftimePlayed: (m: string) => `match:${m}:halftime_played`,
+  overtimeCount:  (m: string) => `match:${m}:overtime_count`,
+
+  // Map (hash)
   map:          (m: string) => `match:${m}:map`,            // hash { name, set_at }
 
   ready:        (m: string) => `match:${m}:ready`,          // hash

@@ -7,13 +7,14 @@ import { isCommand, AnyEvent } from '@domain/events/match.event';
 import { MatchEventsHandler } from './match-events.handler';
 import { ChatCommandHandler } from './chat-commands.handler';
 import { MatchStateService } from '@app/match/state/match-state.service';
+import { REDIS_CHANNELS } from '@app/match/state/redis.keys';
 
 @Injectable()
 export class EventsRouterSubscriber implements OnModuleInit, OnModuleDestroy {
   private readonly logger = new Logger(EventsRouterSubscriber.name);
 
   // Aligne-toi sur ce que publient tes producteurs (agent/logs/etc.)
-  private readonly channels = ['ggbot:events'] as const;
+  private readonly channels = [REDIS_CHANNELS.EVENTS] as const;
 
   private onMessageBound = (channel: string, message: string) =>
     this.onMessage(channel, message);

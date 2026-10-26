@@ -5,6 +5,7 @@
  * TC-05 : World kill avec victime = nom de map (faux kill filtré)
  */
 import { KnifeRule } from './knife.rule';
+import { CS2_CFG } from '@domain/rules/rules.constants';
 import { EventTypes } from '@domain/events/event.types';
 import { MatchPhase } from '@domain/phase.types';
 
@@ -83,7 +84,7 @@ describe('TC-02 — KnifeRule : flow knife → knife_choice', () => {
 
     expect(ctx.orch.execCfg).toHaveBeenCalledWith(
       expect.objectContaining({ serverId: SERVER_ID }),
-      'ggbot/knife.cfg',
+      CS2_CFG.KNIFE,
     );
     expect(ctx.say).toHaveBeenCalledWith('[knife] Knife round begins!');
   });
@@ -113,7 +114,7 @@ describe('TC-02 — KnifeRule : flow knife → knife_choice', () => {
     expect(ctx.orch.applyKnifeResult).toHaveBeenCalledWith(MATCH_ID, 'CT');
     expect(ctx.orch.execCfg).toHaveBeenCalledWith(
       expect.objectContaining({ serverId: SERVER_ID }),
-      'ggbot/knife_undo.cfg',
+      CS2_CFG.KNIFE_UNDO,
     );
     expect(ctx.orch.startPhaseCountdown).toHaveBeenCalledWith(
       MATCH_ID,

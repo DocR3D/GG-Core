@@ -1,13 +1,13 @@
-import { Injectable } from "@nestjs/common";
-import { KnifeRule } from "./knife.rule";
-import { PhaseRule } from "@domain/rules";
-import { WarmupRule } from "./warmup.rule";
-import { MatchPhase } from "@domain/phase.types";
-import { KnifeChoiceRule } from "./knife-choice.rule";
-import { LiveRule } from "./live.rule";
-import { ReadyCommand } from "@app/match/commands/ready.command";
-import { KnifeChoiceCommand } from "../commands/knife-choice.command";
-import { PauseCommand } from "../commands/pause.command";
+import { Injectable } from '@nestjs/common';
+import { KnifeRule } from './knife.rule';
+import { PhaseRule } from '@domain/rules';
+import { WarmupRule } from './warmup.rule';
+import { MatchPhase } from '@domain/phase.types';
+import { KnifeChoiceRule } from './knife-choice.rule';
+import { LiveRule } from './live.rule';
+import { ReadyCommand } from '@app/match/commands/ready.command';
+import { KnifeChoiceCommand } from '../commands/knife-choice.command';
+import { PauseCommand } from '../commands/pause.command';
 
 @Injectable()
 export class RuleRegistry {
@@ -35,6 +35,8 @@ export class RuleRegistry {
     this.rules.set(MatchPhase.KNIFE_LIVE, knifeRule);
     this.rules.set(MatchPhase.KNIFE_CHOICE, knifeChoiceRule);
     this.rules.set(MatchPhase.LIVE_MAIN, liveRule);
+    this.rules.set(MatchPhase.HALFTIME, warmupRule);
+    this.rules.set(MatchPhase.OVERTIME, liveRule);
   }
 
   /**

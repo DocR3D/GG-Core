@@ -16,6 +16,7 @@ export type WsEventType =
   | 'phase:changed'
   | 'phase:cancelled'
   | 'match:state'
+  | 'match:ended'
   | 'score:update'
   | 'round:start'
   | 'round:end'

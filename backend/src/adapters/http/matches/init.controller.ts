@@ -1,24 +1,32 @@
 // src/adapters/http/matches/init.controller.ts
 import { Controller, Param, Post, Body, Logger } from '@nestjs/common';
 import { MatchStateService, type GameSide } from '@app/match/state/match-state.service';
+import { MatchOrchestrator } from '@app/match/match-orchestrator.service';
+import { MatchSettings } from '@domain/match-settings.types';
 
-type InitDto = {
-  home?: GameSide;          // 'CT' | 'T' (défaut: 'CT')
-  away?: GameSide;          // 'CT' | 'T' (défaut: 'T')
-  homeTac?: number;     // défaut: 4
-  awayTac?: number;     // défaut: 4
-  homeTech?: number;    // défaut: 0
-  awayTech?: number;    // défaut: 0
+export type InitDto = {
+  home?: GameSide;
+  away?: GameSide;
+  homeTac?: number;
+  awayTac?: number;
+  homeTech?: number;
+  awayTech?: number;
   teams?: { home_id?: string; away_id?: string; home_name?: string; away_name?: string };
   serverId?: string;
+  mapName?: string;
+  settings?: Partial<MatchSettings>;
 };
 
-@Controller('matches/:id/init')
+@Controller('matches')
 export class MatchInitController {
-  constructor(private readonly matchState: MatchStateService) {}
-    private readonly logger = new Logger('MatchInitController');
+  private readonly logger = new Logger('MatchInitController');
 
-  @Post()
+  constructor(
+    private readonly matchState: MatchStateService,
+    private readonly orch: MatchOrchestrator,
+  ) {}
+
+  @Post(':id/init')
   async init(@Param('id') matchId: string, @Body() dto: InitDto = {}) {
     const home = dto.home ?? 'CT';
     const away = dto.away ?? 'T';
@@ -35,10 +43,39 @@ export class MatchInitController {
     if (dto.teams) {
       await this.matchState.setTeams(matchId, dto.teams);
     }
+    if (dto.settings) {
+      await this.matchState.setSettings(matchId, dto.settings);
+    }
     if (dto.serverId) {
       await this.matchState.setServerIdToMatchId(dto.serverId, matchId);
       this.logger.debug(`BOUND server "${dto.serverId}" -> match "${matchId}"`);
     }
-    return { ok: true };
+    return { ok: true, matchId };
+  }
+
+  @Post(':id/start')
+  async start(@Param('id') matchId: string, @Body() dto: InitDto = {}) {
+    // 1. Initialize state first
+    await this.init(matchId, dto);
+
+    // 2. Automated server commands if serverId provided
+    if (dto.serverId) {
+      const res = await this.orch.startMatch({
+        serverId: dto.serverId,
+        matchId,
+        mapName: dto.mapName,
+        settings: dto.settings,
+      });
+      return res;
+    }
+
+    return { ok: true, matchId };
+  }
+
+  // Backward compatibility endpoint for CI smoke tests (POST /api/matches/init)
+  @Post('init')
+  async initWithoutParam(@Body() dto: InitDto & { matchId?: string } = {}) {
+    const matchId = dto.matchId ?? 'match-default';
+    return this.init(matchId, dto);
   }
 }

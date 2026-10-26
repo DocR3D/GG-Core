@@ -9,7 +9,7 @@ export type RuleContext = {
   // write
   orch: MatchOrchestrator;
 
-  // read-only
+  // read-only / state helpers
   state: Pick<
     MatchStateService,
     | 'getSnapshot'
@@ -17,6 +17,14 @@ export type RuleContext = {
     | 'getServerIdFromMatchId'
     | 'getMatchIdFromServerId'
     | 'getPlayers'              // 👈 ajoute ceci
+    | 'getSettings'
+    | 'setSettings'
+    | 'getLastScoredRound'
+    | 'setLastScoredRound'
+    | 'isHalftimePlayed'
+    | 'setHalftimePlayed'
+    | 'getOvertimeCount'
+    | 'setOvertimeCount'
   >;
 
   // helpers conservés

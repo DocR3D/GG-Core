@@ -5,6 +5,8 @@ import { RuleContext } from '@domain/rules';
 import { MatchCommandsService } from '@app/commands/match-commands.service';
 import { PauseMatchService, PauseReason } from '@app/match/pause/pause.service';
 import { Logical } from '@app/match/state';
+import { isNonPlayingSide, GameSide } from '@domain/side.types';
+import { CS2_CHAT_COMMANDS } from '@domain/rules/rules.constants';
 
 @Injectable()
 export class PauseCommand extends BaseCommand {
@@ -20,9 +22,9 @@ export class PauseCommand extends BaseCommand {
 
   async canHandle(event: CommandEvent, ctx: RuleContext): Promise<boolean> {
     const isPauseRequest =
-      event.payload.command === 'pause' ||
+      event.payload.command === CS2_CHAT_COMMANDS.PAUSE ||
       event.payload.command === 'tac' ||
-      event.payload.command === 'tech';
+      event.payload.command === CS2_CHAT_COMMANDS.TECH;
     const isUnpauseRequest = event.payload.command === 'unpause';
 
     if (!isPauseRequest && !isUnpauseRequest) {
@@ -50,23 +52,22 @@ export class PauseCommand extends BaseCommand {
 
   async handle(event: CommandEvent, ctx: RuleContext): Promise<boolean> {
     const isPauseRequest =
-      event.payload.command === 'pause' ||
+      event.payload.command === CS2_CHAT_COMMANDS.PAUSE ||
       event.payload.command === 'tac' ||
-      event.payload.command === 'tech';
+      event.payload.command === CS2_CHAT_COMMANDS.TECH;
 
     this.logCommand(event.payload.command, event);
 
     if (isPauseRequest) {
       // Garde-fous: seuls les joueurs affectés à une équipe peuvent pauser
-      if (event.payload.sender.team === 'SPECTATOR') return false;
-      if (event.payload.sender.team === 'Unassigned') return false;
+      if (isNonPlayingSide(event.payload.sender.team)) return false;
 
       // Résolution de l'équipe logique (home/away) depuis CT/T
-      const team = await ctx.orch.sideToLogical(event.matchId, event.payload.sender.team);
+      const team = await ctx.orch.sideToLogical(event.matchId, event.payload.sender.team as GameSide);
       if (!team) return false;
 
       const reason: PauseReason =
-        event.payload.command === 'tech' ? 'technical' : 'tactical';
+        event.payload.command === CS2_CHAT_COMMANDS.TECH ? 'technical' : 'tactical';
 
       // Politique d'autorisation (banque tactique, etc.)
       const isAllowed = await this.pauseService.isPauseAllowed(event.matchId, {

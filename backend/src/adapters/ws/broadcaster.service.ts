@@ -5,6 +5,7 @@ import { REDIS_SUB } from '@adapters/redis/redis.tokens';
 import { RealtimeEmitter } from './ws-emitter.internal';
 import { SeqService } from '@app/match/state/sequence.service';
 import { MatchStateService } from '@app/match/state/match-state.service';
+import { REDIS_CHANNELS } from '@app/match/state/redis.keys';
 
 import type { Audience, InternalEvent } from '@domain/events/internal-events';
 import type {
@@ -43,8 +44,8 @@ export class WsBroadcaster implements OnModuleInit {
   ) {}
 
   async onModuleInit() {
-    await this.sub.subscribe('ggbot:events');
-    this.logger.log('✅ Subscribed to Redis channel: ggbot:events');
+    await this.sub.subscribe(REDIS_CHANNELS.EVENTS);
+    this.logger.log(`✅ Subscribed to Redis channel: ${REDIS_CHANNELS.EVENTS}`);
 
     // mappe bus.type -> InternalEvent.name
     const mapTypeToName = (t?: string): InternalEvent['name'] | undefined => {

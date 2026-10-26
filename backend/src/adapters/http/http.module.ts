@@ -1,9 +1,10 @@
 // src/adapters/http/http.module.ts
-import { Module } from '@nestjs/common';
+import { Module, forwardRef } from '@nestjs/common';
 
 // Modules "métier"
 import { MatchStateModule } from '@app/match-state.module';
 import { BusModule } from '@app/bus/bus.module';
+import { MatchOrchestratorModule } from '@app/match/match-orchestrator.module';
 
 // Contrôleurs HTTP
 import { MatchesController } from './matches/matches.controller';
@@ -18,6 +19,7 @@ import { HealthController } from './health/health.controller';
 @Module({
   imports: [
     MatchStateModule,
+    forwardRef(() => MatchOrchestratorModule),
     BusModule,
     Cs2LogsModule, // nouvelle intégration propre du module CS2 logs
   ],

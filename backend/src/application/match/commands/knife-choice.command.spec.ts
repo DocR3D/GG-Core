@@ -32,7 +32,7 @@ function makeCommandEvent(command: 'stay' | 'switch' | 'swap', senderTeam: 'CT' 
   } as any;
 }
 
-function makeCtx(knifeWinnerSide: 'CT' | 'T' = 'CT', swapResult = true) {
+function makeCtx(knifeWinnerSide: 'CT' | 'T' = 'CT', swapResult = true, warmupAfterKnife = false) {
   return {
     matchId: MATCH_ID,
     serverId: SERVER_ID,
@@ -43,10 +43,13 @@ function makeCtx(knifeWinnerSide: 'CT' | 'T' = 'CT', swapResult = true) {
       startPhaseCountdown: jest.fn().mockResolvedValue(undefined),
       swapSides: jest.fn().mockResolvedValue(swapResult),
       push: jest.fn().mockResolvedValue(undefined),
+      setPhase: jest.fn().mockResolvedValue(undefined),
+      startWarmup: jest.fn().mockResolvedValue(undefined),
     },
     state: {
       getServerIdFromMatchId: jest.fn().mockResolvedValue(SERVER_ID),
       getSnapshot: jest.fn().mockResolvedValue({}),
+      getSettings: jest.fn().mockResolvedValue({ warmupAfterKnife }),
     },
   } as any;
 }
@@ -83,7 +86,7 @@ describe('TC-08 — KnifeChoiceCommand.canHandle', () => {
 // TC-02 (suite) — handle !stay
 // ---------------------------------------------------------------------------
 describe('TC-02 — KnifeChoiceCommand.handle : !stay', () => {
-  it('publie knife_choice:stay et déclenche countdown LIVE_MAIN 5s', async () => {
+  it('publie knife_choice:stay et déclenche countdown LIVE_MAIN 5s quand warmupAfterKnife=false (rapide LAN)', async () => {
     const cmd = makeCmd();
     const ctx = makeCtx();
 
@@ -99,6 +102,18 @@ describe('TC-02 — KnifeChoiceCommand.handle : !stay', () => {
     );
     expect(ctx.pubEvent).toHaveBeenCalledWith('knife_choice', expect.objectContaining({ choice: 'stay' }));
     expect(ctx.orch.swapSides).not.toHaveBeenCalled();
+  });
+
+  it('bascule en WARMUP_MAIN quand warmupAfterKnife=true (mode finale/scène)', async () => {
+    const cmd = makeCmd();
+    const ctx = makeCtx('CT', true, true);
+
+    const result = await cmd.handle(makeCommandEvent('stay'), ctx);
+
+    expect(result).toBe(true);
+    expect(ctx.orch.setPhase).toHaveBeenCalledWith(MATCH_ID, MatchPhase.WARMUP_MAIN);
+    expect(ctx.say).toHaveBeenCalledWith(expect.stringContaining('échauffement tactique'));
+    expect(ctx.orch.startPhaseCountdown).not.toHaveBeenCalled();
   });
 });
 
@@ -125,7 +140,7 @@ describe('TC-02 — KnifeChoiceCommand.handle : !switch', () => {
     expect(ctx.pubEvent).toHaveBeenCalledWith('knife_choice', expect.objectContaining({ choice: 'switch' }));
   });
 
-  it("ne publie pas sides:swapped si swapSides retourne false", async () => {
+  it('ne publie pas sides:swapped si swapSides retourne false', async () => {
     const cmd = makeCmd();
     const ctx = makeCtx('CT', false);
 

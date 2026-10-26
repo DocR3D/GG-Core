@@ -5,7 +5,7 @@ import { REDIS_CMD, REDIS_PUB } from '@adapters/redis/redis.tokens';
 import { GameSide, Logical, MatchStateService } from '../match/state/match-state.service';
 import { MatchPhaseService } from '@app/match/phase/match-phase.service';
 
-import { redisConst } from '../match/state/redis.keys';
+import { redisConst, REDIS_CHANNELS } from '../match/state/redis.keys';
 import * as crypto from 'crypto';
 import { PauseMatchService } from '@app/match/pause/pause.service';
 import { MatchPhase } from '@domain/phase.types';
@@ -38,7 +38,7 @@ type AgentAction =
   | { id: string; ts: number; type: 'action'; serverId: string; action: 'rcon';         payload: { text: string };                                                             source?: any }
   | { id: string; ts: number; type: 'action'; serverId: string; action: 'changelevel';  payload: { map: string };                                                          source?: any };
 
-const agentActionsCh = (serverId: string) => `ggbot:agent:${serverId}:actions`;
+const agentActionsCh = (serverId: string) => REDIS_CHANNELS.agentActions(serverId);
 function uuid() { return crypto.randomUUID?.() ?? crypto.randomBytes(16).toString('hex'); }
 
 interface InitOpts {

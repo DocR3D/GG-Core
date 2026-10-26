@@ -2,7 +2,7 @@
 import { Injectable, Logger, Inject, forwardRef, Optional } from '@nestjs/common';
 import type Redis from 'ioredis';
 import { REDIS_CMD, REDIS_PUB } from '@adapters/redis/redis.tokens';
-import { redisConst } from '@app/match/state/redis.keys';
+import { redisConst, REDIS_CHANNELS } from '@app/match/state/redis.keys';
 
 import { MatchPhase, Phase, RoundPhase} from '@domain/phase.types';
 import { RuleContextFactory } from '@app/rules/rule-context.factory';
@@ -66,7 +66,7 @@ export class MatchPhaseService {
   if (serverId && shouldAnnounce(remain) && remain > 0) {
     await this.actions.say(serverId, `Début de ${nextPhase} dans ${remain}s…`);
   }
-  await this.pub.publish('ggbot:events', JSON.stringify({
+  await this.pub.publish(REDIS_CHANNELS.EVENTS, JSON.stringify({
     v: 1, type: 'phase:countdown', matchId, serverId, timestamp: Date.now(),
     source: 'system', kind: 'primary', payload: { nextPhase, remain },
   }));
@@ -99,7 +99,7 @@ export class MatchPhaseService {
       if (serverId && shouldAnnounce(remain)) {
         await this.actions.say(serverId, `Début de ${nextPhase} dans ${remain}s…`);
       }
-      await this.pub.publish('ggbot:events', JSON.stringify({
+      await this.pub.publish(REDIS_CHANNELS.EVENTS, JSON.stringify({
         v: 1, type: 'phase:countdown', matchId, serverId, timestamp: Date.now(),
         source: 'system', kind: 'primary', payload: { nextPhase, remain },
       }));
@@ -161,7 +161,7 @@ public async cancelPhaseCountdown(
   await this.redis.del(lockKey);
   if (!opts?.keepPending) await this.redis.del(pendingKey);
 
-  await this.pub.publish('ggbot:events', JSON.stringify({
+  await this.pub.publish(REDIS_CHANNELS.EVENTS, JSON.stringify({
     v: 1,
     type: 'phase:cancelled',
     matchId,
@@ -198,7 +198,7 @@ private async applyPhase(
   }
 
   // 3) Diffuse l'événement + feedback ingame
-  await this.pub.publish('ggbot:events', JSON.stringify({
+  await this.pub.publish(REDIS_CHANNELS.EVENTS, JSON.stringify({
     v: 1,
     type: EventTypes.PHASE_CHANGED,
     matchId,
