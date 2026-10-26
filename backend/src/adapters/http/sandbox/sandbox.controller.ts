@@ -1046,9 +1046,9 @@ export class SandboxController {
         }
 
         case 'score:update': {
-          const ct = p?.ct ?? p?.scoreCt;
-          const t = p?.t ?? p?.scoreT;
-          const round = p?.round ?? (ct !== undefined && t !== undefined ? ct + t : '?');
+          const ct = p?.score?.ct ?? p?.ct ?? p?.scoreCt;
+          const t = p?.score?.t ?? p?.t ?? p?.scoreT;
+          const round = p?.score?.round ?? p?.round ?? (ct !== undefined && t !== undefined ? ct + t : '?');
           log('entry', '<span class="tag-score">SCORE</span> CT <b>' + ct + '</b> - <b>' + t + '</b> T (Round ' + round + ')', 'match');
           if (autoSync && ct !== undefined && t !== undefined) {
             document.getElementById('scoreCt').value = ct;
