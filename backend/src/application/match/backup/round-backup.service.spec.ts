@@ -174,5 +174,100 @@ describe('RoundBackupService', () => {
       expect(p1?.defusekit).toBe(1);
       expect(p1?.items).toEqual(['weapon_m4a1_silencer', 'weapon_usp_silencer', 'weapon_knife']);
     });
+
+    describe('buildBackupOptionsFromSnapshot & Forging Custom Backups', () => {
+      it('devrait synthétiser un backup Valve officiel complet depuis un Snapshot GG-Core (MR12 première mi-temps)', () => {
+        const mockSnapshot = {
+          matchId: 'match-vitality-liquid',
+          sides: { home: 'CT', away: 'T' },
+          score: { ct: 8, t: 4, round: 12 },
+          teams: {
+            home_name: 'Team Vitality',
+            away_name: 'Team Liquid',
+          },
+          economy: {
+            home_loss_streak: 0,
+            away_loss_streak: 3,
+            players: {
+              '76561198000000001': { money: 5200, equip: 4100 },
+              '76561198000000002': { money: 1900, equip: 3700 },
+            },
+          },
+          players: [
+            {
+              steamId: '76561198000000001',
+              name: 'ZywOo',
+              logical: 'home',
+              armor: 100,
+              helmet: 1,
+              defusekit: 1,
+              items: ['weapon_m4a1_silencer', 'weapon_deagle', 'weapon_knife'],
+            },
+            {
+              steamId: '76561198000000002',
+              name: 'NAF',
+              logical: 'away',
+              armor: 100,
+              helmet: 1,
+              defusekit: 0,
+              items: ['weapon_ak47', 'weapon_glock'],
+            },
+          ],
+        };
+
+        const options = service.buildBackupOptionsFromSnapshot(mockSnapshot, 'de_nuke');
+
+        expect(options.round).toBe(12);
+        expect(options.team1Name).toBe('Team Vitality');
+        expect(options.team2Name).toBe('Team Liquid');
+        expect(options.scoreTeam1).toBe(8);
+        expect(options.scoreTeam2).toBe(4);
+        expect(options.map).toBe('de_nuke');
+        expect(options.history?.consecutiveCTLoses).toBe(0);
+        expect(options.history?.consecutiveTLoses).toBe(3);
+        expect(options.history?.loserMostRecentTeam).toBe('T');
+
+        // Génération du VDF
+        const vdf = service.generateValveBackup(options);
+        expect(vdf).toContain('"SaveFile"');
+        expect(vdf).toContain('"team1"\t\t"Team Vitality"');
+        expect(vdf).toContain('"team2"\t\t"Team Liquid"');
+        expect(vdf).toContain('"NumConsecutiveTerroristLoses"\t\t"3"');
+        expect(vdf).toContain('"NumConsecutiveCTLoses"\t\t"0"');
+
+        // Re-parsing et validation d'intégrité
+        const parsed = service.parseValveBackup(vdf);
+        expect(parsed.round).toBe(12);
+        expect(parsed.firstHalfScore).toEqual({ team1: 8, team2: 4 });
+
+        const zywoo = parsed.playersTeam1.find((p) => p.name === 'ZywOo');
+        expect(zywoo).toBeDefined();
+        expect(zywoo?.cash).toBe(5200);
+        expect(zywoo?.armor).toBe(100);
+        expect(zywoo?.helmet).toBe(1);
+        expect(zywoo?.defusekit).toBe(1);
+        expect(zywoo?.items).toEqual(['weapon_m4a1_silencer', 'weapon_deagle', 'weapon_knife']);
+
+        const naf = parsed.playersTeam2.find((p) => p.name === 'NAF');
+        expect(naf).toBeDefined();
+        expect(naf?.cash).toBe(1900);
+        expect(naf?.armor).toBe(100);
+        expect(naf?.helmet).toBe(1);
+        expect(naf?.defusekit).toBeUndefined();
+        expect(naf?.items).toEqual(['weapon_ak47', 'weapon_glock']);
+      });
+
+      it('devrait inverser les rôles lors de la seconde mi-temps (Round 15, sides alternés)', () => {
+        const isTeam1CtRound12 = service.isTeam1OnCt(12);
+        const isTeam1CtRound13 = service.isTeam1OnCt(13);
+        const isTeam1CtRound25 = service.isTeam1OnCt(25); // Overtime round 1
+        const isTeam1CtRound28 = service.isTeam1OnCt(28); // Overtime round 4 (inversion MR3)
+
+        expect(isTeam1CtRound12).toBe(true);
+        expect(isTeam1CtRound13).toBe(false);
+        expect(isTeam1CtRound25).toBe(true);
+        expect(isTeam1CtRound28).toBe(false);
+      });
+    });
   });
 });

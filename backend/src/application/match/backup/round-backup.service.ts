@@ -66,6 +66,111 @@ export class RoundBackupService {
   private readonly logger = new Logger(RoundBackupService.name);
 
   /**
+   * Construit automatiquement les options d'un backup Valve VDF à partir d'un snapshot d'état GG-Core
+   * Permet de forger une sauvegarde officielle Valve CS2 même si mp_backup_round_auto était désactivé in-game.
+   */
+  buildBackupOptionsFromSnapshot(
+    snapshot: any,
+    map = CS2_RULES.DEFAULT_MAP,
+    overrides?: Partial<ValveBackupOptions>,
+  ): ValveBackupOptions {
+    const round = snapshot?.score?.round ?? overrides?.round ?? 0;
+    const isTeam1Ct = this.isTeam1OnCt(round);
+
+    const homeIsCt = snapshot?.sides?.home === 'CT';
+    const ctName = homeIsCt
+      ? (snapshot?.teams?.home_name || 'Team CT')
+      : (snapshot?.teams?.away_name || 'Team CT');
+    const tName = homeIsCt
+      ? (snapshot?.teams?.away_name || 'Team T')
+      : (snapshot?.teams?.home_name || 'Team T');
+
+    const scoreCt = snapshot?.score?.ct ?? 0;
+    const scoreT = snapshot?.score?.t ?? 0;
+
+    // Mapper fidèlement vers team1 et team2 selon le côté CT/T au round courant
+    const team1Name = isTeam1Ct ? ctName : tName;
+    const team2Name = isTeam1Ct ? tName : ctName;
+    const scoreTeam1 = isTeam1Ct ? scoreCt : scoreT;
+    const scoreTeam2 = isTeam1Ct ? scoreT : scoreCt;
+
+    // Streaks économiques (loss streak -> palier de bonus)
+    const homeStreak = Number(snapshot?.economy?.home_loss_streak ?? snapshot?.economy?.meta?.home_loss_streak ?? 0);
+    const awayStreak = Number(snapshot?.economy?.away_loss_streak ?? snapshot?.economy?.meta?.away_loss_streak ?? 0);
+    const consecutiveCTLoses = homeIsCt ? homeStreak : awayStreak;
+    const consecutiveTLoses = homeIsCt ? awayStreak : homeStreak;
+
+    // Roster & Argent des joueurs
+    const playersList: any[] = Array.isArray(snapshot?.players) ? snapshot.players : [];
+    const econPlayers: Record<string, any> = snapshot?.economy?.players || {};
+
+    const playersTeam1: ValveBackupPlayer[] = [];
+    const playersTeam2: ValveBackupPlayer[] = [];
+
+    for (const p of playersList) {
+      const isHome = p.logical === 'home';
+      const isPlayerCt = homeIsCt ? isHome : !isHome;
+      const isPlayerTeam1 = isTeam1Ct ? isPlayerCt : !isPlayerCt;
+
+      const playerMoney = typeof econPlayers[p.steamId] === 'object'
+        ? econPlayers[p.steamId]?.money
+        : econPlayers[p.steamId];
+
+      const vPlayer: ValveBackupPlayer = {
+        steamId: p.steamId,
+        name: p.name || p.steamId,
+        cash: playerMoney !== undefined ? playerMoney : (p.cash ?? 800),
+        armor: p.armor ?? 100,
+        helmet: p.helmet ?? 1,
+        defusekit: p.defusekit ?? (isPlayerCt ? 1 : 0),
+        items: p.items,
+      };
+
+      if (isPlayerTeam1) {
+        playersTeam1.push(vPlayer);
+      } else {
+        playersTeam2.push(vPlayer);
+      }
+    }
+
+    return {
+      round,
+      team1Name: overrides?.team1Name || team1Name,
+      team2Name: overrides?.team2Name || team2Name,
+      map: overrides?.map || map,
+      scoreTeam1: overrides?.scoreTeam1 ?? scoreTeam1,
+      scoreTeam2: overrides?.scoreTeam2 ?? scoreTeam2,
+      firstHalfScore: overrides?.firstHalfScore,
+      secondHalfScore: overrides?.secondHalfScore,
+      overtimeScore: overrides?.overtimeScore,
+      history: {
+        consecutiveCTLoses,
+        consecutiveTLoses,
+        loserMostRecentTeam: consecutiveCTLoses > 0 ? 'CT' : 'T',
+        ...overrides?.history,
+      },
+      playersTeam1: overrides?.playersTeam1 || (playersTeam1.length > 0 ? playersTeam1 : undefined),
+      playersTeam2: overrides?.playersTeam2 || (playersTeam2.length > 0 ? playersTeam2 : undefined),
+      playersAliveCT: Math.max(1, playersTeam1.length),
+      playersAliveT: Math.max(1, playersTeam2.length),
+      ...overrides,
+    };
+  }
+
+  /**
+   * Détermine si l'entité native Valve "team1" est CT ou T à un round donné.
+   * - En MR12 : rounds 1-12 = CT, rounds 13-24 = T (inversion mi-temps)
+   * - En Overtime MR3 : alterne toutes les 3 manches
+   */
+  isTeam1OnCt(round: number, mr = 12, otMr = 3): boolean {
+    if (round <= mr) return true;
+    if (round <= mr * 2) return false;
+    const otRound = round - (mr * 2);
+    const otHalfIndex = Math.floor((otRound - 1) / otMr);
+    return otHalfIndex % 2 === 0;
+  }
+
+  /**
    * Génère le contenu d'un fichier de backup natif Valve CS2 au format KeyValues VDF (.txt)
    */
   generateValveBackup(opts: ValveBackupOptions): string {
