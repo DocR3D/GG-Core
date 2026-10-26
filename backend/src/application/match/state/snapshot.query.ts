@@ -3,7 +3,7 @@ import type Redis from 'ioredis';
 import { REDIS_CMD } from '@adapters/redis/redis.tokens';
 import { redisConst } from './redis.keys';
 import { SidesScoreService} from './sides-score.service';
-import { Phase } from '@domain/phase.types';
+import { Phase, MatchPhase, RoundPhase } from '@domain/phase.types';
 
 type TeamsDoc = {
   ct_id?: string | null;
@@ -48,6 +48,8 @@ export class SnapshotQuery {
       pauseHash,
       homeIds,
       awayIds,
+      matchPhaseRaw,
+      roundPhaseRaw,
     ] = await Promise.all([
       this.sidesScore.getSides(matchId),
       this.redis.hgetall(redisConst.score(matchId)),
@@ -58,6 +60,8 @@ export class SnapshotQuery {
       this.redis.hgetall(redisConst.pause(matchId)),
       this.redis.lrange(redisConst.lineupHome(matchId), 0, -1),
       this.redis.lrange(redisConst.lineupAway(matchId), 0, -1),
+      this.redis.get(redisConst.phase(matchId)),
+      this.redis.get(redisConst.roundPhase(matchId)),
     ]);
 
     // Résolution ct_id / t_id si non fournis explicitement
@@ -110,7 +114,12 @@ export class SnapshotQuery {
       if (pauseTeam === 'away') effectiveAwayTacSec = Math.max(0, tacAwaySec - elapsedSec);
     }
 
+    const matchPhase = (matchPhaseRaw as MatchPhase) || MatchPhase.WARMUP_MAIN;
+    const roundPhase = (roundPhaseRaw as RoundPhase) || (scoreHash?.phase as RoundPhase) || RoundPhase.FREEZE;
+
     return {
+      phase: matchPhase,
+      roundPhase,
       matchId,
       sides,
       score: {

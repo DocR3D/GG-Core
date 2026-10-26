@@ -855,13 +855,14 @@ export class SandboxController {
         const data = await res.json();
         if (data.ok && data.snapshot) {
           const s = data.snapshot;
-          if (s.phase) document.getElementById('phase').value = s.phase;
+          const currentPhase = s.phase || s.score?.phase || 'live_main';
+          if (document.getElementById('phase')) document.getElementById('phase').value = currentPhase;
           if (s.score) {
             document.getElementById('scoreCt').value = s.score.ct ?? 0;
             document.getElementById('scoreT').value = s.score.t ?? 0;
           }
           updateComputedFields();
-          log('time', 'État actuel : Phase=' + s.phase + ' Round=' + (s.score?.round ?? 0) + ' CT=' + (s.score?.ct ?? 0) + ' T=' + (s.score?.t ?? 0));
+          log('time', 'État actuel : Phase=' + currentPhase + ' Round=' + (s.score?.round ?? 0) + ' CT=' + (s.score?.ct ?? 0) + ' T=' + (s.score?.t ?? 0));
         }
       } catch (err) {
         log('error', "Impossible de récupérer l'état: " + err.message);
