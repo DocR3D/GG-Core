@@ -46,4 +46,5 @@ export class InGameRestoreDto {
   playersTeam2?: ValveBackupPlayer[];
   backupFileName?: string;
   applyViaRcon?: boolean;
+  reloadMap?: boolean;
 }

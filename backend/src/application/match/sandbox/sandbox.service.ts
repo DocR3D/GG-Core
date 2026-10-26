@@ -290,20 +290,27 @@ export class SandboxService {
     const rconCommand = `mp_backup_restore_load_file ${fileName}`;
 
     if (dto.applyViaRcon !== false) {
-      // 1. Quitter tout mode warmup et relancer le moteur pour sortir d'un Game Over / Match End
+      // 0. Si demandé (ex: match précédent en "Game Over" complet), recharger la carte proprement sans déconnecter les joueurs
+      if (dto.reloadMap) {
+        this.logger.log(`[Sandbox] Rechargement préalable de la carte via changelevel ${map}`);
+        await this.cmds.rcon({
+          serverId,
+          matchId,
+          command: `changelevel ${map}`,
+        });
+        await new Promise((resolve) => setTimeout(resolve, 2000));
+      }
+
+      // 1. Désactiver impérativement l'autopause de Valve (qui bloque sinon le round à 0:00),
+      // garantir les bots pour équilibrer les deux camps (1v1 mini) et quitter le warmup
       await this.cmds.rcon({
         serverId,
         matchId,
-        command: 'mp_warmup_end',
-      });
-      await this.cmds.rcon({
-        serverId,
-        matchId,
-        command: 'mp_restartgame 1',
+        command: 'mp_backup_restore_load_autopause 0; bot_quota 2; bot_quota_mode fill; mp_warmup_end; mp_restartgame 1',
       });
 
-      // Attendre 1.5s que le moteur CS2 effectue son restartgame
-      await new Promise((resolve) => setTimeout(resolve, 1500));
+      // Attendre 1.2s que le moteur CS2 effectue son cycle de restart
+      await new Promise((resolve) => setTimeout(resolve, 1200));
 
       // 2. Charger le backup natif Valve par-dessus le match actif
       await this.cmds.rcon({
@@ -311,13 +318,17 @@ export class SandboxService {
         matchId,
         command: rconCommand,
       });
-      // 3. Et unpause pour que le round démarre immédiatement in-game
+
+      // Attendre 800ms que le checkpoint soit appliqué par le moteur de jeu
+      await new Promise((resolve) => setTimeout(resolve, 800));
+
+      // 3. Unpause explicite pour débloquer le timer et lancer le freeze time / round live
       await this.cmds.rcon({
         serverId,
         matchId,
-        command: 'mp_unpause_match',
+        command: 'mp_unpause_match; unpause',
       });
-      this.logger.log(`[Sandbox] Séquence RCON exécutée (${serverId}): mp_restartgame 1 -> [1.5s] -> ${rconCommand} -> mp_unpause_match`);
+      this.logger.log(`[Sandbox] Séquence RCON exécutée (${serverId}): autopause 0 -> [1.2s] -> ${rconCommand} -> [800ms] -> unpause`);
     }
 
     // Également injecter l'état dans Redis pour cohérence immédiate du scoreboard backend
@@ -397,5 +408,21 @@ export class SandboxService {
    */
   async getState(matchId: string): Promise<any> {
     return this.snapshotQ.getSnapshot(matchId);
+  }
+
+  /**
+   * Exécute une commande RCON directe sur le serveur CS2 ciblé
+   */
+  async executeRcon(serverId: string, command: string, matchId?: string): Promise<{ ok: boolean; command: string }> {
+    const sId = serverId.trim();
+    if (!sId) throw new BadRequestException('serverId est requis pour exécuter RCON');
+    const mid = matchId || (await this.state.getMatchIdFromServerId(sId)) || 'sandbox';
+    await this.cmds.rcon({
+      serverId: sId,
+      matchId: mid,
+      command,
+    });
+    this.logger.log(`[Sandbox] RCON direct envoyé (${sId}): ${command}`);
+    return { ok: true, command };
   }
 }

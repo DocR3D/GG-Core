@@ -95,6 +95,18 @@ export class SandboxController {
     );
   }
 
+  /**
+   * Exécute une commande RCON directe sur le serveur CS2
+   */
+  @Post('rcon')
+  @HttpCode(200)
+  async executeRcon(
+    @Body() body: { serverId: string; command: string; matchId?: string },
+  ) {
+    this.logger.log(`[Sandbox] POST /sandbox/rcon: ${JSON.stringify(body)}`);
+    return await this.sandboxService.executeRcon(body.serverId, body.command, body.matchId);
+  }
+
   private renderSandboxHtml(): string {
     return `<!DOCTYPE html>
 <html lang="fr">
@@ -249,6 +261,10 @@ export class SandboxController {
             <input type="checkbox" id="halftimePlayed" style="width: 18px; height: 18px;">
             <label for="halftimePlayed" style="cursor: pointer;">Mi-temps déjà effectuée (Halftime Played)</label>
           </div>
+          <div class="form-group" style="flex-direction: row; align-items: center; gap: 8px; margin-top: 10px;">
+            <input type="checkbox" id="reloadMap" style="width: 18px; height: 18px;">
+            <label for="reloadMap" style="cursor: pointer; color: var(--accent);">🔄 Forcer Reload Carte (si Match Terminé / Game Over)</label>
+          </div>
         </div>
 
         <div class="score-container">
@@ -328,6 +344,24 @@ export class SandboxController {
           </div>
         </div>
 
+        <div style="margin-bottom: 14px;">
+          <label style="margin-bottom: 6px; display: block; color: var(--accent);">🛠️ Contrôles Directs RCON Serveur CS2</label>
+          <div class="action-group">
+            <button class="btn btn-outline" style="border-color: var(--success); color: var(--success);" onclick="sendRcon('mp_unpause_match; unpause')">▶️ Unpause (Débloquer Timer)</button>
+            <button class="btn btn-outline" onclick="sendRcon('mp_restartgame 1')">🔄 Restart Round</button>
+            <button class="btn btn-outline" onclick="sendRcon('bot_quota 2; bot_quota_mode fill')">👥 Fix Bots 1v1</button>
+            <button class="btn btn-outline" style="border-color: var(--accent); color: var(--accent);" onclick="sendRconMap()">🗺️ Reload Map (changelevel)</button>
+          </div>
+        </div>
+
+        <div style="margin-bottom: 14px;">
+          <label style="margin-bottom: 6px; display: block;">Envoyer Commande RCON Personnalisée</label>
+          <div style="display: flex; gap: 8px;">
+            <input type="text" id="customRcon" placeholder="ex: status, bot_add, mp_freezetime 5" style="flex: 1;" onkeydown="if(event.key==='Enter') sendCustomRcon()">
+            <button class="btn btn-outline" onclick="sendCustomRcon()">Envoyer</button>
+          </div>
+        </div>
+
         <div style="margin-top: 20px;">
           <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
             <label>Console & Logs RCON Temps Réel</label>
@@ -402,9 +436,10 @@ export class SandboxController {
       const name = document.getElementById('playerName').value.trim();
       const side = document.getElementById('playerSide').value;
       const cash = parseInt(document.getElementById('playerCash').value, 10) || 16000;
+      const reloadMap = document.getElementById('reloadMap') ? document.getElementById('reloadMap').checked : false;
 
       return {
-        matchId, serverId, map, phase, round, scoreCt, scoreT, halftimePlayed, overtimeCount,
+        matchId, serverId, map, phase, round, scoreCt, scoreT, halftimePlayed, overtimeCount, reloadMap,
         player: { steamId, name, side, cash }
       };
     }
@@ -475,7 +510,8 @@ export class SandboxController {
           team2Name: 'Equipe T',
           playersTeam1: isCt ? [playerObj] : [{ steamId: '10000001', name: 'Bot_CT', cash: 16000, roundsWon: d.scoreCt }],
           playersTeam2: !isCt ? [playerObj] : [{ steamId: '10000002', name: 'Bot_T', cash: 16000, roundsWon: d.scoreT }],
-          applyViaRcon: true
+          applyViaRcon: true,
+          reloadMap: d.reloadMap
         };
 
         const res = await fetch('/sandbox/restore-ingame', {
@@ -540,6 +576,39 @@ export class SandboxController {
       } catch (err) {
         log('error', 'Erreur: ' + err.message);
       }
+    }
+
+    async function sendRcon(cmd) {
+      const d = getFormData();
+      log('cmd', 'RCON direct -> ' + cmd);
+      try {
+        const res = await fetch('/sandbox/rcon', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ serverId: d.serverId, matchId: d.matchId, command: cmd })
+        });
+        const data = await res.json();
+        if (data.ok) {
+          log('success', 'RCON exécuté avec succès : ' + cmd);
+        } else {
+          log('error', 'Échec RCON: ' + JSON.stringify(data));
+        }
+      } catch (err) {
+        log('error', 'Erreur RCON: ' + err.message);
+      }
+    }
+
+    function sendRconMap() {
+      const map = document.getElementById('map').value;
+      sendRcon('changelevel ' + map);
+    }
+
+    function sendCustomRcon() {
+      const input = document.getElementById('customRcon');
+      const val = input.value.trim();
+      if (!val) return;
+      sendRcon(val);
+      input.value = '';
     }
 
     async function refreshState() {
