@@ -83,6 +83,24 @@ describe('SandboxController', () => {
     });
   });
 
+  describe('getState', () => {
+    it('devrait retourner le snapshot complet incluant la phase du match', async () => {
+      mockService.getState.mockResolvedValue({
+        matchId: 'm-sandbox-1',
+        phase: 'live_main',
+        roundPhase: 'freeze',
+        score: { ct: 6, t: 5, round: 11 },
+      });
+
+      const res = await controller.getState('m-sandbox-1');
+      expect(res.ok).toBe(true);
+      expect(res.snapshot).toBeDefined();
+      expect(res.snapshot.phase).toBe('live_main');
+      expect(res.snapshot.roundPhase).toBe('freeze');
+      expect(mockService.getState).toHaveBeenCalledWith('m-sandbox-1');
+    });
+  });
+
   describe('getSandboxHtml', () => {
     it('devrait retourner la page HTML contenant la carte de rejeu et les fonctions JS', () => {
       let sentContent = '';
