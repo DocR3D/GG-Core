@@ -283,6 +283,50 @@ describe('Overtime (MR3)', () => {
 
     expect(ctx.orch.endMatch).toHaveBeenCalledWith(MATCH_ID, 'CT', ctx);
   });
+
+  it('effectue l\'inversion des côtés à la mi-temps de l\'Overtime (round 3 de l\'OT, ex: 15-12)', async () => {
+    const rule = new LiveRule(makePauseCmd());
+    const ctx = makeCtx({
+      lastScoredRound: 26,
+      isHalftimePlayed: true,
+      overtimeCount: 1,
+      snapshot: {
+        score: { ct: 15, t: 12, round: 27 },
+        sides: { home: 'CT', away: 'T' },
+        teams: { home_name: 'TeamA', away_name: 'TeamB' },
+      },
+    });
+
+    await (rule as any).onTeamRoundWin(makeRoundWinEvent('CT', 'normal', 27), ctx);
+
+    expect(ctx.say).toHaveBeenCalledWith(expect.stringContaining('Prolongations : Mi-temps'));
+    expect(ctx.orch.swapSides).toHaveBeenCalledWith(MATCH_ID);
+    expect(ctx.orch.rcon).toHaveBeenCalledWith(
+      expect.objectContaining({ command: 'mp_swapteams' }),
+    );
+  });
+
+  it('avance vers OT2 en cas d\'égalité à la fin de l\'OT1 (15-15)', async () => {
+    const rule = new LiveRule(makePauseCmd());
+    const ctx = makeCtx({
+      lastScoredRound: 29,
+      isHalftimePlayed: true,
+      overtimeCount: 1,
+      snapshot: {
+        score: { ct: 15, t: 15, round: 30 },
+        sides: { home: 'CT', away: 'T' },
+        teams: { home_name: 'TeamA', away_name: 'TeamB' },
+      },
+    });
+
+    await (rule as any).onTeamRoundWin(makeRoundWinEvent('T', 'normal', 30), ctx);
+
+    expect(ctx.state.setOvertimeCount).toHaveBeenCalledWith(MATCH_ID, 2);
+    expect(ctx.say).toHaveBeenCalledWith(expect.stringContaining('Début OT2...'));
+    expect(ctx.orch.restartGame).toHaveBeenCalledWith(
+      expect.objectContaining({ delay: 3 }),
+    );
+  });
 });
 
 // ---------------------------------------------------------------------------

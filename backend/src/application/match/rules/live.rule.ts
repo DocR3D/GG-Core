@@ -184,7 +184,7 @@ export class LiveRule extends BaseRule implements PhaseRule {
       // Tie at 12-12 -> Overtime check
       if (scoreCT === mr && scoreT === mr) {
         if (settings.overtimeEnabled) {
-          await ctx.say('[GG-Core] ÉGALITÉ 12-12 ! Début des prolongations (MR3)...');
+          await ctx.say(`[GG-Core] ÉGALITÉ ${scoreCT}-${scoreT} ! Début des prolongations (MR3)...`);
           if (serverId) {
             await ctx.orch.rcon({ serverId, matchId: ev.matchId, command: CS2_RCON_COMMANDS.OVERTIME_START });
           }
@@ -214,7 +214,7 @@ export class LiveRule extends BaseRule implements PhaseRule {
       }
 
       // Mid-overtime swap (every otMr rounds, e.g. 3 rounds)
-      const roundsInThisOt = (scoreCT + scoreT) - mr - ((otCount - 1) * otMr * 2);
+      const roundsInThisOt = (scoreCT + scoreT) - (mr * 2) - ((otCount - 1) * otMr * 2);
       if (roundsInThisOt === otMr) {
         await ctx.say(`[GG-Core] Prolongations : Mi-temps (round ${otMr}/${otMr * 2}). Inversion des côtés...`);
         if (serverId) {
