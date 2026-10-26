@@ -248,23 +248,14 @@ export class SandboxController {
             </select>
           </div>
           <div class="form-group">
-            <label>Round Courant</label>
-            <input type="number" id="roundNumber" value="11" min="0" max="60">
-          </div>
-          <div class="form-group">
-            <label>Overtime Count (0 = Régulier)</label>
-            <input type="number" id="overtimeCount" value="0" min="0" max="10">
-          </div>
-        </div>
-
-        <div class="form-row">
-          <div class="form-group" style="flex-direction: row; align-items: center; gap: 8px; margin-top: 10px;">
-            <input type="checkbox" id="halftimePlayed" style="width: 18px; height: 18px;">
-            <label for="halftimePlayed" style="cursor: pointer;">Mi-temps déjà effectuée (Halftime Played)</label>
-          </div>
-          <div class="form-group" style="flex-direction: row; align-items: center; gap: 8px; margin-top: 10px;">
-            <input type="checkbox" id="reloadMap" style="width: 18px; height: 18px;">
-            <label for="reloadMap" style="cursor: pointer; color: var(--accent);">🔄 Forcer Reload Carte (si Match Terminé / Game Over)</label>
+            <label>État Calculé (depuis les scores)</label>
+            <div id="computedStatusBadge" style="background: var(--bg-input); border: 1px solid var(--border); padding: 8px 14px; border-radius: 6px; font-size: 0.85rem; color: var(--accent); display: flex; align-items: center; justify-content: space-around;">
+              <span>Round : <strong id="lblRound" style="color: #fff; font-size: 1rem;">11</strong></span>
+              <span style="color: var(--border);">|</span>
+              <span id="lblHalftime" style="color: var(--text-muted);">1ère Mi-temps</span>
+              <span style="color: var(--border);">|</span>
+              <span id="lblOvertime" style="color: var(--text-muted);">Réglementaire</span>
+            </div>
           </div>
         </div>
 
@@ -422,34 +413,63 @@ export class SandboxController {
 
     function applyPreset(p) {
       document.getElementById('phase').value = p.phase;
-      document.getElementById('roundNumber').value = p.round;
       document.getElementById('scoreCt').value = p.score.ct;
       document.getElementById('scoreT').value = p.score.t;
-      document.getElementById('halftimePlayed').checked = p.halftimePlayed;
-      document.getElementById('overtimeCount').value = p.overtimeCount;
+      updateComputedFields();
       log('cmd', 'Preset chargé : ' + p.name + ' -> ' + p.suggestedTest);
+    }
+
+    function updateComputedFields() {
+      const ct = parseInt(document.getElementById('scoreCt').value, 10) || 0;
+      const t = parseInt(document.getElementById('scoreT').value, 10) || 0;
+      const round = ct + t;
+
+      const lblRound = document.getElementById('lblRound');
+      const lblHalftime = document.getElementById('lblHalftime');
+      const lblOvertime = document.getElementById('lblOvertime');
+      const phaseEl = document.getElementById('phase');
+
+      if (lblRound) lblRound.textContent = round;
+      if (lblHalftime) {
+        lblHalftime.textContent = round > 12 ? '2ème Mi-temps (Swap)' : '1ère Mi-temps';
+        lblHalftime.style.color = round > 12 ? '#38bdf8' : 'var(--text-muted)';
+      }
+      if (lblOvertime) {
+        if (round > 24) {
+          const otCount = Math.max(1, Math.floor((round - 25) / 6) + 1);
+          lblOvertime.textContent = 'Overtime #' + otCount;
+          lblOvertime.style.color = 'var(--accent)';
+          if (phaseEl && phaseEl.value === 'live_main') {
+            phaseEl.value = 'overtime';
+          }
+        } else {
+          lblOvertime.textContent = 'Réglementaire';
+          lblOvertime.style.color = 'var(--text-muted)';
+        }
+      }
     }
 
     function getFormData() {
       const matchId = document.getElementById('matchId').value.trim();
       const serverId = document.getElementById('serverId').value.trim();
       const map = document.getElementById('map').value;
-      const phase = document.getElementById('phase').value;
       const scoreCt = parseInt(document.getElementById('scoreCt').value, 10) || 0;
       const scoreT = parseInt(document.getElementById('scoreT').value, 10) || 0;
-      const roundInput = parseInt(document.getElementById('roundNumber').value, 10);
-      const round = (!isNaN(roundInput) && roundInput > 0) ? roundInput : (scoreCt + scoreT);
-      const halftimePlayed = document.getElementById('halftimePlayed').checked;
-      const overtimeCount = parseInt(document.getElementById('overtimeCount').value, 10) || 0;
+      const round = scoreCt + scoreT;
+      const halftimePlayed = round > 12;
+      const overtimeCount = round > 24 ? Math.max(1, Math.floor((round - 25) / 6) + 1) : 0;
+      let phase = document.getElementById('phase').value;
+      if (round > 24 && phase === 'live_main') {
+        phase = 'overtime';
+      }
 
       const steamId = document.getElementById('playerSteamId').value.trim();
       const name = document.getElementById('playerName').value.trim();
       const side = document.getElementById('playerSide').value;
       const cash = parseInt(document.getElementById('playerCash').value, 10) || 16000;
-      const reloadMap = document.getElementById('reloadMap') ? document.getElementById('reloadMap').checked : false;
 
       return {
-        matchId, serverId, map, phase, round, scoreCt, scoreT, halftimePlayed, overtimeCount, reloadMap,
+        matchId, serverId, map, phase, round, scoreCt, scoreT, halftimePlayed, overtimeCount,
         player: { steamId, name, side, cash }
       };
     }
@@ -521,8 +541,7 @@ export class SandboxController {
           map: d.map,
           playersCt: isCt ? [playerObj] : [],
           playersT: !isCt ? [playerObj] : [],
-          applyViaRcon: true,
-          reloadMap: d.reloadMap
+          applyViaRcon: true
         };
 
         const res = await fetch('/sandbox/restore-ingame', {
@@ -643,10 +662,8 @@ export class SandboxController {
           if (s.score) {
             document.getElementById('scoreCt').value = s.score.ct ?? 0;
             document.getElementById('scoreT').value = s.score.t ?? 0;
-            document.getElementById('roundNumber').value = s.score.round ?? 0;
           }
-          if (s.halftimePlayed !== undefined) document.getElementById('halftimePlayed').checked = s.halftimePlayed;
-          if (s.overtimeCount !== undefined) document.getElementById('overtimeCount').value = s.overtimeCount;
+          updateComputedFields();
           log('time', 'État actuel : Phase=' + s.phase + ' Round=' + (s.score?.round ?? 0) + ' CT=' + (s.score?.ct ?? 0) + ' T=' + (s.score?.t ?? 0));
         }
       } catch (err) {
@@ -674,16 +691,10 @@ export class SandboxController {
 
       const ctEl = document.getElementById('scoreCt');
       const tEl = document.getElementById('scoreT');
-      const rndEl = document.getElementById('roundNumber');
 
-      function syncRound() {
-        const ct = parseInt(ctEl.value, 10) || 0;
-        const t = parseInt(tEl.value, 10) || 0;
-        rndEl.value = ct + t;
-      }
-
-      ctEl.addEventListener('input', syncRound);
-      tEl.addEventListener('input', syncRound);
+      ctEl.addEventListener('input', updateComputedFields);
+      tEl.addEventListener('input', updateComputedFields);
+      updateComputedFields();
     };
   </script>
 </body>

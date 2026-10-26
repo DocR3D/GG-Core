@@ -33,7 +33,8 @@ export class InjectStateDto {
 export class InGameRestoreDto {
   serverId!: string;
   matchId!: string;
-  round!: number;
+  /** Round de la sauvegarde (calculé automatiquement depuis scoreCt + scoreT si omis) */
+  round?: number;
   phase?: MatchPhase;
   scoreTeam1?: number;
   scoreTeam2?: number;

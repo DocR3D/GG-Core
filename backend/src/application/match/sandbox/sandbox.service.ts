@@ -194,33 +194,39 @@ export class SandboxService {
     }
 
     // 5. Score
+    let computedRound = 0;
     if (dto.score) {
       const ct = dto.score.ct ?? 0;
       const t = dto.score.t ?? 0;
       const sides = dto.sides ?? (await this.state.getSides(mid)) ?? { home: 'CT', away: 'T' };
       const home = dto.score.home ?? (sides.home === 'CT' ? ct : t);
       const away = dto.score.away ?? (sides.away === 'CT' ? ct : t);
-      const round = dto.score.round ?? (ct + t);
+      computedRound = dto.score.round !== undefined ? dto.score.round : (ct + t);
 
       await this.redis.hset(redisConst.score(mid), {
         ct: String(ct),
         t: String(t),
         home: String(home),
         away: String(away),
-        round: String(round),
+        round: String(computedRound),
       });
     }
 
-    // 6. Anti-eBug Guards & Overtime
-    if (dto.halftimePlayed !== undefined) {
-      await this.state.setHalftimePlayed(mid, dto.halftimePlayed);
-    }
-    if (dto.overtimeCount !== undefined) {
-      await this.state.setOvertimeCount(mid, dto.overtimeCount);
-    }
-    if (dto.lastScoredRound !== undefined) {
-      await this.state.setLastScoredRound(mid, dto.lastScoredRound);
-    }
+    // 6. Anti-eBug Guards & Overtime (calculés automatiquement depuis le score si non spécifiés)
+    const halftimePlayed = dto.halftimePlayed !== undefined
+      ? dto.halftimePlayed
+      : computedRound > 12;
+    await this.state.setHalftimePlayed(mid, halftimePlayed);
+
+    const overtimeCount = dto.overtimeCount !== undefined
+      ? dto.overtimeCount
+      : (computedRound > 24 ? Math.max(1, Math.floor((computedRound - 25) / 6) + 1) : 0);
+    await this.state.setOvertimeCount(mid, overtimeCount);
+
+    const lastScoredRound = dto.lastScoredRound !== undefined
+      ? dto.lastScoredRound
+      : computedRound;
+    await this.state.setLastScoredRound(mid, lastScoredRound);
 
     // 7. Settings
     if (dto.settings) {
@@ -451,8 +457,8 @@ export class SandboxService {
       },
       lastScoredRound: round,
       halftimePlayed: round > 12,
-      overtimeCount: round > 24 ? 1 : 0,
-      phase: round > 24 ? MatchPhase.OVERTIME : MatchPhase.LIVE_MAIN,
+      overtimeCount: round > 24 ? Math.max(1, Math.floor((round - 25) / 6) + 1) : 0,
+      phase: round > 24 ? MatchPhase.OVERTIME : (dto.phase || MatchPhase.LIVE_MAIN),
     });
 
     return {

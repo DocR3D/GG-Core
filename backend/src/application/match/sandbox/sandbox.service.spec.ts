@@ -154,6 +154,26 @@ describe('SandboxService', () => {
         command: CS2_RCON_COMMANDS.KNIFE_START,
       });
     });
+
+    it('doit calculer automatiquement round, halftimePlayed et overtimeCount depuis le score si omis', async () => {
+      // 13-11 -> round 24, halftimePlayed true, overtimeCount 0
+      await service.injectState({
+        matchId: 'm-test-1',
+        score: { ct: 13, t: 11 },
+      });
+      expect(mockState.setHalftimePlayed).toHaveBeenCalledWith('m-test-1', true);
+      expect(mockState.setOvertimeCount).toHaveBeenCalledWith('m-test-1', 0);
+      expect(mockState.setLastScoredRound).toHaveBeenCalledWith('m-test-1', 24);
+
+      // 14-13 -> round 27 (OT1), halftimePlayed true, overtimeCount 1
+      await service.injectState({
+        matchId: 'm-test-1',
+        score: { ct: 14, t: 13 },
+      });
+      expect(mockState.setHalftimePlayed).toHaveBeenCalledWith('m-test-1', true);
+      expect(mockState.setOvertimeCount).toHaveBeenCalledWith('m-test-1', 1);
+      expect(mockState.setLastScoredRound).toHaveBeenCalledWith('m-test-1', 27);
+    });
   });
 
   describe('restoreInGame', () => {
@@ -222,6 +242,26 @@ describe('SandboxService', () => {
         }),
       );
       expect(mockState.setPhase).toHaveBeenCalledWith('m-test-1', MatchPhase.WARMUP_MAIN);
+    });
+
+    it('doit calculer automatiquement le round depuis scoreCt et scoreT si round est omis', async () => {
+      const result = await service.restoreInGame({
+        serverId: 'srv-a',
+        matchId: 'm-test-1',
+        scoreCt: 8,
+        scoreT: 5,
+        map: 'de_inferno',
+      });
+
+      expect(result.ok).toBe(true);
+      expect(result.backupFileName).toBe('sandbox_round13.txt');
+      expect(mockBackupService.generateValveBackup).toHaveBeenCalledWith(
+        expect.objectContaining({
+          round: 13,
+          scoreTeam1: 5, // round 13: team 1 est T (2ème mi-temps)
+          scoreTeam2: 8, // team 2 est CT
+        }),
+      );
     });
   });
 
