@@ -65,16 +65,16 @@ export class SandboxService {
       },
       {
         id: 'regulation_climax',
-        name: 'Regulation Climax (11 - 12)',
-        description: 'Balle de match ou prolongations (round 23). Teste la victoire 13-11 ou l\'égalisation 12-12.',
+        name: 'Balle de Match (12 - 11)',
+        description: 'Balle de match regulation (round 23). Teste l\'égalisation à 12-12 (Overtime) ou la victoire 13-11.',
         phase: MatchPhase.LIVE_MAIN,
         round: 23,
-        score: { ct: 11, t: 12, home: 11, away: 12 },
+        score: { ct: 12, t: 11, home: 12, away: 11 },
         sides: { home: 'CT', away: 'T' },
         halftimePlayed: true,
         overtimeCount: 0,
         lastScoredRound: 23,
-        suggestedTest: 'Si T gagne -> 11-13 (Victoire T / postgame). Si CT gagne -> 12-12 (Déclenche l\'Overtime).',
+        suggestedTest: 'Si T gagne -> 12-12 (Déclenche l\'Overtime). Si CT gagne -> 13-11 (Victoire CT / postgame).',
       },
       {
         id: 'overtime_mr3_start',
@@ -365,7 +365,9 @@ export class SandboxService {
       serverId,
       timestamp: Date.now(),
       payload: {
+        winner,
         team: winner,
+        reason: 'elim',
       },
     };
 

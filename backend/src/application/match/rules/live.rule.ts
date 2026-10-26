@@ -77,7 +77,7 @@ export class LiveRule extends BaseRule implements PhaseRule {
   }
 
   private async onTeamRoundWin(ev: TeamRoundWinEvent, ctx: RuleContext) {
-    const winner = (ev.payload as any)?.winner as string | undefined;
+    const winner = ((ev.payload as any)?.winner || (ev.payload as any)?.team) as string | undefined;
     if (!winner) return;
 
     // 1) Anti-eBot Duplicate Round Guard
