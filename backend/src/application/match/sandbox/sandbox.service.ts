@@ -290,13 +290,22 @@ export class SandboxService {
     const rconCommand = `mp_backup_restore_load_file ${fileName}`;
 
     if (dto.applyViaRcon !== false) {
-      // 1. S'assurer que le serveur quitte le mode warmup
+      // 1. Quitter tout mode warmup et relancer le moteur pour sortir d'un Game Over / Match End
       await this.cmds.rcon({
         serverId,
         matchId,
         command: 'mp_warmup_end',
       });
-      // 2. Envoyer la commande RCON native Valve via l'agent
+      await this.cmds.rcon({
+        serverId,
+        matchId,
+        command: 'mp_restartgame 1',
+      });
+
+      // Attendre 1.5s que le moteur CS2 effectue son restartgame
+      await new Promise((resolve) => setTimeout(resolve, 1500));
+
+      // 2. Charger le backup natif Valve par-dessus le match actif
       await this.cmds.rcon({
         serverId,
         matchId,
@@ -308,7 +317,7 @@ export class SandboxService {
         matchId,
         command: 'mp_unpause_match',
       });
-      this.logger.log(`[Sandbox] Commandes RCON envoyées à l'agent (${serverId}): mp_warmup_end + ${rconCommand} + mp_unpause_match`);
+      this.logger.log(`[Sandbox] Séquence RCON exécutée (${serverId}): mp_restartgame 1 -> [1.5s] -> ${rconCommand} -> mp_unpause_match`);
     }
 
     // Également injecter l'état dans Redis pour cohérence immédiate du scoreboard backend
