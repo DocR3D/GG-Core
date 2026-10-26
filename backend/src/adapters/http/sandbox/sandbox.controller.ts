@@ -1014,9 +1014,12 @@ export class SandboxController {
 
       switch (eventName) {
         case 'kill': {
-          const killer = p?.killer?.name || p?.killer_name || 'Inconnu';
-          const killerSide = p?.killer?.team || p?.killer_team ? (' (' + (p?.killer?.team || p?.killer_team) + ')') : '';
-          const victim = p?.victim?.name || p?.victim_name || 'Inconnu';
+          const victim = p?.victim?.name || p?.victim_name || (p?.kind === 'suicide' ? 'Suicide' : 'Inconnu');
+          if (victim.startsWith('de_') || victim.startsWith('cs_')) {
+            break;
+          }
+          const killer = p?.killer?.name || p?.killer_name || (p?.kind === 'suicide' ? (p?.player?.name || 'Inconnu') : 'Inconnu');
+          const killerSide = p?.killer?.team || p?.killer_team || p?.player?.team ? (' (' + (p?.killer?.team || p?.killer_team || p?.player?.team) + ')') : '';
           const victimSide = p?.victim?.team || p?.victim_team ? (' (' + (p?.victim?.team || p?.victim_team) + ')') : '';
           const weapon = p?.weapon || 'arme';
           const hs = p?.headshot ? ' 🎯 (HS)' : '';

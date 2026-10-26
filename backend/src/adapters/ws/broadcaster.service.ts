@@ -76,6 +76,7 @@ export class WsBroadcaster implements OnModuleInit {
         case 'player_name_change':  return 'PLAYER_NAME_CHANGE';
         case 'item_purchase':       return 'ITEM_PURCHASE';
         case 'grenade_throw':       return 'GRENADE_THROW';
+        case 'grenade_land':
         case 'grenade_landed':      return 'GRENADE_LAND';
         case 'player_blinded':      return 'PLAYER_BLINDED';
         case 'sfui_target_bombed':  return 'SFUI_TARGET_BOMBED';
