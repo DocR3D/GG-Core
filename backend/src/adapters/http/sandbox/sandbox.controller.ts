@@ -896,7 +896,13 @@ export class SandboxController {
       }
     }
 
-    async function refreshState() {
+    let refreshTimer = null;
+    function scheduleRefreshState(delay = 350, silent = true) {
+      if (refreshTimer) clearTimeout(refreshTimer);
+      refreshTimer = setTimeout(() => refreshState(silent), delay);
+    }
+
+    async function refreshState(silent = false) {
       const matchId = document.getElementById('matchId').value.trim();
       try {
         const res = await fetch('/sandbox/state/' + matchId);
@@ -910,7 +916,9 @@ export class SandboxController {
             document.getElementById('scoreT').value = s.score.t ?? 0;
           }
           updateComputedFields();
-          log('time', 'État actuel : Phase=' + currentPhase + ' Round=' + (s.score?.round ?? 0) + ' CT=' + (s.score?.ct ?? 0) + ' T=' + (s.score?.t ?? 0));
+          if (!silent) {
+            log('time', 'État actuel : Phase=' + currentPhase + ' Round=' + (s.score?.round ?? 0) + ' CT=' + (s.score?.ct ?? 0) + ' T=' + (s.score?.t ?? 0));
+          }
         }
       } catch (err) {
         log('error', "Impossible de récupérer l'état: " + err.message);
@@ -1032,7 +1040,7 @@ export class SandboxController {
           const reason = p?.reason ? (' (motif: ' + p.reason + ')') : '';
           log('entry', '<span class="tag-round">ROUND WIN</span> Victoire équipe <b>' + winner + '</b>' + reason, 'match');
           if (autoSync) {
-            setTimeout(refreshState, 350);
+            scheduleRefreshState(350, true);
           }
           break;
         }
@@ -1115,7 +1123,7 @@ export class SandboxController {
 
         case 'sides:swapped': {
           log('entry', '<span class="tag-phase">SWAP</span> Inversion des côtés (Sides Swapped)', 'match');
-          if (autoSync) setTimeout(refreshState, 350);
+          if (autoSync) scheduleRefreshState(350, true);
           break;
         }
 
