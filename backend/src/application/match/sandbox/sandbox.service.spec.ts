@@ -8,7 +8,8 @@ import { MatchCommandsService } from '@app/commands/match-commands.service';
 import { WsBroadcaster } from '@adapters/ws/broadcaster.service';
 import { RoundBackupService } from '../backup/round-backup.service';
 import { MatchPhase } from '@domain/phase.types';
-import { REDIS_CHANNELS } from '../state/redis.keys';
+import { REDIS_CHANNELS, redisConst } from '../state/redis.keys';
+import { CS2_RCON_COMMANDS, CS2_CFG } from '@domain/rules/rules.constants';
 
 describe('SandboxService', () => {
   let service: SandboxService;
@@ -133,8 +134,8 @@ describe('SandboxService', () => {
         logical: 'home',
       }));
       expect(mockState.setPlayerMoney).toHaveBeenCalledWith('m-test-1', '76561198000000001', 16000);
-      expect(mockRedis.hset).toHaveBeenCalledWith('match:m-test-1:ready', { home: '0', away: '0' });
-      expect(mockRedis.del).toHaveBeenCalledWith('match:m-test-1:phase:lock', 'match:m-test-1:phase:pending');
+      expect(mockRedis.hset).toHaveBeenCalledWith(redisConst.ready('m-test-1'), { home: '0', away: '0' });
+      expect(mockRedis.del).toHaveBeenCalledWith(redisConst.phaseLock('m-test-1'), redisConst.phasePending('m-test-1'));
       expect(mockWs.push).toHaveBeenCalledWith('m-test-1', 'match:state', expect.any(Object));
       expect(mockWs.push).toHaveBeenCalledWith('m-test-1', 'score:update', expect.any(Object));
       expect(result.matchId).toBe('m-test-1');
@@ -150,7 +151,7 @@ describe('SandboxService', () => {
       expect(mockCmds.rcon).toHaveBeenCalledWith({
         serverId: 'srv-a',
         matchId: 'm-test-1',
-        command: 'exec knife.cfg',
+        command: CS2_RCON_COMMANDS.KNIFE_START,
       });
     });
   });
@@ -198,9 +199,9 @@ describe('SandboxService', () => {
       expect(mockCmds.rcon).toHaveBeenCalledWith({
         serverId: 'srv-a',
         matchId: 'm-test-1',
-        command: 'exec knife.cfg',
+        command: CS2_RCON_COMMANDS.KNIFE_START,
       });
-      expect(result.rconCommand).toBe('exec knife.cfg');
+      expect(result.rconCommand).toBe(CS2_RCON_COMMANDS.KNIFE_START);
       expect(mockState.setPhase).toHaveBeenCalledWith('m-test-1', MatchPhase.KNIFE_LIVE);
     });
 
@@ -217,7 +218,7 @@ describe('SandboxService', () => {
       expect(mockCmds.rcon).toHaveBeenCalledWith(
         expect.objectContaining({
           serverId: 'srv-a',
-          command: expect.stringContaining('exec warmup.cfg'),
+          command: expect.stringContaining(CS2_CFG.WARMUP),
         }),
       );
       expect(mockState.setPhase).toHaveBeenCalledWith('m-test-1', MatchPhase.WARMUP_MAIN);

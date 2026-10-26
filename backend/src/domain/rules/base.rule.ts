@@ -3,6 +3,7 @@ import { CommandEvent } from '@domain/events/command.event';
 import { EventType } from '@domain/events/event.types';
 import { RuleContext } from './rule-context';
 import { SaySpec } from '@app/match/messages/messages.types';
+import { normalizeChatCommand } from './rules.constants';
 
 export interface PhaseRule {
   say?(rct: RuleContext): Promise<SaySpec>;
@@ -22,13 +23,11 @@ export abstract class BaseRule implements PhaseRule {
   canHandle(t: EventType) { return this.events.has(t); }
   async handle(ev: AnyEvent, ctx: RuleContext) { const f = this.events.get(ev.type); if (f) await f(ev as any, ctx); }
   canHandleCommand(cmd: string) {
-    const raw = (cmd || '').toLowerCase().trim();
-    const clean = raw.startsWith('!') || raw.startsWith('.') ? raw.slice(1) : raw;
+    const clean = normalizeChatCommand(cmd);
     return this.commands.has(clean) || this.commands.has(cmd);
   }
   async handleCommand(cmd: CommandEvent, ctx: RuleContext) {
-    const raw = (cmd?.payload?.command || '').toLowerCase().trim();
-    const clean = raw.startsWith('!') || raw.startsWith('.') ? raw.slice(1) : raw;
+    const clean = normalizeChatCommand(cmd?.payload?.command);
     const f = this.commands.get(clean) || this.commands.get(cmd?.payload?.command);
     if (f) await f(cmd, ctx);
   }

@@ -2,6 +2,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import * as fs from 'fs';
 import * as path from 'path';
+import { CS2_RULES } from '@domain/rules/rules.constants';
 
 export interface ValveBackupPlayer {
   steamId: string;
@@ -60,7 +61,7 @@ export class RoundBackupService {
     const round = opts.round ?? 0;
     const team1 = opts.team1Name || 'Team Alpha';
     const team2 = opts.team2Name || 'Team Bravo';
-    const map = opts.map || 'de_inferno';
+    const map = opts.map || CS2_RULES.DEFAULT_MAP;
     const timestamp = opts.timestamp || this.formatTimestamp(new Date());
 
     const totalScore1 = opts.scoreTeam1 ?? 0;
@@ -80,7 +81,7 @@ export class RoundBackupService {
         fh2 = totalScore2;
       } else {
         // En MR12, si score > 12 au total ou round > 12, première mi-temps max 12 rounds
-        const firstHalfPlayed = 12;
+        const firstHalfPlayed = CS2_RULES.DEFAULT_MR_HALF;
         const ratio = totalScore1 + totalScore2 > 0 ? totalScore1 / (totalScore1 + totalScore2) : 0.5;
         fh1 = Math.min(12, Math.round(firstHalfPlayed * ratio));
         fh2 = firstHalfPlayed - fh1;
@@ -212,8 +213,8 @@ export class RoundBackupService {
     // Timeouts
     lines.push('\t"Timeouts"');
     lines.push('\t{');
-    lines.push('\t\t"team1"\t\t"4"');
-    lines.push('\t\t"team2"\t\t"4"');
+    lines.push(`\t\t"team1"\t\t"${CS2_RULES.DEFAULT_TACTICAL_TIMEOUTS}"`);
+    lines.push(`\t\t"team2"\t\t"${CS2_RULES.DEFAULT_TACTICAL_TIMEOUTS}"`);
     lines.push('\t\t"technical"');
     lines.push('\t\t{');
     lines.push('\t\t\t"team1"\t\t"0"');
@@ -225,8 +226,8 @@ export class RoundBackupService {
     const players1 = opts.playersTeam1 !== undefined
       ? opts.playersTeam1
       : [
-          { steamId: '76561198000000001', name: 'Tester_T1_A', cash: 16000, roundsWon: totalScore1 },
-          { steamId: '76561198000000002', name: 'Tester_T1_B', cash: 16000, roundsWon: totalScore1 },
+          { steamId: '76561198000000001', name: 'Tester_T1_A', cash: CS2_RULES.DEFAULT_MAX_CASH, roundsWon: totalScore1 },
+          { steamId: '76561198000000002', name: 'Tester_T1_B', cash: CS2_RULES.DEFAULT_MAX_CASH, roundsWon: totalScore1 },
         ];
     lines.push('\t"PlayersOnTeam1"');
     lines.push('\t{');
@@ -239,8 +240,8 @@ export class RoundBackupService {
     const players2 = opts.playersTeam2 !== undefined
       ? opts.playersTeam2
       : [
-          { steamId: '76561198000000003', name: 'Tester_T2_A', cash: 16000, roundsWon: totalScore2 },
-          { steamId: '76561198000000004', name: 'Tester_T2_B', cash: 16000, roundsWon: totalScore2 },
+          { steamId: '76561198000000003', name: 'Tester_T2_A', cash: CS2_RULES.DEFAULT_MAX_CASH, roundsWon: totalScore2 },
+          { steamId: '76561198000000004', name: 'Tester_T2_B', cash: CS2_RULES.DEFAULT_MAX_CASH, roundsWon: totalScore2 },
         ];
     lines.push('\t"PlayersOnTeam2"');
     lines.push('\t{');
@@ -263,7 +264,7 @@ export class RoundBackupService {
     if (/^\d{17}$/.test(clean)) {
       try {
         const id64 = BigInt(clean);
-        const base = 76561197960265728n;
+        const base = CS2_RULES.STEAMID64_BASE;
         if (id64 > base) {
           return (id64 - base).toString();
         }
@@ -275,7 +276,7 @@ export class RoundBackupService {
   private writePlayerBlock(lines: string[], p: ValveBackupPlayer, teamScore: number) {
     const steamId = this.toValveAccountId(p.steamId);
     const name = p.name || `Player_${steamId.slice(-4)}`;
-    const cash = p.cash ?? 16000;
+    const cash = p.cash ?? CS2_RULES.DEFAULT_MAX_CASH;
     const kills = p.kills ?? 0;
     const assists = p.assists ?? 0;
     const deaths = p.deaths ?? 0;

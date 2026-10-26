@@ -20,6 +20,8 @@ export abstract class BaseCommand implements ICommand {
     protected async logCommand(cmdName: string, event: CommandEvent) {
         // Logique de journalisation commune
         const sender = event.payload.sender.name || event.payload.sender.steamId;
-        console.log(`Command '${cmdName}' executed by ${sender} in match ${event.matchId}`);
+        if (process.env.NODE_ENV !== 'test') {
+            console.log(`Command '${cmdName}' executed by ${sender} in match ${event.matchId}`);
+        }
     }
 }

@@ -8,7 +8,7 @@ import { PauseCommand } from '@app/match/commands/pause.command';
 import { MatchPhase } from '@domain/phase.types';
 import { Logger } from '@nestjs/common';
 import { GameSide } from '@app/match/state';
-import { CS2_RULES, CS2_CFG } from '@domain/rules/rules.constants';
+import { CS2_RULES, CS2_CFG, CS2_RCON_COMMANDS } from '@domain/rules/rules.constants';
 
 export class LiveRule extends BaseRule implements PhaseRule {
   name = 'live_main' as const;
@@ -70,7 +70,7 @@ export class LiveRule extends BaseRule implements PhaseRule {
     }
 
     if (totalRounds > 0) {
-      await ctx.orch.rcon({ serverId, matchId: ctx.matchId, command: 'mp_unpause_match; unpause' }).catch(() => {});
+      await ctx.orch.rcon({ serverId, matchId: ctx.matchId, command: CS2_RCON_COMMANDS.UNPAUSE_MATCH }).catch(() => {});
       await ctx.say('[live] Reprise du match LIVE.');
       if (snapshot) {
         await ctx.orch.push(ctx.matchId, 'match:state', snapshot);
@@ -81,7 +81,7 @@ export class LiveRule extends BaseRule implements PhaseRule {
     await ctx.orch.rcon({
       serverId,
       matchId: ctx.matchId,
-      command: `exec ${CS2_CFG.COMPETITIVE}; exec ${CS2_CFG.COMPETITIVE_TMM}; mp_warmup_end 1`,
+      command: CS2_RCON_COMMANDS.COMPETITIVE_START,
     });
     await ctx.orch.restartGame({ serverId, matchId: ctx.matchId, delay: CS2_RULES.FAST_RESTART_DELAY_SEC });
 
@@ -186,7 +186,7 @@ export class LiveRule extends BaseRule implements PhaseRule {
         if (settings.overtimeEnabled) {
           await ctx.say('[GG-Core] ÉGALITÉ 12-12 ! Début des prolongations (MR3)...');
           if (serverId) {
-            await ctx.orch.rcon({ serverId, matchId: ev.matchId, command: `exec ${CS2_CFG.OVERTIME}` });
+            await ctx.orch.rcon({ serverId, matchId: ev.matchId, command: CS2_RCON_COMMANDS.OVERTIME_START });
           }
           await ctx.state.setOvertimeCount(ev.matchId, 1);
           await ctx.orch.setPhase(ev.matchId, MatchPhase.OVERTIME);
@@ -218,7 +218,7 @@ export class LiveRule extends BaseRule implements PhaseRule {
       if (roundsInThisOt === otMr) {
         await ctx.say(`[GG-Core] Prolongations : Mi-temps (round ${otMr}/${otMr * 2}). Inversion des côtés...`);
         if (serverId) {
-          await ctx.orch.rcon({ serverId, matchId: ev.matchId, command: 'mp_swapteams' });
+          await ctx.orch.rcon({ serverId, matchId: ev.matchId, command: CS2_RCON_COMMANDS.SWAP_TEAMS });
         }
         await ctx.orch.swapSides(ev.matchId);
         if (serverId) {

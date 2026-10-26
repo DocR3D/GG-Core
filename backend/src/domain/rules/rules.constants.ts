@@ -20,6 +20,16 @@ export const CS2_RULES = {
   DEFAULT_TACTICAL_TIMEOUTS: 4,
   /** Durée en secondes par défaut d'une pause tactique */
   DEFAULT_TACTICAL_TIMEOUT_SEC: 30,
+  /** Argent maximum autorisé par joueur dans CS2 */
+  DEFAULT_MAX_CASH: 16000,
+  /** Argent de départ en prolongation (Valve standard) */
+  DEFAULT_OT_START_MONEY: 10000,
+  /** Nombre total de rounds par cycle de prolongation (MR3 -> 6 rounds) */
+  DEFAULT_OT_MAX_ROUNDS: 6,
+  /** Carte par défaut pour les serveurs et le sandbox */
+  DEFAULT_MAP: 'de_inferno',
+  /** Base offset 64-bit de SteamID Valve */
+  STEAMID64_BASE: 76561197960265728n,
 } as const;
 
 /**
@@ -32,6 +42,28 @@ export const CS2_CFG = {
   KNIFE: 'knife.cfg',
   KNIFE_UNDO: 'knife_undo.cfg',
   OVERTIME: 'overtime.cfg',
+} as const;
+
+/**
+ * Commandes RCON CS2 standardisées (anti-hallucination / zéro plugin).
+ */
+export const CS2_RCON_COMMANDS = {
+  SWAP_TEAMS: 'mp_swapteams',
+  UNPAUSE_MATCH: 'mp_unpause_match; unpause',
+  UNPAUSE: 'mp_unpause_match',
+  WARMUP_START: 'mp_warmup_start 1',
+  WARMUP_END: 'mp_warmup_end 1',
+  WARMUP_EXEC: (cfg = CS2_CFG.WARMUP) => `mp_warmup_start 1; exec ${cfg}`,
+  WARMUP_INFINITE: (cfg = CS2_CFG.WARMUP) => `exec ${cfg}; mp_warmup_start 1; mp_warmuptime 999999; mp_warmup_pausetimer 1`,
+  WARMUP_SANDBOX: (cfg = CS2_CFG.WARMUP) => `exec ${cfg}; mp_warmup_start 1; mp_warmuptime 999999; mp_warmup_pausetimer 1; bot_quota 2; bot_quota_mode fill; mp_unpause_match`,
+  COMPETITIVE_START: `exec ${CS2_CFG.COMPETITIVE}; exec ${CS2_CFG.COMPETITIVE_TMM}; mp_warmup_end 1`,
+  KNIFE_START: `exec ${CS2_CFG.KNIFE}`,
+  OVERTIME_START: `exec ${CS2_CFG.OVERTIME}`,
+  RESTORE_PREPARE: 'mp_backup_restore_load_autopause 0; mp_overtime_enable 1; mp_overtime_maxrounds 6; mp_overtime_startmoney 10000; bot_quota 2; bot_quota_mode fill; bot_join_after_player 1; mp_warmup_end',
+  RESTORE_LOAD: (file: string) => `mp_backup_restore_load_file ${file}`,
+  BOT_BALANCE_CT: 'bot_kick ct; bot_add_t; mp_unpause_match',
+  BOT_BALANCE_T: 'bot_kick t; bot_add_ct; mp_unpause_match',
+  CHANGELEVEL: (map: string) => `changelevel ${map}`,
 } as const;
 
 /**
@@ -49,3 +81,13 @@ export const CS2_CHAT_COMMANDS = {
   SWAP: 'swap',
   INIT: 'init',
 } as const;
+
+/**
+ * Normalise une commande textuelle in-game en retirant d'éventuels préfixes (!, .) et espaces
+ * Ex: "!ready" -> "ready", ".stay" -> "stay", "READY" -> "ready"
+ */
+export function normalizeChatCommand(cmd: string | null | undefined): string {
+  if (!cmd) return '';
+  const trimmed = cmd.trim().toLowerCase();
+  return trimmed.startsWith('!') || trimmed.startsWith('.') ? trimmed.slice(1) : trimmed;
+}

@@ -10,7 +10,7 @@ import { SnapshotQuery } from '../state/snapshot.query';
 import { MatchCommandsService } from '@app/commands/match-commands.service';
 import { WsBroadcaster } from '@adapters/ws/broadcaster.service';
 import { MatchPhase, Phase, RoundPhase } from '@domain/phase.types';
-import { CS2_CFG } from '@domain/rules/rules.constants';
+import { CS2_CFG, CS2_RULES, CS2_RCON_COMMANDS } from '@domain/rules/rules.constants';
 import { GameSide, normalizeSide } from '@domain/side.types';
 import { RoundBackupService, ValveBackupOptions, ValveBackupPlayer } from '../backup/round-backup.service';
 import { InjectStateDto, InGameRestoreDto } from './sandbox.dto';
@@ -179,13 +179,13 @@ export class SandboxService {
         await this.cmds.rcon({
           serverId: dto.serverId,
           matchId: mid,
-          command: 'exec ' + CS2_CFG.WARMUP + '; mp_warmup_start 1; mp_warmuptime 999999; mp_warmup_pausetimer 1',
+          command: CS2_RCON_COMMANDS.WARMUP_INFINITE(CS2_CFG.WARMUP),
         }).catch((e) => this.logger.warn(`Warmup RCON failed: ${e.message}`));
       } else if (dto.phase === MatchPhase.KNIFE_LIVE && dto.serverId) {
         await this.cmds.rcon({
           serverId: dto.serverId,
           matchId: mid,
-          command: 'exec ' + CS2_CFG.KNIFE,
+          command: CS2_RCON_COMMANDS.KNIFE_START,
         }).catch((e) => this.logger.warn(`Knife RCON failed: ${e.message}`));
       }
     }
@@ -282,14 +282,14 @@ export class SandboxService {
     const scoreT = dto.scoreT !== undefined ? dto.scoreT : dto.scoreTeam2 ?? 0;
     const calculatedRound = scoreCt + scoreT;
     const round = dto.round !== undefined && dto.round >= 0 ? dto.round : calculatedRound;
-    const map = dto.map || 'de_inferno';
+    const map = dto.map || CS2_RULES.DEFAULT_MAP;
 
     if (round === 0) {
       if (dto.phase === MatchPhase.KNIFE_LIVE) {
-        const knifeCmd = 'exec ' + CS2_CFG.KNIFE;
+        const knifeCmd = CS2_RCON_COMMANDS.KNIFE_START;
         if (dto.applyViaRcon !== false) {
           if (dto.reloadMap) {
-            await this.cmds.rcon({ serverId, matchId, command: `changelevel ${map}` });
+            await this.cmds.rcon({ serverId, matchId, command: CS2_RCON_COMMANDS.CHANGELEVEL(map) });
             await new Promise((resolve) => setTimeout(resolve, 2000));
           }
           await this.cmds.rcon({ serverId, matchId, command: knifeCmd });
@@ -312,10 +312,10 @@ export class SandboxService {
           vdfSnippet: 'Knife round CS2 démarré avec succès (couteaux uniquement)',
         };
       }
-      const warmupCmd = 'exec ' + CS2_CFG.WARMUP + '; mp_warmup_start 1; mp_warmuptime 999999; mp_warmup_pausetimer 1; bot_quota 2; bot_quota_mode fill; mp_unpause_match';
+      const warmupCmd = CS2_RCON_COMMANDS.WARMUP_SANDBOX(CS2_CFG.WARMUP);
       if (dto.applyViaRcon !== false) {
         if (dto.reloadMap) {
-          await this.cmds.rcon({ serverId, matchId, command: `changelevel ${map}` });
+          await this.cmds.rcon({ serverId, matchId, command: CS2_RCON_COMMANDS.CHANGELEVEL(map) });
           await new Promise((resolve) => setTimeout(resolve, 2000));
         }
         await this.cmds.rcon({ serverId, matchId, command: warmupCmd });
@@ -386,7 +386,7 @@ export class SandboxService {
 
     await this.backupService.writeBackupFile(filePath, vdfContent);
 
-    const rconCommand = `mp_backup_restore_load_file ${fileName}`;
+    const rconCommand = CS2_RCON_COMMANDS.RESTORE_LOAD(fileName);
 
     if (dto.applyViaRcon !== false) {
       // 0. Si demandé (ex: match précédent en "Game Over" complet), recharger la carte proprement sans déconnecter les joueurs
@@ -395,7 +395,7 @@ export class SandboxService {
         await this.cmds.rcon({
           serverId,
           matchId,
-          command: `changelevel ${map}`,
+          command: CS2_RCON_COMMANDS.CHANGELEVEL(map),
         });
         await new Promise((resolve) => setTimeout(resolve, 2000));
       }
@@ -405,7 +405,7 @@ export class SandboxService {
       await this.cmds.rcon({
         serverId,
         matchId,
-        command: 'mp_backup_restore_load_autopause 0; mp_overtime_enable 1; mp_overtime_maxrounds 6; mp_overtime_startmoney 10000; bot_quota 2; bot_quota_mode fill; bot_join_after_player 1; mp_warmup_end',
+        command: CS2_RCON_COMMANDS.RESTORE_PREPARE,
       });
 
       // Attendre 500ms
@@ -423,13 +423,13 @@ export class SandboxService {
 
       // 3. Déterminer l'équilibrage des bots pour le test 1v1 (ne JAMAIS mettre de bot dans l'équipe du joueur)
       // et unpause pour lancer le round. (NE JAMAIS appeler mp_restartgame 1 qui réinitialiserait le score à 0-0 !)
-      let botBalanceCmd = 'mp_unpause_match';
+      let botBalanceCmd: string = CS2_RCON_COMMANDS.UNPAUSE;
       if (playersCt.length > 0 && playersT.length === 0) {
         // Le joueur humain est en CT -> aucun bot en CT, 1 bot en T
-        botBalanceCmd = 'bot_kick ct; bot_add_t; mp_unpause_match';
+        botBalanceCmd = CS2_RCON_COMMANDS.BOT_BALANCE_CT;
       } else if (playersT.length > 0 && playersCt.length === 0) {
         // Le joueur humain est en T -> aucun bot en T, 1 bot en CT
-        botBalanceCmd = 'bot_kick t; bot_add_ct; mp_unpause_match';
+        botBalanceCmd = CS2_RCON_COMMANDS.BOT_BALANCE_T;
       }
 
       await this.cmds.rcon({

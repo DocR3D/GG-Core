@@ -8,7 +8,7 @@ import { MatchPhase } from '@domain/phase.types';
 import type { CommandEvent } from '@domain/events/command.event';
 
 import { isNonPlayingSide } from '@domain/side.types';
-import { CS2_CHAT_COMMANDS } from '@domain/rules/rules.constants';
+import { CS2_CHAT_COMMANDS, normalizeChatCommand } from '@domain/rules/rules.constants';
 type GameSide = 'CT' | 'T' | 'SPECTATOR';
 type Channel  = 'say' | 'say_team';
 
@@ -88,8 +88,7 @@ private ensureGlobalInit() {
     if ((ev as any).kind && (ev as any).kind !== 'primary') return;
 
     const sender = ev.payload?.sender;
-    const raw = (ev.payload?.command || '').toLowerCase().trim();
-    const command = raw.startsWith('!') || raw.startsWith('.') ? raw.slice(1) : raw;
+    const command = normalizeChatCommand(ev.payload?.command);
     if (ev.payload) ev.payload.command = command;
     const params  = ev.payload?.parameters ?? [];
     if (!sender || !command) {

@@ -8,7 +8,7 @@ import { MatchStateService } from '@app/match/state/match-state.service';
 import { MatchCommandsService } from '@app/commands/match-commands.service';
 import { Logical } from '@app/match/state';
 import { isNonPlayingSide, GameSide } from '@domain/side.types';
-import { CS2_CHAT_COMMANDS } from '@domain/rules/rules.constants';
+import { CS2_CHAT_COMMANDS, normalizeChatCommand } from '@domain/rules/rules.constants';
 import { send } from 'process';
 
 @Injectable()
@@ -28,8 +28,7 @@ export class ReadyCommand extends BaseCommand {
       return false;
     }
 
-    const raw = (event.payload.command || '').trim();
-    const clean = raw.startsWith('!') || raw.startsWith('.') ? raw.slice(1) : raw;
+    const clean = normalizeChatCommand(event.payload.command);
     const isReadyCommand = clean === CS2_CHAT_COMMANDS.READY;
     const isUnreadyCommand = clean === CS2_CHAT_COMMANDS.UNREADY || clean === CS2_CHAT_COMMANDS.NOTREADY;
 
@@ -52,8 +51,7 @@ export class ReadyCommand extends BaseCommand {
     // Si la validation canHandle a échoué, on arrête ici
     if (!team) return false;
 
-    const raw = (event.payload.command || '').trim();
-    const clean = raw.startsWith('!') || raw.startsWith('.') ? raw.slice(1) : raw;
+    const clean = normalizeChatCommand(event.payload.command);
     const isReady = clean === CS2_CHAT_COMMANDS.READY;
 
     this.logCommand(isReady ? '!ready' : '!unready', event);
