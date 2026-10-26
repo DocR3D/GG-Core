@@ -29,8 +29,8 @@ export const CS2_CFG = {
   WARMUP: 'warmup.cfg',
   COMPETITIVE: 'gamemode_competitive.cfg',
   COMPETITIVE_TMM: 'gamemode_competitive_tmm',
-  KNIFE: 'ggbot/knife.cfg',
-  KNIFE_UNDO: 'ggbot/knife_undo.cfg',
+  KNIFE: 'knife.cfg',
+  KNIFE_UNDO: 'knife_undo.cfg',
   OVERTIME: 'overtime.cfg',
 } as const;
 

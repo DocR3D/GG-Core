@@ -355,6 +355,7 @@ export class SandboxController {
           <div class="action-group">
             <button class="btn btn-outline" style="border-color: var(--success); color: var(--success);" onclick="sendRcon('mp_unpause_match; unpause')">▶️ Unpause</button>
             <button class="btn btn-outline" style="border-color: #38bdf8; color: #38bdf8;" onclick="sendRcon('exec warmup.cfg; mp_warmup_start 1; mp_warmuptime 999999; mp_warmup_pausetimer 1')">🔥 Start Warmup</button>
+            <button class="btn btn-outline" style="border-color: #f59e0b; color: #f59e0b;" onclick="sendRcon('exec knife.cfg')">🔪 Start Knife Round</button>
             <button class="btn btn-outline" style="border-color: var(--t); color: var(--t);" onclick="sendRcon('mp_warmup_end 1')">⏹️ End Warmup</button>
             <button class="btn btn-outline" onclick="sendRcon('status')">ℹ️ CS2 Status</button>
             <button class="btn btn-outline" onclick="sendRcon('bot_quota 2; bot_quota_mode fill')">👥 Fix Bots 1v1</button>
@@ -510,6 +511,7 @@ export class SandboxController {
         const payload = {
           matchId: d.matchId,
           serverId: d.serverId,
+          phase: d.phase,
           round: d.round,
           scoreCt: d.scoreCt,
           scoreT: d.scoreT,

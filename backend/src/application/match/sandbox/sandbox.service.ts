@@ -10,6 +10,7 @@ import { SnapshotQuery } from '../state/snapshot.query';
 import { MatchCommandsService } from '@app/commands/match-commands.service';
 import { WsBroadcaster } from '@adapters/ws/broadcaster.service';
 import { MatchPhase, Phase, RoundPhase } from '@domain/phase.types';
+import { CS2_CFG } from '@domain/rules/rules.constants';
 import { GameSide, normalizeSide } from '@domain/side.types';
 import { RoundBackupService, ValveBackupOptions, ValveBackupPlayer } from '../backup/round-backup.service';
 import { InjectStateDto, InGameRestoreDto } from './sandbox.dto';
@@ -165,8 +166,14 @@ export class SandboxService {
         await this.cmds.rcon({
           serverId: dto.serverId,
           matchId: mid,
-          command: 'exec warmup.cfg; mp_warmup_start 1; mp_warmuptime 999999; mp_warmup_pausetimer 1',
+          command: 'exec ' + CS2_CFG.WARMUP + '; mp_warmup_start 1; mp_warmuptime 999999; mp_warmup_pausetimer 1',
         }).catch((e) => this.logger.warn(`Warmup RCON failed: ${e.message}`));
+      } else if (dto.phase === MatchPhase.KNIFE_LIVE && dto.serverId) {
+        await this.cmds.rcon({
+          serverId: dto.serverId,
+          matchId: mid,
+          command: 'exec ' + CS2_CFG.KNIFE,
+        }).catch((e) => this.logger.warn(`Knife RCON failed: ${e.message}`));
       }
     }
     if (dto.roundPhase) {
@@ -265,7 +272,34 @@ export class SandboxService {
     const map = dto.map || 'de_inferno';
 
     if (round === 0) {
-      const warmupCmd = 'exec warmup.cfg; mp_warmup_start 1; mp_warmuptime 999999; mp_warmup_pausetimer 1; bot_quota 2; bot_quota_mode fill; mp_unpause_match';
+      if (dto.phase === MatchPhase.KNIFE_LIVE) {
+        const knifeCmd = 'exec ' + CS2_CFG.KNIFE;
+        if (dto.applyViaRcon !== false) {
+          if (dto.reloadMap) {
+            await this.cmds.rcon({ serverId, matchId, command: `changelevel ${map}` });
+            await new Promise((resolve) => setTimeout(resolve, 2000));
+          }
+          await this.cmds.rcon({ serverId, matchId, command: knifeCmd });
+        }
+        await this.injectState({
+          matchId,
+          serverId,
+          score: { ct: 0, t: 0, round: 0 },
+          lastScoredRound: 0,
+          halftimePlayed: false,
+          overtimeCount: 0,
+          phase: MatchPhase.KNIFE_LIVE,
+        });
+        this.logger.log(`[Sandbox] Phase Knife Round appliquée avec succès sur ${serverId}`);
+        return {
+          ok: true,
+          backupFileName: 'knife_live (aucun checkpoint requis)',
+          filePath: '',
+          rconCommand: knifeCmd,
+          vdfSnippet: 'Knife round CS2 démarré avec succès (couteaux uniquement)',
+        };
+      }
+      const warmupCmd = 'exec ' + CS2_CFG.WARMUP + '; mp_warmup_start 1; mp_warmuptime 999999; mp_warmup_pausetimer 1; bot_quota 2; bot_quota_mode fill; mp_unpause_match';
       if (dto.applyViaRcon !== false) {
         if (dto.reloadMap) {
           await this.cmds.rcon({ serverId, matchId, command: `changelevel ${map}` });

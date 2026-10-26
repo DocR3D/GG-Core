@@ -234,7 +234,8 @@ export class MatchOrchestrator {
     return this.cmds.rcon(opts);
   }
 
-  execCfg(opts: { serverId: string; matchId: string }, cfg: string) {
+  async execCfg(opts: { serverId: string; matchId: string }, cfg: string) {
+    await this.cmds.rcon({ serverId: opts.serverId, matchId: opts.matchId, command: 'exec ' + cfg }).catch(() => {});
     return this.cmds.exec({ serverId: opts.serverId, matchId: opts.matchId, cfgName: cfg });
   }
 

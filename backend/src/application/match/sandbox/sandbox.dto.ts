@@ -34,6 +34,7 @@ export class InGameRestoreDto {
   serverId!: string;
   matchId!: string;
   round!: number;
+  phase?: MatchPhase;
   scoreTeam1?: number;
   scoreTeam2?: number;
   scoreCt?: number;

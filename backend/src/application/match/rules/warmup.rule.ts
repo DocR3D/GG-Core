@@ -45,8 +45,9 @@ export class WarmupRule extends BaseRule implements PhaseRule {
     if (success) {
       if (await ctx.orch.isBothReady(ctx.matchId)) {
         const currentPhase = await ctx.orch.getPhase(cmd.matchId);
+        const settings = await ctx.state.getSettings(cmd.matchId);
         const targetPhase =
-          currentPhase === MatchPhase.KNIFE_WARMUP
+          (currentPhase === MatchPhase.KNIFE_WARMUP || (currentPhase === MatchPhase.WARMUP_MAIN && settings?.knifeEnabled !== false))
             ? MatchPhase.KNIFE_LIVE
             : MatchPhase.LIVE_MAIN;
 
