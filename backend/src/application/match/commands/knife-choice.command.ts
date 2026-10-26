@@ -36,6 +36,9 @@ export class KnifeChoiceCommand extends BaseCommand {
     }
 
     if (!isStay) {
+      if (serverId && typeof ctx.orch.rcon === 'function') {
+        await ctx.orch.rcon({ serverId, matchId: event.matchId, command: 'mp_swapteams' });
+      }
       const swapped = await ctx.orch.swapSides(event.matchId);
       if (swapped) {
         await ctx.orch.push(event.matchId, 'sides:swapped' as any, {});

@@ -264,7 +264,6 @@ export class MatchOrchestrator {
   }
 
   swapSides(matchId: string) {
-    this.cmds.swapSides({ matchId });
     return this.state.swapSides(matchId);
   }
 

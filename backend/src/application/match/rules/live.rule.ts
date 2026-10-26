@@ -49,6 +49,18 @@ export class LiveRule extends BaseRule implements PhaseRule {
     const serverId = ctx.serverId ?? (await ctx.state.getServerIdFromMatchId(ctx.matchId));
     if (!serverId) throw new Error(`Aucun serveur lié au match ${ctx.matchId}`);
 
+    const phase = typeof (ctx.orch as any)?.getPhase === 'function'
+      ? await ctx.orch.getPhase(ctx.matchId)
+      : MatchPhase.LIVE_MAIN;
+
+    if (phase === MatchPhase.OVERTIME) {
+      await ctx.say('[live] Match en prolongation (OVERTIME).');
+      if (typeof ctx.state?.getSnapshot === 'function') {
+        await ctx.orch.push(ctx.matchId, 'match:state', await ctx.state.getSnapshot(ctx.matchId));
+      }
+      return;
+    }
+
     await ctx.orch.rcon({
       serverId,
       matchId: ctx.matchId,

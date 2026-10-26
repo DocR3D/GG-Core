@@ -237,6 +237,7 @@ export class SandboxController {
           <div class="form-group">
             <label>Phase Globale (MatchPhase)</label>
             <select id="phase">
+              <option value="warmup_knife">warmup_knife</option>
               <option value="warmup_main">warmup_main</option>
               <option value="knife_live">knife_live</option>
               <option value="knife_choice">knife_choice</option>
