@@ -12,6 +12,11 @@ Thumbs.db
 .vscode/
 .idea/
 
+# Environment Variables
+.env
+*.env
+!.env.example
+
 # Runtime Logs
 logs/
 *.log

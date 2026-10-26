@@ -3,6 +3,7 @@
 ## Stack
 - NestJS v10, TypeScript
 - Redis (ioredis) : état match + bus événements
+- PostgreSQL + Prisma : persistance tournois, stats, bracket, sourcing événements
 - Socket.IO : WebSocket temps réel
 - Port : 8081
 
@@ -147,6 +148,11 @@ Redis ggbot:events
 #### Redis (`adapters/redis/`)
 - Tokens d'injection : `REDIS_CMD`, `REDIS_PUB`, `REDIS_SUB`
 - 3 clients distincts (commandes/lecture, publication, souscription)
+
+#### Database (`adapters/database/`)
+- `PrismaService` — Client Prisma connecté à PostgreSQL (gestion cycle de vie NestJS `onModuleInit`/`onModuleDestroy`)
+- `DatabaseModule` — Module global exportant `PrismaService`
+- Modèles Prisma : `Tournament`, `Team`, `Player`, `TeamRoster`, `Server`, `Match`, `MatchVeto`, `MatchMap`, `PlayerMapStats`, `EventPrimary`
 
 ---
 

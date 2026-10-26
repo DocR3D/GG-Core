@@ -16,6 +16,20 @@ services:
       timeout: 1s
       retries: 10
 
+  # ── PostgreSQL ─────────────────────────────────────────────────────────────
+  postgres:
+    image: postgres:16-alpine
+    container_name: ggcore-ci-postgres
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: ggcore
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d ggcore"]
+      interval: 2s
+      timeout: 1s
+      retries: 10
+
   # ── Backend (typecheck + build + runtime dans le même Dockerfile.ci) ───────
   backend:
     build:
@@ -27,10 +41,13 @@ services:
       WS_PATH: "/ws"
       JWT_SECRET: "ci-secret"
       REDIS_URL: "redis://redis:6379"
+      DATABASE_URL: "postgresql://postgres:postgres@postgres:5432/ggcore?schema=public"
       SERVER_IDS: "srv-a"
       NODE_ENV: "production"
     depends_on:
       redis:
+        condition: service_healthy
+      postgres:
         condition: service_healthy
     healthcheck:
       test: ["CMD", "wget", "-qO-", "http://localhost:8081/api/health"]

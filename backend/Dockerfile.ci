@@ -9,6 +9,7 @@ RUN npm ci --silent
 # ── Typecheck ────────────────────────────────────────────────────────────────
 FROM deps AS typecheck
 COPY . .
+RUN npx prisma generate
 RUN npx tsc --noEmit --project tsconfig.build.json
 
 # ── Build ────────────────────────────────────────────────────────────────────
@@ -18,7 +19,7 @@ RUN npm run build
 # ── Runtime ──────────────────────────────────────────────────────────────────
 FROM node:20-alpine AS runtime
 WORKDIR /app
-COPY --from=deps /app/node_modules ./node_modules
+COPY --from=typecheck /app/node_modules ./node_modules
 COPY --from=build /app/dist ./dist
 COPY package*.json ./
 EXPOSE 8081

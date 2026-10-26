@@ -10,6 +10,23 @@ services:
       timeout: 1s
       retries: 10
 
+  postgres:
+    image: postgres:16-alpine
+    container_name: ggcore-postgres-dev
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: ggcore
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d ggcore"]
+      interval: 3s
+      timeout: 2s
+      retries: 10
+
   backend:
     build:
       context: ../backend            # chemins relatifs au fichier compose (infra/)
@@ -22,6 +39,7 @@ services:
       WS_PATH: "/ws"
       JWT_SECRET: "dev-change-me"
       REDIS_URL: "redis://redis:6379"
+      DATABASE_URL: "postgresql://postgres:postgres@postgres:5432/ggcore?schema=public"
       SERVER_IDS: "srv-a"
       USE_HTTP_PARSE: "false"
       CORS_ORIGIN: "http://localhost:3000"
@@ -29,6 +47,8 @@ services:
       WATCHPACK_POLLING: "true"
     depends_on:
       redis:
+        condition: service_healthy
+      postgres:
         condition: service_healthy
     ports:
       - "8081:8081"
@@ -56,7 +76,6 @@ services:
       - "8083:8083" # srv-b logs.bind must be 0.0.0.0:8083 (example)
     restart: unless-stopped
 
-
   log-drain:
     build:
       context: ../tools/log-drain   # <- vérifie le chemin depuis le dossier du compose
@@ -72,4 +91,5 @@ services:
         condition: service_healthy
     restart: unless-stopped
 
-
+volumes:
+  pgdata:

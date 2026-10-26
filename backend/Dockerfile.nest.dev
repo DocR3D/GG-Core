@@ -9,6 +9,7 @@ RUN npm ci
 
 # Source
 COPY . .
+RUN npx prisma generate
 
 # Env de dev
 ENV NODE_ENV=development \

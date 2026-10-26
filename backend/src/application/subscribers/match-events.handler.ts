@@ -8,6 +8,7 @@ import { RuleContextFactory } from '@app/rules/rule-context.factory';
 import { PhaseEventsHandler } from './phase-events.handler';
 import { RoundEventsHandler } from './round-events.handler';
 import { KillAndBombEventsHandler } from './kill-bomb-events.handler';
+import { DatabaseEventsHandler } from './database-events.handler';
 
 @Injectable()
 export class MatchEventsHandler {
@@ -16,6 +17,7 @@ export class MatchEventsHandler {
     private readonly phaseHandler: PhaseEventsHandler,
     private readonly roundHandler: RoundEventsHandler,
     private readonly combatHandler: KillAndBombEventsHandler,
+    private readonly dbHandler: DatabaseEventsHandler,
     private readonly registry: RuleRegistry,
     private readonly phase: MatchPhaseService,
     private readonly mss: MatchStateService,
@@ -37,10 +39,11 @@ export class MatchEventsHandler {
 
     const evWithMatch = { ...ev, matchId };
 
-    // 1) Handlers transverses (état round, phase, bomb) — indépendants des règles
+    // 1) Handlers transverses (état round, phase, bomb, persistance BDD) — indépendants des règles
     if (await this.phaseHandler.handle(evWithMatch)) return;
     await this.roundHandler.handle(evWithMatch);
     await this.combatHandler.handle(evWithMatch);
+    await this.dbHandler.handle(evWithMatch);
 
     // 2) Dispatch à la règle active pour la logique métier de la phase
     const phase = await this.phase.getPhase(matchId);
@@ -59,4 +62,3 @@ export class MatchEventsHandler {
     }
   }
 }
-

@@ -1,0 +1,324 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// =============================================================================
+// ENUMS
+// =============================================================================
+
+enum TournamentStatus {
+  UPCOMING
+  ACTIVE
+  COMPLETED
+  ARCHIVED
+}
+
+enum RosterRole {
+  STARTER
+  SUBSTITUTE
+  COACH
+}
+
+enum ServerStatus {
+  IDLE
+  BUSY
+  OFFLINE
+}
+
+enum MatchFormat {
+  BO1
+  BO3
+  BO5
+}
+
+enum MatchStage {
+  GROUP
+  PLAYOFFS
+  AMATEUR
+  SHOWMATCH
+}
+
+enum BracketType {
+  UPPER
+  LOWER
+  ROUND_ROBIN
+  FINAL
+}
+
+enum MatchStatus {
+  PENDING
+  VETO
+  LIVE
+  FINISHED
+  CANCELLED
+}
+
+enum MapStatus {
+  PENDING
+  WARMUP
+  LIVE
+  PAUSED
+  FINISHED
+  CANCELLED
+}
+
+enum VetoAction {
+  BAN
+  PICK
+  DECIDER
+}
+
+enum TeamSide {
+  CT
+  T
+}
+
+enum VetoStatus {
+  COMPLETED
+  EXPIRED
+}
+
+// =============================================================================
+// TOURNAMENT & TEAMS
+// =============================================================================
+
+model Tournament {
+  id          String           @id @default(uuid()) @db.Uuid
+  name        String           @db.VarChar(128)
+  slug        String           @unique @db.VarChar(64)
+  status      TournamentStatus @default(UPCOMING)
+  settings    Json?            @db.JsonB
+  startDate   DateTime?        @map("start_date")
+  endDate     DateTime?        @map("end_date")
+  createdAt   DateTime         @default(now()) @map("created_at")
+  updatedAt   DateTime         @updatedAt @map("updated_at")
+
+  matches     Match[]
+  rosters     TeamRoster[]
+
+  @@map("tournaments")
+}
+
+model Team {
+  id          String       @id @default(uuid()) @db.Uuid
+  name        String       @db.VarChar(128)
+  tag         String?      @db.VarChar(32)
+  logoUrl     String?      @map("logo_url") @db.VarChar(255)
+  createdAt   DateTime     @default(now()) @map("created_at")
+  updatedAt   DateTime     @updatedAt @map("updated_at")
+
+  rosters          TeamRoster[]
+  matchesHome      Match[]           @relation("TeamHomeMatches")
+  matchesAway      Match[]           @relation("TeamAwayMatches")
+  matchesWon       Match[]           @relation("TeamWinnerMatches")
+  mapsWon          MatchMap[]        @relation("TeamWinnerMapMatches")
+  vetoActions      MatchVeto[]       @relation("TeamVetoActions")
+  playerMapStats   PlayerMapStats[]
+
+  @@map("teams")
+}
+
+model Player {
+  id          String       @id @default(uuid()) @db.Uuid
+  // steamId is NULLABLE to allow full offline LAN play when Steam is down
+  steamId     String?      @unique @map("steam_id") @db.VarChar(32)
+  username    String       @db.VarChar(64)
+  avatarUrl   String?      @map("avatar_url") @db.VarChar(255)
+  seatNumber  String?      @map("seat_number") @db.VarChar(32)
+  createdAt   DateTime     @default(now()) @map("created_at")
+  updatedAt   DateTime     @updatedAt @map("updated_at")
+
+  rosters     TeamRoster[]
+  mapStats    PlayerMapStats[]
+
+  @@map("players")
+}
+
+model TeamRoster {
+  id           String     @id @default(uuid()) @db.Uuid
+  tournamentId String     @map("tournament_id") @db.Uuid
+  teamId       String     @map("team_id") @db.Uuid
+  playerId     String     @map("player_id") @db.Uuid
+  role         RosterRole @default(STARTER)
+  createdAt    DateTime   @default(now()) @map("created_at")
+
+  tournament   Tournament @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
+  team         Team       @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  player       Player     @relation(fields: [playerId], references: [id], onDelete: Cascade)
+
+  @@unique([tournamentId, playerId])
+  @@index([tournamentId])
+  @@index([teamId])
+  @@index([playerId])
+  @@map("team_rosters")
+}
+
+// =============================================================================
+// INFRASTRUCTURE
+// =============================================================================
+
+model Server {
+  id           String       @id @default(uuid()) @db.Uuid
+  name         String       @unique @db.VarChar(64)
+  ip           String       @db.VarChar(64)
+  port         Int          @default(27015)
+  rconPort     Int?         @map("rcon_port")
+  rconPassword String?      @map("rcon_password") @db.VarChar(128)
+  status       ServerStatus @default(IDLE)
+  createdAt    DateTime     @default(now()) @map("created_at")
+  updatedAt    DateTime     @updatedAt @map("updated_at")
+
+  matchMaps    MatchMap[]
+
+  @@map("servers")
+}
+
+// =============================================================================
+// MATCHES & BRACKET ENGINE
+// =============================================================================
+
+model Match {
+  id                String       @id @default(uuid()) @db.Uuid
+  tournamentId      String       @map("tournament_id") @db.Uuid
+  teamHomeId        String?      @map("team_home_id") @db.Uuid
+  teamAwayId        String?      @map("team_away_id") @db.Uuid
+  nextMatchId       String?      @map("next_match_id") @db.Uuid
+  loserNextMatchId  String?      @map("loser_next_match_id") @db.Uuid
+  stage             MatchStage   @default(PLAYOFFS)
+  bracketType       BracketType  @default(UPPER) @map("bracket_type")
+  roundNumber       Int          @default(1) @map("round_number")
+  format            MatchFormat  @default(BO1)
+  scoreHome         Int          @default(0) @map("score_home")
+  scoreAway         Int          @default(0) @map("score_away")
+  status            MatchStatus  @default(PENDING)
+  winnerId          String?      @map("winner_id") @db.Uuid
+  scheduledAt       DateTime?    @map("scheduled_at")
+  createdAt         DateTime     @default(now()) @map("created_at")
+  updatedAt         DateTime     @updatedAt @map("updated_at")
+
+  tournament        Tournament   @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
+  teamHome          Team?        @relation("TeamHomeMatches", fields: [teamHomeId], references: [id], onDelete: SetNull)
+  teamAway          Team?        @relation("TeamAwayMatches", fields: [teamAwayId], references: [id], onDelete: SetNull)
+  winner            Team?        @relation("TeamWinnerMatches", fields: [winnerId], references: [id], onDelete: SetNull)
+
+  // Progression relations (Tree / Bracket)
+  nextMatch         Match?       @relation("MatchWinnerProgression", fields: [nextMatchId], references: [id], onDelete: SetNull)
+  previousMatchesWon Match[]     @relation("MatchWinnerProgression")
+
+  loserNextMatch    Match?       @relation("MatchLoserProgression", fields: [loserNextMatchId], references: [id], onDelete: SetNull)
+  previousMatchesLost Match[]    @relation("MatchLoserProgression")
+
+  maps              MatchMap[]
+  vetos             MatchVeto[]
+
+  @@index([tournamentId])
+  @@index([teamHomeId])
+  @@index([teamAwayId])
+  @@map("matches")
+}
+
+// =============================================================================
+// VETO SYSTEM
+// =============================================================================
+
+model MatchVeto {
+  id          String      @id @default(uuid()) @db.Uuid
+  matchId     String      @map("match_id") @db.Uuid
+  stepOrder   Int         @map("step_order")
+  teamId      String?     @map("team_id") @db.Uuid
+  action      VetoAction
+  mapName     String      @map("map_name") @db.VarChar(64)
+  sidePick    TeamSide?   @map("side_pick")
+  status      VetoStatus  @default(COMPLETED)
+  createdAt   DateTime    @default(now()) @map("created_at")
+
+  match       Match       @relation(fields: [matchId], references: [id], onDelete: Cascade)
+  team        Team?       @relation("TeamVetoActions", fields: [teamId], references: [id], onDelete: SetNull)
+
+  @@unique([matchId, stepOrder])
+  @@index([matchId])
+  @@map("match_vetos")
+}
+
+// =============================================================================
+// MAP INSTANCES & STATS
+// =============================================================================
+
+model MatchMap {
+  id          String         @id @default(uuid()) @db.Uuid
+  matchId     String         @map("match_id") @db.Uuid
+  serverId    String?        @map("server_id") @db.Uuid
+  mapOrder    Int            @default(1) @map("map_order")
+  mapName     String         @map("map_name") @db.VarChar(64)
+  scoreHome   Int            @default(0) @map("score_home")
+  scoreAway   Int            @default(0) @map("score_away")
+  status      MapStatus      @default(PENDING)
+  winnerId    String?        @map("winner_id") @db.Uuid
+  demoFile    String?        @map("demo_file") @db.VarChar(255)
+  startedAt   DateTime?      @map("started_at")
+  endedAt     DateTime?      @map("ended_at")
+  createdAt   DateTime       @default(now()) @map("created_at")
+  updatedAt   DateTime       @updatedAt @map("updated_at")
+
+  match       Match          @relation(fields: [matchId], references: [id], onDelete: Cascade)
+  server      Server?        @relation(fields: [serverId], references: [id], onDelete: SetNull)
+  winner      Team?          @relation("TeamWinnerMapMatches", fields: [winnerId], references: [id], onDelete: SetNull)
+
+  playerStats PlayerMapStats[]
+  events      EventPrimary[]
+
+  @@unique([matchId, mapOrder])
+  @@index([matchId])
+  @@index([serverId])
+  @@map("match_maps")
+}
+
+model PlayerMapStats {
+  id          String    @id @default(uuid()) @db.Uuid
+  matchMapId  String    @map("match_map_id") @db.Uuid
+  playerId    String    @map("player_id") @db.Uuid
+  teamId      String    @map("team_id") @db.Uuid
+  kills       Int       @default(0)
+  deaths      Int       @default(0)
+  assists     Int       @default(0)
+  headshots   Int       @default(0)
+  mvps        Int       @default(0)
+  score       Int       @default(0)
+  damageDealt Int       @default(0) @map("damage_dealt")
+  adr         Float     @default(0.0)
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
+
+  matchMap    MatchMap  @relation(fields: [matchMapId], references: [id], onDelete: Cascade)
+  player      Player    @relation(fields: [playerId], references: [id], onDelete: Cascade)
+  team        Team      @relation(fields: [teamId], references: [id], onDelete: Cascade)
+
+  @@unique([matchMapId, playerId])
+  @@index([matchMapId])
+  @@index([playerId])
+  @@index([teamId])
+  @@map("player_map_stats")
+}
+
+// =============================================================================
+// RAW EVENT SOURCING (TIMELINE)
+// =============================================================================
+
+model EventPrimary {
+  id          BigInt    @id @default(autoincrement())
+  matchMapId  String?   @map("match_map_id") @db.Uuid
+  timestamp   BigInt
+  type        String    @db.VarChar(64)
+  payload     Json      @db.JsonB
+  createdAt   DateTime  @default(now()) @map("created_at")
+
+  matchMap    MatchMap? @relation(fields: [matchMapId], references: [id], onDelete: Cascade)
+
+  @@index([matchMapId, timestamp])
+  @@map("events_primary")
+}
