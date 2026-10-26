@@ -5,6 +5,7 @@ import { Module, forwardRef } from '@nestjs/common';
 import { MatchStateModule } from '@app/match-state.module';
 import { BusModule } from '@app/bus/bus.module';
 import { MatchOrchestratorModule } from '@app/match/match-orchestrator.module';
+import { SandboxModule } from '@app/match/sandbox/sandbox.module';
 
 // Contrôleurs HTTP
 import { MatchesController } from './matches/matches.controller';
@@ -15,6 +16,7 @@ import { EconomyController } from './matches/economy.controller';
 import { Cs2LogsController } from './cs2-logs/cs2-logs.controller';
 import { Cs2LogsModule } from './cs2-logs/cs2-logs.module';
 import { HealthController } from './health/health.controller';
+import { SandboxController } from './sandbox/sandbox.controller';
 
 @Module({
   imports: [
@@ -22,6 +24,7 @@ import { HealthController } from './health/health.controller';
     forwardRef(() => MatchOrchestratorModule),
     BusModule,
     Cs2LogsModule, // nouvelle intégration propre du module CS2 logs
+    SandboxModule,
   ],
   controllers: [
     MatchesController,
@@ -31,6 +34,7 @@ import { HealthController } from './health/health.controller';
     EconomyController,
     Cs2LogsController,
     HealthController,
+    SandboxController,
   ],
 })
 export class HttpModule {}
