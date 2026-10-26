@@ -247,10 +247,21 @@ export class SandboxService {
     await this.state.setServerIdToMatchId(serverId, matchId);
     await this.redis.set(redisConst.matchServer(matchId), serverId);
 
-    const round = dto.round;
+    const calculatedRound = (dto.scoreTeam1 ?? 0) + (dto.scoreTeam2 ?? 0);
+    const round = dto.round !== undefined && dto.round > 0 ? dto.round : calculatedRound;
     const team1 = dto.team1Name || 'Home Team';
     const team2 = dto.team2Name || 'Away Team';
     const map = dto.map || 'de_inferno';
+
+    let playersTeam1 = dto.playersTeam1;
+    let playersTeam2 = dto.playersTeam2;
+
+    // Si une des équipes n'a aucun joueur spécifié, injecter un bot par défaut pour équilibrer
+    if (!playersTeam1?.length && playersTeam2?.length) {
+      playersTeam1 = [{ steamId: '10000001', name: 'Bot_CT', cash: 16000, roundsWon: dto.scoreTeam1 }];
+    } else if (!playersTeam2?.length && playersTeam1?.length) {
+      playersTeam2 = [{ steamId: '10000002', name: 'Bot_T', cash: 16000, roundsWon: dto.scoreTeam2 }];
+    }
 
     // Nom de fichier de backup (format standard Valve e.g. sandbox_round12.txt)
     const fileName = dto.backupFileName || `sandbox_round${String(round).padStart(2, '0')}.txt`;
@@ -270,8 +281,8 @@ export class SandboxService {
       firstHalfScore: dto.firstHalfScore,
       secondHalfScore: dto.secondHalfScore,
       overtimeScore: dto.overtimeScore,
-      playersTeam1: dto.playersTeam1,
-      playersTeam2: dto.playersTeam2,
+      playersTeam1,
+      playersTeam2,
     });
 
     await this.backupService.writeBackupFile(filePath, vdfContent);
@@ -285,7 +296,13 @@ export class SandboxService {
         matchId,
         command: rconCommand,
       });
-      this.logger.log(`[Sandbox] Commande RCON envoyée à l'agent (${serverId}): ${rconCommand}`);
+      // Et unpause pour que le round démarre immédiatement in-game
+      await this.cmds.rcon({
+        serverId,
+        matchId,
+        command: 'mp_unpause_match',
+      });
+      this.logger.log(`[Sandbox] Commande RCON envoyée à l'agent (${serverId}): ${rconCommand} + mp_unpause_match`);
     }
 
     // Également injecter l'état dans Redis pour cohérence immédiate du scoreboard backend

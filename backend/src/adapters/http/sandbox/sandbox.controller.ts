@@ -261,12 +261,12 @@ export class SandboxController {
           <label style="color: var(--accent); margin-bottom: 8px; display: block;">🎮 Joueur Cobaye / In-Game Tester</label>
           <div class="form-row">
             <div class="form-group">
-              <label>SteamID64 (Ton SteamID réel)</label>
-              <input type="text" id="playerSteamId" value="76561198000000001">
+              <label>SteamID (AccountID ou SteamID64)</label>
+              <input type="text" id="playerSteamId" value="32976386">
             </div>
             <div class="form-group">
               <label>Pseudo In-Game</label>
-              <input type="text" id="playerName" value="DoctorTester">
+              <input type="text" id="playerName" value="DocR3D">
             </div>
             <div class="form-group">
               <label>Side Joueur</label>
@@ -385,9 +385,10 @@ export class SandboxController {
       const serverId = document.getElementById('serverId').value.trim();
       const map = document.getElementById('map').value;
       const phase = document.getElementById('phase').value;
-      const round = parseInt(document.getElementById('roundNumber').value, 10) || 0;
       const scoreCt = parseInt(document.getElementById('scoreCt').value, 10) || 0;
       const scoreT = parseInt(document.getElementById('scoreT').value, 10) || 0;
+      const roundInput = parseInt(document.getElementById('roundNumber').value, 10);
+      const round = (!isNaN(roundInput) && roundInput > 0) ? roundInput : (scoreCt + scoreT);
       const halftimePlayed = document.getElementById('halftimePlayed').checked;
       const overtimeCount = parseInt(document.getElementById('overtimeCount').value, 10) || 0;
 
@@ -449,6 +450,14 @@ export class SandboxController {
       log('time', 'Génération backup Valve et commande RCON vers ' + d.serverId + '...');
 
       try {
+        const isCt = d.player.side === 'CT';
+        const playerObj = {
+          steamId: d.player.steamId,
+          name: d.player.name,
+          cash: d.player.cash,
+          roundsWon: isCt ? d.scoreCt : d.scoreT
+        };
+
         const payload = {
           matchId: d.matchId,
           serverId: d.serverId,
@@ -458,10 +467,8 @@ export class SandboxController {
           map: d.map,
           team1Name: 'Equipe CT',
           team2Name: 'Equipe T',
-          playersTeam1: [
-            { steamId: d.player.steamId, name: d.player.name, cash: d.player.cash, roundsWon: d.scoreCt }
-          ],
-          playersTeam2: [],
+          playersTeam1: isCt ? [playerObj] : [{ steamId: '10000001', name: 'Bot_CT', cash: 16000, roundsWon: d.scoreCt }],
+          playersTeam2: !isCt ? [playerObj] : [{ steamId: '10000002', name: 'Bot_T', cash: 16000, roundsWon: d.scoreT }],
           applyViaRcon: true
         };
 
@@ -475,7 +482,7 @@ export class SandboxController {
         if (data.ok) {
           log('success', '🎮 Backup généré : ' + data.backupFileName);
           log('cmd', 'RCON exécuté : ' + data.rconCommand);
-          log('time', 'Connecte-toi in-game avec SteamID ' + d.player.steamId + ' pour tester le round !');
+          log('time', 'Restauré in-game pour ' + d.player.name + ' (' + d.player.side + ') avec score ' + d.scoreCt + ' - ' + d.scoreT);
         } else {
           log('error', 'Erreur restore in-game: ' + JSON.stringify(data));
         }
@@ -568,6 +575,19 @@ export class SandboxController {
     // Chargement au démarrage
     window.onload = () => {
       loadPresets();
+
+      const ctEl = document.getElementById('scoreCt');
+      const tEl = document.getElementById('scoreT');
+      const rndEl = document.getElementById('roundNumber');
+
+      function syncRound() {
+        const ct = parseInt(ctEl.value, 10) || 0;
+        const t = parseInt(tEl.value, 10) || 0;
+        rndEl.value = ct + t;
+      }
+
+      ctEl.addEventListener('input', syncRound);
+      tEl.addEventListener('input', syncRound);
     };
   </script>
 </body>

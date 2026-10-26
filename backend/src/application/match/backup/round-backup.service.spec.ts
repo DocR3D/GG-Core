@@ -66,7 +66,7 @@ describe('RoundBackupService', () => {
       expect(vdf).toContain('"team2"\t\t"FaZe"');
       expect(vdf).toContain('"round"\t\t"11"');
       expect(vdf).toContain('"FirstHalfScore"');
-      expect(vdf).toContain('"76561198000000042"');
+      expect(vdf).toContain(`"${service.toValveAccountId('76561198000000042')}"`);
       expect(vdf).toContain('"cash"\t\t"16000"');
 
       // Re-parser pour vérifier l'intégrité round-trip

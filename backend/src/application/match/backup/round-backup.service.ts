@@ -250,8 +250,25 @@ export class RoundBackupService {
     return lines.join('\n');
   }
 
+  public toValveAccountId(steamId: string): string {
+    if (!steamId) return '0';
+    const clean = steamId.trim();
+    const uMatch = clean.match(/\[U:1:(\d+)\]/i);
+    if (uMatch) return uMatch[1];
+    if (/^\d{17}$/.test(clean)) {
+      try {
+        const id64 = BigInt(clean);
+        const base = 76561197960265728n;
+        if (id64 > base) {
+          return (id64 - base).toString();
+        }
+      } catch {}
+    }
+    return clean;
+  }
+
   private writePlayerBlock(lines: string[], p: ValveBackupPlayer, teamScore: number) {
-    const steamId = p.steamId;
+    const steamId = this.toValveAccountId(p.steamId);
     const name = p.name || `Player_${steamId.slice(-4)}`;
     const cash = p.cash ?? 16000;
     const kills = p.kills ?? 0;
