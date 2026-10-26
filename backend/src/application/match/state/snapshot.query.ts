@@ -161,7 +161,7 @@ export class SnapshotQuery {
   }
 
   /**
-   * Lit le hash teams. Si vide, tente de lire l’ancienne String JSON
+   * Lit le hash teams. Si vide, tente de lire l'ancienne String JSON
    * et migre automatiquement vers le hash.
    */
   private async readTeamsHashWithAutoMigrate(matchId: string): Promise<TeamsHash> {
@@ -190,13 +190,13 @@ export class SnapshotQuery {
         t_name: o.t_name ?? o.t?.name,
       };
 
-      // Ecrire le Hash et supprimer l’ancienne String
+      // Supprimer l'ancienne String AVANT d'écrire le Hash (même clé)
+      await this.redis.del(key);
       const flatEntries = Object.entries(mapped)
         .filter(([, v]) => v != null) as [string, string][];
       if (flatEntries.length > 0) {
         await this.redis.hset(key, Object.fromEntries(flatEntries));
       }
-      await this.redis.del(key); // supprime l'ancienne String (même nom de clé)
 
       this.logger.log(`[teams:migrate] Migrated JSON→Hash for ${key}`);
       return mapped;

@@ -6,6 +6,7 @@ import { MessageMode, SaySpec } from '../messages/messages.types';
 import { KnifeChoiceCommand } from '@app/match/commands/knife-choice.command'; // NOUVEAU
 import { Injectable } from '@nestjs/common';
 
+@Injectable()
 export class KnifeChoiceRule extends BaseRule implements PhaseRule {
   name = 'knife_choice' as const;
 

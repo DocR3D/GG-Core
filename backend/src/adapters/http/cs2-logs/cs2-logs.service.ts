@@ -35,9 +35,12 @@ export class Cs2LogsService {
         continue;
       }
       // ⬇ fallback si l’agent n’a pas mis matchId
-      if (!ev.matchId && ev.serverId) {
+      if ((!ev.matchId || ev.matchId === 'unknown') && ev.serverId) {
         try {
-          ev.matchId = await this.matchStateService.getMatchIdFromServerId(ev.serverId) ?? undefined;
+          const resolved = await this.matchStateService.getMatchIdFromServerId(ev.serverId);
+          if (resolved) {
+            ev.matchId = resolved;
+          }
         } catch { /* ignore */ }
       }
       await this.publisher.publish('ggbot:events', ev);

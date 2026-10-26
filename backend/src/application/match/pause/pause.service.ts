@@ -74,7 +74,7 @@ export class PauseMatchService {
    * Lit la clé de phase déjà présente dans ton state.
    */
   async getPhase(matchId: string): Promise<'live' | 'freeze' | 'end' | null> {
-    const v = await this.redis.get(redisConst.phase(matchId));
+    const v = await this.redis.get(redisConst.roundPhase(matchId));
     return v === 'live' || v === 'freeze' || v === 'end' ? v : null;
   }
 

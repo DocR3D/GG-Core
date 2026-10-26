@@ -62,7 +62,7 @@ export class WsBroadcaster implements OnModuleInit {
         case 'agent:result':        return 'AGENT_RESULT';
         case 'log:raw':             return 'LOG_RAW';
 
-        // Nouveaux événements “primaires” du parser Go
+        // Nouveaux événements "primaires" du parser Go
         case 'team_round_win':      return 'TEAM_ROUND_WIN';
         case 'bomb_planted':        return 'BOMB_PLANTED';
         case 'begin_bomb_plant':    return 'BEGIN_BOMB_PLANT';
@@ -154,7 +154,7 @@ export class WsBroadcaster implements OnModuleInit {
         } as InternalEvent;
       }
 
-      // assure l’ordre & l’horodatage
+      // assure l'ordre & l'horodatage
       ev.seq = ev.seq ?? await this.seq.next(ev.matchId);
       ev.ts = ev.ts ?? Date.now();
 
@@ -177,7 +177,7 @@ export class WsBroadcaster implements OnModuleInit {
         case 'SIDES_SWAPPED':     send('sides:swapped'); break;
         case 'MATCH_STATE':       send('match:state'); break;
 
-        // ✅ corriger l’event WS pour coller à events.dto.ts
+        // ✅ corriger l'event WS pour coller à events.dto.ts
         case 'TEAM_ROUND_WIN':    send('team_round_win'); break;
 
         // Bomb / defuse
@@ -186,20 +186,21 @@ export class WsBroadcaster implements OnModuleInit {
         case 'DEFUSE_BEGIN':      send('defuse:begin',  asWs('defuse:begin'  as WsEventType, ev, ev.payload, ev.seq!, ev.ts!)); break;
         case 'DEFUSE_ABORT':      send('defuse:abort',  asWs('defuse:abort'  as WsEventType, ev, ev.payload, ev.seq!, ev.ts!)); break;
 
-        // Pause explicite (si l’agent envoie match_paused/unpaused)
+        // Pause explicite (si l'agent envoie match_paused/unpaused)
         case 'MATCH_PAUSED':      send('pause:update',  asWs('pause:update'  as WsEventType, ev, { state: 'paused' },   ev.seq!, ev.ts!)); break;
         case 'MATCH_UNPAUSED':    send('pause:update',  asWs('pause:update'  as WsEventType, ev, { state: 'unpaused' }, ev.seq!, ev.ts!)); break;
 
         // Grenades / blinded
         case 'GRENADE_THROW':     send('grenade_throw'); break;
-        case 'GRENADE_LAND':      send('grenade_landed' as any /* ajoute-le si tu l’as dans WsEventType */); break;
+        // grenade_landed non exposé côté WS pour l'instant (type commenté dans events.dto.ts)
+        case 'GRENADE_LAND':      break;
         case 'PLAYER_BLINDED':    send('player_blinded'); break;
 
         // Divers joueurs / achats
-        case 'PLAYER_CONNECTED':    send('player:connected'  as any); break;
-        case 'PLAYER_DISCONNECTED': send('player:disconnected' as any); break;
-        case 'PLAYER_NAME_CHANGE':  send('player:name_change' as any); break;
-        case 'ITEM_PURCHASE':       send('item:purchase'      as any); break;
+        case 'PLAYER_CONNECTED':    send('player:connected'); break;
+        case 'PLAYER_DISCONNECTED': send('player:disconnected'); break;
+        case 'PLAYER_NAME_CHANGE':  send('player:name_change'); break;
+        case 'ITEM_PURCHASE':       send('item:purchase'); break;
         case 'PHASE_COUNTDOWN':
           send('phase:countdown', asWs('phase:countdown' as WsEventType, ev, ev.payload, ev.seq!, ev.ts!));
           break;
@@ -213,7 +214,8 @@ export class WsBroadcaster implements OnModuleInit {
           break;
 
         // SFUI bombed (fallback rare, utile overlay)
-        case 'SFUI_TARGET_BOMBED':  send('sfui:target_bombed' as any); break;
+        // sfui:target_bombed non exposé côté WS (pas dans WsEventType)
+        case 'SFUI_TARGET_BOMBED':  break;
 
         case 'CHAT_PUBLIC': {
           if (!toAdmin) break;

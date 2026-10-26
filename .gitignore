@@ -1,31 +1,33 @@
-# Node/Nest
-node_modules
-dist
-*.log
-
-# Go
-**/*.exe
-**/*.test
-bin
-build
-
-# OS/IDE
-.DS_Store
-Thumbs.db
-.vscode
-.idea
-
-# NodeJS
+# Dependencies & Build
 node_modules/
 dist/
+bin/
+build/
+**/*.exe
+**/*.test
 
-# Logs
-logs/
-*.log
-*.jsonl
-
-# OS / IDE
+# OS & IDE
 .DS_Store
 Thumbs.db
 .vscode/
 .idea/
+
+# Runtime Logs
+logs/
+*.log
+*.jsonl
+# Allow tracked test log fixtures
+!test/fixtures/raw-logs/*.log
+
+# Large CS2 Demo Files
+*.dem
+test/fixtures/demos/*.dem
+
+# Tooling scripts (separate repo)
+scripts/
+
+# Local personal memory bank
+memory-bank/
+
+# Temporary local dumps
+temp/

@@ -64,6 +64,8 @@ export class KnifeRule extends BaseRule implements PhaseRule {
 
     const killed = this.extractVictim(ev);
     if (!killed) return;
+    // Ignorer les faux kills (redémarrage de map ou entités sans steamId / non-joueurs)
+    if (!killed.steamId || (killed.team as string) === 'Unassigned' || (killed.team as string) === 'SPECTATOR') return;
     const side = this.toTeamSide(killed.team as any);
     if (!side) {
       await ctx.say(`[knife][warn] team inconnu pour ${killed.name}: ${side}`);
@@ -87,7 +89,7 @@ private async onTeamRoundWin(ev: TeamRoundWinEvent, ctx: RuleContext) {
     return;
   }
 
-  // Si pas d'état en mémoire (rare), fallback sur l’event brut
+  // Si pas d'état en mémoire (rare), fallback sur l'event brut
   if (!st) {
     const winnerFromEvent = this.toTeamSide((ev.payload as any)?.winner);
     if (!winnerFromEvent) {
@@ -108,7 +110,7 @@ private async onTeamRoundWin(ev: TeamRoundWinEvent, ctx: RuleContext) {
   let winnerLogical: Logical =
     st.deathsAway.size > st.deathsHome.size ? 'home' : 'away';
 
-  // Égalité parfaite → fallback sur l’event brut
+  // Égalité parfaite → fallback sur l'event brut
   if (st.deathsAway.size === st.deathsHome.size) {
     const sideFromEvent = this.toTeamSide((ev.payload as any)?.winner);
     if (sideFromEvent) {
@@ -149,7 +151,7 @@ private async onTeamRoundWin(ev: TeamRoundWinEvent, ctx: RuleContext) {
     await ctx.say(`[knife][warn] knife_undo.cfg KO: ${(e as Error)?.message ?? e}`);
   }
 
-  // Verrouille et nettoie l’état pour éviter des doubles traitements
+  // Verrouille et nettoie l'état pour éviter des doubles traitements
   (st as any).finished = true;
   this.state.delete(ev.matchId);
   if(!ctx.serverId) ctx.serverId = await ctx.state.getServerIdFromMatchId(ev.matchId)
