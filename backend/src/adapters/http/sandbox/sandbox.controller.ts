@@ -347,10 +347,12 @@ export class SandboxController {
         <div style="margin-bottom: 14px;">
           <label style="margin-bottom: 6px; display: block; color: var(--accent);">🛠️ Contrôles Directs RCON Serveur CS2</label>
           <div class="action-group">
-            <button class="btn btn-outline" style="border-color: var(--success); color: var(--success);" onclick="sendRcon('mp_unpause_match; unpause')">▶️ Unpause (Débloquer Timer)</button>
+            <button class="btn btn-outline" style="border-color: var(--success); color: var(--success);" onclick="sendRcon('mp_unpause_match; unpause')">▶️ Unpause</button>
+            <button class="btn btn-outline" style="border-color: #38bdf8; color: #38bdf8;" onclick="sendRcon('exec warmup.cfg; mp_warmup_start 1; mp_warmuptime 999999; mp_warmup_pausetimer 1')">🔥 Start Warmup</button>
+            <button class="btn btn-outline" style="border-color: var(--t); color: var(--t);" onclick="sendRcon('mp_warmup_end 1')">⏹️ End Warmup</button>
             <button class="btn btn-outline" onclick="sendRcon('status')">ℹ️ CS2 Status</button>
             <button class="btn btn-outline" onclick="sendRcon('bot_quota 2; bot_quota_mode fill')">👥 Fix Bots 1v1</button>
-            <button class="btn btn-outline" style="border-color: var(--accent); color: var(--accent);" onclick="sendRconMap()">🗺️ Reload Map (changelevel)</button>
+            <button class="btn btn-outline" style="border-color: var(--accent); color: var(--accent);" onclick="sendRconMap()">🗺️ Reload Map</button>
           </div>
         </div>
 

@@ -157,6 +157,13 @@ export class SandboxService {
     // 4. Phase globale & RoundPhase
     if (dto.phase) {
       await this.state.setPhase(mid, dto.phase as Phase);
+      if ((dto.phase === MatchPhase.WARMUP_MAIN || dto.phase === MatchPhase.KNIFE_WARMUP) && dto.serverId) {
+        await this.cmds.rcon({
+          serverId: dto.serverId,
+          matchId: mid,
+          command: 'exec warmup.cfg; mp_warmup_start 1; mp_warmuptime 999999; mp_warmup_pausetimer 1',
+        }).catch((e) => this.logger.warn(`Warmup RCON failed: ${e.message}`));
+      }
     }
     if (dto.roundPhase) {
       await this.redis.set(redisConst.roundPhase(mid), dto.roundPhase);
@@ -250,8 +257,36 @@ export class SandboxService {
     const scoreCt = dto.scoreCt !== undefined ? dto.scoreCt : dto.scoreTeam1 ?? 0;
     const scoreT = dto.scoreT !== undefined ? dto.scoreT : dto.scoreTeam2 ?? 0;
     const calculatedRound = scoreCt + scoreT;
-    const round = dto.round !== undefined && dto.round > 0 ? dto.round : calculatedRound;
+    const round = dto.round !== undefined && dto.round >= 0 ? dto.round : calculatedRound;
     const map = dto.map || 'de_inferno';
+
+    if (round === 0) {
+      const warmupCmd = 'exec warmup.cfg; mp_warmup_start 1; mp_warmuptime 999999; mp_warmup_pausetimer 1; bot_quota 2; bot_quota_mode fill; mp_unpause_match';
+      if (dto.applyViaRcon !== false) {
+        if (dto.reloadMap) {
+          await this.cmds.rcon({ serverId, matchId, command: `changelevel ${map}` });
+          await new Promise((resolve) => setTimeout(resolve, 2000));
+        }
+        await this.cmds.rcon({ serverId, matchId, command: warmupCmd });
+      }
+      await this.injectState({
+        matchId,
+        serverId,
+        score: { ct: 0, t: 0, round: 0 },
+        lastScoredRound: 0,
+        halftimePlayed: false,
+        overtimeCount: 0,
+        phase: MatchPhase.WARMUP_MAIN,
+      });
+      this.logger.log(`[Sandbox] Phase Warmup appliquée avec succès sur ${serverId}`);
+      return {
+        ok: true,
+        backupFileName: 'warmup (aucun checkpoint requis)',
+        filePath: '',
+        rconCommand: warmupCmd,
+        vdfSnippet: 'Warmup natif CS2 démarré avec succès',
+      };
+    }
 
     // Règle d'inversion des côtés Valve CS2 dans les sauvegardes VDF :
     // - En MR12 (règlement CS2) : rounds 1-12 = Team 1 sur CT, Team 2 sur T

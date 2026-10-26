@@ -4,7 +4,7 @@ import type { CommandEvent } from '@domain/events/command.event';
 import { MatchPhase } from '@domain/phase.types';
 import { MessageMode, SaySpec } from '../messages/messages.types';
 import { ReadyCommand } from '@app/match/commands/ready.command'; // Import de la commande
-import { CS2_RULES, CS2_CHAT_COMMANDS } from '@domain/rules/rules.constants';
+import { CS2_RULES, CS2_CHAT_COMMANDS, CS2_CFG } from '@domain/rules/rules.constants';
 
 export class WarmupRule extends BaseRule implements PhaseRule {
   name = 'warmup_rule' as const;
@@ -22,6 +22,14 @@ export class WarmupRule extends BaseRule implements PhaseRule {
   }
 
   async onEnter(ctx: RuleContext) {
+    const serverId = ctx.serverId ?? (await ctx.state.getServerIdFromMatchId(ctx.matchId));
+    if (serverId) {
+      await ctx.orch.rcon({
+        serverId,
+        matchId: ctx.matchId,
+        command: `exec ${CS2_CFG.WARMUP}; mp_warmup_start 1; mp_warmuptime 999999; mp_warmup_pausetimer 1`,
+      });
+    }
     await ctx.say('[Warmup] Tapez !ready quand vous êtes prêts.');
     await ctx.orch.push(ctx.matchId, 'match:state', await ctx.state.getSnapshot(ctx.matchId));
   }
