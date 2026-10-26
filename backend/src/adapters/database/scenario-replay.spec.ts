@@ -179,4 +179,17 @@ describe('Scenario Replay — Real LAN Matches via DatabaseEventsHandler', () =>
     expect(leaderboard.length).toBeGreaterThan(0);
     expect(leaderboard[0].kills).toBeGreaterThan(15);
   });
+
+  it('Scenario 04: should replay CS2 MR12 Double Overtime Inferno match (36 rounds) and aggregate stats', async () => {
+    const fixturePath = getScenarioFixturePath('scenario-04-cs2-overtime-inferno.json');
+    const scenarioData = JSON.parse(fs.readFileSync(fixturePath, 'utf8'));
+
+    for (const ev of scenarioData.events) {
+      await handler.handle(ev);
+    }
+
+    expect(dbStore.eventsPrimary).toHaveLength(scenarioData.metadata.totalEvents);
+    const leaderboard = await persistenceService.getTournamentLeaderboard('m-sandbox-1');
+    expect(leaderboard.length).toBeGreaterThan(0);
+  });
 });

@@ -624,11 +624,24 @@ export class SandboxService {
   }
 
   private formatFixtureName(filename: string): string {
+    const knownLabels: Record<string, string> = {
+      'cs2_match_inferno_overtime_anonymized.log': 'Inferno — Prolongations CS2 (17-19)',
+      'cs2_match_ancient_pauses_anonymized.log': 'Ancient — Pauses Tactiques & Tech (13-8)',
+      'gglan19_sample_match59_anonymized.log': 'Mirage — Match Réglementaire (13-3)',
+      'scenario-04-cs2-overtime-inferno.json': 'Inferno — Prolongations CS2 (36 Rounds)',
+      'scenario-01-full-match-mirage.json': 'Mirage — Match Complet (16 Rounds)',
+      'scenario-02-pauses-match71-ancient.json': 'Ancient — Pauses Réelles LAN',
+      'scenario-03-overtime5-match156-inferno.json': 'Inferno — Match Historique (53 Rounds)',
+    };
+    if (knownLabels[filename]) {
+      return knownLabels[filename];
+    }
+
     return filename
       .replace(/_anonymized/g, '')
       .replace(/\.log|\.txt|\.json/g, '')
-      .replace(/_/g, ' ')
-      .replace(/scenario-\d+-/g, '')
+      .replace(/[-_]/g, ' ')
+      .replace(/scenario \d+ /i, '')
       .replace(/\b\w/g, (c) => c.toUpperCase());
   }
 
@@ -768,6 +781,17 @@ export class SandboxService {
     await this.state.setServerIdToMatchId(serverId, matchId);
     await this.redis.set(redisConst.matchServer(matchId), serverId);
 
+    // Réinitialiser l'état pour garantir un rejeu propre
+    await this.injectState({
+      matchId,
+      serverId,
+      score: { ct: 0, t: 0, round: 0 },
+      lastScoredRound: 0,
+      halftimePlayed: false,
+      overtimeCount: 0,
+      phase: MatchPhase.LIVE_MAIN,
+    });
+
     let events: any[] = dto.events || [];
     if (events.length === 0 && dto.fixtureName) {
       const fixturesDir = this.getFixturesDirectory();
@@ -790,8 +814,8 @@ export class SandboxService {
     for (const rawEv of events) {
       const ev = {
         ...rawEv,
-        matchId: rawEv.matchId || matchId,
-        serverId: rawEv.serverId || serverId,
+        matchId: matchId || rawEv.matchId,
+        serverId: serverId || rawEv.serverId,
         timestamp: rawEv.timestamp || Date.now(),
       };
       await this.pub.publish(REDIS_CHANNELS.EVENTS, JSON.stringify(ev));

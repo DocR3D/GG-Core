@@ -784,15 +784,25 @@ export class SandboxController {
           const sel = document.getElementById('fixtureSelect');
           if (!sel) return;
           sel.innerHTML = '<option value="">-- Choisir un match archivé --</option>';
+          const rawGroup = document.createElement('optgroup');
+          rawGroup.label = '📄 Logs Bruts Valve CS2 (.log)';
+          const scGroup = document.createElement('optgroup');
+          scGroup.label = '📦 Scénarios Structurés JSON (.json)';
+
           data.fixtures.forEach(function(f) {
             const opt = document.createElement('option');
             opt.value = f.id;
             opt.dataset.type = f.type;
-            const icon = f.type === 'raw-log' ? '📄' : '📦';
             const sizeStr = f.sizeBytes ? (' (' + Math.round(f.sizeBytes / 1024) + ' KB)') : '';
-            opt.textContent = icon + ' ' + f.name + sizeStr;
-            sel.appendChild(opt);
+            opt.textContent = (f.type === 'raw-log' ? '📄 ' : '📦 ') + f.name + sizeStr;
+            if (f.type === 'raw-log') {
+              rawGroup.appendChild(opt);
+            } else {
+              scGroup.appendChild(opt);
+            }
           });
+          if (rawGroup.children.length > 0) sel.appendChild(rawGroup);
+          if (scGroup.children.length > 0) sel.appendChild(scGroup);
         }
       } catch (err) {
         log('error', 'Erreur chargement fixtures: ' + err.message);
