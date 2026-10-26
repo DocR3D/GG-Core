@@ -1,6 +1,7 @@
 // src/adapters/http/sandbox/sandbox.controller.ts
 import { Controller, Get, Post, Body, Param, Res, Header, HttpCode, Logger } from '@nestjs/common';
 import type { Response } from 'express';
+import * as jwt from 'jsonwebtoken';
 import { SandboxService } from '@app/match/sandbox/sandbox.service';
 import {
   InjectStateDto,
@@ -22,7 +23,12 @@ export class SandboxController {
   @Header('Content-Type', 'text/html; charset=utf-8')
   getSandboxHtml(@Res() res: Response) {
     this.logger.log('[Sandbox] GET /sandbox page chargée');
-    const html = this.renderSandboxHtml();
+    const adminToken = jwt.sign(
+      { sub: 'sandbox-admin', role: 'admin' },
+      process.env.JWT_SECRET || 'dev-change-me',
+      { expiresIn: '24h' },
+    );
+    const html = this.renderSandboxHtml(adminToken);
     return res.send(html);
   }
 
@@ -141,13 +147,14 @@ export class SandboxController {
     return await this.sandboxService.replayScenario(body);
   }
 
-  private renderSandboxHtml(): string {
+  private renderSandboxHtml(adminToken = ''): string {
     return `<!DOCTYPE html>
 <html lang="fr">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>GG-Core Match Sandbox & Round Doctor</title>
+  <script src="/socket.io/socket.io.js"></script>
   <style>
     :root {
       --bg-dark: #0f172a;
@@ -212,12 +219,31 @@ export class SandboxController {
 
     .action-group { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 16px; }
 
-    .terminal { background: #090d16; border: 1px solid #1e293b; border-radius: 6px; padding: 12px; font-family: 'Courier New', Courier, monospace; font-size: 0.85rem; height: 260px; overflow-y: auto; color: #a5f3fc; line-height: 1.4; }
-    .terminal .entry { margin-bottom: 6px; }
-    .terminal .time { color: var(--text-muted); margin-right: 8px; }
+    .terminal { background: #090d16; border: 1px solid #1e293b; border-radius: 6px; padding: 12px; font-family: 'Courier New', Courier, monospace; font-size: 0.85rem; height: 300px; overflow-y: auto; color: #a5f3fc; line-height: 1.5; }
+    .terminal .entry { margin-bottom: 6px; word-break: break-word; }
+    .terminal .time { color: var(--text-muted); margin-right: 8px; font-size: 0.75rem; }
     .terminal .cmd { color: var(--accent); font-weight: bold; }
     .terminal .success { color: var(--success); }
     .terminal .error { color: var(--danger); }
+
+    .ws-pill { display: inline-flex; align-items: center; gap: 6px; font-size: 0.75rem; padding: 2px 8px; border-radius: 12px; font-weight: 600; border: 1px solid var(--border); }
+    .ws-pill.connected { background: rgba(16, 185, 129, 0.15); border-color: #10b981; color: #10b981; }
+    .ws-pill.connecting { background: rgba(245, 158, 11, 0.15); border-color: #f59e0b; color: #f59e0b; }
+    .ws-pill.disconnected { background: rgba(239, 68, 68, 0.15); border-color: #ef4444; color: #ef4444; }
+
+    .log-filter-bar { display: flex; align-items: center; gap: 6px; margin-bottom: 8px; flex-wrap: wrap; }
+    .filter-label { font-size: 0.75rem; color: var(--text-muted); font-weight: 600; text-transform: uppercase; margin-right: 4px; }
+    .filter-btn { background: var(--bg-input); color: var(--text-muted); border: 1px solid var(--border); border-radius: 12px; padding: 2px 10px; font-size: 0.75rem; cursor: pointer; transition: 0.15s; }
+    .filter-btn:hover { background: var(--border); color: #fff; }
+    .filter-btn.active { background: var(--accent); color: #000; font-weight: bold; border-color: var(--accent); }
+
+    .tag-kill { background: #ef4444; color: #fff; font-size: 0.65rem; font-weight: bold; padding: 1px 5px; border-radius: 3px; margin-right: 6px; }
+    .tag-round { background: #10b981; color: #000; font-size: 0.65rem; font-weight: bold; padding: 1px 5px; border-radius: 3px; margin-right: 6px; }
+    .tag-score { background: #f59e0b; color: #000; font-size: 0.65rem; font-weight: bold; padding: 1px 5px; border-radius: 3px; margin-right: 6px; }
+    .tag-phase { background: #a855f7; color: #fff; font-size: 0.65rem; font-weight: bold; padding: 1px 5px; border-radius: 3px; margin-right: 6px; }
+    .tag-bomb { background: #f97316; color: #000; font-size: 0.65rem; font-weight: bold; padding: 1px 5px; border-radius: 3px; margin-right: 6px; }
+    .tag-chat { background: #06b6d4; color: #000; font-size: 0.65rem; font-weight: bold; padding: 1px 5px; border-radius: 3px; margin-right: 6px; }
+    .tag-system { background: #475569; color: #fff; font-size: 0.65rem; font-weight: bold; padding: 1px 5px; border-radius: 3px; margin-right: 6px; }
   </style>
 </head>
 <body>
@@ -436,12 +462,31 @@ export class SandboxController {
         </div>
 
         <div style="margin-top: 20px;">
-          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
-            <label>Console & Logs RCON Temps Réel</label>
-            <button class="btn btn-outline" style="padding: 2px 8px; font-size: 0.75rem;" onclick="clearLogs()">Effacer</button>
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; flex-wrap: wrap; gap: 8px;">
+            <div style="display: flex; align-items: center; gap: 8px;">
+              <label style="margin: 0;">Console & Flux WebSocket Temps Réel</label>
+              <span id="wsStatusPill" class="ws-pill connecting">● Connexion WS...</span>
+            </div>
+            <div style="display: flex; align-items: center; gap: 8px;">
+              <label style="font-size: 0.75rem; text-transform: none; margin: 0; color: var(--text-muted); display: flex; align-items: center; gap: 4px; cursor: pointer;">
+                <input type="checkbox" id="chkAutoSync" checked style="cursor: pointer;"> Auto-Sync Live
+              </label>
+              <button class="btn btn-outline" style="padding: 2px 8px; font-size: 0.75rem;" onclick="clearLogs()">Effacer</button>
+            </div>
           </div>
+
+          <!-- Filtres de log par catégorie -->
+          <div class="log-filter-bar">
+            <span class="filter-label">Filtre :</span>
+            <button class="filter-btn active" data-filter="all" onclick="setLogFilter('all')">Tous (Debug)</button>
+            <button class="filter-btn" data-filter="match" onclick="setLogFilter('match')">Match (Rounds/Scores)</button>
+            <button class="filter-btn" data-filter="combat" onclick="setLogFilter('combat')">Combat (Kills/Bomb)</button>
+            <button class="filter-btn" data-filter="chat" onclick="setLogFilter('chat')">Chat & Cmds</button>
+            <button class="filter-btn" data-filter="system" onclick="setLogFilter('system')">Système & RCON</button>
+          </div>
+
           <div class="terminal" id="terminal">
-            <div class="entry"><span class="time">[INIT]</span> <span class="success">Match Sandbox & Round Doctor prêt. Choisis un preset ou configure les champs.</span></div>
+            <div class="entry" data-cat="system"><span class="time">[INIT]</span> <span class="tag-system">SYSTEM</span> <span class="success">Match Sandbox & Round Doctor prêt. Choisis un preset ou configure les champs.</span></div>
           </div>
         </div>
       </div>
@@ -449,7 +494,10 @@ export class SandboxController {
   </div>
 
   <script>
+    const WS_ADMIN_TOKEN = '${adminToken}';
     let activePresets = [];
+    let currentSocket = null;
+    let currentLogFilter = 'all';
 
     async function loadPresets() {
       try {
@@ -869,18 +917,227 @@ export class SandboxController {
       }
     }
 
-    function log(type, msg) {
+    function setLogFilter(filter) {
+      currentLogFilter = filter;
+      document.querySelectorAll('.filter-btn').forEach(btn => {
+        btn.classList.toggle('active', btn.dataset.filter === filter);
+      });
+      document.querySelectorAll('#terminal .entry').forEach(entry => {
+        const cat = entry.dataset.cat || 'system';
+        if (filter === 'all' || cat === filter) {
+          entry.style.display = 'block';
+        } else {
+          entry.style.display = 'none';
+        }
+      });
+    }
+
+    function log(type, msg, cat = 'system') {
       const term = document.getElementById('terminal');
+      if (!term) return;
       const now = new Date().toLocaleTimeString();
       const div = document.createElement('div');
       div.className = 'entry';
-      div.innerHTML = \`<span class="time">[\${now}]</span> <span class="\${type}">\${msg}</span>\`;
+      div.dataset.cat = cat;
+      if (currentLogFilter !== 'all' && currentLogFilter !== cat) {
+        div.style.display = 'none';
+      }
+      div.innerHTML = '<span class="time">[' + now + ']</span> <span class="' + type + '">' + msg + '</span>';
       term.appendChild(div);
       term.scrollTop = term.scrollHeight;
     }
 
     function clearLogs() {
       document.getElementById('terminal').innerHTML = '';
+    }
+
+    function initWebSocket() {
+      const matchIdEl = document.getElementById('matchId');
+      const matchId = (matchIdEl ? matchIdEl.value.trim() : '') || 'm-sandbox-1';
+      if (typeof io === 'undefined') {
+        log('error', 'Bibliothèque Socket.IO non chargée (/socket.io/socket.io.js)', 'system');
+        return;
+      }
+
+      if (currentSocket) {
+        currentSocket.disconnect();
+        currentSocket = null;
+      }
+
+      const pill = document.getElementById('wsStatusPill');
+      if (pill) {
+        pill.className = 'ws-pill connecting';
+        pill.textContent = '● Connexion WS...';
+      }
+
+      try {
+        currentSocket = io({
+          query: { matchId: matchId, token: WS_ADMIN_TOKEN },
+          auth: { token: WS_ADMIN_TOKEN },
+          transports: ['websocket', 'polling']
+        });
+
+        currentSocket.on('connect', () => {
+          if (pill) {
+            pill.className = 'ws-pill connected';
+            pill.textContent = '🟢 WS Live (' + matchId + ')';
+          }
+          log('success', '🛰️ Abonné au flux WebSocket en direct (match: ' + matchId + ')', 'system');
+        });
+
+        currentSocket.on('disconnect', () => {
+          if (pill) {
+            pill.className = 'ws-pill disconnected';
+            pill.textContent = '🔴 Déconnecté';
+          }
+        });
+
+        currentSocket.on('connect_error', (err) => {
+          if (pill) {
+            pill.className = 'ws-pill disconnected';
+            pill.textContent = '⚠️ Erreur WS';
+          }
+        });
+
+        currentSocket.onAny((eventName, data) => {
+          handleIncomingWsEvent(eventName, data);
+        });
+      } catch (err) {
+        log('error', 'Erreur init WebSocket: ' + err.message, 'system');
+      }
+    }
+
+    function handleIncomingWsEvent(eventName, data) {
+      const chkSync = document.getElementById('chkAutoSync');
+      const autoSync = chkSync ? chkSync.checked : true;
+      const p = data?.payload || data;
+
+      switch (eventName) {
+        case 'kill': {
+          const killer = p?.killer?.name || p?.killer_name || 'Inconnu';
+          const killerSide = p?.killer?.team || p?.killer_team ? (' (' + (p?.killer?.team || p?.killer_team) + ')') : '';
+          const victim = p?.victim?.name || p?.victim_name || 'Inconnu';
+          const victimSide = p?.victim?.team || p?.victim_team ? (' (' + (p?.victim?.team || p?.victim_team) + ')') : '';
+          const weapon = p?.weapon || 'arme';
+          const hs = p?.headshot ? ' 🎯 (HS)' : '';
+          log('entry', '<span class="tag-kill">KILL</span> <b>' + killer + killerSide + '</b> [' + weapon + ']' + hs + ' ➔ <b>' + victim + victimSide + '</b>', 'combat');
+          break;
+        }
+
+        case 'team_round_win': {
+          const winner = p?.winner || p?.team || 'Inconnu';
+          const reason = p?.reason ? (' (motif: ' + p.reason + ')') : '';
+          log('entry', '<span class="tag-round">ROUND WIN</span> Victoire équipe <b>' + winner + '</b>' + reason, 'match');
+          if (autoSync) {
+            setTimeout(refreshState, 350);
+          }
+          break;
+        }
+
+        case 'score:update': {
+          const ct = p?.ct ?? p?.scoreCt;
+          const t = p?.t ?? p?.scoreT;
+          const round = p?.round ?? (ct !== undefined && t !== undefined ? ct + t : '?');
+          log('entry', '<span class="tag-score">SCORE</span> CT <b>' + ct + '</b> - <b>' + t + '</b> T (Round ' + round + ')', 'match');
+          if (autoSync && ct !== undefined && t !== undefined) {
+            document.getElementById('scoreCt').value = ct;
+            document.getElementById('scoreT').value = t;
+            updateComputedFields();
+          }
+          break;
+        }
+
+        case 'round:start': {
+          const round = p?.round ?? '';
+          log('entry', '<span class="tag-round">ROUND START</span> Début de la manche ' + round, 'match');
+          break;
+        }
+
+        case 'round:end': {
+          log('entry', '<span class="tag-round">ROUND END</span> Fin de la manche', 'match');
+          break;
+        }
+
+        case 'phase:changed': {
+          const phase = p?.phase || p?.newPhase || '';
+          log('entry', '<span class="tag-phase">PHASE</span> Changement de phase : <b>' + phase + '</b>', 'match');
+          if (autoSync && phase) {
+            if (document.getElementById('phase')) document.getElementById('phase').value = phase;
+            updateComputedFields();
+          }
+          break;
+        }
+
+        case 'phase:countdown': {
+          const sec = p?.seconds !== undefined ? (p.seconds + 's') : '';
+          log('entry', '<span class="tag-phase">COUNTDOWN</span> Compte à rebours phase : ' + sec, 'match');
+          break;
+        }
+
+        case 'bomb:planted': {
+          const site = p?.site ? (' (Site ' + p.site + ')') : '';
+          const planter = p?.player?.name ? (' par ' + p.player.name) : '';
+          log('entry', '<span class="tag-bomb">BOMBE</span> Bombe amorcée' + site + planter, 'combat');
+          break;
+        }
+
+        case 'defuse:begin': {
+          const defuser = p?.player?.name ? (' par ' + p.player.name) : '';
+          log('entry', '<span class="tag-bomb">DEFUSE</span> Désamorçage commencé' + defuser, 'combat');
+          break;
+        }
+
+        case 'chat:public': {
+          const sender = p?.player?.name || 'Joueur';
+          const team = p?.player?.team ? (' (' + p.player.team + ')') : '';
+          const text = p?.text || p?.message || '';
+          log('entry', '<span class="tag-chat">CHAT</span> <b>' + sender + team + '</b>: ' + text, 'chat');
+          break;
+        }
+
+        case 'command': {
+          const cmd = p?.command || '';
+          const sender = p?.sender?.name || 'Joueur';
+          const team = p?.sender?.team ? (' (' + p.sender.team + ')') : '';
+          const params = Array.isArray(p?.parameters) && p.parameters.length > 0 ? (' ' + p.parameters.join(' ')) : '';
+          log('entry', '<span class="tag-chat">CMD</span> <b>' + sender + team + '</b>: <code>' + cmd + params + '</code>', 'chat');
+          break;
+        }
+
+        case 'pause:update': {
+          const state = p?.state || 'update';
+          log('entry', '<span class="tag-phase">PAUSE</span> État pause : ' + state, 'match');
+          break;
+        }
+
+        case 'sides:swapped': {
+          log('entry', '<span class="tag-phase">SWAP</span> Inversion des côtés (Sides Swapped)', 'match');
+          if (autoSync) setTimeout(refreshState, 350);
+          break;
+        }
+
+        case 'match:state': {
+          if (autoSync && data) {
+            if (data.score) {
+              if (data.score.ct !== undefined) document.getElementById('scoreCt').value = data.score.ct;
+              if (data.score.t !== undefined) document.getElementById('scoreT').value = data.score.t;
+            }
+            if (data.phase && document.getElementById('phase')) {
+              document.getElementById('phase').value = data.phase;
+            }
+            updateComputedFields();
+          }
+          break;
+        }
+
+        default: {
+          const cat = (eventName.includes('kill') || eventName.includes('bomb') || eventName.includes('grenade')) ? 'combat' :
+                      (eventName.includes('chat') || eventName.includes('cmd')) ? 'chat' :
+                      (eventName.includes('round') || eventName.includes('score') || eventName.includes('phase')) ? 'match' : 'system';
+          log('entry', '<span class="tag-system">' + eventName.toUpperCase() + '</span> ' + JSON.stringify(p), cat);
+          break;
+        }
+      }
     }
 
     // Chargement au démarrage
@@ -894,6 +1151,12 @@ export class SandboxController {
       ctEl.addEventListener('input', updateComputedFields);
       tEl.addEventListener('input', updateComputedFields);
       updateComputedFields();
+
+      initWebSocket();
+      const matchIdEl = document.getElementById('matchId');
+      if (matchIdEl) {
+        matchIdEl.addEventListener('change', initWebSocket);
+      }
     };
   </script>
 </body>

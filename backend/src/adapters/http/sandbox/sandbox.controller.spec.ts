@@ -120,6 +120,10 @@ describe('SandboxController', () => {
       expect(sentContent).toContain('btnStartReplay');
       expect(sentContent).toContain('startReplay');
       expect(sentContent).toContain('loadFixtures');
+      expect(sentContent).toContain('/socket.io/socket.io.js');
+      expect(sentContent).toContain('wsStatusPill');
+      expect(sentContent).toContain('setLogFilter');
+      expect(sentContent).toContain('initWebSocket');
     });
   });
 });
