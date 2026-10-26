@@ -41,6 +41,16 @@ describe('RoundBackupService', () => {
       expect(p10).toBeDefined();
       expect(p10?.name).toBe('Player_10');
       expect(p10?.cash).toBe(2050);
+
+      // Validation de l'historique de streak (loss streak)
+      expect(parsed.history).toBeDefined();
+      expect(parsed.history?.consecutiveTLoses).toBe(2);
+      expect(parsed.history?.loserMostRecentTeam).toBe('T');
+
+      // Validation de la conservation d'inventaire / armes des joueurs
+      const pWithItems = parsed.playersTeam1.find((p) => p.items && p.items.length > 0);
+      expect(pWithItems).toBeDefined();
+      expect(pWithItems?.items).toContain('weapon_usp_silencer');
     });
 
     it('devrait parser correctement un backup réel en Overtime 5 (Round 53) gglan19_match156_ot5_round53_anonymized.txt', () => {
@@ -124,6 +134,45 @@ describe('RoundBackupService', () => {
       expect(reParsed.firstHalfScore).toEqual({ team1: 7, team2: 5 });
       expect(reParsed.secondHalfScore).toEqual({ team1: 5, team2: 7 });
       expect(reParsed.overtimeScore).toEqual({ team1: 2, team2: 1, overtimeId: 1 });
+    });
+
+    it('devrait préserver les items d\'inventaire, l\'armure, le defuse kit et l\'historique de streak', () => {
+      const vdf = service.generateValveBackup({
+        round: 12,
+        team1Name: 'Team Alpha',
+        team2Name: 'Team Bravo',
+        map: 'de_inferno',
+        scoreTeam1: 7,
+        scoreTeam2: 5,
+        history: {
+          consecutiveCTLoses: 0,
+          consecutiveTLoses: 3,
+          loserMostRecentTeam: 'T',
+        },
+        playersTeam1: [
+          {
+            steamId: '10000001',
+            name: 'PlayerOne',
+            cash: 4200,
+            armor: 100,
+            helmet: 1,
+            defusekit: 1,
+            items: ['weapon_m4a1_silencer', 'weapon_usp_silencer', 'weapon_knife'],
+          },
+        ],
+      });
+
+      const parsed = service.parseValveBackup(vdf);
+      expect(parsed.history?.consecutiveTLoses).toBe(3);
+      expect(parsed.history?.loserMostRecentTeam).toBe('T');
+
+      const p1 = parsed.playersTeam1.find((p) => p.steamId === '10000001');
+      expect(p1).toBeDefined();
+      expect(p1?.cash).toBe(4200);
+      expect(p1?.armor).toBe(100);
+      expect(p1?.helmet).toBe(1);
+      expect(p1?.defusekit).toBe(1);
+      expect(p1?.items).toEqual(['weapon_m4a1_silencer', 'weapon_usp_silencer', 'weapon_knife']);
     });
   });
 });

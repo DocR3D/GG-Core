@@ -8,13 +8,22 @@ export interface ValveBackupPlayer {
   steamId: string;
   name: string;
   cash?: number;
+  armor?: number;
+  helmet?: number;
+  defusekit?: number;
+  items?: string[];
   kills?: number;
   assists?: number;
   deaths?: number;
   mvps?: number;
   score?: number;
   roundsWon?: number;
-  helmet?: number;
+}
+
+export interface ValveBackupHistory {
+  consecutiveCTLoses?: number;
+  consecutiveTLoses?: number;
+  loserMostRecentTeam?: 'CT' | 'T';
 }
 
 export interface ValveBackupOptions {
@@ -28,6 +37,7 @@ export interface ValveBackupOptions {
   secondHalfScore?: { team1: number; team2: number };
   overtimeScore?: { team1: number; team2: number; overtimeId?: number };
   roundResults?: Record<number, number>;
+  history?: ValveBackupHistory;
   playersTeam1?: ValveBackupPlayer[];
   playersTeam2?: ValveBackupPlayer[];
   playersAliveT?: number;
@@ -45,6 +55,7 @@ export interface ParsedValveBackup {
   secondHalfScore?: { team1: number; team2: number };
   overtimeScore?: { team1: number; team2: number; overtimeId?: number };
   roundResults: Record<number, number>;
+  history?: ValveBackupHistory;
   playersTeam1: ValveBackupPlayer[];
   playersTeam2: ValveBackupPlayer[];
   raw?: Record<string, any>;
@@ -175,11 +186,14 @@ export class RoundBackupService {
     }
 
     // History
+    const ctLoses = opts.history?.consecutiveCTLoses ?? 0;
+    const tLoses = opts.history?.consecutiveTLoses ?? 0;
+    const loserTeam = opts.history?.loserMostRecentTeam ?? 'CT';
     lines.push('\t"History"');
     lines.push('\t{');
-    lines.push('\t\t"NumConsecutiveTerroristLoses"\t\t"0"');
-    lines.push('\t\t"NumConsecutiveCTLoses"\t\t"0"');
-    lines.push('\t\t"LoserMostRecentTeam"\t\t"CT"');
+    lines.push(`\t\t"NumConsecutiveTerroristLoses"\t\t"${tLoses}"`);
+    lines.push(`\t\t"NumConsecutiveCTLoses"\t\t"${ctLoses}"`);
+    lines.push(`\t\t"LoserMostRecentTeam"\t\t"${loserTeam}"`);
     lines.push('\t\t"SpawnPointsCfg"\t\t"892560323"');
     lines.push('\t}');
 
@@ -284,6 +298,8 @@ export class RoundBackupService {
     const mvps = p.mvps ?? 0;
     const roundsWon = p.roundsWon ?? teamScore;
     const helmet = p.helmet ?? 1;
+    const armor = p.armor ?? 100;
+    const defusekit = p.defusekit ?? 0;
 
     lines.push(`\t\t"${steamId}"`);
     lines.push('\t\t{');
@@ -310,6 +326,18 @@ export class RoundBackupService {
     lines.push(`\t\t\t"kills_taser"\t\t"0"`);
     lines.push(`\t\t\t"enemyDamageDealt"\t\t"${kills * 100}"`);
     lines.push(`\t\t\t"helmet"\t\t"${helmet}"`);
+    lines.push(`\t\t\t"armor"\t\t"${armor}"`);
+    if (defusekit) {
+      lines.push(`\t\t\t"defusekit"\t\t"${defusekit}"`);
+    }
+    if (p.items && p.items.length > 0) {
+      lines.push('\t\t\t"Items"');
+      lines.push('\t\t\t{');
+      for (const item of p.items) {
+        lines.push(`\t\t\t\t"item"\t\t"${item}"`);
+      }
+      lines.push('\t\t\t}');
+    }
     lines.push('\t\t\t"MatchStats"');
     lines.push('\t\t\t{');
     lines.push('\t\t\t\t"Totals"');
@@ -378,6 +406,17 @@ export class RoundBackupService {
       }
     }
 
+    // History
+    let history: ValveBackupHistory | undefined;
+    if (root['History']) {
+      const h = root['History'];
+      history = {
+        consecutiveCTLoses: h['NumConsecutiveCTLoses'] !== undefined ? parseInt(String(h['NumConsecutiveCTLoses']), 10) : undefined,
+        consecutiveTLoses: h['NumConsecutiveTerroristLoses'] !== undefined ? parseInt(String(h['NumConsecutiveTerroristLoses']), 10) : undefined,
+        loserMostRecentTeam: h['LoserMostRecentTeam'] === 'CT' || h['LoserMostRecentTeam'] === 'T' ? h['LoserMostRecentTeam'] : undefined,
+      };
+    }
+
     // Players
     const playersTeam1 = this.extractPlayers(root['PlayersOnTeam1']);
     const playersTeam2 = this.extractPlayers(root['PlayersOnTeam2']);
@@ -392,6 +431,7 @@ export class RoundBackupService {
       secondHalfScore,
       overtimeScore,
       roundResults,
+      history,
       playersTeam1,
       playersTeam2,
       raw: root,
@@ -405,17 +445,30 @@ export class RoundBackupService {
     for (const [steamId, val] of Object.entries(container)) {
       if (typeof val === 'object' && val !== null) {
         const p = val as Record<string, any>;
+        let items: string[] = [];
+        if (p['Items'] && typeof p['Items'] === 'object') {
+          const rawItems = p['Items']['item'];
+          if (Array.isArray(rawItems)) {
+            items = rawItems.map(String);
+          } else if (rawItems !== undefined && rawItems !== null) {
+            items = [String(rawItems)];
+          }
+        }
+
         players.push({
           steamId,
           name: p['name'] || steamId,
           cash: p['cash'] !== undefined ? parseInt(String(p['cash']), 10) : undefined,
+          armor: p['armor'] !== undefined ? parseInt(String(p['armor']), 10) : undefined,
+          helmet: p['helmet'] !== undefined ? parseInt(String(p['helmet']), 10) : undefined,
+          defusekit: p['defusekit'] !== undefined ? parseInt(String(p['defusekit']), 10) : undefined,
+          items: items.length > 0 ? items : undefined,
           kills: p['kills'] !== undefined ? parseInt(String(p['kills']), 10) : undefined,
           assists: p['assists'] !== undefined ? parseInt(String(p['assists']), 10) : undefined,
           deaths: p['deaths'] !== undefined ? parseInt(String(p['deaths']), 10) : undefined,
           mvps: p['mvps'] !== undefined ? parseInt(String(p['mvps']), 10) : undefined,
           score: p['score'] !== undefined ? parseInt(String(p['score']), 10) : undefined,
           roundsWon: p['roundsWon'] !== undefined ? parseInt(String(p['roundsWon']), 10) : undefined,
-          helmet: p['helmet'] !== undefined ? parseInt(String(p['helmet']), 10) : undefined,
         });
       }
     }
@@ -467,10 +520,16 @@ export class RoundBackupService {
         if (pos >= tokens.length) break;
 
         const next = tokens[pos++];
-        if (next === '{') {
-          obj[key] = parseBlock();
+        const val = next === '{' ? parseBlock() : next;
+
+        if (obj[key] !== undefined) {
+          if (Array.isArray(obj[key])) {
+            obj[key].push(val);
+          } else {
+            obj[key] = [obj[key], val];
+          }
         } else {
-          obj[key] = next;
+          obj[key] = val;
         }
       }
 
