@@ -2,6 +2,7 @@
 import { Injectable, Logger, Inject, BadRequestException } from '@nestjs/common';
 import type Redis from 'ioredis';
 import * as path from 'path';
+import * as fs from 'fs';
 import { REDIS_CMD, REDIS_PUB } from '@adapters/redis/redis.tokens';
 import { redisConst, REDIS_CHANNELS } from '../state/redis.keys';
 import { MatchStateService } from '../state/match-state.service';
@@ -13,9 +14,15 @@ import { MatchPhase, Phase, RoundPhase } from '@domain/phase.types';
 import { CS2_CFG, CS2_RULES, CS2_RCON_COMMANDS } from '@domain/rules/rules.constants';
 import { GameSide, normalizeSide } from '@domain/side.types';
 import { RoundBackupService, ValveBackupOptions, ValveBackupPlayer } from '../backup/round-backup.service';
-import { InjectStateDto, InGameRestoreDto } from './sandbox.dto';
+import {
+  InjectStateDto,
+  InGameRestoreDto,
+  ReplayRawLogDto,
+  ReplayScenarioDto,
+  AvailableFixture,
+} from './sandbox.dto';
 
-export type { InjectStateDto, InGameRestoreDto };
+export type { InjectStateDto, InGameRestoreDto, ReplayRawLogDto, ReplayScenarioDto, AvailableFixture };
 
 export interface SandboxPreset {
   id: string;
@@ -556,4 +563,286 @@ export class SandboxService {
     const otHalfIndex = Math.floor((otRound - 1) / otMr);
     return otHalfIndex % 2 === 0;
   }
+
+  /**
+   * Résout le répertoire des fixtures de test / logs archivés
+   */
+  getFixturesDirectory(): string | null {
+    const p1 = path.resolve(process.cwd(), 'test/fixtures');
+    if (fs.existsSync(p1)) return p1;
+    const p2 = path.resolve(process.cwd(), '../test/fixtures');
+    if (fs.existsSync(p2)) return p2;
+    return null;
+  }
+
+  /**
+   * Retourne la liste des fixtures et matchs réels disponibles pour le rejeu
+   */
+  getAvailableFixtures(): AvailableFixture[] {
+    const fixturesDir = this.getFixturesDirectory();
+    if (!fixturesDir) return [];
+
+    const result: AvailableFixture[] = [];
+
+    // Fichiers de logs bruts (.log / .txt)
+    const rawLogsDir = path.join(fixturesDir, 'raw-logs');
+    if (fs.existsSync(rawLogsDir)) {
+      const files = fs.readdirSync(rawLogsDir);
+      for (const file of files) {
+        if (file.endsWith('.log') || file.endsWith('.txt')) {
+          const stats = fs.statSync(path.join(rawLogsDir, file));
+          result.push({
+            id: file,
+            name: this.formatFixtureName(file),
+            type: 'raw-log',
+            sizeBytes: stats.size,
+            description: `Fichier brut Valve CS2 (${Math.round(stats.size / 1024)} KB)`,
+          });
+        }
+      }
+    }
+
+    // Fichiers de scénarios JSON
+    const scenariosDir = path.join(fixturesDir, 'scenarios');
+    if (fs.existsSync(scenariosDir)) {
+      const files = fs.readdirSync(scenariosDir);
+      for (const file of files) {
+        if (file.endsWith('.json')) {
+          const stats = fs.statSync(path.join(scenariosDir, file));
+          result.push({
+            id: file,
+            name: this.formatFixtureName(file),
+            type: 'scenario',
+            sizeBytes: stats.size,
+            description: `Scénario d'événements structurés JSON (${Math.round(stats.size / 1024)} KB)`,
+          });
+        }
+      }
+    }
+
+    return result;
+  }
+
+  private formatFixtureName(filename: string): string {
+    return filename
+      .replace(/_anonymized/g, '')
+      .replace(/\.log|\.txt|\.json/g, '')
+      .replace(/_/g, ' ')
+      .replace(/scenario-\d+-/g, '')
+      .replace(/\b\w/g, (c) => c.toUpperCase());
+  }
+
+  /**
+   * Rejoue un fichier de logs bruts Valve CS2 (ligne par ligne ou par lot)
+   */
+  async replayRawLog(dto: ReplayRawLogDto): Promise<{
+    ok: boolean;
+    totalLines: number;
+    linesSent: number;
+    mode: 'agent_http' | 'fallback_parser';
+    durationMs: number;
+  }> {
+    const matchId = (dto.matchId || 'm-sandbox-1').trim();
+    const serverId = (dto.serverId || 'srv-a').trim();
+
+    // S'assurer de la liaison serveur ↔ matchId
+    await this.state.setServerIdToMatchId(serverId, matchId);
+    await this.redis.set(redisConst.matchServer(matchId), serverId);
+
+    let rawText = dto.content || '';
+    if (!rawText && dto.fixtureName) {
+      const fixturesDir = this.getFixturesDirectory();
+      if (!fixturesDir) throw new BadRequestException('Répertoire de fixtures introuvable');
+      const filePath = path.join(fixturesDir, 'raw-logs', dto.fixtureName);
+      if (!fs.existsSync(filePath)) throw new BadRequestException(`Fichier introuvable: ${dto.fixtureName}`);
+      rawText = await fs.promises.readFile(filePath, 'utf8');
+    }
+
+    if (!rawText.trim()) {
+      throw new BadRequestException('Aucun contenu de log fourni');
+    }
+
+    const allLines = rawText.split(/\r?\n/).map((l) => l.trim()).filter(Boolean);
+    const lines = dto.maxLines && dto.maxLines > 0 ? allLines.slice(0, dto.maxLines) : allLines;
+
+    const start = Date.now();
+    const agentUrl = process.env.AGENT_LOGS_URL || 'http://127.0.0.1:8082/logs?token=tonSuperSecret';
+
+    let mode: 'agent_http' | 'fallback_parser' = 'agent_http';
+    let linesSent = 0;
+
+    const speed = dto.speed || 'fast';
+    const batchSize = speed === 'instant' ? 100 : (speed === 'realtime' ? 1 : 25);
+    const delayMs = speed === 'instant' ? 0 : (speed === 'realtime' ? 400 : 25);
+
+    // Tester la connectivité vers l'Agent Go
+    let agentAvailable = false;
+    try {
+      const ping = await fetch(agentUrl, { method: 'POST', body: '' }).catch(() => null);
+      if (ping && ping.status !== 502 && ping.status !== 503) {
+        agentAvailable = true;
+      }
+    } catch {
+      agentAvailable = false;
+    }
+
+    if (agentAvailable) {
+      mode = 'agent_http';
+      for (let i = 0; i < lines.length; i += batchSize) {
+        const batch = lines.slice(i, i + batchSize);
+        const cleaned = batch.map(cleanContainerLogPrefix).join('\n');
+        await fetch(agentUrl, {
+          method: 'POST',
+          headers: { 'Content-Type': 'text/plain' },
+          body: cleaned,
+        }).catch((err) => {
+          this.logger.warn(`Échec envoi batch logs à l'Agent Go: ${err.message}`);
+        });
+        linesSent += batch.length;
+        if (delayMs > 0) {
+          await new Promise((r) => setTimeout(r, delayMs));
+        }
+      }
+    } else {
+      mode = 'fallback_parser';
+      this.logger.log(`[Sandbox] Agent Go non joignable sur ${agentUrl}, utilisation du fallback parser natif`);
+      for (const line of lines) {
+        const event = parseCs2LineFallback(line, matchId, serverId);
+        if (event) {
+          await this.pub.publish(REDIS_CHANNELS.EVENTS, JSON.stringify(event));
+          linesSent++;
+        }
+        if (delayMs > 0 && event) {
+          await new Promise((r) => setTimeout(r, delayMs));
+        }
+      }
+    }
+
+    const durationMs = Date.now() - start;
+    this.logger.log(`[Sandbox] Replay terminé (${mode}) : ${linesSent}/${lines.length} lignes en ${durationMs}ms`);
+
+    return {
+      ok: true,
+      totalLines: lines.length,
+      linesSent,
+      mode,
+      durationMs,
+    };
+  }
+
+  /**
+   * Rejoue un scénario complet d'événements structurés JSON
+   */
+  async replayScenario(dto: ReplayScenarioDto): Promise<{
+    ok: boolean;
+    totalEvents: number;
+    eventsSent: number;
+    durationMs: number;
+  }> {
+    const matchId = (dto.matchId || 'm-sandbox-1').trim();
+    const serverId = (dto.serverId || 'srv-a').trim();
+
+    // S'assurer de la liaison serveur ↔ matchId
+    await this.state.setServerIdToMatchId(serverId, matchId);
+    await this.redis.set(redisConst.matchServer(matchId), serverId);
+
+    let events: any[] = dto.events || [];
+    if (events.length === 0 && dto.fixtureName) {
+      const fixturesDir = this.getFixturesDirectory();
+      if (!fixturesDir) throw new BadRequestException('Répertoire de fixtures introuvable');
+      const filePath = path.join(fixturesDir, 'scenarios', dto.fixtureName);
+      if (!fs.existsSync(filePath)) throw new BadRequestException(`Scénario introuvable: ${dto.fixtureName}`);
+      const content = JSON.parse(await fs.promises.readFile(filePath, 'utf8'));
+      events = Array.isArray(content.events) ? content.events : (Array.isArray(content) ? content : []);
+    }
+
+    if (!Array.isArray(events) || events.length === 0) {
+      throw new BadRequestException('Aucun événement à rejouer');
+    }
+
+    const start = Date.now();
+    const speed = dto.speed || 'fast';
+    const delayMs = speed === 'instant' ? 0 : (speed === 'realtime' ? 300 : 20);
+
+    let eventsSent = 0;
+    for (const rawEv of events) {
+      const ev = {
+        ...rawEv,
+        matchId: rawEv.matchId || matchId,
+        serverId: rawEv.serverId || serverId,
+        timestamp: rawEv.timestamp || Date.now(),
+      };
+      await this.pub.publish(REDIS_CHANNELS.EVENTS, JSON.stringify(ev));
+      eventsSent++;
+      if (delayMs > 0) {
+        await new Promise((r) => setTimeout(r, delayMs));
+      }
+    }
+
+    const durationMs = Date.now() - start;
+    this.logger.log(`[Sandbox] Replay de scénario terminé : ${eventsSent} événements en ${durationMs}ms`);
+
+    return {
+      ok: true,
+      totalEvents: events.length,
+      eventsSent,
+      durationMs,
+    };
+  }
+}
+
+/**
+ * Nettoie les préfixes de conteneurs (ex: Pterodactyl stdout "10/25 09:28:58 [Server] L ...")
+ */
+function cleanContainerLogPrefix(line: string): string {
+  const lIdx = line.indexOf('L ');
+  if (lIdx !== -1 && lIdx < 40) {
+    return line.slice(lIdx);
+  }
+  return line;
+}
+
+/**
+ * Parser de secours ultra-léger pour rejouer des logs même sans Agent Go actif
+ */
+export function parseCs2LineFallback(rawLine: string, matchId: string, serverId: string): any | null {
+  let line = cleanContainerLogPrefix(rawLine).trim();
+  line = line.replace(/^(?:L\s+)?\d{2}\/\d{2}\/\d{4}\s*-\s*\d{2}:\d{2}:\d{2}(?:\.\d{3})?\s*[-:]\s*/, '').trim();
+  if (!line) return null;
+
+  if (line.includes('World triggered "Round_Start"')) {
+    return { type: 'round_start', matchId, serverId, timestamp: Date.now(), payload: {} };
+  }
+
+  const winMatch = line.match(/^Team "(TERRORIST|CT)" triggered "(SFUI_Notice_[A-Za-z_]+)"/);
+  if (winMatch) {
+    const winner = winMatch[1] === 'TERRORIST' ? 'T' : 'CT';
+    const sfui = winMatch[2].toLowerCase();
+    const reason = sfui.includes('target_bombed') ? 'target_bombed' : (sfui.includes('defused') ? 'defused' : 'elim');
+    return { type: 'team_round_win', matchId, serverId, timestamp: Date.now(), payload: { winner, team: winner, reason } };
+  }
+
+  const killMatch = line.match(/^"([^"<]+)<\d+><([^>]*)><([^>]+)>".* killed "([^"<]+)<\d+><([^>]*)><([^>]+)>".* with "([^"]+)"(.*)$/);
+  if (killMatch) {
+    const isHeadshot = Boolean(killMatch[8]?.includes('headshot'));
+    return {
+      type: 'kill',
+      matchId,
+      serverId,
+      timestamp: Date.now(),
+      payload: {
+        kind: 'player',
+        killer: { name: killMatch[1], steamId: killMatch[2], team: killMatch[3] },
+        victim: { name: killMatch[4], steamId: killMatch[5], team: killMatch[6] },
+        weapon: killMatch[7],
+        headshot: isHeadshot,
+      },
+    };
+  }
+
+  if (line.includes('World triggered "Match_Start"')) {
+    return { type: 'match_start', matchId, serverId, timestamp: Date.now(), payload: {} };
+  }
+
+  return null;
 }

@@ -2,7 +2,12 @@
 import { Controller, Get, Post, Body, Param, Res, Header, HttpCode, Logger } from '@nestjs/common';
 import type { Response } from 'express';
 import { SandboxService } from '@app/match/sandbox/sandbox.service';
-import { InjectStateDto, InGameRestoreDto } from '@app/match/sandbox/sandbox.dto';
+import {
+  InjectStateDto,
+  InGameRestoreDto,
+  ReplayRawLogDto,
+  ReplayScenarioDto,
+} from '@app/match/sandbox/sandbox.dto';
 
 @Controller('sandbox')
 export class SandboxController {
@@ -105,6 +110,35 @@ export class SandboxController {
   ) {
     this.logger.log(`[Sandbox] POST /sandbox/rcon: ${JSON.stringify(body)}`);
     return await this.sandboxService.executeRcon(body.serverId, body.command, body.matchId);
+  }
+
+  /**
+   * Retourne la liste des fixtures et fichiers réels disponibles pour le rejeu
+   */
+  @Get('fixtures')
+  getFixtures() {
+    this.logger.log('[Sandbox] GET /sandbox/fixtures');
+    return { ok: true, fixtures: this.sandboxService.getAvailableFixtures() };
+  }
+
+  /**
+   * Rejoue un fichier de logs bruts Valve CS2
+   */
+  @Post('replay/raw-log')
+  @HttpCode(200)
+  async replayRawLog(@Body() body: ReplayRawLogDto) {
+    this.logger.log(`[Sandbox] POST /sandbox/replay/raw-log fixture=${body.fixtureName} speed=${body.speed}`);
+    return await this.sandboxService.replayRawLog(body);
+  }
+
+  /**
+   * Rejoue un scénario complet d'événements structurés JSON
+   */
+  @Post('replay/scenario')
+  @HttpCode(200)
+  async replayScenario(@Body() body: ReplayScenarioDto) {
+    this.logger.log(`[Sandbox] POST /sandbox/replay/scenario fixture=${body.fixtureName} speed=${body.speed}`);
+    return await this.sandboxService.replayScenario(body);
   }
 
   private renderSandboxHtml(): string {
@@ -310,6 +344,44 @@ export class SandboxController {
             <button class="btn btn-primary" style="flex: 1;" onclick="injectState()">⚡ Injecter GG-Core (Redis/WS seul)</button>
             <button class="btn btn-accent" style="flex: 1;" onclick="restoreInGame()">🎮 Restaurer In-Game (RCON seul)</button>
           </div>
+        </div>
+      </div>
+
+      <!-- Card Replay de Match Réel -->
+      <div class="card" style="border-color: #6366f1;">
+        <div class="card-title" style="color: #a5b4fc;">
+          <span>🎞️ Replay de Match Réel (.log Valve / Scénario JSON)</span>
+          <span class="badge" style="background: #6366f1; color: #fff;">End-to-End</span>
+        </div>
+        <p style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 14px;">
+          Rejoue un match complet depuis un fichier de logs bruts Valve CS2 ou un scénario. L'Agent Go et le moteur de règles réagissent comme en direct LAN !
+        </p>
+
+        <div class="form-row">
+          <div class="form-group" style="flex: 2;">
+            <label>Match LAN Archivé (Fixtures)</label>
+            <select id="fixtureSelect" onchange="onFixtureSelected()">
+              <option value="">-- Chargement des matchs archivés... --</option>
+            </select>
+          </div>
+          <div class="form-group" style="flex: 1;">
+            <label>Vitesse</label>
+            <select id="replaySpeed">
+              <option value="fast" selected>🚀 Accéléré (x10)</option>
+              <option value="instant">⚡ Instantané (Stress Test)</option>
+              <option value="realtime">⏱️ Temps Réel</option>
+            </select>
+          </div>
+        </div>
+
+        <div style="margin-bottom: 14px; padding: 10px 14px; background: var(--bg-input); border-radius: 6px; border: 1px dashed var(--border);">
+          <label style="display: block; margin-bottom: 6px; color: var(--accent); font-size: 0.8rem;">OU Charger son propre fichier (.log, .txt, .json)</label>
+          <input type="file" id="fileUpload" accept=".log,.txt,.json" style="width: 100%; cursor: pointer;" onchange="onFileUploaded(event)">
+          <div id="fileInfo" style="font-size: 0.75rem; color: var(--text-muted); margin-top: 4px;"></div>
+        </div>
+
+        <div class="action-group">
+          <button class="btn" id="btnStartReplay" style="flex: 1; background: #6366f1; color: #fff;" onclick="startReplay()">▶️ Lancer la Simulation</button>
         </div>
       </div>
     </div>
@@ -651,6 +723,131 @@ export class SandboxController {
       input.value = '';
     }
 
+    let availableFixtures = [];
+    let uploadedFileContent = null;
+    let uploadedFileName = '';
+
+    async function loadFixtures() {
+      try {
+        const res = await fetch('/sandbox/fixtures');
+        const data = await res.json();
+        if (data.ok && data.fixtures) {
+          availableFixtures = data.fixtures;
+          const sel = document.getElementById('fixtureSelect');
+          if (!sel) return;
+          sel.innerHTML = '<option value="">-- Choisir un match archivé --</option>';
+          data.fixtures.forEach(function(f) {
+            const opt = document.createElement('option');
+            opt.value = f.id;
+            opt.dataset.type = f.type;
+            const icon = f.type === 'raw-log' ? '📄' : '📦';
+            const sizeStr = f.sizeBytes ? (' (' + Math.round(f.sizeBytes / 1024) + ' KB)') : '';
+            opt.textContent = icon + ' ' + f.name + sizeStr;
+            sel.appendChild(opt);
+          });
+        }
+      } catch (err) {
+        log('error', 'Erreur chargement fixtures: ' + err.message);
+      }
+    }
+
+    function onFixtureSelected() {
+      const sel = document.getElementById('fixtureSelect');
+      const val = sel.value;
+      const fileInput = document.getElementById('fileUpload');
+      const fileInfo = document.getElementById('fileInfo');
+      if (val) {
+        uploadedFileContent = null;
+        uploadedFileName = '';
+        if (fileInput) fileInput.value = '';
+        const f = availableFixtures.find(function(x) { return x.id === val; });
+        if (fileInfo && f) fileInfo.textContent = 'Fixture sélectionnée : ' + f.description;
+      } else {
+        if (fileInfo) fileInfo.textContent = '';
+      }
+    }
+
+    function onFileUploaded(e) {
+      const file = e.target.files[0];
+      const fileInfo = document.getElementById('fileInfo');
+      const sel = document.getElementById('fixtureSelect');
+      if (!file) return;
+      uploadedFileName = file.name;
+      if (sel) sel.value = '';
+
+      const reader = new FileReader();
+      reader.onload = function(evt) {
+        uploadedFileContent = evt.target.result;
+        if (fileInfo) fileInfo.textContent = 'Fichier chargé : ' + file.name + ' (' + Math.round(file.size / 1024) + ' KB)';
+        log('cmd', 'Fichier ' + file.name + ' prêt pour simulation (' + Math.round(file.size / 1024) + ' KB)');
+      };
+      reader.readAsText(file);
+    }
+
+    async function startReplay() {
+      const d = getFormData();
+      const speed = document.getElementById('replaySpeed').value;
+      const sel = document.getElementById('fixtureSelect');
+      const fixtureName = sel ? sel.value : '';
+
+      if (!uploadedFileContent && !fixtureName) {
+        log('error', 'Veuillez sélectionner un match archivé ou charger un fichier .log / .json');
+        return;
+      }
+
+      const isJson = uploadedFileName.endsWith('.json') || (fixtureName && fixtureName.endsWith('.json'));
+      const endpoint = isJson ? '/sandbox/replay/scenario' : '/sandbox/replay/raw-log';
+      const typeLabel = isJson ? 'Scénario JSON' : 'Logs bruts Valve CS2 (.log)';
+
+      log('time', '▶️ Démarrage replay ' + typeLabel + ' (Vitesse: ' + speed + ')...');
+
+      const payload = {
+        matchId: d.matchId,
+        serverId: d.serverId,
+        speed: speed,
+      };
+
+      if (uploadedFileContent) {
+        if (isJson) {
+          try {
+            const parsed = JSON.parse(uploadedFileContent);
+            payload.events = Array.isArray(parsed.events) ? parsed.events : parsed;
+          } catch (err) {
+            log('error', 'Fichier JSON invalide: ' + err.message);
+            return;
+          }
+        } else {
+          payload.content = uploadedFileContent;
+        }
+      } else {
+        payload.fixtureName = fixtureName;
+      }
+
+      const btn = document.getElementById('btnStartReplay');
+      if (btn) btn.disabled = true;
+
+      try {
+        const res = await fetch(endpoint, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload),
+        });
+        const data = await res.json();
+        if (data.ok) {
+          const count = data.linesSent || data.eventsSent;
+          const modeStr = data.mode || 'scenario';
+          log('success', '✅ Replay terminé avec succès (' + modeStr + ') : ' + count + ' éléments traités en ' + data.durationMs + 'ms');
+          setTimeout(refreshState, 500);
+        } else {
+          log('error', 'Erreur replay: ' + JSON.stringify(data));
+        }
+      } catch (err) {
+        log('error', 'Erreur réseau replay: ' + err.message);
+      } finally {
+        if (btn) btn.disabled = false;
+      }
+    }
+
     async function refreshState() {
       const matchId = document.getElementById('matchId').value.trim();
       try {
@@ -688,6 +885,7 @@ export class SandboxController {
     // Chargement au démarrage
     window.onload = () => {
       loadPresets();
+      loadFixtures();
 
       const ctEl = document.getElementById('scoreCt');
       const tEl = document.getElementById('scoreT');

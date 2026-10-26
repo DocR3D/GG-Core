@@ -54,3 +54,29 @@ export class InGameRestoreDto {
   applyViaRcon?: boolean;
   reloadMap?: boolean;
 }
+
+export class ReplayRawLogDto {
+  matchId?: string;
+  serverId?: string;
+  fixtureName?: string;
+  content?: string;
+  speed?: 'instant' | 'fast' | 'realtime';
+  maxLines?: number;
+}
+
+export class ReplayScenarioDto {
+  matchId?: string;
+  serverId?: string;
+  fixtureName?: string;
+  events?: any[];
+  speed?: 'instant' | 'fast' | 'realtime';
+}
+
+export interface AvailableFixture {
+  id: string;
+  name: string;
+  type: 'raw-log' | 'scenario';
+  sizeBytes?: number;
+  eventsCount?: number;
+  description: string;
+}

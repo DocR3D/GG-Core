@@ -290,4 +290,128 @@ describe('SandboxService', () => {
       );
     });
   });
+
+  describe('getAvailableFixtures', () => {
+    it('devrait retourner les fixtures de logs bruts et les scénarios JSON disponibles', () => {
+      const fixtures = service.getAvailableFixtures();
+      expect(Array.isArray(fixtures)).toBe(true);
+      expect(fixtures.length).toBeGreaterThan(0);
+
+      const rawLog = fixtures.find((f) => f.type === 'raw-log');
+      expect(rawLog).toBeDefined();
+      expect(rawLog?.id).toContain('.log');
+
+      const scenario = fixtures.find((f) => f.type === 'scenario');
+      expect(scenario).toBeDefined();
+      expect(scenario?.id).toContain('.json');
+    });
+  });
+
+  describe('replayRawLog', () => {
+    it('devrait lever une BadRequestException si aucun contenu ou fixture valide n\'est fourni', async () => {
+      await expect(service.replayRawLog({ content: '   ' })).rejects.toThrow();
+    });
+
+    it('devrait analyser les lignes de log via le fallback parser et publier sur Redis si l\'Agent est indisponible', async () => {
+      const originalFetch = global.fetch;
+      global.fetch = jest.fn().mockRejectedValue(new Error('Agent offline')) as any;
+
+      try {
+        const sampleLogs = [
+          'L 10/25/2025 - 10:00:00: World triggered "Round_Start"',
+          'L 10/25/2025 - 10:00:45: "PlayerOne<1><[U:1:1]><CT>" [100 200 0] killed "PlayerTwo<2><[U:1:2]><TERRORIST>" [150 250 0] with "m4a1_silencer" (headshot)',
+          'L 10/25/2025 - 10:01:10: Team "CT" triggered "SFUI_Notice_CTs_Win" (CT "1") (T "0")',
+          'L 10/25/2025 - 10:01:15: World triggered "Round_End"',
+        ].join('\n');
+
+        const res = await service.replayRawLog({
+          matchId: 'm-test-1',
+          serverId: 'srv-a',
+          content: sampleLogs,
+          speed: 'instant',
+        });
+
+        expect(res.ok).toBe(true);
+        expect(res.mode).toBe('fallback_parser');
+        expect(res.totalLines).toBe(4);
+        expect(res.linesSent).toBeGreaterThanOrEqual(3);
+        expect(mockPub.publish).toHaveBeenCalledWith(
+          REDIS_CHANNELS.EVENTS,
+          expect.stringContaining('round_start'),
+        );
+        expect(mockPub.publish).toHaveBeenCalledWith(
+          REDIS_CHANNELS.EVENTS,
+          expect.stringContaining('kill'),
+        );
+        expect(mockPub.publish).toHaveBeenCalledWith(
+          REDIS_CHANNELS.EVENTS,
+          expect.stringContaining('team_round_win'),
+        );
+      } finally {
+        global.fetch = originalFetch;
+      }
+    });
+
+    it('devrait envoyer les lignes via HTTP si l\'agent est joignable', async () => {
+      const originalFetch = global.fetch;
+      const mockFetch = jest.fn().mockImplementation(() => {
+        return Promise.resolve({
+          status: 200,
+          ok: true,
+          text: () => Promise.resolve('OK'),
+        });
+      });
+      global.fetch = mockFetch as any;
+
+      try {
+        const sampleLogs = 'L 10/25/2025 - 10:00:00: World triggered "Round_Start"';
+        const res = await service.replayRawLog({
+          matchId: 'm-test-1',
+          serverId: 'srv-a',
+          content: sampleLogs,
+          speed: 'instant',
+        });
+
+        expect(res.ok).toBe(true);
+        expect(res.mode).toBe('agent_http');
+        expect(mockFetch).toHaveBeenCalled();
+      } finally {
+        global.fetch = originalFetch;
+      }
+    });
+  });
+
+  describe('replayScenario', () => {
+    it('devrait lever une BadRequestException si la liste d\'événements est vide', async () => {
+      await expect(service.replayScenario({ events: [] })).rejects.toThrow();
+    });
+
+    it('devrait publier tous les événements du scénario sur le bus Redis', async () => {
+      const events = [
+        { type: 'round_start', payload: { round: 1 } },
+        { type: 'kill', payload: { attacker: { name: 'P1' }, victim: { name: 'P2' } } },
+        { type: 'team_round_win', payload: { winner: 'CT' } },
+      ];
+
+      const res = await service.replayScenario({
+        matchId: 'm-test-1',
+        serverId: 'srv-a',
+        events,
+        speed: 'instant',
+      });
+
+      expect(res.ok).toBe(true);
+      expect(res.totalEvents).toBe(3);
+      expect(res.eventsSent).toBe(3);
+      expect(mockPub.publish).toHaveBeenCalledWith(
+        REDIS_CHANNELS.EVENTS,
+        expect.stringContaining('round_start'),
+      );
+      expect(mockPub.publish).toHaveBeenCalledWith(
+        REDIS_CHANNELS.EVENTS,
+        expect.stringContaining('team_round_win'),
+      );
+    });
+  });
+
 });
