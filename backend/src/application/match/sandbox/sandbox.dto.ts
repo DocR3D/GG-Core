@@ -34,8 +34,10 @@ export class InGameRestoreDto {
   serverId!: string;
   matchId!: string;
   round!: number;
-  scoreTeam1!: number;
-  scoreTeam2!: number;
+  scoreTeam1?: number;
+  scoreTeam2?: number;
+  scoreCt?: number;
+  scoreT?: number;
   team1Name?: string;
   team2Name?: string;
   map?: string;
@@ -44,6 +46,8 @@ export class InGameRestoreDto {
   overtimeScore?: { team1: number; team2: number; overtimeId?: number };
   playersTeam1?: ValveBackupPlayer[];
   playersTeam2?: ValveBackupPlayer[];
+  playersCt?: ValveBackupPlayer[];
+  playersT?: ValveBackupPlayer[];
   backupFileName?: string;
   applyViaRcon?: boolean;
   reloadMap?: boolean;

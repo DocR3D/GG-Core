@@ -247,21 +247,35 @@ export class SandboxService {
     await this.state.setServerIdToMatchId(serverId, matchId);
     await this.redis.set(redisConst.matchServer(matchId), serverId);
 
-    const calculatedRound = (dto.scoreTeam1 ?? 0) + (dto.scoreTeam2 ?? 0);
+    const scoreCt = dto.scoreCt !== undefined ? dto.scoreCt : dto.scoreTeam1 ?? 0;
+    const scoreT = dto.scoreT !== undefined ? dto.scoreT : dto.scoreTeam2 ?? 0;
+    const calculatedRound = scoreCt + scoreT;
     const round = dto.round !== undefined && dto.round > 0 ? dto.round : calculatedRound;
-    const team1 = dto.team1Name || 'Home Team';
-    const team2 = dto.team2Name || 'Away Team';
     const map = dto.map || 'de_inferno';
 
-    let playersTeam1 = dto.playersTeam1;
-    let playersTeam2 = dto.playersTeam2;
+    // Règle d'inversion des côtés Valve CS2 dans les sauvegardes VDF :
+    // - En MR12 (règlement CS2) : rounds 1-12 = Team 1 sur CT, Team 2 sur T
+    // - Round 13-24 (2ème mi-temps) : Team 1 est sur T, Team 2 est sur CT (mi-temps jouée !)
+    // - Overtime MR3 : alterne toutes les 3 manches
+    const isTeam1Ct = this.isTeam1OnCt(round);
+
+    let playersCt = dto.playersCt ?? (isTeam1Ct ? dto.playersTeam1 : dto.playersTeam2);
+    let playersT = dto.playersT ?? (isTeam1Ct ? dto.playersTeam2 : dto.playersTeam1);
 
     // Si une des équipes n'a aucun joueur spécifié, injecter un bot par défaut pour équilibrer
-    if (!playersTeam1?.length && playersTeam2?.length) {
-      playersTeam1 = [{ steamId: '10000001', name: 'Bot_CT', cash: 16000, roundsWon: dto.scoreTeam1 }];
-    } else if (!playersTeam2?.length && playersTeam1?.length) {
-      playersTeam2 = [{ steamId: '10000002', name: 'Bot_T', cash: 16000, roundsWon: dto.scoreTeam2 }];
+    if (!playersCt?.length && playersT?.length) {
+      playersCt = [{ steamId: '10000001', name: 'Bot_CT', cash: 16000, roundsWon: scoreCt }];
+    } else if (!playersT?.length && playersCt?.length) {
+      playersT = [{ steamId: '10000002', name: 'Bot_T', cash: 16000, roundsWon: scoreT }];
     }
+
+    // Mapper fidèlement vers Team 1 et Team 2 dans le VDF selon la mi-temps
+    const vdfScoreTeam1 = isTeam1Ct ? scoreCt : scoreT;
+    const vdfScoreTeam2 = isTeam1Ct ? scoreT : scoreCt;
+    const vdfPlayersTeam1 = isTeam1Ct ? playersCt : playersT;
+    const vdfPlayersTeam2 = isTeam1Ct ? playersT : playersCt;
+    const vdfTeam1Name = isTeam1Ct ? (dto.team1Name || 'Equipe CT') : (dto.team2Name || 'Equipe T');
+    const vdfTeam2Name = isTeam1Ct ? (dto.team2Name || 'Equipe T') : (dto.team1Name || 'Equipe CT');
 
     // Nom de fichier de backup (format standard Valve e.g. sandbox_round12.txt)
     const fileName = dto.backupFileName || `sandbox_round${String(round).padStart(2, '0')}.txt`;
@@ -273,16 +287,16 @@ export class SandboxService {
 
     const vdfContent = this.backupService.generateValveBackup({
       round,
-      team1Name: team1,
-      team2Name: team2,
+      team1Name: vdfTeam1Name,
+      team2Name: vdfTeam2Name,
       map,
-      scoreTeam1: dto.scoreTeam1,
-      scoreTeam2: dto.scoreTeam2,
+      scoreTeam1: vdfScoreTeam1,
+      scoreTeam2: vdfScoreTeam2,
       firstHalfScore: dto.firstHalfScore,
       secondHalfScore: dto.secondHalfScore,
       overtimeScore: dto.overtimeScore,
-      playersTeam1,
-      playersTeam2,
+      playersTeam1: vdfPlayersTeam1,
+      playersTeam2: vdfPlayersTeam2,
     });
 
     await this.backupService.writeBackupFile(filePath, vdfContent);
@@ -336,8 +350,8 @@ export class SandboxService {
       matchId,
       serverId,
       score: {
-        ct: dto.scoreTeam1,
-        t: dto.scoreTeam2,
+        ct: scoreCt,
+        t: scoreT,
         round,
       },
       lastScoredRound: round,
@@ -426,5 +440,19 @@ export class SandboxService {
     });
     this.logger.log(`[Sandbox] RCON direct envoyé (${sId}): ${command}`);
     return { ok: true, command };
+  }
+
+  /**
+   * Détermine si l'entité native Valve "team1" est Counter-Terrorist (CT) ou Terrorist (T)
+   * à un round donné.
+   * - En MR12 (règlement CS2) : rounds 1-12 = CT, rounds 13-24 = T (inversion mi-temps !)
+   * - En Overtime MR3 : alterne toutes les 3 manches
+   */
+  isTeam1OnCt(round: number, mr = 12, otMr = 3): boolean {
+    if (round <= mr) return true;
+    if (round <= mr * 2) return false;
+    const otRound = round - (mr * 2);
+    const otHalfIndex = Math.floor((otRound - 1) / otMr);
+    return otHalfIndex % 2 === 0;
   }
 }

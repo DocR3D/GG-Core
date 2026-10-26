@@ -503,13 +503,13 @@ export class SandboxController {
           matchId: d.matchId,
           serverId: d.serverId,
           round: d.round,
+          scoreCt: d.scoreCt,
+          scoreT: d.scoreT,
           scoreTeam1: d.scoreCt,
           scoreTeam2: d.scoreT,
           map: d.map,
-          team1Name: 'Equipe CT',
-          team2Name: 'Equipe T',
-          playersTeam1: isCt ? [playerObj] : [{ steamId: '10000001', name: 'Bot_CT', cash: 16000, roundsWon: d.scoreCt }],
-          playersTeam2: !isCt ? [playerObj] : [{ steamId: '10000002', name: 'Bot_T', cash: 16000, roundsWon: d.scoreT }],
+          playersCt: isCt ? [playerObj] : [],
+          playersT: !isCt ? [playerObj] : [],
           applyViaRcon: true,
           reloadMap: d.reloadMap
         };
