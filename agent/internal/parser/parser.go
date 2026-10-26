@@ -251,12 +251,6 @@ func TryParse(line string) (string, json.RawMessage, bool) {
 		winner := grp(teamWinRe, line, "winner")
 		sfui := strings.ToLower(grp(teamWinRe, line, "sfui"))
 
-		if strings.Contains(sfui, "target_bombed") {
-			return events.EvSfuiTargetBombed, mustJSON(map[string]any{
-				"winner": mapWinner(winner),
-			}), true
-		}
-
 		reason := "elim"
 		switch {
 		case strings.Contains(sfui, "target_bombed"):

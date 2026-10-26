@@ -15,6 +15,7 @@ export class RoundEventsHandler {
         await this.orchestrator.onRoundStart(ev);
         return false;
       case EventTypes.TEAM_ROUND_WIN:
+      case EventTypes.SFUI_TARGET_BOMBED:
         await this.orchestrator.onRoundEnd(ev);
         return false;
       case EventTypes.ROUND_FREEZE_START:

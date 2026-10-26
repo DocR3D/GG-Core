@@ -50,6 +50,10 @@ export class MatchEventsHandler {
     const rule = this.registry.getRule(phase);
     if (!rule) return;
 
+    this.logger.debug(
+      `[MatchEventsHandler] dispatching ev=${ev.type} to rule=${(rule as any)?.name} (phase=${phase}, match=${matchId})`,
+    );
+
     const ctx = this.ctxFactory.make({ matchId, serverId: ev.serverId });
     try {
       if ((rule as any).events?.has(ev.type)) {

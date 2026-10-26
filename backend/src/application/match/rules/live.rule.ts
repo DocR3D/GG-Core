@@ -17,6 +17,7 @@ export class LiveRule extends BaseRule implements PhaseRule {
   publicTypes = new Set<EventType>([
     EventTypes.ROUND_START,
     EventTypes.TEAM_ROUND_WIN,
+    EventTypes.SFUI_TARGET_BOMBED,
     EventTypes.KILL,
     'match:state' as EventType,
     'score:update' as EventType,
@@ -31,6 +32,7 @@ export class LiveRule extends BaseRule implements PhaseRule {
     super();
     this.events.set(EventTypes.ROUND_START, this.onRoundStart.bind(this));
     this.events.set(EventTypes.TEAM_ROUND_WIN, this.onTeamRoundWin.bind(this));
+    this.events.set(EventTypes.SFUI_TARGET_BOMBED, this.onTeamRoundWin.bind(this));
     this.events.set(EventTypes.KILL, this.onKill.bind(this));
 
     // Délégation des commandes
@@ -80,6 +82,8 @@ export class LiveRule extends BaseRule implements PhaseRule {
     const winner = ((ev.payload as any)?.winner || (ev.payload as any)?.team) as string | undefined;
     if (!winner) return;
 
+    this.logger.log(`[LiveRule] Team round win event received: winner=${winner} reason=${(ev.payload as any)?.reason} match=${ev.matchId}`);
+
     // 1) Anti-eBot Duplicate Round Guard
     // Prevents counting the same round twice if duplicate logs are emitted
     const lastScored = await ctx.state.getLastScoredRound(ev.matchId);
@@ -102,6 +106,8 @@ export class LiveRule extends BaseRule implements PhaseRule {
     const totalRounds = scoreCT + scoreT;
     const settings = await ctx.state.getSettings(ev.matchId);
     const mr = settings.mrFormat ?? CS2_RULES.DEFAULT_MR_HALF;
+
+    this.logger.log(`[LiveRule] Score updated: CT ${scoreCT} - ${scoreT} T (round ${totalRounds}) match=${ev.matchId}`);
 
     await ctx.orch.push(ev.matchId, 'score:update', {
       score: snapshot.score,

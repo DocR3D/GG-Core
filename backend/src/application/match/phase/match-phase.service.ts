@@ -222,9 +222,6 @@ private async applyPhase(
 
 
   async getPhase(matchId: string): Promise<MatchPhase> {
-    const cached = this.cache.get(matchId);
-    if (cached) return cached;
-
     const key = redisConst.phase(matchId);
     const val = (await this.redis.get(key)) as MatchPhase | null;
     const phase = val ?? MatchPhase.WARMUP_MAIN;
