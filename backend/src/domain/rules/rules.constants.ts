@@ -28,7 +28,7 @@ export const CS2_RULES = {
 export const CS2_CFG = {
   WARMUP: 'warmup.cfg',
   COMPETITIVE: 'gamemode_competitive.cfg',
-  COMPETITIVE_TMM: 'gamemode_competitive_tmm',
+  COMPETITIVE_TMM: 'gamemode_competitive_tmm.cfg',
   KNIFE: 'knife.cfg',
   KNIFE_UNDO: 'knife_undo.cfg',
   OVERTIME: 'overtime.cfg',

@@ -53,10 +53,27 @@ export class LiveRule extends BaseRule implements PhaseRule {
       ? await ctx.orch.getPhase(ctx.matchId)
       : MatchPhase.LIVE_MAIN;
 
-    if (phase === MatchPhase.OVERTIME) {
+    const snapshot = typeof ctx.state?.getSnapshot === 'function'
+      ? await ctx.state.getSnapshot(ctx.matchId)
+      : null;
+    const totalRounds = (snapshot?.score?.ct ?? 0) + (snapshot?.score?.t ?? 0);
+    const otCount = typeof ctx.state?.getOvertimeCount === 'function'
+      ? await ctx.state.getOvertimeCount(ctx.matchId)
+      : 0;
+
+    if (phase === MatchPhase.OVERTIME || otCount > 0) {
       await ctx.say('[live] Match en prolongation (OVERTIME).');
-      if (typeof ctx.state?.getSnapshot === 'function') {
-        await ctx.orch.push(ctx.matchId, 'match:state', await ctx.state.getSnapshot(ctx.matchId));
+      if (snapshot) {
+        await ctx.orch.push(ctx.matchId, 'match:state', snapshot);
+      }
+      return;
+    }
+
+    if (totalRounds > 0) {
+      await ctx.orch.rcon({ serverId, matchId: ctx.matchId, command: 'mp_unpause_match; unpause' }).catch(() => {});
+      await ctx.say('[live] Reprise du match LIVE.');
+      if (snapshot) {
+        await ctx.orch.push(ctx.matchId, 'match:state', snapshot);
       }
       return;
     }

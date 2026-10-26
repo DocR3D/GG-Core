@@ -95,6 +95,14 @@ describe('SandboxService', () => {
       expect(ot).toBeDefined();
       expect(ot?.phase).toBe(MatchPhase.OVERTIME);
       expect(ot?.overtimeCount).toBe(1);
+
+      const warmupKnife = presets.find((p) => p.id === 'warmup_knife');
+      expect(warmupKnife).toBeDefined();
+      expect(warmupKnife?.phase).toBe(MatchPhase.KNIFE_WARMUP);
+
+      const knife = presets.find((p) => p.id === 'knife_live');
+      expect(knife).toBeDefined();
+      expect(knife?.phase).toBe(MatchPhase.KNIFE_LIVE);
     });
   });
 
@@ -125,9 +133,25 @@ describe('SandboxService', () => {
         logical: 'home',
       }));
       expect(mockState.setPlayerMoney).toHaveBeenCalledWith('m-test-1', '76561198000000001', 16000);
+      expect(mockRedis.hset).toHaveBeenCalledWith('match:m-test-1:ready', { home: '0', away: '0' });
+      expect(mockRedis.del).toHaveBeenCalledWith('match:m-test-1:phase:lock', 'match:m-test-1:phase:pending');
       expect(mockWs.push).toHaveBeenCalledWith('m-test-1', 'match:state', expect.any(Object));
       expect(mockWs.push).toHaveBeenCalledWith('m-test-1', 'score:update', expect.any(Object));
       expect(result.matchId).toBe('m-test-1');
+    });
+
+    it('doit envoyer exec knife.cfg via RCON si la phase injectée est KNIFE_LIVE', async () => {
+      await service.injectState({
+        matchId: 'm-test-1',
+        serverId: 'srv-a',
+        phase: MatchPhase.KNIFE_LIVE,
+      });
+
+      expect(mockCmds.rcon).toHaveBeenCalledWith({
+        serverId: 'srv-a',
+        matchId: 'm-test-1',
+        command: 'exec knife.cfg',
+      });
     });
   });
 
@@ -159,6 +183,44 @@ describe('SandboxService', () => {
         command: 'mp_backup_restore_load_file sandbox_round12.txt',
       });
       expect(result.rconCommand).toBe('mp_backup_restore_load_file sandbox_round12.txt');
+    });
+
+    it('devrait exécuter knife.cfg et passer en phase knife_live si round=0 et phase=knife_live (1-clic)', async () => {
+      const result = await service.restoreInGame({
+        serverId: 'srv-a',
+        matchId: 'm-test-1',
+        round: 0,
+        phase: MatchPhase.KNIFE_LIVE,
+      });
+
+      expect(result.ok).toBe(true);
+      expect(mockBackupService.generateValveBackup).not.toHaveBeenCalled();
+      expect(mockCmds.rcon).toHaveBeenCalledWith({
+        serverId: 'srv-a',
+        matchId: 'm-test-1',
+        command: 'exec knife.cfg',
+      });
+      expect(result.rconCommand).toBe('exec knife.cfg');
+      expect(mockState.setPhase).toHaveBeenCalledWith('m-test-1', MatchPhase.KNIFE_LIVE);
+    });
+
+    it('devrait exécuter warmup.cfg si round=0 et phase=warmup_main (1-clic)', async () => {
+      const result = await service.restoreInGame({
+        serverId: 'srv-a',
+        matchId: 'm-test-1',
+        round: 0,
+        phase: MatchPhase.WARMUP_MAIN,
+      });
+
+      expect(result.ok).toBe(true);
+      expect(mockBackupService.generateValveBackup).not.toHaveBeenCalled();
+      expect(mockCmds.rcon).toHaveBeenCalledWith(
+        expect.objectContaining({
+          serverId: 'srv-a',
+          command: expect.stringContaining('exec warmup.cfg'),
+        }),
+      );
+      expect(mockState.setPhase).toHaveBeenCalledWith('m-test-1', MatchPhase.WARMUP_MAIN);
     });
   });
 
