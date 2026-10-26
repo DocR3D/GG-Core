@@ -26,7 +26,7 @@ export class MatchPhaseService {
     @Inject(REDIS_PUB) private readonly pub: Redis,
 @Inject(forwardRef(() => MatchCommandsService)) private readonly actions: MatchCommandsService,
     private readonly rcF: RuleContextFactory,   // OK une fois exporté + importé
-    private readonly pauseMatchService: PauseMatchService,
+    @Inject(forwardRef(() => PauseMatchService)) private readonly pauseMatchService: PauseMatchService,
     private readonly messageService: MessageService,
     private readonly registry: RuleRegistry,
   ) {}

@@ -75,7 +75,7 @@ export class MatchCommandsService {
     private readonly mps: MatchPhaseService,
     @Inject(REDIS_CMD) private readonly redis: Redis,
     @Inject(REDIS_PUB) private readonly pub: Redis,
-    private readonly pauseMatchService: PauseMatchService
+    @Inject(forwardRef(() => PauseMatchService)) private readonly pauseMatchService: PauseMatchService
   ) {}
 
   // --------- Helpers

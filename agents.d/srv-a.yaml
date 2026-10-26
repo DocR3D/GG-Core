@@ -2,7 +2,7 @@ version: 1
 serverId: srv-a
 
 cs2:
-  addr: 172.21.192.1
+  addr: 127.0.0.1
   port: 27015
   rconPassword: "123456"
   rcon:
@@ -11,13 +11,13 @@ cs2:
     rateLimitPerSec: 6
 
 cstv:
-  enabled: true
-  port: 27020   # même host, port différent
+  enabled: false
+  port: 27020
 
 logs:
   bind: "0.0.0.0:8082"
-  token: "tonSuperSecret"                    # secret pour /logs
-  backendPostUrl: "http://backend:8081/cs2/logs"
+  token: "tonSuperSecret"
+  backendPostUrl: "http://127.0.0.1:8081/cs2/logs"
   batch:
     maxLines: 100
     maxDelayMs: 75
@@ -29,7 +29,7 @@ logs:
     maxBufferLines: 10000
 
 redis:
-  url: "redis://redis:6379"   # ← pas 127.0.0.1
+  url: "redis://127.0.0.1:6379"
   actionsChannel: "ggbot:agent:srv-a:actions"
   stateKey: "ggbot:agent:srv-a:state"
   stateTtlSec: 10
