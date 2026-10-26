@@ -11,6 +11,7 @@ import { SnapshotQuery } from '../state/snapshot.query';
 import { MatchCommandsService } from '@app/commands/match-commands.service';
 import { WsBroadcaster } from '@adapters/ws/broadcaster.service';
 import { MatchPhase, Phase, RoundPhase } from '@domain/phase.types';
+import { MatchSettings } from '@domain/match-settings.types';
 import { CS2_CFG, CS2_RULES, CS2_RCON_COMMANDS } from '@domain/rules/rules.constants';
 import { GameSide, normalizeSide } from '@domain/side.types';
 import { RoundBackupService, ValveBackupOptions, ValveBackupPlayer } from '../backup/round-backup.service';
@@ -625,13 +626,13 @@ export class SandboxService {
 
   private formatFixtureName(filename: string): string {
     const knownLabels: Record<string, string> = {
-      'cs2_match_inferno_overtime_anonymized.log': 'Inferno — Prolongations CS2 (17-19)',
-      'cs2_match_ancient_pauses_anonymized.log': 'Ancient — Pauses Tactiques & Tech (13-8)',
-      'gglan19_sample_match59_anonymized.log': 'Mirage — Match Réglementaire (13-3)',
-      'scenario-04-cs2-overtime-inferno.json': 'Inferno — Prolongations CS2 (36 Rounds)',
-      'scenario-01-full-match-mirage.json': 'Mirage — Match Complet (16 Rounds)',
-      'scenario-02-pauses-match71-ancient.json': 'Ancient — Pauses Réelles LAN',
-      'scenario-03-overtime5-match156-inferno.json': 'Inferno — Match Historique (53 Rounds)',
+      'cs2_match_inferno_overtime_anonymized.log': 'Inferno (Overtime CS2, 17-19)',
+      'cs2_match_ancient_pauses_anonymized.log': 'Ancient (Pauses CS2, 13-8)',
+      'gglan19_sample_match59_anonymized.log': 'Mirage (Match LAN, 13-3)',
+      'scenario-04-cs2-overtime-inferno.json': 'Inferno (Overtime CS2, 36 rounds)',
+      'scenario-03-overtime5-match156-inferno.json': 'Inferno (5 Overtimes, 53 rounds)',
+      'scenario-01-full-match-mirage.json': 'Mirage (Match standard, 16 rounds)',
+      'scenario-02-pauses-match71-ancient.json': 'Ancient (Pauses tactiques & tech)',
     };
     if (knownLabels[filename]) {
       return knownLabels[filename];
@@ -671,17 +672,7 @@ export class SandboxService {
       halftimePlayed: false,
       overtimeCount: 0,
       phase: MatchPhase.LIVE_MAIN,
-    });
-
-    // Réinitialiser l'état pour garantir un rejeu propre
-    await this.injectState({
-      matchId,
-      serverId,
-      score: { ct: 0, t: 0, round: 0 },
-      lastScoredRound: 0,
-      halftimePlayed: false,
-      overtimeCount: 0,
-      phase: MatchPhase.LIVE_MAIN,
+      settings: { overtimeEnabled: true, mrFormat: 12, overtimeMrFormat: 3 },
     });
 
     let rawText = dto.content || '';
@@ -781,6 +772,23 @@ export class SandboxService {
     await this.state.setServerIdToMatchId(serverId, matchId);
     await this.redis.set(redisConst.matchServer(matchId), serverId);
 
+    let events: any[] = dto.events || [];
+    let scenarioSettings: Partial<MatchSettings> = { overtimeEnabled: true, mrFormat: 12, overtimeMrFormat: 3 };
+
+    if (events.length === 0 && dto.fixtureName) {
+      const fixturesDir = this.getFixturesDirectory();
+      if (!fixturesDir) throw new BadRequestException('Répertoire de fixtures introuvable');
+      const filePath = path.join(fixturesDir, 'scenarios', dto.fixtureName);
+      if (!fs.existsSync(filePath)) throw new BadRequestException(`Scénario introuvable: ${dto.fixtureName}`);
+      const content = JSON.parse(await fs.promises.readFile(filePath, 'utf8'));
+      events = Array.isArray(content.events) ? content.events : (Array.isArray(content) ? content : []);
+      if (content.metadata?.settings) {
+        scenarioSettings = { ...scenarioSettings, ...content.metadata.settings };
+      } else if (content.metadata?.mrFormat) {
+        scenarioSettings.mrFormat = Number(content.metadata.mrFormat);
+      }
+    }
+
     // Réinitialiser l'état pour garantir un rejeu propre
     await this.injectState({
       matchId,
@@ -790,17 +798,8 @@ export class SandboxService {
       halftimePlayed: false,
       overtimeCount: 0,
       phase: MatchPhase.LIVE_MAIN,
+      settings: scenarioSettings,
     });
-
-    let events: any[] = dto.events || [];
-    if (events.length === 0 && dto.fixtureName) {
-      const fixturesDir = this.getFixturesDirectory();
-      if (!fixturesDir) throw new BadRequestException('Répertoire de fixtures introuvable');
-      const filePath = path.join(fixturesDir, 'scenarios', dto.fixtureName);
-      if (!fs.existsSync(filePath)) throw new BadRequestException(`Scénario introuvable: ${dto.fixtureName}`);
-      const content = JSON.parse(await fs.promises.readFile(filePath, 'utf8'));
-      events = Array.isArray(content.events) ? content.events : (Array.isArray(content) ? content : []);
-    }
 
     if (!Array.isArray(events) || events.length === 0) {
       throw new BadRequestException('Aucun événement à rejouer');

@@ -175,7 +175,7 @@ describe('Scenario Replay — Real LAN Matches via DatabaseEventsHandler', () =>
     }
 
     expect(dbStore.eventsPrimary).toHaveLength(scenarioData.metadata.totalEvents);
-    const leaderboard = await persistenceService.getTournamentLeaderboard('m-gglan19-156');
+    const leaderboard = await persistenceService.getTournamentLeaderboard(scenarioData.metadata.matchId);
     expect(leaderboard.length).toBeGreaterThan(0);
     expect(leaderboard[0].kills).toBeGreaterThan(15);
   });

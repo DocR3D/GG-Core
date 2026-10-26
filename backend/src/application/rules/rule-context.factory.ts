@@ -33,6 +33,7 @@ export class RuleContextFactory {
       setHalftimePlayed: this.mss.setHalftimePlayed.bind(this.mss),
       getOvertimeCount: this.mss.getOvertimeCount.bind(this.mss),
       setOvertimeCount: this.mss.setOvertimeCount.bind(this.mss),
+      reconcileScore: this.mss.reconcileScore.bind(this.mss),
     } as const;
 
     return {

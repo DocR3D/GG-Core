@@ -129,6 +129,16 @@ export class LiveRule extends BaseRule implements PhaseRule {
     // 2) Increment Score & Economy
     await ctx.orch.roundEnd(ev.matchId, winner as any);
 
+    // Reconcilier immédiatement avec le score authoritative CS2 natif (si fourni dans l'événement)
+    const authoritativeScore = (ev.payload as any)?.score;
+    if (
+      authoritativeScore &&
+      typeof authoritativeScore.ct === 'number' &&
+      typeof authoritativeScore.t === 'number'
+    ) {
+      await ctx.state.reconcileScore(ev.matchId, authoritativeScore.ct, authoritativeScore.t);
+    }
+
     const snapshot = await ctx.state.getSnapshot(ev.matchId);
     const scoreCT = snapshot.score.ct;
     const scoreT = snapshot.score.t;
@@ -232,6 +242,10 @@ export class LiveRule extends BaseRule implements PhaseRule {
         const nextOt = otCount + 1;
         await ctx.state.setOvertimeCount(ev.matchId, nextOt);
         await ctx.say(`[GG-Core] Égalité en prolongations (${scoreCT}-${scoreT}) ! Début OT${nextOt}...`);
+        if (serverId) {
+          await ctx.orch.rcon({ serverId, matchId: ev.matchId, command: CS2_RCON_COMMANDS.SWAP_TEAMS });
+        }
+        await ctx.orch.swapSides(ev.matchId);
         if (serverId) {
           await ctx.orch.restartGame({ serverId, matchId: ev.matchId, delay: CS2_RULES.FAST_RESTART_DELAY_SEC });
         }
