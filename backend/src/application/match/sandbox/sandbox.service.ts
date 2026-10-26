@@ -649,6 +649,28 @@ export class SandboxService {
     await this.state.setServerIdToMatchId(serverId, matchId);
     await this.redis.set(redisConst.matchServer(matchId), serverId);
 
+    // Réinitialiser l'état pour garantir un rejeu propre
+    await this.injectState({
+      matchId,
+      serverId,
+      score: { ct: 0, t: 0, round: 0 },
+      lastScoredRound: 0,
+      halftimePlayed: false,
+      overtimeCount: 0,
+      phase: MatchPhase.LIVE_MAIN,
+    });
+
+    // Réinitialiser l'état pour garantir un rejeu propre
+    await this.injectState({
+      matchId,
+      serverId,
+      score: { ct: 0, t: 0, round: 0 },
+      lastScoredRound: 0,
+      halftimePlayed: false,
+      overtimeCount: 0,
+      phase: MatchPhase.LIVE_MAIN,
+    });
+
     let rawText = dto.content || '';
     if (!rawText && dto.fixtureName) {
       const fixturesDir = this.getFixturesDirectory();
@@ -814,12 +836,15 @@ export function parseCs2LineFallback(rawLine: string, matchId: string, serverId:
     return { type: 'round_start', matchId, serverId, timestamp: Date.now(), payload: {} };
   }
 
-  const winMatch = line.match(/^Team "(TERRORIST|CT)" triggered "(SFUI_Notice_[A-Za-z_]+)"/);
+  const winMatch = line.match(/^Team "(TERRORIST|CT)" triggered "(SFUI_Notice_[A-Za-z_]+)"(?:\s*\(CT "(\d+)"\)\s*\(T "(\d+)"\))?/);
   if (winMatch) {
     const winner = winMatch[1] === 'TERRORIST' ? 'T' : 'CT';
     const sfui = winMatch[2].toLowerCase();
     const reason = sfui.includes('target_bombed') ? 'target_bombed' : (sfui.includes('defused') ? 'defused' : 'elim');
-    return { type: 'team_round_win', matchId, serverId, timestamp: Date.now(), payload: { winner, team: winner, reason } };
+    const scoreCT = winMatch[3] ? parseInt(winMatch[3], 10) : undefined;
+    const scoreT = winMatch[4] ? parseInt(winMatch[4], 10) : undefined;
+    const round = (scoreCT !== undefined && scoreT !== undefined) ? scoreCT + scoreT : undefined;
+    return { type: 'team_round_win', matchId, serverId, round, timestamp: Date.now(), payload: { winner, team: winner, reason, scoreCT, scoreT } };
   }
 
   const killMatch = line.match(/^"([^"<]+)<\d+><([^>]*)><([^>]+)>".* killed "([^"<]+)<\d+><([^>]*)><([^>]+)>".* with "([^"]+)"(.*)$/);
