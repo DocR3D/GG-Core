@@ -42,6 +42,27 @@ describe('RoundBackupService', () => {
       expect(p10?.name).toBe('Player_10');
       expect(p10?.cash).toBe(2050);
     });
+
+    it('devrait parser correctement un backup réel en Overtime 5 (Round 53) gglan19_match156_ot5_round53_anonymized.txt', () => {
+      const fixturePath = path.resolve(__dirname, '../../../../../test/fixtures/backups/gglan19_match156_ot5_round53_anonymized.txt');
+      expect(fs.existsSync(fixturePath)).toBe(true);
+
+      const content = fs.readFileSync(fixturePath, 'utf8');
+      const parsed = service.parseValveBackup(content);
+
+      expect(parsed.round).toBe(53);
+      expect(parsed.team1).toBe('Team Alpha');
+      expect(parsed.team2).toBe('Team Bravo');
+      expect(parsed.map).toBe('de_inferno');
+      expect(parsed.firstHalfScore.team1).toBe(7);
+      expect(parsed.firstHalfScore.team2).toBe(5);
+      expect(parsed.secondHalfScore.team1).toBe(5);
+      expect(parsed.secondHalfScore.team2).toBe(7);
+      expect(parsed.overtimeScore.team1).toBe(13);
+      expect(parsed.overtimeScore.team2).toBe(16);
+      expect(parsed.overtimeScore.overtimeId).toBe(5);
+      expect(Object.keys(parsed.roundResults).length).toBeGreaterThanOrEqual(30);
+    });
   });
 
   describe('generateValveBackup & Round-trip', () => {

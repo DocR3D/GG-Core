@@ -165,4 +165,18 @@ describe('Scenario Replay — Real LAN Matches via DatabaseEventsHandler', () =>
 
     expect(dbStore.eventsPrimary).toHaveLength(scenarioData.metadata.totalEvents);
   });
+
+  it('Scenario 03: should replay 5-Overtime Inferno match (Match 156, 53 rounds) and aggregate stats cleanly', async () => {
+    const fixturePath = getScenarioFixturePath('scenario-03-overtime5-match156-inferno.json');
+    const scenarioData = JSON.parse(fs.readFileSync(fixturePath, 'utf8'));
+
+    for (const ev of scenarioData.events) {
+      await handler.handle(ev);
+    }
+
+    expect(dbStore.eventsPrimary).toHaveLength(scenarioData.metadata.totalEvents);
+    const leaderboard = await persistenceService.getTournamentLeaderboard('m-gglan19-156');
+    expect(leaderboard.length).toBeGreaterThan(0);
+    expect(leaderboard[0].kills).toBeGreaterThan(15);
+  });
 });
