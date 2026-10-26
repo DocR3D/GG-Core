@@ -24,6 +24,7 @@ describe('WarmupRule — Ready Checks & Target Phase Selection', () => {
         resetReady: jest.fn().mockResolvedValue(undefined),
         push: jest.fn().mockResolvedValue(undefined),
         isBothReady: jest.fn().mockResolvedValue(false),
+        isCountdownActive: jest.fn().mockResolvedValue(false),
         getPhase: jest.fn().mockResolvedValue(MatchPhase.KNIFE_WARMUP),
         startPhaseCountdown: jest.fn().mockResolvedValue(undefined),
       },
@@ -119,6 +120,16 @@ describe('WarmupRule — Ready Checks & Target Phase Selection', () => {
         CS2_RULES.COUNTDOWN_DELAY_SEC,
         'srv-a',
       );
+    });
+
+    it('ne redéclenche PAS le décompte ni l\'annonce si un décompte est déjà en cours', async () => {
+      mockCtx.orch.isBothReady.mockResolvedValue(true);
+      mockCtx.orch.isCountdownActive.mockResolvedValue(true);
+
+      await (rule as any).onReadyCommand(makeCmd('T'), mockCtx);
+
+      expect(mockCtx.say).not.toHaveBeenCalledWith('Les deux équipes sont prêtes ! Lancement du décompte.');
+      expect(mockCtx.orch.startPhaseCountdown).not.toHaveBeenCalled();
     });
   });
 });

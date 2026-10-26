@@ -222,6 +222,10 @@ export class MatchOrchestrator {
     return this.state.applyKnifeResult(matchId, winnerFromEvent);
   }
 
+  isCountdownActive(matchId: string) {
+    return this.phase.isCountdownActive(matchId);
+  }
+
   startPhaseCountdown(matchId: string, nextPhase: MatchPhase, seconds: number, serverId: string) {
     return this.phase.startPhaseCountdown(matchId, nextPhase, seconds, serverId);
   }
@@ -368,7 +372,9 @@ export class MatchOrchestrator {
 
     if (winnerSide) {
       winnerLogical = await this.state.sideToLogical(matchId, winnerSide);
-      winnerName = (winnerLogical === 'home' ? snapshot.teams.home_name : snapshot.teams.away_name) ?? 'Inconnu';
+      const configuredName = winnerLogical === 'home' ? snapshot.teams.home_name : snapshot.teams.away_name;
+      const defaultSideName = winnerSide === 'CT' ? 'Counter-Terrorists' : 'Terrorists';
+      winnerName = configuredName?.trim() || defaultSideName;
       winnerId = (winnerLogical === 'home' ? snapshot.teams.home_id : snapshot.teams.away_id) ?? undefined;
       await ctx.say(`[GG-Core] MATCH TERMINÉ ! Victoire de ${winnerName} (${snapshot.score.ct}-${snapshot.score.t}) !`);
     } else {

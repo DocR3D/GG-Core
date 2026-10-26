@@ -178,7 +178,13 @@ public async cancelPhaseCountdown(
 }
 
 
-private async applyPhase(
+public async isCountdownActive(matchId: string): Promise<boolean> {
+    const lockKey = redisConst.phaseLock(matchId);
+    const exists = await this.redis.exists(lockKey);
+    return exists === 1;
+  }
+
+  private async applyPhase(
   matchId: string,
   newPhase: MatchPhase,
   serverId: string,
