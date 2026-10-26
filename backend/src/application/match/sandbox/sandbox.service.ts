@@ -138,6 +138,10 @@ export class SandboxService {
     const mid = dto.matchId.trim();
     if (!mid) throw new BadRequestException('matchId est requis');
 
+    // 0. Réinitialiser les drapeaux ready et verrous de phase pour repartir sur une base saine
+    await this.redis.hset(redisConst.ready(mid), { home: '0', away: '0' });
+    await this.redis.del(redisConst.phaseLock(mid), redisConst.phasePending(mid));
+
     // 1. Liaison serveur si fourni
     if (dto.serverId) {
       await this.state.setServerIdToMatchId(dto.serverId, mid);

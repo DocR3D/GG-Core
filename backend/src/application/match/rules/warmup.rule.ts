@@ -30,6 +30,9 @@ export class WarmupRule extends BaseRule implements PhaseRule {
         command: `exec ${CS2_CFG.WARMUP}; mp_warmup_start 1; mp_warmuptime 999999; mp_warmup_pausetimer 1`,
       });
     }
+    if (typeof (ctx.orch as any).resetReady === "function") {
+      await (ctx.orch as any).resetReady(ctx.matchId);
+    }
     await ctx.say('[Warmup] Tapez !ready quand vous êtes prêts.');
     await ctx.orch.push(ctx.matchId, 'match:state', await ctx.state.getSnapshot(ctx.matchId));
   }

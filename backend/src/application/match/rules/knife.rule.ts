@@ -51,6 +51,9 @@ export class KnifeRule extends BaseRule implements PhaseRule {
     if (!serverId) throw new Error(`Aucun serveur lié au match ${ctx.matchId}`);
 
     await ctx.orch.execCfg({ serverId, matchId: ctx.matchId}, CS2_CFG.KNIFE);
+    if (typeof (ctx.orch as any).resetReady === "function") {
+      await (ctx.orch as any).resetReady(ctx.matchId);
+    }
     await ctx.say('[knife] Knife round begins!');
     await ctx.orch.push(ctx.matchId, 'match:state', await ctx.state.getSnapshot(ctx.matchId));
   }

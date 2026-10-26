@@ -27,6 +27,7 @@ describe('SandboxService', () => {
       hset: jest.fn().mockResolvedValue(1),
       hgetall: jest.fn().mockResolvedValue({}),
       get: jest.fn().mockResolvedValue(null),
+      del: jest.fn().mockResolvedValue(1),
     };
     mockPub = {
       publish: jest.fn().mockResolvedValue(1),

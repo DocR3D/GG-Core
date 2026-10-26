@@ -88,7 +88,9 @@ private ensureGlobalInit() {
     if ((ev as any).kind && (ev as any).kind !== 'primary') return;
 
     const sender = ev.payload?.sender;
-    const command = (ev.payload?.command || '').toLowerCase();
+    const raw = (ev.payload?.command || '').toLowerCase().trim();
+    const command = raw.startsWith('!') || raw.startsWith('.') ? raw.slice(1) : raw;
+    if (ev.payload) ev.payload.command = command;
     const params  = ev.payload?.parameters ?? [];
     if (!sender || !command) {
       this.logger.warn('[COMMAND] ignored: bad payload');

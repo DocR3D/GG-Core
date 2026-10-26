@@ -28,8 +28,10 @@ export class ReadyCommand extends BaseCommand {
       return false;
     }
 
-    const isReadyCommand = event.payload.command === CS2_CHAT_COMMANDS.READY;
-    const isUnreadyCommand = event.payload.command === CS2_CHAT_COMMANDS.UNREADY;
+    const raw = (event.payload.command || '').trim();
+    const clean = raw.startsWith('!') || raw.startsWith('.') ? raw.slice(1) : raw;
+    const isReadyCommand = clean === CS2_CHAT_COMMANDS.READY;
+    const isUnreadyCommand = clean === CS2_CHAT_COMMANDS.UNREADY || clean === CS2_CHAT_COMMANDS.NOTREADY;
 
     if (!isReadyCommand && !isUnreadyCommand) {
       return false;
@@ -50,7 +52,9 @@ export class ReadyCommand extends BaseCommand {
     // Si la validation canHandle a échoué, on arrête ici
     if (!team) return false;
 
-    const isReady = event.payload.command === CS2_CHAT_COMMANDS.READY;
+    const raw = (event.payload.command || '').trim();
+    const clean = raw.startsWith('!') || raw.startsWith('.') ? raw.slice(1) : raw;
+    const isReady = clean === CS2_CHAT_COMMANDS.READY;
 
     this.logCommand(isReady ? '!ready' : '!unready', event);
 

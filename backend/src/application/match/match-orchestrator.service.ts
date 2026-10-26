@@ -250,6 +250,10 @@ export class MatchOrchestrator {
     return this.phase.setReady(matchId, team, ready);
   }
 
+  resetReady(matchId: string) {
+    return this.phase.resetReady(matchId);
+  }
+
   getKnifeResult(matchId: string) {
     return this.state.getKnifeResult(matchId);
   }

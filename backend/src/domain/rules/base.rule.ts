@@ -21,8 +21,17 @@ export abstract class BaseRule implements PhaseRule {
   async say?(rct: RuleContext): Promise<SaySpec>;
   canHandle(t: EventType) { return this.events.has(t); }
   async handle(ev: AnyEvent, ctx: RuleContext) { const f = this.events.get(ev.type); if (f) await f(ev as any, ctx); }
-  canHandleCommand(cmd: string) { return this.commands.has(cmd); }
-  async handleCommand(cmd: CommandEvent, ctx: RuleContext) { const f = this.commands.get(cmd.payload.command); if (f) await f(cmd, ctx); }
+  canHandleCommand(cmd: string) {
+    const raw = (cmd || '').toLowerCase().trim();
+    const clean = raw.startsWith('!') || raw.startsWith('.') ? raw.slice(1) : raw;
+    return this.commands.has(clean) || this.commands.has(cmd);
+  }
+  async handleCommand(cmd: CommandEvent, ctx: RuleContext) {
+    const raw = (cmd?.payload?.command || '').toLowerCase().trim();
+    const clean = raw.startsWith('!') || raw.startsWith('.') ? raw.slice(1) : raw;
+    const f = this.commands.get(clean) || this.commands.get(cmd?.payload?.command);
+    if (f) await f(cmd, ctx);
+  }
 
   async onEnter(_: RuleContext) {}
   async onExit(_: RuleContext) {}

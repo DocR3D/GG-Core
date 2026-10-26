@@ -310,9 +310,14 @@ export class SandboxController {
         </div>
 
         <!-- Actions Principales -->
-        <div class="action-group">
-          <button class="btn btn-primary" onclick="injectState()">⚡ 1. Injecter dans GG-Core (Redis/WS)</button>
-          <button class="btn btn-accent" onclick="restoreInGame()">🎮 2. Restaurer In-Game (Valve RCON)</button>
+        <div style="margin-top: 10px;">
+          <button class="btn" style="width: 100%; background: linear-gradient(135deg, #10b981 0%, #059669 100%); color: #fff; font-size: 1.05rem; font-weight: bold; padding: 14px; margin-bottom: 10px; border: none; border-radius: 6px; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px; box-shadow: 0 4px 14px rgba(16, 185, 129, 0.35);" onclick="applyEverywhere()">
+            🚀 1-CLIC : APPLIQUER PARTOUT (GG-Core + CS2 In-Game)
+          </button>
+          <div class="action-group">
+            <button class="btn btn-primary" style="flex: 1;" onclick="injectState()">⚡ Injecter GG-Core (Redis/WS seul)</button>
+            <button class="btn btn-accent" style="flex: 1;" onclick="restoreInGame()">🎮 Restaurer In-Game (RCON seul)</button>
+          </div>
         </div>
       </div>
     </div>
@@ -336,7 +341,8 @@ export class SandboxController {
         <div style="margin-bottom: 14px;">
           <label style="margin-bottom: 6px; display: block;">Commandes Joueur In-Game (Chat !cmd)</label>
           <div class="action-group">
-            <button class="btn btn-outline" onclick="simulateCmd('!ready')">💬 !ready</button>
+            <button class="btn btn-outline" style="border-color: var(--ct); color: var(--ct);" onclick="simulateCmd('!ready', 'CT')">💬 !ready (CT)</button>
+            <button class="btn btn-outline" style="border-color: var(--t); color: var(--t);" onclick="simulateCmd('!ready', 'T')">💬 !ready (T)</button>
             <button class="btn btn-outline" onclick="simulateCmd('!pause')">⏸️ !pause</button>
             <button class="btn btn-outline" onclick="simulateCmd('!unpause')">▶️ !unpause</button>
             <button class="btn btn-outline" onclick="simulateCmd('!stay')">🛡️ !stay</button>
@@ -555,9 +561,19 @@ export class SandboxController {
       }
     }
 
-    async function simulateCmd(cmd) {
+    async function applyEverywhere() {
       const d = getFormData();
-      log('cmd', 'Envoi commande joueur ' + cmd + ' (' + d.player.name + ')...');
+      log('time', '🚀 1-Clic : Application partout (GG-Core + CS2 In-Game) pour ' + d.matchId + '...');
+      await restoreInGame();
+      setTimeout(refreshState, 600);
+    }
+
+    async function simulateCmd(cmd, teamOverride) {
+      const d = getFormData();
+      const side = teamOverride || d.player.side;
+      const senderName = teamOverride ? ('Capitaine_' + teamOverride) : d.player.name;
+      const steamId = teamOverride === 'T' ? '76561198000000002' : (teamOverride === 'CT' ? '76561198000000001' : d.player.steamId);
+      log('cmd', 'Envoi commande chat ' + cmd + ' par ' + senderName + ' (' + side + ')...');
 
       try {
         const res = await fetch('/sandbox/simulate/command', {
@@ -567,12 +583,12 @@ export class SandboxController {
             matchId: d.matchId,
             serverId: d.serverId,
             command: cmd,
-            sender: { name: d.player.name, steamId: d.player.steamId, team: d.player.side }
+            sender: { name: senderName, steamId: steamId, team: side }
           })
         });
         const data = await res.json();
         if (data.ok) {
-          log('success', 'Commande ' + cmd + ' traitée.');
+          log('success', 'Commande ' + cmd + ' traitée pour équipe ' + side + '.');
           setTimeout(refreshState, 500);
         }
       } catch (err) {
