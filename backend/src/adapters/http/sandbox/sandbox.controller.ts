@@ -554,7 +554,7 @@ export class SandboxController {
           log('time', 'État actuel : Phase=' + s.phase + ' Round=' + (s.score?.round ?? 0) + ' CT=' + (s.score?.ct ?? 0) + ' T=' + (s.score?.t ?? 0));
         }
       } catch (err) {
-        log('error', 'Impossible de récupérer l\'état: ' + err.message);
+        log('error', "Impossible de récupérer l'état: " + err.message);
       }
     }
 
