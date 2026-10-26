@@ -29,6 +29,8 @@ export interface ValveBackupOptions {
   roundResults?: Record<number, number>;
   playersTeam1?: ValveBackupPlayer[];
   playersTeam2?: ValveBackupPlayer[];
+  playersAliveT?: number;
+  playersAliveCT?: number;
   timestamp?: string;
 }
 
@@ -188,11 +190,14 @@ export class RoundBackupService {
     }
     lines.push('\t}');
 
+    const aliveT = opts.playersAliveT ?? 1;
+    const aliveCT = opts.playersAliveCT ?? 1;
+
     // PlayersAliveT
     lines.push('\t"PlayersAliveT"');
     lines.push('\t{');
     for (let r = 1; r <= 30; r++) {
-      lines.push(`\t\t"round${r}"\t\t"${r <= round ? 0 : 63}"`);
+      lines.push(`\t\t"round${r}"\t\t"${r <= round ? aliveT : 63}"`);
     }
     lines.push('\t}');
 
@@ -200,7 +205,7 @@ export class RoundBackupService {
     lines.push('\t"PlayersAliveCT"');
     lines.push('\t{');
     for (let r = 1; r <= 30; r++) {
-      lines.push(`\t\t"round${r}"\t\t"${r <= round ? 2 : 63}"`);
+      lines.push(`\t\t"round${r}"\t\t"${r <= round ? aliveCT : 63}"`);
     }
     lines.push('\t}');
 
@@ -217,28 +222,28 @@ export class RoundBackupService {
     lines.push('\t}');
 
     // PlayersOnTeam1
-    lines.push('\t"PlayersOnTeam1"');
-    lines.push('\t{');
-    const players1 = opts.playersTeam1?.length
+    const players1 = opts.playersTeam1 !== undefined
       ? opts.playersTeam1
       : [
           { steamId: '76561198000000001', name: 'Tester_T1_A', cash: 16000, roundsWon: totalScore1 },
           { steamId: '76561198000000002', name: 'Tester_T1_B', cash: 16000, roundsWon: totalScore1 },
         ];
+    lines.push('\t"PlayersOnTeam1"');
+    lines.push('\t{');
     for (const p of players1) {
       this.writePlayerBlock(lines, p, totalScore1);
     }
     lines.push('\t}');
 
     // PlayersOnTeam2
-    lines.push('\t"PlayersOnTeam2"');
-    lines.push('\t{');
-    const players2 = opts.playersTeam2?.length
+    const players2 = opts.playersTeam2 !== undefined
       ? opts.playersTeam2
       : [
           { steamId: '76561198000000003', name: 'Tester_T2_A', cash: 16000, roundsWon: totalScore2 },
           { steamId: '76561198000000004', name: 'Tester_T2_B', cash: 16000, roundsWon: totalScore2 },
         ];
+    lines.push('\t"PlayersOnTeam2"');
+    lines.push('\t{');
     for (const p of players2) {
       this.writePlayerBlock(lines, p, totalScore2);
     }

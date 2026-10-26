@@ -259,15 +259,12 @@ export class SandboxService {
     // - Overtime MR3 : alterne toutes les 3 manches
     const isTeam1Ct = this.isTeam1OnCt(round);
 
-    let playersCt = dto.playersCt ?? (isTeam1Ct ? dto.playersTeam1 : dto.playersTeam2);
-    let playersT = dto.playersT ?? (isTeam1Ct ? dto.playersTeam2 : dto.playersTeam1);
+    let playersCt = dto.playersCt ?? (isTeam1Ct ? dto.playersTeam1 : dto.playersTeam2) ?? [];
+    let playersT = dto.playersT ?? (isTeam1Ct ? dto.playersTeam2 : dto.playersTeam1) ?? [];
 
-    // Si une des équipes n'a aucun joueur spécifié, injecter un bot par défaut pour équilibrer
-    if (!playersCt?.length && playersT?.length) {
-      playersCt = [{ steamId: '10000001', name: 'Bot_CT', cash: 16000, roundsWon: scoreCt }];
-    } else if (!playersT?.length && playersCt?.length) {
-      playersT = [{ steamId: '10000002', name: 'Bot_T', cash: 16000, roundsWon: scoreT }];
-    }
+    // Calculer le nombre de joueurs en vie pour le VDF (minimum 1 pour éviter que CS2 ne force les joueurs en état mort)
+    const playersAliveCT = Math.max(1, playersCt.length);
+    const playersAliveT = Math.max(1, playersT.length);
 
     // Mapper fidèlement vers Team 1 et Team 2 dans le VDF selon la mi-temps
     const vdfScoreTeam1 = isTeam1Ct ? scoreCt : scoreT;
@@ -297,6 +294,8 @@ export class SandboxService {
       overtimeScore: dto.overtimeScore,
       playersTeam1: vdfPlayersTeam1,
       playersTeam2: vdfPlayersTeam2,
+      playersAliveCT,
+      playersAliveT,
     });
 
     await this.backupService.writeBackupFile(filePath, vdfContent);
@@ -316,15 +315,15 @@ export class SandboxService {
       }
 
       // 1. Désactiver impérativement l'autopause de Valve (qui bloque sinon le round à 0:00),
-      // garantir les bots pour équilibrer les deux camps (1v1 mini) et quitter le warmup
+      // quitter le warmup et configurer le quota de bots
       await this.cmds.rcon({
         serverId,
         matchId,
-        command: 'mp_backup_restore_load_autopause 0; bot_quota 2; bot_quota_mode fill; mp_warmup_end; mp_restartgame 1',
+        command: 'mp_backup_restore_load_autopause 0; bot_quota 2; bot_quota_mode fill; bot_join_after_player 1; mp_warmup_end',
       });
 
-      // Attendre 1.2s que le moteur CS2 effectue son cycle de restart
-      await new Promise((resolve) => setTimeout(resolve, 1200));
+      // Attendre 500ms
+      await new Promise((resolve) => setTimeout(resolve, 500));
 
       // 2. Charger le backup natif Valve par-dessus le match actif
       await this.cmds.rcon({
@@ -336,13 +335,14 @@ export class SandboxService {
       // Attendre 800ms que le checkpoint soit appliqué par le moteur de jeu
       await new Promise((resolve) => setTimeout(resolve, 800));
 
-      // 3. Unpause explicite pour débloquer le timer et lancer le freeze time / round live
+      // 3. Garantir la présence d'au moins 1 adversaire (bot_add), unpause explicite et restartgame
+      // pour que le round se relance immédiatement avec les joueurs vivants
       await this.cmds.rcon({
         serverId,
         matchId,
-        command: 'mp_unpause_match; unpause',
+        command: 'bot_quota 2; bot_quota_mode fill; bot_add; mp_unpause_match; mp_restartgame 1',
       });
-      this.logger.log(`[Sandbox] Séquence RCON exécutée (${serverId}): autopause 0 -> [1.2s] -> ${rconCommand} -> [800ms] -> unpause`);
+      this.logger.log(`[Sandbox] Séquence RCON exécutée (${serverId}): autopause 0 -> [500ms] -> ${rconCommand} -> [800ms] -> bot_add; unpause; restartgame 1`);
     }
 
     // Également injecter l'état dans Redis pour cohérence immédiate du scoreboard backend
