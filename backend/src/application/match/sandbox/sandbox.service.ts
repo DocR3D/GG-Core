@@ -319,7 +319,7 @@ export class SandboxService {
       await this.cmds.rcon({
         serverId,
         matchId,
-        command: 'mp_backup_restore_load_autopause 0; mp_overtime_enable 1; mp_overtime_maxrounds 6; mp_overtime_startmoney 10000; mp_overtime_initial_defuse_team 0; bot_quota 2; bot_quota_mode fill; bot_join_after_player 1; mp_warmup_end',
+        command: 'mp_backup_restore_load_autopause 0; mp_overtime_enable 1; mp_overtime_maxrounds 6; mp_overtime_startmoney 10000; bot_quota 2; bot_quota_mode fill; bot_join_after_player 1; mp_warmup_end',
       });
 
       // Attendre 500ms

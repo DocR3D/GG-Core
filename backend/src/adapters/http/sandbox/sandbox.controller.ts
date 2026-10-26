@@ -348,7 +348,7 @@ export class SandboxController {
           <label style="margin-bottom: 6px; display: block; color: var(--accent);">🛠️ Contrôles Directs RCON Serveur CS2</label>
           <div class="action-group">
             <button class="btn btn-outline" style="border-color: var(--success); color: var(--success);" onclick="sendRcon('mp_unpause_match; unpause')">▶️ Unpause (Débloquer Timer)</button>
-            <button class="btn btn-outline" onclick="sendRcon('mp_restartgame 1')">🔄 Restart Round</button>
+            <button class="btn btn-outline" onclick="sendRcon('status')">ℹ️ CS2 Status</button>
             <button class="btn btn-outline" onclick="sendRcon('bot_quota 2; bot_quota_mode fill')">👥 Fix Bots 1v1</button>
             <button class="btn btn-outline" style="border-color: var(--accent); color: var(--accent);" onclick="sendRconMap()">🗺️ Reload Map (changelevel)</button>
           </div>
