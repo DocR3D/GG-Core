@@ -16,8 +16,14 @@ export class EventsRouterSubscriber implements OnModuleInit, OnModuleDestroy {
   // Aligne-toi sur ce que publient tes producteurs (agent/logs/etc.)
   private readonly channels = [REDIS_CHANNELS.EVENTS] as const;
 
-  private onMessageBound = (channel: string, message: string) =>
-    this.onMessage(channel, message);
+  // File de traitement séquentielle par canal pour garantir l'ordre strict des événements CS2
+  private processingQueue: Promise<void> = Promise.resolve();
+
+  private onMessageBound = (channel: string, message: string) => {
+    this.processingQueue = this.processingQueue
+      .then(() => this.onMessage(channel, message))
+      .catch((err) => this.logger.error(`Queue processing error: ${err?.message}`));
+  };
 
   constructor(
     @Inject(REDIS_SUB) private readonly sub: Redis,
@@ -35,6 +41,21 @@ export class EventsRouterSubscriber implements OnModuleInit, OnModuleDestroy {
   async onModuleDestroy() {
     this.sub.off('message', this.onMessageBound);
     try { await this.sub.unsubscribe(...this.channels); } catch {}
+  }
+
+  /**
+   * Attend que tous les événements actuellement dans la file (ainsi que ceux en transit sur Pub/Sub) aient été traités.
+   */
+  async drain(): Promise<void> {
+    let current = this.processingQueue;
+    while (true) {
+      await current;
+      await new Promise((resolve) => setTimeout(resolve, 25));
+      if (this.processingQueue === current) {
+        break;
+      }
+      current = this.processingQueue;
+    }
   }
 
   // =========================================================================

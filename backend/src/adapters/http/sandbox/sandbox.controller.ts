@@ -244,6 +244,31 @@ export class SandboxController {
     .tag-bomb { background: #f97316; color: #000; font-size: 0.65rem; font-weight: bold; padding: 1px 5px; border-radius: 3px; margin-right: 6px; }
     .tag-chat { background: #06b6d4; color: #000; font-size: 0.65rem; font-weight: bold; padding: 1px 5px; border-radius: 3px; margin-right: 6px; }
     .tag-system { background: #475569; color: #fff; font-size: 0.65rem; font-weight: bold; padding: 1px 5px; border-radius: 3px; margin-right: 6px; }
+
+    /* Scoreboard TAB CS2 */
+    .scoreboard-container { margin-bottom: 24px; }
+    .scoreboard-teams { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-top: 10px; }
+    @media (max-width: 900px) { .scoreboard-teams { grid-template-columns: 1fr; } }
+    .scoreboard-team-box { background: var(--bg-card); border: 1px solid var(--border); border-radius: 8px; overflow: hidden; }
+    .scoreboard-team-box.ct { border-top: 3px solid var(--ct); }
+    .scoreboard-team-box.t { border-top: 3px solid var(--t); }
+    .team-box-header { display: flex; justify-content: space-between; align-items: center; padding: 10px 14px; background: rgba(0,0,0,0.25); border-bottom: 1px solid var(--border); }
+    .team-title { font-weight: bold; font-size: 0.95rem; display: flex; align-items: center; gap: 8px; }
+    .team-score-badge { font-size: 1.1rem; font-weight: 800; padding: 2px 8px; border-radius: 4px; }
+    .team-score-badge.ct { background: var(--ct); color: #000; }
+    .team-score-badge.t { background: var(--t); color: #000; }
+
+    .sb-table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
+    .sb-table th { background: rgba(0,0,0,0.3); color: var(--text-muted); font-weight: 600; text-transform: uppercase; font-size: 0.72rem; padding: 8px 10px; text-align: right; }
+    .sb-table th.col-player { text-align: left; }
+    .sb-table td { padding: 8px 10px; border-bottom: 1px solid rgba(255,255,255,0.05); text-align: right; }
+    .sb-table td.col-player { text-align: left; font-weight: 600; color: #fff; }
+    .sb-table tr:hover { background: rgba(255,255,255,0.03); }
+    .sb-table .val-cash { color: #34d399; font-weight: 600; }
+    .sb-table .val-equip { color: #94a3b8; }
+    .sb-table .val-score { color: #f59e0b; font-weight: bold; }
+    .sb-table .val-hs { color: #38bdf8; font-size: 0.8rem; font-weight: 600; }
+    .sb-table .empty-row { text-align: center; color: var(--text-muted); font-style: italic; padding: 16px; }
   </style>
 </head>
 <body>
@@ -260,6 +285,98 @@ export class SandboxController {
   <div class="presets-title">⚡ Scénarios Prédéfinis (Presets 1-Clic)</div>
   <div class="presets-grid" id="presets-container">
     <!-- Presets injectés dynamiquement -->
+  </div>
+
+  <!-- 🏆 CS2 Live TAB Scoreboard -->
+  <div class="scoreboard-container">
+    <div class="card" style="margin-bottom: 0;">
+      <div class="card-title" style="margin-bottom: 12px; display: flex; justify-content: space-between; align-items: center;">
+        <div style="display: flex; align-items: center; gap: 10px;">
+          <span>🏆 Scoreboard CS2 (Vue TAB Temps Réel)</span>
+          <span class="badge" style="background: #3b82f6; color: #fff;">Live CS2</span>
+        </div>
+        <div style="font-size: 0.85rem; color: var(--text-muted); font-weight: normal;">
+          <span id="sbRoundLbl" style="color: var(--accent); font-weight: bold;">Round 1</span> |
+          <span id="sbPhaseLbl" style="color: #fff;">LIVE</span>
+        </div>
+      </div>
+
+      <div class="scoreboard-teams">
+        <!-- Home Team Box (Left) -->
+        <div class="scoreboard-team-box ct" id="sbHomeBox">
+          <div class="team-box-header">
+            <div class="team-title" id="sbHomeTitle" style="color: var(--ct);">
+              <span id="sbHomeIcon">🛡️</span>
+              <span id="sbHomeTeamName">ÉQUIPE 1 (HOME)</span>
+              <span class="badge" id="sbHomeSideBadge" style="background: var(--ct); color: #000; font-size: 0.72rem; padding: 1px 6px; border-radius: 4px; font-weight: bold;">CT</span>
+            </div>
+            <div class="team-score-badge ct" id="sbHomeScore">0</div>
+          </div>
+          <div style="display: flex; align-items: center; justify-content: space-between; font-size: 0.72rem; padding: 4px 10px; margin: 4px 0 8px 0; background: rgba(0,0,0,0.22); border-radius: 4px;">
+            <span id="sbHomeWinStreak" style="font-weight: 600; color: #fbbf24; display: none;">🔥 0 W</span>
+            <span id="sbHomeLossStreak" style="color: var(--text-muted); display: inline-flex; align-items: center; gap: 5px; margin-left: auto;">
+              <span>Loss Bonus :</span>
+              <span id="sbHomeLossPips" style="letter-spacing: 2px; color: #ef4444; font-size: 0.85rem;">○○○○○</span>
+              <span id="sbHomeLossBonus" style="color: var(--text-muted);">($1,400)</span>
+            </span>
+          </div>
+          <table class="sb-table">
+            <thead>
+              <tr>
+                <th class="col-player">Joueur</th>
+                <th>K</th>
+                <th>A</th>
+                <th>D</th>
+                <th>HS%</th>
+                <th>Score</th>
+                <th>$ Cash</th>
+                <th>$ Equip</th>
+              </tr>
+            </thead>
+            <tbody id="sbHomeBody">
+              <tr><td colspan="8" class="empty-row">En attente de données joueurs...</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <!-- Away Team Box (Right) -->
+        <div class="scoreboard-team-box t" id="sbAwayBox">
+          <div class="team-box-header">
+            <div class="team-title" id="sbAwayTitle" style="color: var(--t);">
+              <span id="sbAwayIcon">💣</span>
+              <span id="sbAwayTeamName">ÉQUIPE 2 (AWAY)</span>
+              <span class="badge" id="sbAwaySideBadge" style="background: var(--t); color: #000; font-size: 0.72rem; padding: 1px 6px; border-radius: 4px; font-weight: bold;">T</span>
+            </div>
+            <div class="team-score-badge t" id="sbAwayScore">0</div>
+          </div>
+          <div style="display: flex; align-items: center; justify-content: space-between; font-size: 0.72rem; padding: 4px 10px; margin: 4px 0 8px 0; background: rgba(0,0,0,0.22); border-radius: 4px;">
+            <span id="sbAwayWinStreak" style="font-weight: 600; color: #fbbf24; display: none;">🔥 0 W</span>
+            <span id="sbAwayLossStreak" style="color: var(--text-muted); display: inline-flex; align-items: center; gap: 5px; margin-left: auto;">
+              <span>Loss Bonus :</span>
+              <span id="sbAwayLossPips" style="letter-spacing: 2px; color: #ef4444; font-size: 0.85rem;">○○○○○</span>
+              <span id="sbAwayLossBonus" style="color: var(--text-muted);">($1,400)</span>
+            </span>
+          </div>
+          <table class="sb-table">
+            <thead>
+              <tr>
+                <th class="col-player">Joueur</th>
+                <th>K</th>
+                <th>A</th>
+                <th>D</th>
+                <th>HS%</th>
+                <th>Score</th>
+                <th>$ Cash</th>
+                <th>$ Equip</th>
+              </tr>
+            </thead>
+            <tbody id="sbAwayBody">
+              <tr><td colspan="8" class="empty-row">En attente de données joueurs...</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
   </div>
 
   <div class="main-grid">
@@ -605,7 +722,7 @@ export class SandboxController {
           phase: d.phase,
           roundPhase: 'live',
           score: { ct: d.scoreCt, t: d.scoreT, round: d.round },
-          sides: { home: 'CT', away: 'T' },
+          sides: (d.halftimePlayed ? { home: 'T', away: 'CT' } : { home: 'CT', away: 'T' }),
           halftimePlayed: d.halftimePlayed,
           overtimeCount: d.overtimeCount,
           lastScoredRound: d.round,
@@ -842,7 +959,212 @@ export class SandboxController {
       reader.readAsText(file);
     }
 
+    let localScoreboard = { home: [], away: [] };
+    let localSides = { home: 'CT', away: 'T' };
+    let localScore = { ct: 0, t: 0, round: 1 };
+    let localTeams = { home_name: '', away_name: '', ct_name: 'CT', t_name: 'T' };
+    let localPhase = 'LIVE';
+    let localStreaks = { home: { win: 0, loss: 0 }, away: { win: 0, loss: 0 } };
+
+    const LOSS_BONUS_TIERS = [1400, 1900, 2400, 2900, 3400];
+    function formatLossPips(loss) {
+      const count = Math.min(Math.max(loss || 0, 0), 5);
+      return '●'.repeat(count) + '○'.repeat(5 - count);
+    }
+    function formatLossBonus(loss) {
+      const s = Math.max(loss || 0, 0);
+      const idx = s <= 0 ? 0 : Math.min(s, LOSS_BONUS_TIERS.length) - 1;
+      return '($' + LOSS_BONUS_TIERS[idx].toLocaleString() + ')';
+    }
+
+    function getOrAddLocalPlayer(ref, defaultSide) {
+      if (!ref) return null;
+      const name = (typeof ref === 'string') ? ref : (ref.name || ref.playerName || ref.steamId || '');
+      if (!name || name === 'world' || name === 'console' || name === 'Inconnu' || name === 'Suicide' || name === 'SourceTV' || name.startsWith('de_') || name.startsWith('cs_')) return null;
+
+      const steamId = (typeof ref === 'object' && ref.steamId) ? ref.steamId : (ref.id || name);
+      if (steamId === 'BOT') return null;
+      let rawSide = (typeof ref === 'object' && ref.team ? ref.team : (defaultSide || localSides.home)).toUpperCase();
+      if (rawSide === 'SPECTATOR' || rawSide === 'UNASSIGNED') return null;
+      const side = (rawSide === 'T' || rawSide === 'TERRORIST') ? 'T' : 'CT';
+
+      let p = localScoreboard.home.find(x => (steamId && x.steamId === steamId) || x.name === name);
+      let logical = 'home';
+      if (!p) {
+        p = localScoreboard.away.find(x => (steamId && x.steamId === steamId) || x.name === name);
+        if (p) logical = 'away';
+      }
+
+      if (!p) {
+        logical = (side === localSides.home) ? 'home' : 'away';
+        p = {
+          steamId: steamId,
+          name: name,
+          logical: logical,
+          side: side,
+          kills: 0,
+          deaths: 0,
+          assists: 0,
+          headshots: 0,
+          hsPercent: 0,
+          score: 0,
+          money: 0,
+          equip: 0,
+        };
+        localScoreboard[logical].push(p);
+      } else {
+        p.side = side;
+      }
+      return p;
+    }
+
+    function updateScoreboardUI() {
+      const sortFn = (a, b) => ((b.score ?? 0) - (a.score ?? 0)) || ((b.kills ?? 0) - (a.kills ?? 0));
+      localScoreboard.home.sort(sortFn);
+      localScoreboard.away.sort(sortFn);
+
+      const homeIsCt = (localSides.home === 'CT');
+      const awayIsCt = (localSides.away === 'CT');
+
+      const scoreHome = homeIsCt ? (localScore.ct ?? 0) : (localScore.t ?? 0);
+      const scoreAway = awayIsCt ? (localScore.ct ?? 0) : (localScore.t ?? 0);
+
+      let homeName = localTeams.home_name;
+      let awayName = localTeams.away_name;
+      if (!homeName && localScoreboard.home.length > 0) {
+        const first = localScoreboard.home[0].name || '';
+        const tag = first.includes('_') ? first.split('_')[0] : (first.includes(' ') ? first.split(' ')[0] : '');
+        if (tag && tag.length >= 3) homeName = tag;
+      }
+      if (!awayName && localScoreboard.away.length > 0) {
+        const first = localScoreboard.away[0].name || '';
+        const tag = first.includes('_') ? first.split('_')[0] : (first.includes(' ') ? first.split(' ')[0] : '');
+        if (tag && tag.length >= 3) awayName = tag;
+      }
+      homeName = homeName || (homeIsCt ? (localTeams.ct_name || 'ÉQUIPE 1') : (localTeams.t_name || 'ÉQUIPE 1'));
+      awayName = awayName || (awayIsCt ? (localTeams.ct_name || 'ÉQUIPE 2') : (localTeams.t_name || 'ÉQUIPE 2'));
+
+      // 1. Box Home (Gauche)
+      const homeBox = document.getElementById('sbHomeBox');
+      const homeSideBadge = document.getElementById('sbHomeSideBadge');
+      const homeTitle = document.getElementById('sbHomeTitle');
+      const homeIcon = document.getElementById('sbHomeIcon');
+      const homeScore = document.getElementById('sbHomeScore');
+      const homeTeamName = document.getElementById('sbHomeTeamName');
+
+      if (homeBox) homeBox.className = 'scoreboard-team-box ' + (homeIsCt ? 'ct' : 't');
+      if (homeScore) {
+        homeScore.className = 'team-score-badge ' + (homeIsCt ? 'ct' : 't');
+        homeScore.textContent = scoreHome;
+      }
+      if (homeTitle) homeTitle.style.color = homeIsCt ? 'var(--ct)' : 'var(--t)';
+      if (homeIcon) homeIcon.textContent = homeIsCt ? '🛡️' : '💣';
+      if (homeTeamName) homeTeamName.textContent = homeName.toUpperCase();
+      if (homeSideBadge) {
+        homeSideBadge.style.background = homeIsCt ? 'var(--ct)' : 'var(--t)';
+        homeSideBadge.textContent = homeIsCt ? 'CT' : 'T';
+      }
+
+      // 2. Box Away (Droite)
+      const awayBox = document.getElementById('sbAwayBox');
+      const awaySideBadge = document.getElementById('sbAwaySideBadge');
+      const awayTitle = document.getElementById('sbAwayTitle');
+      const awayIcon = document.getElementById('sbAwayIcon');
+      const awayScore = document.getElementById('sbAwayScore');
+      const awayTeamName = document.getElementById('sbAwayTeamName');
+
+      if (awayBox) awayBox.className = 'scoreboard-team-box ' + (awayIsCt ? 'ct' : 't');
+      if (awayScore) {
+        awayScore.className = 'team-score-badge ' + (awayIsCt ? 'ct' : 't');
+        awayScore.textContent = scoreAway;
+      }
+      if (awayTitle) awayTitle.style.color = awayIsCt ? 'var(--ct)' : 'var(--t)';
+      if (awayIcon) awayIcon.textContent = awayIsCt ? '🛡️' : '💣';
+      if (awayTeamName) awayTeamName.textContent = awayName.toUpperCase();
+      if (awaySideBadge) {
+        awaySideBadge.style.background = awayIsCt ? 'var(--ct)' : 'var(--t)';
+        awaySideBadge.textContent = awayIsCt ? 'CT' : 'T';
+      }
+
+      // 3. Round & Phase
+      if (document.getElementById('sbRoundLbl')) document.getElementById('sbRoundLbl').textContent = 'Round ' + (localScore.round ?? 1);
+      if (document.getElementById('sbPhaseLbl')) document.getElementById('sbPhaseLbl').textContent = String(localPhase).toUpperCase();
+
+      // 4. Streaks & Loss Bonus Home
+      const homeWinEl = document.getElementById('sbHomeWinStreak');
+      const homePipsEl = document.getElementById('sbHomeLossPips');
+      const homeBonusEl = document.getElementById('sbHomeLossBonus');
+      if (homeWinEl) {
+        if (localStreaks.home.win >= 2) {
+          homeWinEl.textContent = '🔥 ' + localStreaks.home.win + ' W';
+          homeWinEl.style.display = 'inline-block';
+        } else if (localStreaks.home.win === 1) {
+          homeWinEl.textContent = '⚡ 1 W';
+          homeWinEl.style.display = 'inline-block';
+        } else {
+          homeWinEl.style.display = 'none';
+        }
+      }
+      if (homePipsEl) homePipsEl.textContent = formatLossPips(localStreaks.home.loss);
+      if (homeBonusEl) homeBonusEl.textContent = formatLossBonus(localStreaks.home.loss);
+
+      // 5. Streaks & Loss Bonus Away
+      const awayWinEl = document.getElementById('sbAwayWinStreak');
+      const awayPipsEl = document.getElementById('sbAwayLossPips');
+      const awayBonusEl = document.getElementById('sbAwayLossBonus');
+      if (awayWinEl) {
+        if (localStreaks.away.win >= 2) {
+          awayWinEl.textContent = '🔥 ' + localStreaks.away.win + ' W';
+          awayWinEl.style.display = 'inline-block';
+        } else if (localStreaks.away.win === 1) {
+          awayWinEl.textContent = '⚡ 1 W';
+          awayWinEl.style.display = 'inline-block';
+        } else {
+          awayWinEl.style.display = 'none';
+        }
+      }
+      if (awayPipsEl) awayPipsEl.textContent = formatLossPips(localStreaks.away.loss);
+      if (awayBonusEl) awayBonusEl.textContent = formatLossBonus(localStreaks.away.loss);
+
+      const renderTable = (tbodyId, list) => {
+        const tbody = document.getElementById(tbodyId);
+        if (!tbody) return;
+        if (!list || list.length === 0) {
+          tbody.innerHTML = '<tr><td colspan="8" class="empty-row">En attente de données joueurs...</td></tr>';
+          return;
+        }
+
+        tbody.innerHTML = list.map(p => {
+          const pName = escapeHtml(p.name || p.steamId);
+          const hsClass = (p.hsPercent >= 50) ? 'val-hs' : '';
+          return '<tr>' +
+            '<td class="col-player" title="' + escapeHtml(p.steamId) + '">' + pName + '</td>' +
+            '<td>' + (p.kills ?? 0) + '</td>' +
+            '<td>' + (p.assists ?? 0) + '</td>' +
+            '<td>' + (p.deaths ?? 0) + '</td>' +
+            '<td class="' + hsClass + '">' + (p.hsPercent ?? 0) + '%</td>' +
+            '<td class="val-score">' + (p.score ?? 0) + '</td>' +
+            '<td class="val-cash">$' + (p.money ?? 0).toLocaleString() + '</td>' +
+            '<td class="val-equip">$' + (p.equip ?? 0).toLocaleString() + '</td>' +
+          '</tr>';
+        }).join('');
+      };
+
+      renderTable('sbHomeBody', localScoreboard.home);
+      renderTable('sbAwayBody', localScoreboard.away);
+    }
+
+    function clearScoreboard() {
+      localScoreboard = { home: [], away: [] };
+      localSides = { home: 'CT', away: 'T' };
+      localScore = { ct: 0, t: 0, round: 1 };
+      localPhase = 'LIVE';
+      localStreaks = { home: { win: 0, loss: 0 }, away: { win: 0, loss: 0 } };
+      updateScoreboardUI();
+    }
+
     async function startReplay() {
+      clearScoreboard();
       const d = getFormData();
       const speed = document.getElementById('replaySpeed').value;
       const sel = document.getElementById('fixtureSelect');
@@ -907,14 +1229,29 @@ export class SandboxController {
     }
 
     let refreshTimer = null;
-    function scheduleRefreshState(delay = 350, silent = true) {
-      if (refreshTimer) clearTimeout(refreshTimer);
-      refreshTimer = setTimeout(() => refreshState(silent), delay);
+    let refreshPending = false;
+    let lastRefreshTime = 0;
+    function scheduleRefreshState(minInterval = 400, silent = true) {
+      const now = Date.now();
+      const elapsed = now - lastRefreshTime;
+      if (elapsed >= minInterval && !refreshPending) {
+        lastRefreshTime = now;
+        refreshState(silent);
+      } else {
+        if (!refreshTimer) {
+          refreshTimer = setTimeout(() => {
+            refreshTimer = null;
+            lastRefreshTime = Date.now();
+            refreshState(silent);
+          }, Math.max(100, minInterval - elapsed));
+        }
+      }
     }
 
     async function refreshState(silent = false) {
       const matchId = document.getElementById('matchId').value.trim();
       try {
+        refreshPending = true;
         const res = await fetch('/sandbox/state/' + matchId);
         const data = await res.json();
         if (data.ok && data.snapshot) {
@@ -926,12 +1263,28 @@ export class SandboxController {
             document.getElementById('scoreT').value = s.score.t ?? 0;
           }
           updateComputedFields();
+          if (s.streaks) {
+            localStreaks.home.win = s.streaks.home?.win ?? localStreaks.home.win;
+            localStreaks.home.loss = s.streaks.home?.loss ?? localStreaks.home.loss;
+            localStreaks.away.win = s.streaks.away?.win ?? localStreaks.away.win;
+            localStreaks.away.loss = s.streaks.away?.loss ?? localStreaks.away.loss;
+          } else if (s.economy) {
+            localStreaks.home.win = s.economy.home_win_streak ?? localStreaks.home.win;
+            localStreaks.home.loss = s.economy.home_loss_streak ?? localStreaks.home.loss;
+            localStreaks.away.win = s.economy.away_win_streak ?? localStreaks.away.win;
+            localStreaks.away.loss = s.economy.away_loss_streak ?? localStreaks.away.loss;
+          }
+          if (s.scoreboard) {
+            renderScoreboard(s.scoreboard, s.teams, s.score, currentPhase, s.sides, s.streaks, s.economy);
+          }
           if (!silent) {
             log('time', 'État actuel : Phase=' + currentPhase + ' Round=' + (s.score?.round ?? 0) + ' CT=' + (s.score?.ct ?? 0) + ' T=' + (s.score?.t ?? 0));
           }
         }
       } catch (err) {
         log('error', "Impossible de récupérer l'état: " + err.message);
+      } finally {
+        refreshPending = false;
       }
     }
 
@@ -948,6 +1301,43 @@ export class SandboxController {
           entry.style.display = 'none';
         }
       });
+    }
+
+    function renderScoreboard(scoreboard, teams, score, phase, sides, streaks, economy) {
+      if (!scoreboard) return;
+      if (score) localScore = { ...score };
+      if (phase) localPhase = phase;
+      if (teams) localTeams = { ...teams };
+      if (sides) localSides = { ...sides };
+      if (streaks) {
+        localStreaks.home.win = streaks.home?.win ?? localStreaks.home.win;
+        localStreaks.home.loss = streaks.home?.loss ?? localStreaks.home.loss;
+        localStreaks.away.win = streaks.away?.win ?? localStreaks.away.win;
+        localStreaks.away.loss = streaks.away?.loss ?? localStreaks.away.loss;
+      } else if (economy) {
+        localStreaks.home.win = economy.home_win_streak ?? localStreaks.home.win;
+        localStreaks.home.loss = economy.home_loss_streak ?? localStreaks.home.loss;
+        localStreaks.away.win = economy.away_win_streak ?? localStreaks.away.win;
+        localStreaks.away.loss = economy.away_loss_streak ?? localStreaks.away.loss;
+      }
+
+      if (Array.isArray(scoreboard.home) && Array.isArray(scoreboard.away)) {
+        localScoreboard.home = scoreboard.home.map(p => ({ ...p }));
+        localScoreboard.away = scoreboard.away.map(p => ({ ...p }));
+      } else if (Array.isArray(scoreboard.ct) && Array.isArray(scoreboard.t)) {
+        if (localSides.home === 'CT') {
+          localScoreboard.home = scoreboard.ct.map(p => ({ ...p, logical: 'home' }));
+          localScoreboard.away = scoreboard.t.map(p => ({ ...p, logical: 'away' }));
+        } else {
+          localScoreboard.home = scoreboard.t.map(p => ({ ...p, logical: 'home' }));
+          localScoreboard.away = scoreboard.ct.map(p => ({ ...p, logical: 'away' }));
+        }
+      }
+      updateScoreboardUI();
+    }
+
+    function escapeHtml(str) {
+      return String(str || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
     }
 
     function log(type, msg, cat = 'system') {
@@ -1032,8 +1422,8 @@ export class SandboxController {
 
       switch (eventName) {
         case 'kill': {
-          const victim = p?.victim?.name || p?.victim_name || (p?.kind === 'suicide' ? 'Suicide' : 'Inconnu');
-          if (victim.startsWith('de_') || victim.startsWith('cs_')) {
+          const victimName = p?.victim?.name || p?.victim_name || (p?.kind === 'suicide' ? 'Suicide' : 'Inconnu');
+          if (victimName.startsWith('de_') || victimName.startsWith('cs_')) {
             break;
           }
           const killer = p?.killer?.name || p?.killer_name || (p?.kind === 'suicide' ? (p?.player?.name || 'Inconnu') : 'Inconnu');
@@ -1041,7 +1431,55 @@ export class SandboxController {
           const victimSide = p?.victim?.team || p?.victim_team ? (' (' + (p?.victim?.team || p?.victim_team) + ')') : '';
           const weapon = p?.weapon || 'arme';
           const hs = p?.headshot ? ' 🎯 (HS)' : '';
-          log('entry', '<span class="tag-kill">KILL</span> <b>' + killer + killerSide + '</b> [' + weapon + ']' + hs + ' ➔ <b>' + victim + victimSide + '</b>', 'combat');
+          log('entry', '<span class="tag-kill">KILL</span> <b>' + killer + killerSide + '</b> [' + weapon + ']' + hs + ' ➔ <b>' + victimName + victimSide + '</b>', 'combat');
+
+          if (autoSync && String(localPhase).toLowerCase() !== 'postgame') {
+            const rawKillerSide = p?.killer?.team || p?.killer_team || (p?.victim?.team === 'CT' || p?.victim_team === 'CT' ? 'T' : 'CT');
+            const rawVictimSide = p?.victim?.team || p?.victim_team || p?.player?.team || (rawKillerSide === 'CT' ? 'T' : 'CT');
+
+            if (p?.kind !== 'suicide' && killer !== 'Inconnu' && killer !== 'world') {
+              const kPlayer = getOrAddLocalPlayer(p?.killer || { name: killer, team: rawKillerSide }, rawKillerSide);
+              if (kPlayer) {
+                kPlayer.kills = (kPlayer.kills || 0) + 1;
+                if (p?.headshot) {
+                  kPlayer.headshots = (kPlayer.headshots || 0) + 1;
+                  kPlayer.score = (kPlayer.score || 0) + 3;
+                } else {
+                  kPlayer.score = (kPlayer.score || 0) + 2;
+                }
+                kPlayer.hsPercent = Math.round((kPlayer.headshots / kPlayer.kills) * 100);
+              }
+            }
+            const actualVictimObj = (p?.kind === 'suicide') ? (p?.player || p?.victim) : (p?.victim || { name: victimName, team: rawVictimSide });
+            const actualVictimName = actualVictimObj?.name || '';
+            if (actualVictimName && actualVictimName !== 'Inconnu' && actualVictimName !== 'Suicide' && actualVictimName !== 'world' && !actualVictimName.startsWith('de_')) {
+              const vPlayer = getOrAddLocalPlayer(actualVictimObj, rawVictimSide);
+              if (vPlayer) {
+                vPlayer.deaths = (vPlayer.deaths || 0) + 1;
+              }
+            }
+            updateScoreboardUI();
+            scheduleRefreshState(300, true);
+          }
+          break;
+        }
+
+        case 'assist': {
+          const player = p?.player?.name || 'Inconnu';
+          const playerSide = p?.player?.team ? (' (' + p.player.team + ')') : '';
+          const victim = p?.victim?.name || 'Inconnu';
+          const flash = p?.flashAssist ? ' ⚡ (Flash)' : '';
+          log('entry', '<span class="tag-kill" style="background:#0284c7;">ASSIST</span> <b>' + player + playerSide + '</b>' + flash + ' ➔ <b>' + victim + '</b>', 'combat');
+
+          if (autoSync) {
+            const aPlayer = getOrAddLocalPlayer(p?.player || { name: player, team: p?.player?.team }, p?.player?.team);
+            if (aPlayer) {
+              aPlayer.assists = (aPlayer.assists || 0) + 1;
+              aPlayer.score = (aPlayer.score || 0) + 1;
+              updateScoreboardUI();
+            }
+            scheduleRefreshState(300, true);
+          }
           break;
         }
 
@@ -1050,7 +1488,33 @@ export class SandboxController {
           const reason = p?.reason ? (' (motif: ' + p.reason + ')') : '';
           log('entry', '<span class="tag-round">ROUND WIN</span> Victoire équipe <b>' + winner + '</b>' + reason, 'match');
           if (autoSync) {
-            scheduleRefreshState(350, true);
+            const winTeam = String(winner).toUpperCase();
+            if (winTeam === 'CT') {
+              localScore.ct = (localScore.ct || 0) + 1;
+            } else if (winTeam === 'T' || winTeam === 'TERRORIST') {
+              localScore.t = (localScore.t || 0) + 1;
+            }
+            localScore.round = (localScore.ct || 0) + (localScore.t || 0) + 1;
+
+            const homeIsCt = (localSides.home === 'CT');
+            const homeWon = (winTeam === 'CT') ? homeIsCt : !homeIsCt;
+            if (homeWon) {
+              localStreaks.home.win += 1;
+              localStreaks.home.loss = Math.max(0, localStreaks.home.loss - 1);
+              localStreaks.away.win = 0;
+              localStreaks.away.loss = Math.min(5, localStreaks.away.loss + 1);
+            } else {
+              localStreaks.away.win += 1;
+              localStreaks.away.loss = Math.max(0, localStreaks.away.loss - 1);
+              localStreaks.home.win = 0;
+              localStreaks.home.loss = Math.min(5, localStreaks.home.loss + 1);
+            }
+
+            updateScoreboardUI();
+            if (document.getElementById('scoreCt')) document.getElementById('scoreCt').value = localScore.ct;
+            if (document.getElementById('scoreT')) document.getElementById('scoreT').value = localScore.t;
+            updateComputedFields();
+            scheduleRefreshState(200, true);
           }
           break;
         }
@@ -1061,9 +1525,24 @@ export class SandboxController {
           const round = p?.score?.round ?? p?.round ?? (ct !== undefined && t !== undefined ? ct + t : '?');
           log('entry', '<span class="tag-score">SCORE</span> CT <b>' + ct + '</b> - <b>' + t + '</b> T (Round ' + round + ')', 'match');
           if (autoSync && ct !== undefined && t !== undefined) {
+            localScore.ct = Number(ct);
+            localScore.t = Number(t);
+            if (round !== '?') localScore.round = Number(round);
+            if (p?.streaks) {
+              localStreaks.home.win = p.streaks.home?.win ?? localStreaks.home.win;
+              localStreaks.home.loss = p.streaks.home?.loss ?? localStreaks.home.loss;
+              localStreaks.away.win = p.streaks.away?.win ?? localStreaks.away.win;
+              localStreaks.away.loss = p.streaks.away?.loss ?? localStreaks.away.loss;
+            } else if (p?.economy) {
+              localStreaks.home.win = p.economy.home_win_streak ?? localStreaks.home.win;
+              localStreaks.home.loss = p.economy.home_loss_streak ?? localStreaks.home.loss;
+              localStreaks.away.win = p.economy.away_win_streak ?? localStreaks.away.win;
+              localStreaks.away.loss = p.economy.away_loss_streak ?? localStreaks.away.loss;
+            }
             document.getElementById('scoreCt').value = ct;
             document.getElementById('scoreT').value = t;
             updateComputedFields();
+            updateScoreboardUI();
           }
           break;
         }
@@ -1071,6 +1550,10 @@ export class SandboxController {
         case 'round:start': {
           const round = p?.round ?? '';
           log('entry', '<span class="tag-round">ROUND START</span> Début de la manche ' + round, 'match');
+          if (autoSync && round) {
+            localScore.round = Number(round);
+            updateScoreboardUI();
+          }
           break;
         }
 
@@ -1083,8 +1566,10 @@ export class SandboxController {
           const phase = p?.phase || p?.newPhase || '';
           log('entry', '<span class="tag-phase">PHASE</span> Changement de phase : <b>' + phase + '</b>', 'match');
           if (autoSync && phase) {
+            localPhase = phase;
             if (document.getElementById('phase')) document.getElementById('phase').value = phase;
             updateComputedFields();
+            updateScoreboardUI();
           }
           break;
         }
@@ -1097,14 +1582,46 @@ export class SandboxController {
 
         case 'bomb:planted': {
           const site = p?.site ? (' (Site ' + p.site + ')') : '';
-          const planter = p?.player?.name ? (' par ' + p.player.name) : '';
+          const planterObj = p?.planter || p?.player;
+          const planter = planterObj?.name ? (' par ' + planterObj.name) : '';
           log('entry', '<span class="tag-bomb">BOMBE</span> Bombe amorcée' + site + planter, 'combat');
+          if (autoSync && planterObj) {
+            const bPlayer = getOrAddLocalPlayer(planterObj, 'T');
+            if (bPlayer) {
+              bPlayer.score = (bPlayer.score || 0) + 2;
+              updateScoreboardUI();
+            }
+            scheduleRefreshState(300, true);
+          }
           break;
         }
 
         case 'defuse:begin': {
           const defuser = p?.player?.name ? (' par ' + p.player.name) : '';
           log('entry', '<span class="tag-bomb">DEFUSE</span> Désamorçage commencé' + defuser, 'combat');
+          break;
+        }
+
+        case 'bomb_defused': {
+          const defuserObj = p?.defuser || p?.player;
+          const defuserName = defuserObj?.name ? (' par ' + defuserObj.name) : '';
+          log('entry', '<span class="tag-bomb">DEFUSED</span> Bombe désamorcée' + defuserName, 'combat');
+          if (autoSync && defuserObj) {
+            const dPlayer = getOrAddLocalPlayer(defuserObj, 'CT');
+            if (dPlayer) {
+              dPlayer.score = (dPlayer.score || 0) + 2;
+              updateScoreboardUI();
+            }
+            scheduleRefreshState(300, true);
+          }
+          break;
+        }
+
+        case 'player:connected': {
+          if (autoSync && p?.player) {
+            getOrAddLocalPlayer(p.player, p.team || p.player.team);
+            updateScoreboardUI();
+          }
           break;
         }
 
@@ -1133,11 +1650,40 @@ export class SandboxController {
 
         case 'sides:swapped': {
           log('entry', '<span class="tag-phase">SWAP</span> Inversion des côtés (Sides Swapped)', 'match');
-          if (autoSync) scheduleRefreshState(350, true);
+          if (autoSync) {
+            if (p?.sides && p.sides.home && p.sides.away) {
+              localSides.home = p.sides.home;
+              localSides.away = p.sides.away;
+            } else {
+              localSides.home = (localSides.home === 'CT') ? 'T' : 'CT';
+              localSides.away = (localSides.away === 'CT') ? 'T' : 'CT';
+            }
+            localStreaks = { home: { win: 0, loss: 0 }, away: { win: 0, loss: 0 } };
+            localScoreboard.home.forEach(x => { x.side = localSides.home; });
+            localScoreboard.away.forEach(x => { x.side = localSides.away; });
+            updateScoreboardUI();
+            scheduleRefreshState(200, true);
+          }
+          break;
+        }
+
+        case 'match:ended': {
+          const wName = p?.winner || 'Équipe';
+          log('entry', '<span class="tag-phase">MATCH ENDED</span> Victoire : <b>' + wName + '</b>', 'match');
+          if (autoSync) {
+            localPhase = 'postgame';
+            if (document.getElementById('phase')) document.getElementById('phase').value = 'postgame';
+            updateComputedFields();
+            updateScoreboardUI();
+            scheduleRefreshState(100, true);
+          }
           break;
         }
 
         case 'match:state': {
+          if (data && data.scoreboard) {
+            renderScoreboard(data.scoreboard, data.teams, data.score, data.phase, data.sides, data.streaks, data.economy);
+          }
           if (autoSync && data) {
             if (data.score) {
               if (data.score.ct !== undefined) document.getElementById('scoreCt').value = data.score.ct;
@@ -1176,8 +1722,12 @@ export class SandboxController {
       initWebSocket();
       const matchIdEl = document.getElementById('matchId');
       if (matchIdEl) {
-        matchIdEl.addEventListener('change', initWebSocket);
+        matchIdEl.addEventListener('change', () => {
+          initWebSocket();
+          refreshState(true);
+        });
       }
+      setTimeout(() => refreshState(true), 200);
     };
   </script>
 </body>

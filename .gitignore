@@ -4,6 +4,7 @@ dist/
 bin/
 build/
 **/*.exe
+**/*.exe~
 **/*.test
 
 # OS & IDE

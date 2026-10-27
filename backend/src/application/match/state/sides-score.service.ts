@@ -87,12 +87,22 @@ export class SidesScoreService {
       ct: String(score.t),
       t: String(score.ct),
     });
+
+    // Inverser ct_name et t_name dans teams
+    const teams = await this.redis.hgetall(redisConst.teams(matchId));
+    if (teams && (teams.ct_name || teams.t_name)) {
+      await this.redis.hset(redisConst.teams(matchId), {
+        ct_name: teams.t_name || 'CT',
+        t_name: teams.ct_name || 'T',
+        ct_id: teams.t_id || '',
+        t_id: teams.ct_id || '',
+      });
+    }
     return true;
   }
 
   async sideToLogical(matchId: string, side: GameSide): Promise<Logical | null> {
-    const s = await this.getSides(matchId);
-    if (!s) return null;
+    const s = (await this.getSides(matchId)) ?? { home: 'CT', away: 'T' };
     const norm = normalizeSide(side);
     if (norm === s.home) return 'home';
     if (norm === s.away) return 'away';
@@ -100,9 +110,10 @@ export class SidesScoreService {
   }
 
   async logicalToSide(matchId: string, logical: Logical): Promise<GameSide | null> {
-    const s = await this.getSides(matchId);
-    if (!s) return null;
-    return logical === 'home' ? s.home : s.away;
+    const s = (await this.getSides(matchId)) ?? { home: 'CT', away: 'T' };
+    if (logical === 'home') return s.home;
+    if (logical === 'away') return s.away;
+    return null;
   }
 
   // ─────────────────────────────────────────────────────────────────────────────

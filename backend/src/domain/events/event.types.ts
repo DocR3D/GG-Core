@@ -1,4 +1,5 @@
 export const EventTypes = {
+  MATCH_START:        'match_start',
   ROUND_START:        'round_start',
   BOMB_PLANTED:       'bomb_planted',
   BEGIN_BOMB_PLANT:   'begin_bomb_plant',
@@ -7,6 +8,7 @@ export const EventTypes = {
   BOMB_DEFUSED:       'bomb_defused',
 
   KILL:               'kill',
+  ASSIST:             'assist',
 
   PLAYER_CONNECTED:    'player_connected',    // corrigé
   PLAYER_DISCONNECTED: 'player_disconnected', // corrigé

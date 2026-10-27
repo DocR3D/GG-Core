@@ -7,6 +7,7 @@ import {
 import { TimeoutsService } from './timeouts.service';
 import { TeamsRosterService, type PlayerInfo } from './rosters.service';
 import { EconomyService, type TeamEconomyMeta } from './economy.service';
+import { PlayerStatsService, type PlayerCombatStats } from './player-stats.service';
 import { SnapshotQuery } from './snapshot.query';
 import { Phase } from '@domain/phase.types';
 import { MatchSettings } from '@domain/match-settings.types';
@@ -28,6 +29,7 @@ export class MatchStateService {
     private readonly timeouts: TimeoutsService,
     private readonly teamsRoster: TeamsRosterService,
     private readonly economy: EconomyService,
+    private readonly playerStats: PlayerStatsService,
     private readonly snapshotQ: SnapshotQuery,
   ) {}
 
@@ -167,14 +169,17 @@ export class MatchStateService {
     return this.teamsRoster.getScoreWithTeams(matchId);
   }
 
-  upsertPlayer(matchId: string, p: PlayerInfo) {
-    return this.teamsRoster.upsertPlayer(matchId, p);
+  upsertPlayer(matchId: string, p: PlayerInfo, opts?: { preserveLogical?: boolean }) {
+    return this.teamsRoster.upsertPlayer(matchId, p, opts);
   }
   movePlayerLogical(matchId: string, steamId: string, logical: Logical) {
     return this.teamsRoster.movePlayerLogical(matchId, steamId, logical);
   }
   removePlayer(matchId: string, steamId: string) {
     return this.teamsRoster.removePlayer(matchId, steamId);
+  }
+  clearRoster(matchId: string) {
+    return this.teamsRoster.clearRoster(matchId);
   }
   getPlayers(matchId: string) {
     return this.teamsRoster.getPlayers(matchId);
@@ -190,10 +195,54 @@ export class MatchStateService {
   }
 
   // ───────────────────────────────────────────────────────────────────────────
+  // Combat Stats (Scoreboard)
+  // ───────────────────────────────────────────────────────────────────────────
+  recordKill(
+    matchId: string,
+    killer: { steamId: string; name?: string },
+    victim?: { steamId: string; name?: string },
+    headshot = false,
+    teamkill = false,
+  ) {
+    return this.playerStats.recordKill(matchId, killer, victim, headshot, teamkill);
+  }
+  recordAssist(
+    matchId: string,
+    assister: { steamId: string; name?: string },
+    flashAssist = false,
+  ) {
+    return this.playerStats.recordAssist(matchId, assister, flashAssist);
+  }
+  recordBombPlant(
+    matchId: string,
+    planter: { steamId: string; name?: string },
+  ) {
+    return this.playerStats.recordBombPlant(matchId, planter);
+  }
+  recordBombDefuse(
+    matchId: string,
+    defuser: { steamId: string; name?: string },
+  ) {
+    return this.playerStats.recordBombDefuse(matchId, defuser);
+  }
+  getPlayerStats(matchId: string) {
+    return this.playerStats.getPlayerStats(matchId);
+  }
+  setPlayerStats(matchId: string, steamId: string, stats: Partial<PlayerCombatStats>) {
+    return this.playerStats.setPlayerStats(matchId, steamId, stats);
+  }
+  resetPlayerStats(matchId: string) {
+    return this.playerStats.resetPlayerStats(matchId);
+  }
+
+  // ───────────────────────────────────────────────────────────────────────────
   // Économie équipes + roundEnd
   // ───────────────────────────────────────────────────────────────────────────
   initEconomy(matchId: string) {
     return this.economy.initEconomy(matchId);
+  }
+  resetStreaks(matchId: string) {
+    return this.economy.resetStreaks(matchId);
   }
   getTeamEconomyMeta(matchId: string): Promise<TeamEconomyMeta> {
     return this.economy.getTeamEconomyMeta(matchId);
@@ -223,4 +272,5 @@ export class MatchStateService {
 
 export type { Logical, CoreSide } from './sides-score.service';
 export type { PlayerInfo } from './rosters.service';
+export type { PlayerCombatStats } from './player-stats.service';
 export type { TeamEconomyMeta } from './economy.service';

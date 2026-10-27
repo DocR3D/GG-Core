@@ -45,6 +45,9 @@ describe('SandboxService', () => {
       setSettings: jest.fn().mockResolvedValue('OK'),
       upsertPlayer: jest.fn().mockResolvedValue('OK'),
       setPlayerMoney: jest.fn().mockResolvedValue('OK'),
+      setPlayerStats: jest.fn().mockResolvedValue('OK'),
+      resetPlayerStats: jest.fn().mockResolvedValue('OK'),
+      clearRoster: jest.fn().mockResolvedValue(undefined),
       sideToLogical: jest.fn().mockResolvedValue('home'),
     };
     mockSidesScore = {};
@@ -274,6 +277,16 @@ describe('SandboxService', () => {
         expect.stringContaining('"type":"team_round_win"'),
       );
     });
+
+    it('devrait basculer automatiquement de postgame à live_main pour autoriser le comptage', async () => {
+      mockState.getPhase = jest.fn().mockResolvedValue(MatchPhase.POSTGAME);
+      mockState.setPhase = jest.fn().mockResolvedValue('OK');
+
+      await service.simulateRoundWin('m-test-1', 'srv-a', 'CT');
+
+      expect(mockState.setPhase).toHaveBeenCalledWith('m-test-1', MatchPhase.LIVE_MAIN);
+      expect(mockWs.push).toHaveBeenCalledWith('m-test-1', 'phase:changed', expect.objectContaining({ phase: MatchPhase.LIVE_MAIN }));
+    });
   });
 
   describe('simulateCommand', () => {
@@ -287,6 +300,30 @@ describe('SandboxService', () => {
       expect(mockPub.publish).toHaveBeenCalledWith(
         REDIS_CHANNELS.EVENTS,
         expect.stringContaining('!ready'),
+      );
+    });
+
+    it('devrait assigner une équipe par défaut (CT) si sender.team est omis (ex: !pause)', async () => {
+      await service.simulateCommand('m-test-1', 'srv-a', '!pause', {
+        name: 'Tester',
+      });
+
+      expect(mockPub.publish).toHaveBeenCalledWith(
+        REDIS_CHANNELS.EVENTS,
+        expect.stringContaining('"team":"CT"'),
+      );
+    });
+
+    it('devrait automatiquement s\'aligner sur le vainqueur du knife pour !stay ou !switch', async () => {
+      mockState.getKnifeResult = jest.fn().mockResolvedValue({ side: 'T', winnerTeam: 'away' });
+
+      await service.simulateCommand('m-test-1', 'srv-a', '!stay', {
+        name: 'Captain_T',
+      });
+
+      expect(mockPub.publish).toHaveBeenCalledWith(
+        REDIS_CHANNELS.EVENTS,
+        expect.stringContaining('"team":"T"'),
       );
     });
   });

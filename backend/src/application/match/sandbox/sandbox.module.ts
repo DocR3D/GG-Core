@@ -4,6 +4,7 @@ import { RedisModule } from '@adapters/redis/redis.module';
 import { MatchStateModule } from '@app/match-state.module';
 import { WsModule } from '@adapters/ws/ws.module';
 import { CommandsModule } from '@app/commands.module';
+import { SubscribersModule } from '@app/subscribers/subscribers.module';
 import { RoundBackupService } from '../backup/round-backup.service';
 import { SandboxService } from './sandbox.service';
 
@@ -13,6 +14,7 @@ import { SandboxService } from './sandbox.service';
     MatchStateModule,
     WsModule,
     forwardRef(() => CommandsModule),
+    forwardRef(() => SubscribersModule),
   ],
   providers: [
     RoundBackupService,

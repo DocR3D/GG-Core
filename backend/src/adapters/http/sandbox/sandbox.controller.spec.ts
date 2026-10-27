@@ -124,6 +124,16 @@ describe('SandboxController', () => {
       expect(sentContent).toContain('wsStatusPill');
       expect(sentContent).toContain('setLogFilter');
       expect(sentContent).toContain('initWebSocket');
+      expect(sentContent).toContain('Scoreboard CS2 (Vue TAB Temps Réel)');
+      expect(sentContent).toContain('renderScoreboard');
+      expect(sentContent).toContain('sbHomeBody');
+      expect(sentContent).toContain('sbAwayBody');
+      expect(sentContent).toContain('sbHomeWinStreak');
+      expect(sentContent).toContain('sbHomeLossPips');
+      expect(sentContent).toContain('sbAwayWinStreak');
+      expect(sentContent).toContain('sbAwayLossPips');
+      expect(sentContent).toContain('updateScoreboardUI');
+      expect(sentContent).toContain('getOrAddLocalPlayer');
     });
   });
 });

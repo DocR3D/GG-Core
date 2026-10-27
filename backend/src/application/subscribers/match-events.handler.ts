@@ -43,7 +43,10 @@ export class MatchEventsHandler {
     if (await this.phaseHandler.handle(evWithMatch)) return;
     await this.roundHandler.handle(evWithMatch);
     await this.combatHandler.handle(evWithMatch);
-    await this.dbHandler.handle(evWithMatch);
+    // Traitement persistance BDD en arrière-plan non bloquant pour le moteur temps réel CS2
+    this.dbHandler.handle(evWithMatch).catch((err) => {
+      this.logger.warn(`[MatchEventsHandler] async dbHandler error: ${err?.message}`);
+    });
 
     // 2) Dispatch à la règle active pour la logique métier de la phase
     const phase = await this.phase.getPhase(matchId);

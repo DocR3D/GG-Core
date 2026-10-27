@@ -78,6 +78,13 @@ export class LiveRule extends BaseRule implements PhaseRule {
       return;
     }
 
+    if (typeof (ctx.state as any)?.resetPlayerStats === 'function') {
+      await (ctx.state as any).resetPlayerStats(ctx.matchId);
+    }
+    if (typeof (ctx.state as any)?.resetStreaks === 'function') {
+      await (ctx.state as any).resetStreaks(ctx.matchId);
+    }
+
     await ctx.orch.rcon({
       serverId,
       matchId: ctx.matchId,
@@ -109,7 +116,7 @@ export class LiveRule extends BaseRule implements PhaseRule {
 
   private async onTeamRoundWin(ev: TeamRoundWinEvent, ctx: RuleContext) {
     const winner = ((ev.payload as any)?.winner || (ev.payload as any)?.team) as string | undefined;
-    if (!winner) return;
+    if (!winner || winner === 'none' || (ev.payload as any)?.reason === 'draw') return;
 
     this.logger.log(`[LiveRule] Team round win event received: winner=${winner} reason=${(ev.payload as any)?.reason} match=${ev.matchId}`);
 
@@ -152,6 +159,8 @@ export class LiveRule extends BaseRule implements PhaseRule {
       score: snapshot.score,
       sides: snapshot.sides,
       teams: snapshot.teams,
+      economy: snapshot.economy,
+      streaks: snapshot.streaks,
     });
 
     const serverId = ctx.serverId ?? (await ctx.state.getServerIdFromMatchId(ev.matchId));
@@ -166,6 +175,9 @@ export class LiveRule extends BaseRule implements PhaseRule {
         await ctx.orch.rcon({ serverId, matchId: ev.matchId, command: 'mp_swapteams' });
       }
       await ctx.orch.swapSides(ev.matchId);
+      if (typeof (ctx.state as any).resetStreaks === 'function') {
+        await (ctx.state as any).resetStreaks(ev.matchId);
+      }
 
       if (settings.warmupAtHalftime) {
         await ctx.orch.setPhase(ev.matchId, MatchPhase.HALFTIME);
@@ -199,6 +211,9 @@ export class LiveRule extends BaseRule implements PhaseRule {
             await ctx.orch.rcon({ serverId, matchId: ev.matchId, command: CS2_RCON_COMMANDS.OVERTIME_START });
           }
           await ctx.state.setOvertimeCount(ev.matchId, 1);
+          if (typeof (ctx.state as any).resetStreaks === 'function') {
+            await (ctx.state as any).resetStreaks(ev.matchId);
+          }
           await ctx.orch.setPhase(ev.matchId, MatchPhase.OVERTIME);
 
           if (settings.warmupAtOvertime) {
@@ -231,21 +246,24 @@ export class LiveRule extends BaseRule implements PhaseRule {
           await ctx.orch.rcon({ serverId, matchId: ev.matchId, command: CS2_RCON_COMMANDS.SWAP_TEAMS });
         }
         await ctx.orch.swapSides(ev.matchId);
+      if (typeof (ctx.state as any).resetStreaks === 'function') {
+        await (ctx.state as any).resetStreaks(ev.matchId);
+      }
         if (serverId) {
           await ctx.orch.restartGame({ serverId, matchId: ev.matchId, delay: CS2_RULES.FAST_RESTART_DELAY_SEC });
         }
         return;
       }
 
-      // End of this overtime tied (e.g. 15-15 in OT1 -> advance to OT2)
+      // End of this overtime tied (e.g. 15-15 in OT1 -> advance to OT2 without swapping sides,
+      // as CS2 native overtime keeps teams on their current side at the start of the next OT)
       if (roundsInThisOt === otMr * 2 && scoreCT === scoreT) {
         const nextOt = otCount + 1;
         await ctx.state.setOvertimeCount(ev.matchId, nextOt);
         await ctx.say(`[GG-Core] Égalité en prolongations (${scoreCT}-${scoreT}) ! Début OT${nextOt}...`);
-        if (serverId) {
-          await ctx.orch.rcon({ serverId, matchId: ev.matchId, command: CS2_RCON_COMMANDS.SWAP_TEAMS });
+        if (typeof (ctx.state as any).resetStreaks === 'function') {
+          await (ctx.state as any).resetStreaks(ev.matchId);
         }
-        await ctx.orch.swapSides(ev.matchId);
         if (serverId) {
           await ctx.orch.restartGame({ serverId, matchId: ev.matchId, delay: CS2_RULES.FAST_RESTART_DELAY_SEC });
         }

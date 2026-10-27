@@ -20,10 +20,10 @@ func TestTryParse(t *testing.T) {
 	}{
 		// Anti-Phantom Kill & Map Lifecycle
 		{
-			name:     "World Match_Start on de_inferno is ignored and NOT a kill",
+			name:     "World Match_Start on de_inferno emits match_start and NOT a kill",
 			logLine:  `L 10/26/2026 - 21:43:21: World triggered "Match_Start" on "de_inferno"`,
-			wantType: "",
-			wantOk:   false,
+			wantType: events.EvMatchStart,
+			wantOk:   true,
 		},
 		{
 			name:     "World Match_Reloaded on de_inferno is ignored and NOT a kill",
@@ -56,6 +56,47 @@ func TestTryParse(t *testing.T) {
 			logLine:  `L 10/24/2026 - 19:20:34: World triggered "Round_End"`,
 			wantType: events.EvRoundEnd,
 			wantOk:   true,
+		},
+
+		// Assists
+		{
+			name:     "Player Assist",
+			logLine:  `L 10/25/2025 - 09:36:45: "Player_01<2><[U:1:10000001]><CT>" assisted killing "Player_08<11><[U:1:10000008]><TERRORIST>"`,
+			wantType: events.EvAssist,
+			wantOk:   true,
+			verifyAssert: func(t *testing.T, payload map[string]any) {
+				pl, _ := payload["player"].(map[string]any)
+				if pl["name"] != "Player_01" || pl["steamId"] != "[U:1:10000001]" {
+					t.Fatalf("unexpected player: %v", pl)
+				}
+				if payload["flashAssist"] != false {
+					t.Fatalf("expected flashAssist=false, got %v", payload["flashAssist"])
+				}
+			},
+		},
+		{
+			name:     "Flash Assist",
+			logLine:  `"Player_11<14><[U:1:10000011]><CT>" flash-assisted killing "Player_07<10><[U:1:10000007]><TERRORIST>"`,
+			wantType: events.EvAssist,
+			wantOk:   true,
+			verifyAssert: func(t *testing.T, payload map[string]any) {
+				if payload["flashAssist"] != true {
+					t.Fatalf("expected flashAssist=true, got %v", payload["flashAssist"])
+				}
+			},
+		},
+
+		{
+			name:     "Defused_The_Bomb Player Event",
+			logLine:  `"Alpha_Kilo<5><[U:1:1002]><CT>" triggered "Defused_The_Bomb"`,
+			wantType: events.EvBombDefused,
+			wantOk:   true,
+			verifyAssert: func(t *testing.T, payload map[string]any) {
+				defuser := payload["defuser"].(map[string]any)
+				if defuser["name"] != "Alpha_Kilo" || defuser["steamId"] != "[U:1:1002]" || defuser["team"] != "CT" {
+					t.Fatalf("unexpected defuser: %v", defuser)
+				}
+			},
 		},
 
 		// Kills
@@ -100,6 +141,29 @@ func TestTryParse(t *testing.T) {
 					t.Fatalf("expected headshot=false")
 				}
 			},
+		},
+		{
+			name:     "Teamkill CT on CT sets teamkill=true even without friendlyfire tag",
+			logLine:  `"Player_07<11><[U:1:10000007]><CT>" [684 710 121] killed "Player_04<8><[U:1:10000004]><CT>" [720 186 131] with "m4a1_silencer" (headshot)`,
+			wantType: events.EvKill,
+			wantOk:   true,
+			verifyAssert: func(t *testing.T, payload map[string]any) {
+				if payload["teamkill"] != true {
+					t.Fatalf("expected teamkill=true, got %v", payload["teamkill"])
+				}
+			},
+		},
+		{
+			name:     "Killed by the bomb is ignored",
+			logLine:  `"Player_03<6><[U:1:10000003]><TERRORIST>" [1256 -1309 8] was killed by the bomb.`,
+			wantType: "",
+			wantOk:   false,
+		},
+		{
+			name:     "World suicide immediately after killed by the bomb is ignored",
+			logLine:  `"Player_03<6><[U:1:10000003]><TERRORIST>" [1256 -1309 8] committed suicide with "world"`,
+			wantType: "",
+			wantOk:   false,
 		},
 		{
 			name:     "Suicide with World",
@@ -333,6 +397,13 @@ func TestTryParse_RealMatchLogsNoPhantomKills(t *testing.T) {
 		"../../../test/fixtures/raw-logs/gglan18_match_sample_anonymized.log",
 		"../../../test/fixtures/raw-logs/gglan19_match71_ancient_pauses_anonymized.log",
 		"../../../test/fixtures/raw-logs/gglan19_sample_match59_anonymized.log",
+		"../../../test/fixtures/raw-logs/cs2_match_ancient_pauses_anonymized.log",
+		"../../../test/fixtures/raw-logs/cs2_match_inferno_overtime_anonymized.log",
+		"../../../test/fixtures/raw-logs/gglan19_sample_match59_anonymized.log",
+		"../../../test/fixtures/raw-logs/gglan19_match161_ancient_ot2_anonymized.log",
+		"../../../test/fixtures/raw-logs/gglan19_match164_inferno_ot1_anonymized.log",
+		"../../../test/fixtures/raw-logs/gglan19_match165_anubis_stomp_anonymized.log",
+		"../../../test/fixtures/raw-logs/gglan19_match167_nuke_24rounds_anonymized.log",
 		"../../../test/fixtures/raw-logs/gglan19_match156_inferno_ot5_anonymized.log",
 	}
 

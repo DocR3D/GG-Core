@@ -17,6 +17,7 @@ describe('Scenario 03 Full Replay — 53-Round 5-Overtime Inferno Match through 
     const handler = (rule as any).events.get(EventTypes.TEAM_ROUND_WIN);
 
     let currentScore = { ct: 0, t: 0, round: 0 };
+    let currentSides: { home: 'CT' | 'T'; away: 'CT' | 'T' } = { home: 'CT', away: 'T' };
     let halftimePlayed = false;
     let otCount = 0;
     let matchEnded = false;
@@ -43,18 +44,23 @@ describe('Scenario 03 Full Replay — 53-Round 5-Overtime Inferno Match through 
           const tmp = currentScore.ct;
           currentScore.ct = currentScore.t;
           currentScore.t = tmp;
+          currentSides = {
+            home: currentSides.home === 'CT' ? 'T' : 'CT',
+            away: currentSides.away === 'CT' ? 'T' : 'CT',
+          };
           return true;
         }),
         endMatch: jest.fn().mockImplementation(async (_mid: string, winner: 'CT' | 'T' | null) => {
           matchEnded = true;
           matchWinner = winner;
+          currentPhase = MatchPhase.POSTGAME;
         }),
       },
       state: {
         getServerIdFromMatchId: jest.fn().mockResolvedValue('srv-a'),
         getSnapshot: jest.fn().mockImplementation(async () => ({
           score: { ...currentScore },
-          sides: { home: 'CT', away: 'T' },
+          sides: { ...currentSides },
           teams: { home_name: 'Team Alpha', away_name: 'Team Bravo' },
         })),
         getLastScoredRound: jest.fn().mockResolvedValue(0),
@@ -104,7 +110,8 @@ describe('Scenario 03 Full Replay — 53-Round 5-Overtime Inferno Match through 
     expect(currentScore.ct).toBe(25);
     expect(currentScore.t).toBe(28);
     expect(currentScore.round).toBe(53);
-    // L'équipe gagnante est Terrorist (Team Bravo)
+    // L'équipe gagnante est Terrorist (Team Bravo = away), tandis que Team Alpha (home) finit en CT
     expect(matchWinner).toBe('T');
+    expect(currentSides).toEqual({ home: 'CT', away: 'T' });
   });
 });

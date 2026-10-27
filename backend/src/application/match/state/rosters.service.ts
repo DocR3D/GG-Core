@@ -32,37 +32,48 @@ export class TeamsRosterService {
   ) {}
 
   // ─────────────────────────────────────────────────────────────────────────────
-  // Teams (string JSON) - noms/ids pour UI
+  // Teams (Hash Redis) - noms/ids pour UI
   // ─────────────────────────────────────────────────────────────────────────────
+  private async readTeamsDoc(matchId: string): Promise<TeamsDoc> {
+    const key = redisConst.teams(matchId);
+    try {
+      const h = await this.redis.hgetall(key);
+      if (h && Object.keys(h).length > 0) {
+        return h as TeamsDoc;
+      }
+    } catch {
+      // Fallback si la clé était encore une String JSON
+    }
+    try {
+      const raw = await this.redis.get(key);
+      return safeParseTeams(raw);
+    } catch {
+      return {};
+    }
+  }
+
   async setTeams(
     matchId: string,
     ids: Partial<TeamsDoc>,
   ) {
     const key = redisConst.teams(matchId);
-
-    // merge propre sur JSON (évite d’écraser ce qui existe)
-    const prevRaw = await this.redis.get(key);
-    const prev: TeamsDoc = safeParseTeams(prevRaw);
+    const prev = await this.readTeamsDoc(matchId);
     const next: TeamsDoc = { ...prev, ...ids };
 
-    await this.redis.set(key, JSON.stringify(next));   // ← SET (string)
+    // S'assurer que la clé n'est pas en type String avant d'écrire le Hash
+    await this.redis.del(key);
+    const entries = Object.entries(next).filter(([, v]) => v != null && v !== '') as [string, string][];
+    if (entries.length > 0) {
+      await this.redis.hset(key, Object.fromEntries(entries));
+    }
   }
 
   async getScoreWithTeams(matchId: string) {
-    const [t, ct, teamsRaw, sides] = await Promise.all([
-      this.redis.hmget(redisConst.score(matchId), 't', 'ct'),
-      // NOTE: hmget renvoie un tableau, pas besoin ici - on récupère t,ct ci-dessous
-      // Correction: on relit les deux valeurs séparément depuis le tuple ci-dessus
-      // mais pour la clarté on peut renommer :
-      // [tStr, ctStr] = await this.redis.hmget(...)
-      this.redis.get(redisConst.teams(matchId)),        // ← GET (string)
+    const [[t, ct], team, sides] = await Promise.all([
+      this.redis.hmget(redisConst.score(matchId), 't', 'ct') as unknown as Promise<[string | null, string | null]>,
+      this.readTeamsDoc(matchId),
       this.sidesScore.getSides(matchId),
-    ]).then(([tcArr, teamsRaw, sides]) => {
-      const [tStr, ctStr] = tcArr as unknown as [string | null, string | null];
-      return [tStr, ctStr, teamsRaw, sides] as const;
-    });
-
-    const team = safeParseTeams(teamsRaw);
+    ]);
 
     const derivedCtId =
       team?.ct_id ?? (sides ? (sides.home === 'CT' ? team?.home_id : team?.away_id) : null);
@@ -84,14 +95,22 @@ export class TeamsRosterService {
   // ─────────────────────────────────────────────────────────────────────────────
   // Roster + économies joueurs
   // ─────────────────────────────────────────────────────────────────────────────
-  async upsertPlayer(matchId: string, p: PlayerInfo) {
+  async upsertPlayer(matchId: string, p: PlayerInfo, opts?: { preserveLogical?: boolean }) {
     const keyPlayers = redisConst.playersHash(matchId);
     const now = Date.now();
 
     const existing = await this.redis.hget(keyPlayers, p.steamId);
-    const merged: PlayerInfo = existing
-      ? { ...(JSON.parse(existing) as PlayerInfo), ...p }
-      : { ...p, joinedTs: p.joinedTs ?? now };
+    let merged: PlayerInfo;
+    if (existing) {
+      const prev = JSON.parse(existing) as PlayerInfo;
+      merged = {
+        ...prev,
+        ...p,
+        logical: opts?.preserveLogical && prev.logical ? prev.logical : p.logical,
+      };
+    } else {
+      merged = { ...p, joinedTs: p.joinedTs ?? now };
+    }
 
     await this.redis.hset(keyPlayers, p.steamId, JSON.stringify(merged));
 
@@ -134,6 +153,16 @@ export class TeamsRosterService {
     await this.redis.hdel(redisConst.playersHash(matchId), steamId);
     await this.redis.lrem(redisConst.lineupHome(matchId), 0, steamId);
     await this.redis.lrem(redisConst.lineupAway(matchId), 0, steamId);
+  }
+
+  async clearRoster(matchId: string) {
+    await Promise.all([
+      this.redis.del(redisConst.playersHash(matchId)),
+      this.redis.del(redisConst.lineupHome(matchId)),
+      this.redis.del(redisConst.lineupAway(matchId)),
+      this.redis.del(redisConst.moneyHash(matchId)),
+      this.redis.del(redisConst.equipHash(matchId)),
+    ]);
   }
 
   async getPlayers(matchId: string): Promise<{ home: PlayerInfo[]; away: PlayerInfo[] }> {

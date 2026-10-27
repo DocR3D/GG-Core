@@ -1,0 +1,1992 @@
+{
+  "cs2_match_ancient_pauses_anonymized.log": {
+    "type": "raw-log",
+    "label": "Ancient (Pauses CS2, 13-8)",
+    "phase": "postgame",
+    "round": 21,
+    "halftimePlayed": true,
+    "overtimeCount": 0,
+    "score": {
+      "ct": 8,
+      "t": 13
+    },
+    "sides": {
+      "home": "T",
+      "away": "CT"
+    },
+    "rosterCounts": {
+      "home": 3,
+      "away": 3
+    },
+    "streaks": {
+      "home": {
+        "win": 2,
+        "loss": 0,
+        "lossBonus": 1400
+      },
+      "away": {
+        "win": 0,
+        "loss": 5,
+        "lossBonus": 3400
+      }
+    },
+    "totals": {
+      "kills": 21,
+      "deaths": 21,
+      "assists": 0,
+      "flashAssists": 0,
+      "headshots": 21,
+      "plants": 10,
+      "defuses": 4,
+      "score": 91
+    },
+    "scoreboardOrder": {
+      "ct": [
+        "[U:1:20000001]",
+        "[U:1:20000003]",
+        "[U:1:20000002]"
+      ],
+      "t": [
+        "[U:1:10000001]",
+        "[U:1:10000003]",
+        "[U:1:10000002]"
+      ]
+    },
+    "players": {
+      "[U:1:10000001]": {
+        "name": "Phoenix_Lead",
+        "logical": "home",
+        "side": "T",
+        "kills": 15,
+        "deaths": 0,
+        "assists": 0,
+        "flashAssists": 0,
+        "headshots": 15,
+        "hsPercent": 100,
+        "plants": 0,
+        "defuses": 0,
+        "score": 45
+      },
+      "[U:1:10000002]": {
+        "name": "Phoenix_Two",
+        "logical": "home",
+        "side": "T",
+        "kills": 0,
+        "deaths": 6,
+        "assists": 0,
+        "flashAssists": 0,
+        "headshots": 0,
+        "hsPercent": 0,
+        "plants": 0,
+        "defuses": 0,
+        "score": 0
+      },
+      "[U:1:10000003]": {
+        "name": "Phoenix_Three",
+        "logical": "home",
+        "side": "T",
+        "kills": 0,
+        "deaths": 0,
+        "assists": 0,
+        "flashAssists": 0,
+        "headshots": 0,
+        "hsPercent": 0,
+        "plants": 5,
+        "defuses": 2,
+        "score": 14
+      },
+      "[U:1:20000001]": {
+        "name": "Hydra_Lead",
+        "logical": "away",
+        "side": "CT",
+        "kills": 6,
+        "deaths": 0,
+        "assists": 0,
+        "flashAssists": 0,
+        "headshots": 6,
+        "hsPercent": 100,
+        "plants": 0,
+        "defuses": 0,
+        "score": 18
+      },
+      "[U:1:20000002]": {
+        "name": "Hydra_Two",
+        "logical": "away",
+        "side": "CT",
+        "kills": 0,
+        "deaths": 15,
+        "assists": 0,
+        "flashAssists": 0,
+        "headshots": 0,
+        "hsPercent": 0,
+        "plants": 0,
+        "defuses": 0,
+        "score": 0
+      },
+      "[U:1:20000003]": {
+        "name": "Hydra_Three",
+        "logical": "away",
+        "side": "CT",
+        "kills": 0,
+        "deaths": 0,
+        "assists": 0,
+        "flashAssists": 0,
+        "headshots": 0,
+        "hsPercent": 0,
+        "plants": 5,
+        "defuses": 2,
+        "score": 14
+      }
+    }
+  },
+  "cs2_match_inferno_overtime_anonymized.log": {
+    "type": "raw-log",
+    "label": "Inferno (Overtime CS2, 17-19)",
+    "phase": "postgame",
+    "round": 30,
+    "halftimePlayed": true,
+    "overtimeCount": 1,
+    "score": {
+      "ct": 16,
+      "t": 14
+    },
+    "sides": {
+      "home": "CT",
+      "away": "T"
+    },
+    "rosterCounts": {
+      "home": 3,
+      "away": 3
+    },
+    "streaks": {
+      "home": {
+        "win": 1,
+        "loss": 0,
+        "lossBonus": 1400
+      },
+      "away": {
+        "win": 0,
+        "loss": 1,
+        "lossBonus": 1400
+      }
+    },
+    "totals": {
+      "kills": 30,
+      "deaths": 30,
+      "assists": 0,
+      "flashAssists": 0,
+      "headshots": 30,
+      "plants": 13,
+      "defuses": 6,
+      "score": 128
+    },
+    "scoreboardOrder": {
+      "ct": [
+        "[U:1:10000001]",
+        "[U:1:10000003]",
+        "[U:1:10000002]"
+      ],
+      "t": [
+        "[U:1:20000001]",
+        "[U:1:20000003]",
+        "[U:1:20000002]"
+      ]
+    },
+    "players": {
+      "[U:1:10000001]": {
+        "name": "Alpha_Romeo",
+        "logical": "home",
+        "side": "CT",
+        "kills": 15,
+        "deaths": 0,
+        "assists": 0,
+        "flashAssists": 0,
+        "headshots": 15,
+        "hsPercent": 100,
+        "plants": 0,
+        "defuses": 0,
+        "score": 45
+      },
+      "[U:1:10000002]": {
+        "name": "Alpha_Bravo",
+        "logical": "home",
+        "side": "CT",
+        "kills": 0,
+        "deaths": 15,
+        "assists": 0,
+        "flashAssists": 0,
+        "headshots": 0,
+        "hsPercent": 0,
+        "plants": 0,
+        "defuses": 0,
+        "score": 0
+      },
+      "[U:1:10000003]": {
+        "name": "Alpha_Charlie",
+        "logical": "home",
+        "side": "CT",
+        "kills": 0,
+        "deaths": 0,
+        "assists": 0,
+        "flashAssists": 0,
+        "headshots": 0,
+        "hsPercent": 0,
+        "plants": 6,
+        "defuses": 3,
+        "score": 18
+      },
+      "[U:1:20000001]": {
+        "name": "Bravo_Sierra",
+        "logical": "away",
+        "side": "T",
+        "kills": 15,
+        "deaths": 0,
+        "assists": 0,
+        "flashAssists": 0,
+        "headshots": 15,
+        "hsPercent": 100,
+        "plants": 0,
+        "defuses": 0,
+        "score": 45
+      },
+      "[U:1:20000002]": {
+        "name": "Bravo_Kilo",
+        "logical": "away",
+        "side": "T",
+        "kills": 0,
+        "deaths": 15,
+        "assists": 0,
+        "flashAssists": 0,
+        "headshots": 0,
+        "hsPercent": 0,
+        "plants": 0,
+        "defuses": 0,
+        "score": 0
+      },
+      "[U:1:20000003]": {
+        "name": "Bravo_Lima",
+        "logical": "away",
+        "side": "T",
+        "kills": 0,
+        "deaths": 0,
+        "assists": 0,
+        "flashAssists": 0,
+        "headshots": 0,
+        "hsPercent": 0,
+        "plants": 7,
+        "defuses": 3,
+        "score": 20
+      }
+    }
+  },
+  "gglan19_match161_ancient_ot2_anonymized.log": {
+    "type": "raw-log",
+    "label": "Ancient (Match LAN #161, 2 OT 16-19)",
+    "phase": "postgame",
+    "round": 35,
+    "halftimePlayed": true,
+    "overtimeCount": 2,
+    "score": {
+      "ct": 16,
+      "t": 19
+    },
+    "sides": {
+      "home": "T",
+      "away": "CT"
+    },
+    "rosterCounts": {
+      "home": 5,
+      "away": 5
+    },
+    "streaks": {
+      "home": {
+        "win": 1,
+        "loss": 0,
+        "lossBonus": 1400
+      },
+      "away": {
+        "win": 0,
+        "loss": 1,
+        "lossBonus": 1400
+      }
+    },
+    "totals": {
+      "kills": 237,
+      "deaths": 241,
+      "assists": 92,
+      "flashAssists": 15,
+      "headshots": 115,
+      "plants": 19,
+      "defuses": 3,
+      "score": 725
+    },
+    "scoreboardOrder": {
+      "ct": [
+        "[U:1:10000004]",
+        "[U:1:10000009]",
+        "[U:1:10000007]",
+        "[U:1:10000005]",
+        "[U:1:10000003]"
+      ],
+      "t": [
+        "[U:1:10000006]",
+        "[U:1:10000002]",
+        "[U:1:10000001]",
+        "[U:1:10000008]",
+        "[U:1:10000010]"
+      ]
+    },
+    "players": {
+      "[U:1:10000001]": {
+        "name": "Player_01",
+        "logical": "home",
+        "side": "T",
+        "kills": 26,
+        "deaths": 24,
+        "assists": 8,
+        "flashAssists": 1,
+        "headshots": 13,
+        "hsPercent": 50,
+        "plants": 1,
+        "defuses": 1,
+        "score": 77
+      },
+      "[U:1:10000002]": {
+        "name": "Player_02",
+        "logical": "home",
+        "side": "T",
+        "kills": 26,
+        "deaths": 24,
+        "assists": 13,
+        "flashAssists": 4,
+        "headshots": 15,
+        "hsPercent": 58,
+        "plants": 2,
+        "defuses": 1,
+        "score": 86
+      },
+      "[U:1:10000003]": {
+        "name": "Player_03",
+        "logical": "away",
+        "side": "CT",
+        "kills": 17,
+        "deaths": 28,
+        "assists": 8,
+        "flashAssists": 0,
+        "headshots": 4,
+        "hsPercent": 24,
+        "plants": 1,
+        "defuses": 0,
+        "score": 48
+      },
+      "[U:1:10000004]": {
+        "name": "Player_04",
+        "logical": "away",
+        "side": "CT",
+        "kills": 29,
+        "deaths": 22,
+        "assists": 10,
+        "flashAssists": 1,
+        "headshots": 16,
+        "hsPercent": 55,
+        "plants": 3,
+        "defuses": 0,
+        "score": 90
+      },
+      "[U:1:10000005]": {
+        "name": "Player_05",
+        "logical": "away",
+        "side": "CT",
+        "kills": 16,
+        "deaths": 30,
+        "assists": 8,
+        "flashAssists": 1,
+        "headshots": 5,
+        "hsPercent": 31,
+        "plants": 3,
+        "defuses": 0,
+        "score": 51
+      },
+      "[U:1:10000006]": {
+        "name": "Player_06",
+        "logical": "home",
+        "side": "T",
+        "kills": 35,
+        "deaths": 22,
+        "assists": 9,
+        "flashAssists": 1,
+        "headshots": 24,
+        "hsPercent": 69,
+        "plants": 3,
+        "defuses": 0,
+        "score": 109
+      },
+      "[U:1:10000007]": {
+        "name": "Player_07",
+        "logical": "away",
+        "side": "CT",
+        "kills": 22,
+        "deaths": 22,
+        "assists": 12,
+        "flashAssists": 3,
+        "headshots": 6,
+        "hsPercent": 27,
+        "plants": 3,
+        "defuses": 0,
+        "score": 68
+      },
+      "[U:1:10000008]": {
+        "name": "Player_08",
+        "logical": "home",
+        "side": "T",
+        "kills": 18,
+        "deaths": 26,
+        "assists": 11,
+        "flashAssists": 0,
+        "headshots": 16,
+        "hsPercent": 89,
+        "plants": 2,
+        "defuses": 0,
+        "score": 67
+      },
+      "[U:1:10000009]": {
+        "name": "Player_09",
+        "logical": "away",
+        "side": "CT",
+        "kills": 33,
+        "deaths": 20,
+        "assists": 4,
+        "flashAssists": 1,
+        "headshots": 11,
+        "hsPercent": 33,
+        "plants": 1,
+        "defuses": 0,
+        "score": 83
+      },
+      "[U:1:10000010]": {
+        "name": "Player_10",
+        "logical": "home",
+        "side": "T",
+        "kills": 15,
+        "deaths": 23,
+        "assists": 9,
+        "flashAssists": 3,
+        "headshots": 5,
+        "hsPercent": 33,
+        "plants": 0,
+        "defuses": 1,
+        "score": 46
+      }
+    }
+  },
+  "gglan19_match164_inferno_ot1_anonymized.log": {
+    "type": "raw-log",
+    "label": "Inferno (Match LAN #164, 1 OT 13-16)",
+    "phase": "postgame",
+    "round": 29,
+    "halftimePlayed": true,
+    "overtimeCount": 1,
+    "score": {
+      "ct": 13,
+      "t": 16
+    },
+    "sides": {
+      "home": "CT",
+      "away": "T"
+    },
+    "rosterCounts": {
+      "home": 5,
+      "away": 5
+    },
+    "streaks": {
+      "home": {
+        "win": 0,
+        "loss": 2,
+        "lossBonus": 1900
+      },
+      "away": {
+        "win": 2,
+        "loss": 0,
+        "lossBonus": 1400
+      }
+    },
+    "totals": {
+      "kills": 197,
+      "deaths": 199,
+      "assists": 67,
+      "flashAssists": 3,
+      "headshots": 85,
+      "plants": 20,
+      "defuses": 2,
+      "score": 590
+    },
+    "scoreboardOrder": {
+      "ct": [
+        "[U:1:10000010]",
+        "[U:1:10000005]",
+        "[U:1:10000006]",
+        "[U:1:10000008]",
+        "[U:1:10000007]"
+      ],
+      "t": [
+        "[U:1:10000009]",
+        "[U:1:10000004]",
+        "[U:1:10000002]",
+        "[U:1:10000001]",
+        "[U:1:10000003]"
+      ]
+    },
+    "players": {
+      "[U:1:10000001]": {
+        "name": "Player_01",
+        "logical": "away",
+        "side": "T",
+        "kills": 13,
+        "deaths": 18,
+        "assists": 7,
+        "flashAssists": 1,
+        "headshots": 1,
+        "hsPercent": 8,
+        "plants": 5,
+        "defuses": 1,
+        "score": 46
+      },
+      "[U:1:10000002]": {
+        "name": "Player_02",
+        "logical": "away",
+        "side": "T",
+        "kills": 21,
+        "deaths": 18,
+        "assists": 5,
+        "flashAssists": 0,
+        "headshots": 12,
+        "hsPercent": 57,
+        "plants": 0,
+        "defuses": 1,
+        "score": 61
+      },
+      "[U:1:10000003]": {
+        "name": "Player_03",
+        "logical": "away",
+        "side": "T",
+        "kills": 9,
+        "deaths": 22,
+        "assists": 9,
+        "flashAssists": 1,
+        "headshots": 3,
+        "hsPercent": 33,
+        "plants": 1,
+        "defuses": 0,
+        "score": 32
+      },
+      "[U:1:10000004]": {
+        "name": "Player_04",
+        "logical": "away",
+        "side": "T",
+        "kills": 26,
+        "deaths": 23,
+        "assists": 1,
+        "flashAssists": 0,
+        "headshots": 10,
+        "hsPercent": 38,
+        "plants": 0,
+        "defuses": 0,
+        "score": 63
+      },
+      "[U:1:10000005]": {
+        "name": "Player_05",
+        "logical": "home",
+        "side": "CT",
+        "kills": 20,
+        "deaths": 20,
+        "assists": 9,
+        "flashAssists": 0,
+        "headshots": 8,
+        "hsPercent": 40,
+        "plants": 2,
+        "defuses": 0,
+        "score": 61
+      },
+      "[U:1:10000006]": {
+        "name": "Player_06",
+        "logical": "home",
+        "side": "CT",
+        "kills": 16,
+        "deaths": 20,
+        "assists": 7,
+        "flashAssists": 1,
+        "headshots": 9,
+        "hsPercent": 56,
+        "plants": 2,
+        "defuses": 0,
+        "score": 52
+      },
+      "[U:1:10000007]": {
+        "name": "Player_07",
+        "logical": "home",
+        "side": "CT",
+        "kills": 10,
+        "deaths": 20,
+        "assists": 7,
+        "flashAssists": 0,
+        "headshots": 4,
+        "hsPercent": 40,
+        "plants": 3,
+        "defuses": 0,
+        "score": 37
+      },
+      "[U:1:10000008]": {
+        "name": "Player_08",
+        "logical": "home",
+        "side": "CT",
+        "kills": 10,
+        "deaths": 21,
+        "assists": 10,
+        "flashAssists": 0,
+        "headshots": 4,
+        "hsPercent": 40,
+        "plants": 2,
+        "defuses": 0,
+        "score": 38
+      },
+      "[U:1:10000009]": {
+        "name": "Player_09",
+        "logical": "away",
+        "side": "T",
+        "kills": 28,
+        "deaths": 20,
+        "assists": 7,
+        "flashAssists": 0,
+        "headshots": 15,
+        "hsPercent": 54,
+        "plants": 4,
+        "defuses": 0,
+        "score": 86
+      },
+      "[U:1:10000010]": {
+        "name": "Player_10",
+        "logical": "home",
+        "side": "CT",
+        "kills": 44,
+        "deaths": 17,
+        "assists": 5,
+        "flashAssists": 0,
+        "headshots": 19,
+        "hsPercent": 43,
+        "plants": 1,
+        "defuses": 0,
+        "score": 114
+      }
+    }
+  },
+  "gglan19_match165_anubis_stomp_anonymized.log": {
+    "type": "raw-log",
+    "label": "Anubis (Match LAN #165, Stomp 13-1)",
+    "phase": "postgame",
+    "round": 14,
+    "halftimePlayed": true,
+    "overtimeCount": 0,
+    "score": {
+      "ct": 13,
+      "t": 1
+    },
+    "sides": {
+      "home": "T",
+      "away": "CT"
+    },
+    "rosterCounts": {
+      "home": 5,
+      "away": 5
+    },
+    "streaks": {
+      "home": {
+        "win": 0,
+        "loss": 1,
+        "lossBonus": 1400
+      },
+      "away": {
+        "win": 1,
+        "loss": 0,
+        "lossBonus": 1400
+      }
+    },
+    "totals": {
+      "kills": 93,
+      "deaths": 93,
+      "assists": 33,
+      "flashAssists": 4,
+      "headshots": 61,
+      "plants": 12,
+      "defuses": 0,
+      "score": 304
+    },
+    "scoreboardOrder": {
+      "ct": [
+        "[U:1:10000003]",
+        "[U:1:10000001]",
+        "[U:1:10000010]",
+        "[U:1:10000002]",
+        "[U:1:10000004]"
+      ],
+      "t": [
+        "[U:1:10000006]",
+        "[U:1:10000005]",
+        "[U:1:10000007]",
+        "[U:1:10000008]",
+        "[U:1:10000009]"
+      ]
+    },
+    "players": {
+      "[U:1:10000001]": {
+        "name": "Player_01",
+        "logical": "away",
+        "side": "CT",
+        "kills": 15,
+        "deaths": 4,
+        "assists": 5,
+        "flashAssists": 2,
+        "headshots": 9,
+        "hsPercent": 60,
+        "plants": 4,
+        "defuses": 0,
+        "score": 52
+      },
+      "[U:1:10000002]": {
+        "name": "Player_02",
+        "logical": "away",
+        "side": "CT",
+        "kills": 14,
+        "deaths": 5,
+        "assists": 3,
+        "flashAssists": 0,
+        "headshots": 10,
+        "hsPercent": 71,
+        "plants": 0,
+        "defuses": 0,
+        "score": 41
+      },
+      "[U:1:10000003]": {
+        "name": "Player_03",
+        "logical": "away",
+        "side": "CT",
+        "kills": 15,
+        "deaths": 4,
+        "assists": 4,
+        "flashAssists": 0,
+        "headshots": 12,
+        "hsPercent": 80,
+        "plants": 4,
+        "defuses": 0,
+        "score": 54
+      },
+      "[U:1:10000004]": {
+        "name": "Player_04",
+        "logical": "away",
+        "side": "CT",
+        "kills": 7,
+        "deaths": 8,
+        "assists": 8,
+        "flashAssists": 1,
+        "headshots": 6,
+        "hsPercent": 86,
+        "plants": 1,
+        "defuses": 0,
+        "score": 30
+      },
+      "[U:1:10000005]": {
+        "name": "Player_05",
+        "logical": "home",
+        "side": "T",
+        "kills": 5,
+        "deaths": 14,
+        "assists": 2,
+        "flashAssists": 0,
+        "headshots": 4,
+        "hsPercent": 80,
+        "plants": 0,
+        "defuses": 0,
+        "score": 16
+      },
+      "[U:1:10000006]": {
+        "name": "Player_06",
+        "logical": "home",
+        "side": "T",
+        "kills": 9,
+        "deaths": 13,
+        "assists": 2,
+        "flashAssists": 1,
+        "headshots": 5,
+        "hsPercent": 56,
+        "plants": 1,
+        "defuses": 0,
+        "score": 27
+      },
+      "[U:1:10000007]": {
+        "name": "Player_07",
+        "logical": "home",
+        "side": "T",
+        "kills": 5,
+        "deaths": 14,
+        "assists": 3,
+        "flashAssists": 0,
+        "headshots": 2,
+        "hsPercent": 40,
+        "plants": 0,
+        "defuses": 0,
+        "score": 15
+      },
+      "[U:1:10000008]": {
+        "name": "Player_08",
+        "logical": "home",
+        "side": "T",
+        "kills": 3,
+        "deaths": 13,
+        "assists": 2,
+        "flashAssists": 0,
+        "headshots": 3,
+        "hsPercent": 100,
+        "plants": 0,
+        "defuses": 0,
+        "score": 11
+      },
+      "[U:1:10000009]": {
+        "name": "Player_09",
+        "logical": "home",
+        "side": "T",
+        "kills": 4,
+        "deaths": 13,
+        "assists": 2,
+        "flashAssists": 0,
+        "headshots": 0,
+        "hsPercent": 0,
+        "plants": 0,
+        "defuses": 0,
+        "score": 10
+      },
+      "[U:1:10000010]": {
+        "name": "Player_10",
+        "logical": "away",
+        "side": "CT",
+        "kills": 16,
+        "deaths": 5,
+        "assists": 2,
+        "flashAssists": 0,
+        "headshots": 10,
+        "hsPercent": 63,
+        "plants": 2,
+        "defuses": 0,
+        "score": 48
+      }
+    }
+  },
+  "gglan19_match167_nuke_24rounds_anonymized.log": {
+    "type": "raw-log",
+    "label": "Nuke (Match LAN #167, 24 rounds 13-11)",
+    "phase": "postgame",
+    "round": 24,
+    "halftimePlayed": true,
+    "overtimeCount": 0,
+    "score": {
+      "ct": 13,
+      "t": 11
+    },
+    "sides": {
+      "home": "T",
+      "away": "CT"
+    },
+    "rosterCounts": {
+      "home": 5,
+      "away": 5
+    },
+    "streaks": {
+      "home": {
+        "win": 0,
+        "loss": 4,
+        "lossBonus": 2900
+      },
+      "away": {
+        "win": 1,
+        "loss": 1,
+        "lossBonus": 1400
+      }
+    },
+    "totals": {
+      "kills": 164,
+      "deaths": 164,
+      "assists": 50,
+      "flashAssists": 2,
+      "headshots": 85,
+      "plants": 10,
+      "defuses": 3,
+      "score": 489
+    },
+    "scoreboardOrder": {
+      "ct": [
+        "[U:1:10000008]",
+        "[U:1:10000003]",
+        "[U:1:10000004]",
+        "[U:1:10000010]",
+        "[U:1:10000002]"
+      ],
+      "t": [
+        "[U:1:10000009]",
+        "[U:1:10000005]",
+        "[U:1:10000001]",
+        "[U:1:10000006]",
+        "[U:1:10000007]"
+      ]
+    },
+    "players": {
+      "[U:1:10000001]": {
+        "name": "Player_01",
+        "logical": "home",
+        "side": "T",
+        "kills": 16,
+        "deaths": 20,
+        "assists": 4,
+        "flashAssists": 0,
+        "headshots": 7,
+        "hsPercent": 44,
+        "plants": 0,
+        "defuses": 0,
+        "score": 43
+      },
+      "[U:1:10000002]": {
+        "name": "Player_02",
+        "logical": "away",
+        "side": "CT",
+        "kills": 11,
+        "deaths": 14,
+        "assists": 3,
+        "flashAssists": 0,
+        "headshots": 3,
+        "hsPercent": 27,
+        "plants": 1,
+        "defuses": 0,
+        "score": 30
+      },
+      "[U:1:10000003]": {
+        "name": "Player_03",
+        "logical": "away",
+        "side": "CT",
+        "kills": 24,
+        "deaths": 11,
+        "assists": 4,
+        "flashAssists": 0,
+        "headshots": 13,
+        "hsPercent": 54,
+        "plants": 2,
+        "defuses": 0,
+        "score": 69
+      },
+      "[U:1:10000004]": {
+        "name": "Player_04",
+        "logical": "away",
+        "side": "CT",
+        "kills": 17,
+        "deaths": 19,
+        "assists": 7,
+        "flashAssists": 2,
+        "headshots": 8,
+        "hsPercent": 47,
+        "plants": 0,
+        "defuses": 1,
+        "score": 51
+      },
+      "[U:1:10000005]": {
+        "name": "Player_05",
+        "logical": "home",
+        "side": "T",
+        "kills": 16,
+        "deaths": 19,
+        "assists": 8,
+        "flashAssists": 0,
+        "headshots": 9,
+        "hsPercent": 56,
+        "plants": 1,
+        "defuses": 1,
+        "score": 53
+      },
+      "[U:1:10000006]": {
+        "name": "Player_06",
+        "logical": "home",
+        "side": "T",
+        "kills": 13,
+        "deaths": 17,
+        "assists": 3,
+        "flashAssists": 0,
+        "headshots": 7,
+        "hsPercent": 54,
+        "plants": 1,
+        "defuses": 0,
+        "score": 38
+      },
+      "[U:1:10000007]": {
+        "name": "Player_07",
+        "logical": "home",
+        "side": "T",
+        "kills": 5,
+        "deaths": 16,
+        "assists": 8,
+        "flashAssists": 0,
+        "headshots": 3,
+        "hsPercent": 60,
+        "plants": 1,
+        "defuses": 1,
+        "score": 25
+      },
+      "[U:1:10000008]": {
+        "name": "Player_08",
+        "logical": "away",
+        "side": "CT",
+        "kills": 25,
+        "deaths": 16,
+        "assists": 6,
+        "flashAssists": 0,
+        "headshots": 13,
+        "hsPercent": 52,
+        "plants": 3,
+        "defuses": 0,
+        "score": 75
+      },
+      "[U:1:10000009]": {
+        "name": "Player_09",
+        "logical": "home",
+        "side": "T",
+        "kills": 25,
+        "deaths": 17,
+        "assists": 3,
+        "flashAssists": 0,
+        "headshots": 17,
+        "hsPercent": 68,
+        "plants": 1,
+        "defuses": 0,
+        "score": 72
+      },
+      "[U:1:10000010]": {
+        "name": "Player_10",
+        "logical": "away",
+        "side": "CT",
+        "kills": 12,
+        "deaths": 15,
+        "assists": 4,
+        "flashAssists": 0,
+        "headshots": 5,
+        "hsPercent": 42,
+        "plants": 0,
+        "defuses": 0,
+        "score": 33
+      }
+    }
+  },
+  "gglan19_sample_match59_anonymized.log": {
+    "type": "raw-log",
+    "label": "Mirage (Match LAN #59, 13-2)",
+    "phase": "postgame",
+    "round": 15,
+    "halftimePlayed": true,
+    "overtimeCount": 0,
+    "score": {
+      "ct": 2,
+      "t": 13
+    },
+    "sides": {
+      "home": "T",
+      "away": "CT"
+    },
+    "rosterCounts": {
+      "home": 5,
+      "away": 5
+    },
+    "streaks": {
+      "home": {
+        "win": 3,
+        "loss": 0,
+        "lossBonus": 1400
+      },
+      "away": {
+        "win": 0,
+        "loss": 3,
+        "lossBonus": 2400
+      }
+    },
+    "totals": {
+      "kills": 99,
+      "deaths": 99,
+      "assists": 37,
+      "flashAssists": 2,
+      "headshots": 54,
+      "plants": 5,
+      "defuses": 2,
+      "score": 303
+    },
+    "scoreboardOrder": {
+      "ct": [
+        "[U:1:10000010]",
+        "[U:1:10000001]",
+        "[U:1:10000007]",
+        "[U:1:10000003]",
+        "[U:1:10000009]"
+      ],
+      "t": [
+        "[U:1:10000006]",
+        "[U:1:10000008]",
+        "[U:1:10000011]",
+        "[U:1:10000004]",
+        "[U:1:10000005]"
+      ]
+    },
+    "players": {
+      "[U:1:10000001]": {
+        "name": "Player_01",
+        "logical": "away",
+        "side": "CT",
+        "kills": 7,
+        "deaths": 15,
+        "assists": 3,
+        "flashAssists": 0,
+        "headshots": 5,
+        "hsPercent": 71,
+        "plants": 0,
+        "defuses": 0,
+        "score": 22
+      },
+      "[U:1:10000003]": {
+        "name": "Player_03",
+        "logical": "away",
+        "side": "CT",
+        "kills": 5,
+        "deaths": 14,
+        "assists": 1,
+        "flashAssists": 0,
+        "headshots": 2,
+        "hsPercent": 40,
+        "plants": 0,
+        "defuses": 0,
+        "score": 13
+      },
+      "[U:1:10000004]": {
+        "name": "Player_04",
+        "logical": "home",
+        "side": "T",
+        "kills": 13,
+        "deaths": 7,
+        "assists": 5,
+        "flashAssists": 0,
+        "headshots": 6,
+        "hsPercent": 46,
+        "plants": 0,
+        "defuses": 0,
+        "score": 37
+      },
+      "[U:1:10000005]": {
+        "name": "Player_05",
+        "logical": "home",
+        "side": "T",
+        "kills": 7,
+        "deaths": 5,
+        "assists": 5,
+        "flashAssists": 0,
+        "headshots": 1,
+        "hsPercent": 14,
+        "plants": 1,
+        "defuses": 0,
+        "score": 22
+      },
+      "[U:1:10000006]": {
+        "name": "Player_06",
+        "logical": "home",
+        "side": "T",
+        "kills": 21,
+        "deaths": 3,
+        "assists": 5,
+        "flashAssists": 1,
+        "headshots": 13,
+        "hsPercent": 62,
+        "plants": 0,
+        "defuses": 2,
+        "score": 64
+      },
+      "[U:1:10000007]": {
+        "name": "Player_07",
+        "logical": "away",
+        "side": "CT",
+        "kills": 5,
+        "deaths": 15,
+        "assists": 2,
+        "flashAssists": 0,
+        "headshots": 3,
+        "hsPercent": 60,
+        "plants": 0,
+        "defuses": 0,
+        "score": 15
+      },
+      "[U:1:10000008]": {
+        "name": "Player_08",
+        "logical": "home",
+        "side": "T",
+        "kills": 17,
+        "deaths": 6,
+        "assists": 3,
+        "flashAssists": 0,
+        "headshots": 9,
+        "hsPercent": 53,
+        "plants": 1,
+        "defuses": 0,
+        "score": 48
+      },
+      "[U:1:10000009]": {
+        "name": "Player_09",
+        "logical": "away",
+        "side": "CT",
+        "kills": 4,
+        "deaths": 14,
+        "assists": 0,
+        "flashAssists": 0,
+        "headshots": 1,
+        "hsPercent": 25,
+        "plants": 2,
+        "defuses": 0,
+        "score": 13
+      },
+      "[U:1:10000010]": {
+        "name": "Player_10",
+        "logical": "away",
+        "side": "CT",
+        "kills": 7,
+        "deaths": 13,
+        "assists": 6,
+        "flashAssists": 0,
+        "headshots": 2,
+        "hsPercent": 29,
+        "plants": 0,
+        "defuses": 0,
+        "score": 22
+      },
+      "[U:1:10000011]": {
+        "name": "Player_11",
+        "logical": "home",
+        "side": "T",
+        "kills": 13,
+        "deaths": 7,
+        "assists": 7,
+        "flashAssists": 1,
+        "headshots": 12,
+        "hsPercent": 92,
+        "plants": 1,
+        "defuses": 0,
+        "score": 47
+      }
+    }
+  },
+  "scenario-01-full-match-mirage.json": {
+    "type": "scenario",
+    "label": "Mirage (Match standard, 16 rounds)",
+    "phase": "live_main",
+    "round": 16,
+    "halftimePlayed": true,
+    "overtimeCount": 0,
+    "score": {
+      "ct": 4,
+      "t": 12
+    },
+    "sides": {
+      "home": "T",
+      "away": "CT"
+    },
+    "rosterCounts": {
+      "home": 5,
+      "away": 5
+    },
+    "streaks": {
+      "home": {
+        "win": 3,
+        "loss": 0,
+        "lossBonus": 1400
+      },
+      "away": {
+        "win": 0,
+        "loss": 3,
+        "lossBonus": 2400
+      }
+    },
+    "totals": {
+      "kills": 109,
+      "deaths": 109,
+      "assists": 0,
+      "flashAssists": 0,
+      "headshots": 57,
+      "plants": 5,
+      "defuses": 0,
+      "score": 285
+    },
+    "scoreboardOrder": {
+      "ct": [
+        "[U:1:10000001]",
+        "[U:1:10000007]",
+        "[U:1:10000010]",
+        "[U:1:10000003]",
+        "[U:1:10000009]"
+      ],
+      "t": [
+        "[U:1:10000006]",
+        "[U:1:10000008]",
+        "[U:1:10000011]",
+        "[U:1:10000004]",
+        "[U:1:10000005]"
+      ]
+    },
+    "players": {
+      "[U:1:10000001]": {
+        "name": "Player_01",
+        "logical": "away",
+        "side": "CT",
+        "kills": 7,
+        "deaths": 16,
+        "assists": 0,
+        "flashAssists": 0,
+        "headshots": 5,
+        "hsPercent": 71,
+        "plants": 0,
+        "defuses": 0,
+        "score": 19
+      },
+      "[U:1:10000003]": {
+        "name": "Player_03",
+        "logical": "away",
+        "side": "CT",
+        "kills": 6,
+        "deaths": 15,
+        "assists": 0,
+        "flashAssists": 0,
+        "headshots": 2,
+        "hsPercent": 33,
+        "plants": 0,
+        "defuses": 0,
+        "score": 14
+      },
+      "[U:1:10000004]": {
+        "name": "Player_04",
+        "logical": "home",
+        "side": "T",
+        "kills": 14,
+        "deaths": 8,
+        "assists": 0,
+        "flashAssists": 0,
+        "headshots": 6,
+        "hsPercent": 43,
+        "plants": 0,
+        "defuses": 0,
+        "score": 34
+      },
+      "[U:1:10000005]": {
+        "name": "Player_05",
+        "logical": "home",
+        "side": "T",
+        "kills": 9,
+        "deaths": 5,
+        "assists": 0,
+        "flashAssists": 0,
+        "headshots": 1,
+        "hsPercent": 11,
+        "plants": 1,
+        "defuses": 0,
+        "score": 21
+      },
+      "[U:1:10000006]": {
+        "name": "Player_06",
+        "logical": "home",
+        "side": "T",
+        "kills": 22,
+        "deaths": 3,
+        "assists": 0,
+        "flashAssists": 0,
+        "headshots": 13,
+        "hsPercent": 59,
+        "plants": 0,
+        "defuses": 0,
+        "score": 57
+      },
+      "[U:1:10000007]": {
+        "name": "Player_07",
+        "logical": "away",
+        "side": "CT",
+        "kills": 7,
+        "deaths": 17,
+        "assists": 0,
+        "flashAssists": 0,
+        "headshots": 4,
+        "hsPercent": 57,
+        "plants": 0,
+        "defuses": 0,
+        "score": 18
+      },
+      "[U:1:10000008]": {
+        "name": "Player_08",
+        "logical": "home",
+        "side": "T",
+        "kills": 18,
+        "deaths": 7,
+        "assists": 0,
+        "flashAssists": 0,
+        "headshots": 9,
+        "hsPercent": 50,
+        "plants": 1,
+        "defuses": 0,
+        "score": 47
+      },
+      "[U:1:10000009]": {
+        "name": "Player_09",
+        "logical": "away",
+        "side": "CT",
+        "kills": 4,
+        "deaths": 16,
+        "assists": 0,
+        "flashAssists": 0,
+        "headshots": 1,
+        "hsPercent": 25,
+        "plants": 2,
+        "defuses": 0,
+        "score": 13
+      },
+      "[U:1:10000010]": {
+        "name": "Player_10",
+        "logical": "away",
+        "side": "CT",
+        "kills": 7,
+        "deaths": 14,
+        "assists": 0,
+        "flashAssists": 0,
+        "headshots": 2,
+        "hsPercent": 29,
+        "plants": 0,
+        "defuses": 0,
+        "score": 16
+      },
+      "[U:1:10000011]": {
+        "name": "Player_11",
+        "logical": "home",
+        "side": "T",
+        "kills": 15,
+        "deaths": 8,
+        "assists": 0,
+        "flashAssists": 0,
+        "headshots": 14,
+        "hsPercent": 93,
+        "plants": 1,
+        "defuses": 0,
+        "score": 46
+      }
+    }
+  },
+  "scenario-02-pauses-match71-ancient.json": {
+    "type": "scenario",
+    "label": "Ancient (Pauses tactiques & tech)",
+    "phase": "live_main",
+    "round": 12,
+    "halftimePlayed": true,
+    "overtimeCount": 0,
+    "score": {
+      "ct": 4,
+      "t": 8
+    },
+    "sides": {
+      "home": "T",
+      "away": "CT"
+    },
+    "rosterCounts": {
+      "home": 5,
+      "away": 5
+    },
+    "streaks": {
+      "home": {
+        "win": 0,
+        "loss": 0,
+        "lossBonus": 1400
+      },
+      "away": {
+        "win": 0,
+        "loss": 0,
+        "lossBonus": 1400
+      }
+    },
+    "totals": {
+      "kills": 76,
+      "deaths": 80,
+      "assists": 0,
+      "flashAssists": 0,
+      "headshots": 35,
+      "plants": 2,
+      "defuses": 0,
+      "score": 191
+    },
+    "scoreboardOrder": {
+      "ct": [
+        "[U:1:10000007]",
+        "[U:1:10000006]",
+        "[U:1:10000009]",
+        "[U:1:10000008]",
+        "[U:1:10000010]"
+      ],
+      "t": [
+        "[U:1:10000003]",
+        "[U:1:10000005]",
+        "[U:1:10000001]",
+        "[U:1:10000011]",
+        "[U:1:10000004]"
+      ]
+    },
+    "players": {
+      "[U:1:10000001]": {
+        "name": "Player_01",
+        "logical": "home",
+        "side": "T",
+        "kills": 9,
+        "deaths": 6,
+        "assists": 0,
+        "flashAssists": 0,
+        "headshots": 5,
+        "hsPercent": 56,
+        "plants": 0,
+        "defuses": 0,
+        "score": 23
+      },
+      "[U:1:10000003]": {
+        "name": "Player_03",
+        "logical": "home",
+        "side": "T",
+        "kills": 13,
+        "deaths": 8,
+        "assists": 0,
+        "flashAssists": 0,
+        "headshots": 4,
+        "hsPercent": 31,
+        "plants": 0,
+        "defuses": 0,
+        "score": 30
+      },
+      "[U:1:10000004]": {
+        "name": "Player_04",
+        "logical": "home",
+        "side": "T",
+        "kills": 7,
+        "deaths": 3,
+        "assists": 0,
+        "flashAssists": 0,
+        "headshots": 3,
+        "hsPercent": 43,
+        "plants": 0,
+        "defuses": 0,
+        "score": 17
+      },
+      "[U:1:10000005]": {
+        "name": "Player_05",
+        "logical": "home",
+        "side": "T",
+        "kills": 12,
+        "deaths": 6,
+        "assists": 0,
+        "flashAssists": 0,
+        "headshots": 3,
+        "hsPercent": 25,
+        "plants": 0,
+        "defuses": 0,
+        "score": 27
+      },
+      "[U:1:10000006]": {
+        "name": "Player_06",
+        "logical": "away",
+        "side": "CT",
+        "kills": 6,
+        "deaths": 11,
+        "assists": 0,
+        "flashAssists": 0,
+        "headshots": 4,
+        "hsPercent": 67,
+        "plants": 0,
+        "defuses": 0,
+        "score": 16
+      },
+      "[U:1:10000007]": {
+        "name": "Player_07",
+        "logical": "away",
+        "side": "CT",
+        "kills": 10,
+        "deaths": 8,
+        "assists": 0,
+        "flashAssists": 0,
+        "headshots": 5,
+        "hsPercent": 50,
+        "plants": 1,
+        "defuses": 0,
+        "score": 27
+      },
+      "[U:1:10000008]": {
+        "name": "Player_08",
+        "logical": "away",
+        "side": "CT",
+        "kills": 4,
+        "deaths": 11,
+        "assists": 0,
+        "flashAssists": 0,
+        "headshots": 3,
+        "hsPercent": 75,
+        "plants": 1,
+        "defuses": 0,
+        "score": 13
+      },
+      "[U:1:10000009]": {
+        "name": "Player_09",
+        "logical": "away",
+        "side": "CT",
+        "kills": 5,
+        "deaths": 10,
+        "assists": 0,
+        "flashAssists": 0,
+        "headshots": 3,
+        "hsPercent": 60,
+        "plants": 0,
+        "defuses": 0,
+        "score": 13
+      },
+      "[U:1:10000010]": {
+        "name": "Player_10",
+        "logical": "away",
+        "side": "CT",
+        "kills": 2,
+        "deaths": 11,
+        "assists": 0,
+        "flashAssists": 0,
+        "headshots": 1,
+        "hsPercent": 50,
+        "plants": 0,
+        "defuses": 0,
+        "score": 5
+      },
+      "[U:1:10000011]": {
+        "name": "Player_11",
+        "logical": "home",
+        "side": "T",
+        "kills": 8,
+        "deaths": 6,
+        "assists": 0,
+        "flashAssists": 0,
+        "headshots": 4,
+        "hsPercent": 50,
+        "plants": 0,
+        "defuses": 0,
+        "score": 20
+      }
+    }
+  },
+  "scenario-03-overtime5-match156-inferno.json": {
+    "type": "scenario",
+    "label": "Inferno (5 Overtimes, 53 rounds)",
+    "phase": "postgame",
+    "round": 53,
+    "halftimePlayed": true,
+    "overtimeCount": 5,
+    "score": {
+      "ct": 25,
+      "t": 28
+    },
+    "sides": {
+      "home": "CT",
+      "away": "T"
+    },
+    "rosterCounts": {
+      "home": 5,
+      "away": 5
+    },
+    "streaks": {
+      "home": {
+        "win": 0,
+        "loss": 2,
+        "lossBonus": 1900
+      },
+      "away": {
+        "win": 2,
+        "loss": 0,
+        "lossBonus": 1400
+      }
+    },
+    "totals": {
+      "kills": 381,
+      "deaths": 385,
+      "assists": 0,
+      "flashAssists": 0,
+      "headshots": 162,
+      "plants": 0,
+      "defuses": 0,
+      "score": 924
+    },
+    "scoreboardOrder": {
+      "ct": [
+        "[U:1:1003]",
+        "[U:1:1005]",
+        "[U:1:1004]",
+        "[U:1:1002]",
+        "[U:1:1001]"
+      ],
+      "t": [
+        "[U:1:2005]",
+        "[U:1:2001]",
+        "[U:1:2002]",
+        "[U:1:2004]",
+        "[U:1:2003]"
+      ]
+    },
+    "players": {
+      "[U:1:1001]": {
+        "name": "Alpha_Echo",
+        "logical": "home",
+        "side": "CT",
+        "kills": 24,
+        "deaths": 41,
+        "assists": 0,
+        "flashAssists": 0,
+        "headshots": 11,
+        "hsPercent": 46,
+        "plants": 0,
+        "defuses": 0,
+        "score": 59
+      },
+      "[U:1:1002]": {
+        "name": "Alpha_Kilo",
+        "logical": "home",
+        "side": "CT",
+        "kills": 36,
+        "deaths": 43,
+        "assists": 0,
+        "flashAssists": 0,
+        "headshots": 17,
+        "hsPercent": 47,
+        "plants": 0,
+        "defuses": 0,
+        "score": 89
+      },
+      "[U:1:1003]": {
+        "name": "Alpha_Mike",
+        "logical": "home",
+        "side": "CT",
+        "kills": 37,
+        "deaths": 44,
+        "assists": 0,
+        "flashAssists": 0,
+        "headshots": 28,
+        "hsPercent": 76,
+        "plants": 0,
+        "defuses": 0,
+        "score": 102
+      },
+      "[U:1:1004]": {
+        "name": "Alpha_Romeo",
+        "logical": "home",
+        "side": "CT",
+        "kills": 42,
+        "deaths": 37,
+        "assists": 0,
+        "flashAssists": 0,
+        "headshots": 6,
+        "hsPercent": 14,
+        "plants": 0,
+        "defuses": 0,
+        "score": 90
+      },
+      "[U:1:1005]": {
+        "name": "Alpha_Golf",
+        "logical": "home",
+        "side": "CT",
+        "kills": 41,
+        "deaths": 38,
+        "assists": 0,
+        "flashAssists": 0,
+        "headshots": 15,
+        "hsPercent": 37,
+        "plants": 0,
+        "defuses": 0,
+        "score": 97
+      },
+      "[U:1:2001]": {
+        "name": "Bravo_Hotel",
+        "logical": "away",
+        "side": "T",
+        "kills": 46,
+        "deaths": 39,
+        "assists": 0,
+        "flashAssists": 0,
+        "headshots": 25,
+        "hsPercent": 54,
+        "plants": 0,
+        "defuses": 0,
+        "score": 117
+      },
+      "[U:1:2002]": {
+        "name": "Bravo_Alfa",
+        "logical": "away",
+        "side": "T",
+        "kills": 36,
+        "deaths": 34,
+        "assists": 0,
+        "flashAssists": 0,
+        "headshots": 19,
+        "hsPercent": 53,
+        "plants": 0,
+        "defuses": 0,
+        "score": 91
+      },
+      "[U:1:2003]": {
+        "name": "Bravo_Golf",
+        "logical": "away",
+        "side": "T",
+        "kills": 27,
+        "deaths": 36,
+        "assists": 0,
+        "flashAssists": 0,
+        "headshots": 8,
+        "hsPercent": 30,
+        "plants": 0,
+        "defuses": 0,
+        "score": 62
+      },
+      "[U:1:2004]": {
+        "name": "Bravo_November",
+        "logical": "away",
+        "side": "T",
+        "kills": 35,
+        "deaths": 37,
+        "assists": 0,
+        "flashAssists": 0,
+        "headshots": 18,
+        "hsPercent": 51,
+        "plants": 0,
+        "defuses": 0,
+        "score": 88
+      },
+      "[U:1:2005]": {
+        "name": "Bravo_Sierra",
+        "logical": "away",
+        "side": "T",
+        "kills": 57,
+        "deaths": 36,
+        "assists": 0,
+        "flashAssists": 0,
+        "headshots": 15,
+        "hsPercent": 26,
+        "plants": 0,
+        "defuses": 0,
+        "score": 129
+      }
+    }
+  },
+  "scenario-04-cs2-overtime-inferno.json": {
+    "type": "scenario",
+    "label": "Inferno (Overtime CS2, 36 rounds)",
+    "phase": "postgame",
+    "round": 35,
+    "halftimePlayed": true,
+    "overtimeCount": 2,
+    "score": {
+      "ct": 16,
+      "t": 19
+    },
+    "sides": {
+      "home": "T",
+      "away": "CT"
+    },
+    "rosterCounts": {
+      "home": 2,
+      "away": 2
+    },
+    "streaks": {
+      "home": {
+        "win": 2,
+        "loss": 0,
+        "lossBonus": 1400
+      },
+      "away": {
+        "win": 0,
+        "loss": 2,
+        "lossBonus": 1900
+      }
+    },
+    "totals": {
+      "kills": 35,
+      "deaths": 35,
+      "assists": 0,
+      "flashAssists": 0,
+      "headshots": 35,
+      "plants": 0,
+      "defuses": 0,
+      "score": 105
+    },
+    "scoreboardOrder": {
+      "ct": [
+        "[U:1:20000001]",
+        "[U:1:20000002]"
+      ],
+      "t": [
+        "[U:1:10000001]",
+        "[U:1:10000002]"
+      ]
+    },
+    "players": {
+      "[U:1:10000001]": {
+        "name": "Alpha_Romeo",
+        "logical": "home",
+        "side": "T",
+        "kills": 19,
+        "deaths": 0,
+        "assists": 0,
+        "flashAssists": 0,
+        "headshots": 19,
+        "hsPercent": 100,
+        "plants": 0,
+        "defuses": 0,
+        "score": 57
+      },
+      "[U:1:10000002]": {
+        "name": "Alpha_Bravo",
+        "logical": "home",
+        "side": "T",
+        "kills": 0,
+        "deaths": 16,
+        "assists": 0,
+        "flashAssists": 0,
+        "headshots": 0,
+        "hsPercent": 0,
+        "plants": 0,
+        "defuses": 0,
+        "score": 0
+      },
+      "[U:1:20000001]": {
+        "name": "Bravo_Sierra",
+        "logical": "away",
+        "side": "CT",
+        "kills": 16,
+        "deaths": 0,
+        "assists": 0,
+        "flashAssists": 0,
+        "headshots": 16,
+        "hsPercent": 100,
+        "plants": 0,
+        "defuses": 0,
+        "score": 48
+      },
+      "[U:1:20000002]": {
+        "name": "Bravo_Kilo",
+        "logical": "away",
+        "side": "CT",
+        "kills": 0,
+        "deaths": 19,
+        "assists": 0,
+        "flashAssists": 0,
+        "headshots": 0,
+        "hsPercent": 0,
+        "plants": 0,
+        "defuses": 0,
+        "score": 0
+      }
+    }
+  }
+}

@@ -93,6 +93,12 @@ export type KillEvent = BaseEvent<typeof EventTypes.KILL,
 >;
 
 // ----------------------------
+
+export type AssistEvent = BaseEvent<typeof EventTypes.ASSIST, {
+  player: PlayerRefLogs;
+  victim: PlayerRefLogs;
+  flashAssist?: boolean;
+}>;
 // Nouveaux events (agent Go)
 // ----------------------------
 export type ItemPurchaseEvent = BaseEvent<typeof EventTypes.ITEM_PURCHASE, {
@@ -148,6 +154,7 @@ export type AnyEvent =
   | TeamRoundWinEvent
   | SfuiTargetBombedEvent
   | KillEvent
+  | AssistEvent
   | RoundStatsEvent
   | ItemPurchaseEvent
   | GrenadeThrowEvent
@@ -192,6 +199,9 @@ export const isBombPlanted = (e: AnyEvent): e is BombPlantedEvent =>
   e.type === EventTypes.BOMB_PLANTED;
 export const isSfuiTargetBombed = (e: AnyEvent): e is SfuiTargetBombedEvent =>
   e.type === EventTypes.SFUI_TARGET_BOMBED;
+export const isAssist = (e: AnyEvent): e is AssistEvent =>
+  e.type === EventTypes.ASSIST;
+
 export const isKill = (e: AnyEvent): e is KillEvent =>
   e.type === EventTypes.KILL;
 export const isPlayerConnected = (e: AnyEvent): e is PlayerConnectedEvent =>

@@ -3,6 +3,7 @@ export type Audience = 'admin' | 'public' | 'both';
 
 export type InternalEventName =
   | 'KILL'
+  | 'ASSIST'
   | 'ROUND_START'
   | 'ROUND_END'
   | 'SCORE_UPDATE'
@@ -19,6 +20,7 @@ export type InternalEventName =
   // Parser Go - événements “primaires”
   | 'TEAM_ROUND_WIN'
   | 'BOMB_PLANTED'
+  | 'BOMB_DEFUSED'
   | 'BEGIN_BOMB_PLANT'
   | 'DEFUSE_BEGIN'
   | 'DEFUSE_ABORT'

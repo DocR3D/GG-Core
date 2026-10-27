@@ -21,6 +21,7 @@ export type WsEventType =
   | 'round:start'
   | 'round:end'
   | 'kill'
+  | 'assist'
   | 'pause:update'
   | 'sides:swapped'
   | 'chat:public'
@@ -34,6 +35,7 @@ export type WsEventType =
   // NEW (grenades & round win)
   | 'grenade_throw'
   | 'bomb:planted'
+  | 'bomb_defused'
   | 'bomb:begin'
   | 'defuse:begin'
   | 'defuse:abort'

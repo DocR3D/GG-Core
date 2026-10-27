@@ -9,11 +9,13 @@ import (
 const (
 	EvRoundStart       = "round_start"
 	EvRoundEnd         = "round_end"
+	EvMatchStart       = "match_start"
 	EvBombPlanted      = "bomb_planted"
 	EvTeamRoundWin     = "team_round_win"
 	EvSfuiTargetBombed = "sfui_notice_target_bombed"
 	EvBombDefused      = "bomb_defused"
 	EvKill             = "kill"
+	EvAssist           = "assist"
 	EvPlayerConnected  = "player_connected"
 	EvPlayerDisc       = "player_disconnected"
 	EvPlayerNameChange = "player_name_change"

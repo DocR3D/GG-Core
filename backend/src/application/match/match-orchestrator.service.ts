@@ -267,8 +267,13 @@ export class MatchOrchestrator {
     return this.state.roundEnd(matchId, winner);
   }
 
-  swapSides(matchId: string) {
-    return this.state.swapSides(matchId);
+  async swapSides(matchId: string) {
+    const ok = await this.state.swapSides(matchId);
+    if (ok) {
+      const sides = await this.state.getSides(matchId);
+      await this.push(matchId, 'sides:swapped', { sides } as any);
+    }
+    return ok;
   }
 
   async onFreezeTimeStart(ev: (GenericMatchEvent & { serverId?: string }) | (RoundFreezeStartEvent & { serverId?: string })) {

@@ -306,7 +306,7 @@ describe('Overtime (MR3)', () => {
     );
   });
 
-  it('avance vers OT2 en cas d\'égalité à la fin de l\'OT1 (15-15)', async () => {
+  it('avance vers OT2 sans inverser les côtés en cas d\'égalité à la fin de l\'OT1 (15-15)', async () => {
     const rule = new LiveRule(makePauseCmd());
     const ctx = makeCtx({
       lastScoredRound: 29,
@@ -322,6 +322,7 @@ describe('Overtime (MR3)', () => {
     await (rule as any).onTeamRoundWin(makeRoundWinEvent('T', 'normal', 30), ctx);
 
     expect(ctx.state.setOvertimeCount).toHaveBeenCalledWith(MATCH_ID, 2);
+    expect(ctx.orch.swapSides).not.toHaveBeenCalled();
     expect(ctx.say).toHaveBeenCalledWith(expect.stringContaining('Début OT2...'));
     expect(ctx.orch.restartGame).toHaveBeenCalledWith(
       expect.objectContaining({ delay: 3 }),

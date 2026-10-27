@@ -1,5 +1,5 @@
 // src/application/match/sandbox/sandbox.service.ts
-import { Injectable, Logger, Inject, BadRequestException } from '@nestjs/common';
+import { Injectable, Logger, Inject, BadRequestException, Optional } from '@nestjs/common';
 import type Redis from 'ioredis';
 import * as path from 'path';
 import * as fs from 'fs';
@@ -10,6 +10,7 @@ import { SidesScoreService, type CoreSide, type Logical } from '../state/sides-s
 import { SnapshotQuery } from '../state/snapshot.query';
 import { MatchCommandsService } from '@app/commands/match-commands.service';
 import { WsBroadcaster } from '@adapters/ws/broadcaster.service';
+import { EventsRouterSubscriber } from '@app/subscribers/events-router.consumer';
 import { MatchPhase, Phase, RoundPhase } from '@domain/phase.types';
 import { MatchSettings } from '@domain/match-settings.types';
 import { CS2_CFG, CS2_RULES, CS2_RCON_COMMANDS } from '@domain/rules/rules.constants';
@@ -52,6 +53,7 @@ export class SandboxService {
     private readonly cmds: MatchCommandsService,
     private readonly ws: WsBroadcaster,
     private readonly backupService: RoundBackupService,
+    @Optional() private readonly eventsRouter?: EventsRouterSubscriber,
   ) {}
 
   /**
@@ -170,9 +172,14 @@ export class SandboxService {
       await this.redis.set(redisConst.matchServer(mid), dto.serverId);
     }
 
-    // 2. Sides
+    // 2. Sides (défaut: home=CT, away=T si non spécifiés et absents de Redis)
     if (dto.sides) {
       await this.state.setSides(mid, dto.sides);
+    } else {
+      const existingSides = await this.state.getSides(mid);
+      if (!existingSides) {
+        await this.state.setSides(mid, { home: 'CT', away: 'T' });
+      }
     }
 
     // 3. Teams
@@ -254,6 +261,16 @@ export class SandboxService {
 
         if (p.cash !== undefined) {
           await this.state.setPlayerMoney(mid, p.steamId, p.cash);
+        }
+        if (typeof (this.state as any).setPlayerStats === 'function') {
+          await this.state.setPlayerStats(mid, p.steamId, {
+            name: p.name,
+            kills: 0,
+            deaths: 0,
+            assists: 0,
+            headshots: 0,
+            score: 0,
+          });
         }
       }
     }
@@ -482,6 +499,16 @@ export class SandboxService {
    * Simule un événement de victoire de round (team_round_win) envoyé par le serveur de jeu
    */
   async simulateRoundWin(matchId: string, serverId: string, winner: 'CT' | 'T'): Promise<{ ok: boolean }> {
+    const currentPhase = typeof (this.state as any).getPhase === 'function'
+      ? await (this.state as any).getPhase(matchId)
+      : null;
+    if (currentPhase && currentPhase === MatchPhase.POSTGAME) {
+      if (typeof (this.state as any).setPhase === 'function') {
+        await (this.state as any).setPhase(matchId, MatchPhase.LIVE_MAIN);
+      }
+      await this.ws.push(matchId, 'phase:changed', { matchId, phase: MatchPhase.LIVE_MAIN });
+    }
+
     const event = {
       type: 'team_round_win',
       matchId,
@@ -506,8 +533,30 @@ export class SandboxService {
     matchId: string,
     serverId: string,
     command: string,
-    sender: { name: string; steamId?: string; team: 'CT' | 'T' },
+    sender: { name: string; steamId?: string; team?: 'CT' | 'T' },
   ): Promise<{ ok: boolean }> {
+    let team: 'CT' | 'T' = (sender.team === 'CT' || sender.team === 'T') ? sender.team : 'CT';
+
+    const clean = command.replace(/^[!.]/, '').trim().toLowerCase();
+    // Si la commande est !stay ou !switch, s'aligner sur le vainqueur du knife ou passer en knife_choice
+    if (clean === 'stay' || clean === 'switch') {
+      if (typeof (this.state as any).getKnifeResult === 'function') {
+        const knife = await (this.state as any).getKnifeResult(matchId);
+        if (knife && (knife.side === 'CT' || knife.side === 'T')) {
+          team = knife.side;
+        }
+      }
+      if (typeof (this.state as any).getPhase === 'function') {
+        const phase = await (this.state as any).getPhase(matchId);
+        if (phase === MatchPhase.KNIFE_LIVE) {
+          if (typeof (this.state as any).setPhase === 'function') {
+            await (this.state as any).setPhase(matchId, MatchPhase.KNIFE_CHOICE);
+          }
+          await this.ws.push(matchId, 'phase:changed', { matchId, phase: MatchPhase.KNIFE_CHOICE });
+        }
+      }
+    }
+
     const event = {
       type: 'command',
       matchId,
@@ -518,13 +567,13 @@ export class SandboxService {
         sender: {
           name: sender.name || 'SandboxTester',
           steamId: sender.steamId || '76561198000000001',
-          team: sender.team,
+          team,
         },
       },
     };
 
     await this.pub.publish(REDIS_CHANNELS.EVENTS, JSON.stringify(event));
-    this.logger.log(`[Sandbox] Commande simulée publiée: ${command} par ${sender.name} (${sender.team})`);
+    this.logger.log(`[Sandbox] Commande simulée publiée: ${command} par ${sender.name || 'SandboxTester'} (${team})`);
     return { ok: true };
   }
 
@@ -628,7 +677,11 @@ export class SandboxService {
     const knownLabels: Record<string, string> = {
       'cs2_match_inferno_overtime_anonymized.log': 'Inferno (Overtime CS2, 17-19)',
       'cs2_match_ancient_pauses_anonymized.log': 'Ancient (Pauses CS2, 13-8)',
-      'gglan19_sample_match59_anonymized.log': 'Mirage (Match LAN, 13-3)',
+      'gglan19_sample_match59_anonymized.log': 'Mirage (Match LAN #59, 13-2)',
+      'gglan19_match161_ancient_ot2_anonymized.log': 'Ancient (Match LAN #161, 2 OT 16-19)',
+      'gglan19_match164_inferno_ot1_anonymized.log': 'Inferno (Match LAN #164, 1 OT 13-16)',
+      'gglan19_match165_anubis_stomp_anonymized.log': 'Anubis (Match LAN #165, Stomp 13-1)',
+      'gglan19_match167_nuke_24rounds_anonymized.log': 'Nuke (Match LAN #167, 24 rounds 13-11)',
       'scenario-04-cs2-overtime-inferno.json': 'Inferno (Overtime CS2, 36 rounds)',
       'scenario-03-overtime5-match156-inferno.json': 'Inferno (5 Overtimes, 53 rounds)',
       'scenario-01-full-match-mirage.json': 'Mirage (Match standard, 16 rounds)',
@@ -663,17 +716,46 @@ export class SandboxService {
     await this.state.setServerIdToMatchId(serverId, matchId);
     await this.redis.set(redisConst.matchServer(matchId), serverId);
 
+    // Purger les événements en cours avant de réinitialiser l'état
+    if (this.eventsRouter && typeof this.eventsRouter.drain === 'function') {
+      await this.eventsRouter.drain();
+    }
+
+    // Réinitialiser complètement le roster et les statistiques pour un rejeu propre
+    if (typeof (this.state as any).clearRoster === 'function') {
+      await this.state.clearRoster(matchId);
+    }
+    if (typeof (this.state as any).resetPlayerStats === 'function') {
+      await this.state.resetPlayerStats(matchId);
+    }
+    if (typeof (this.state as any).resetStreaks === 'function') {
+      await (this.state as any).resetStreaks(matchId);
+    }
+
     // Réinitialiser l'état pour garantir un rejeu propre
     await this.injectState({
       matchId,
       serverId,
+      sides: { home: 'CT', away: 'T' },
+      teams: { home_name: '', away_name: '' },
       score: { ct: 0, t: 0, round: 0 },
       lastScoredRound: 0,
       halftimePlayed: false,
       overtimeCount: 0,
       phase: MatchPhase.LIVE_MAIN,
-      settings: { overtimeEnabled: true, mrFormat: 12, overtimeMrFormat: 3 },
+      settings: {
+        overtimeEnabled: true,
+        mrFormat: 12,
+        overtimeMrFormat: 3,
+        warmupAtHalftime: false,
+        warmupAtOvertime: false,
+        warmupAfterKnife: false,
+        knifeEnabled: false,
+      },
     });
+    if (typeof (this.state as any).resetPlayerStats === 'function') {
+      await this.state.resetPlayerStats(matchId);
+    }
 
     let rawText = dto.content || '';
     if (!rawText && dto.fixtureName) {
@@ -729,6 +811,8 @@ export class SandboxService {
           await new Promise((r) => setTimeout(r, delayMs));
         }
       }
+      // Laisser passer une courte fenêtre pour le ticker de batching de l'Agent Go (50ms)
+      await new Promise((r) => setTimeout(r, 80));
     } else {
       mode = 'fallback_parser';
       this.logger.log(`[Sandbox] Agent Go non joignable sur ${agentUrl}, utilisation du fallback parser natif`);
@@ -742,6 +826,10 @@ export class SandboxService {
           await new Promise((r) => setTimeout(r, delayMs));
         }
       }
+    }
+
+    if (this.eventsRouter && typeof this.eventsRouter.drain === 'function') {
+      await this.eventsRouter.drain();
     }
 
     const durationMs = Date.now() - start;
@@ -772,8 +860,32 @@ export class SandboxService {
     await this.state.setServerIdToMatchId(serverId, matchId);
     await this.redis.set(redisConst.matchServer(matchId), serverId);
 
+    // Purger les événements en cours avant de réinitialiser l'état
+    if (this.eventsRouter && typeof this.eventsRouter.drain === 'function') {
+      await this.eventsRouter.drain();
+    }
+
+    // Réinitialiser complètement le roster et les statistiques pour un rejeu propre
+    if (typeof (this.state as any).clearRoster === 'function') {
+      await this.state.clearRoster(matchId);
+    }
+    if (typeof (this.state as any).resetPlayerStats === 'function') {
+      await this.state.resetPlayerStats(matchId);
+    }
+    if (typeof (this.state as any).resetStreaks === 'function') {
+      await (this.state as any).resetStreaks(matchId);
+    }
+
     let events: any[] = dto.events || [];
-    let scenarioSettings: Partial<MatchSettings> = { overtimeEnabled: true, mrFormat: 12, overtimeMrFormat: 3 };
+    let scenarioSettings: Partial<MatchSettings> = {
+      overtimeEnabled: true,
+      mrFormat: 12,
+      overtimeMrFormat: 3,
+      warmupAtHalftime: false,
+      warmupAtOvertime: false,
+      warmupAfterKnife: false,
+      knifeEnabled: false,
+    };
 
     if (events.length === 0 && dto.fixtureName) {
       const fixturesDir = this.getFixturesDirectory();
@@ -793,6 +905,8 @@ export class SandboxService {
     await this.injectState({
       matchId,
       serverId,
+      sides: { home: 'CT', away: 'T' },
+      teams: { home_name: '', away_name: '' },
       score: { ct: 0, t: 0, round: 0 },
       lastScoredRound: 0,
       halftimePlayed: false,
@@ -800,6 +914,9 @@ export class SandboxService {
       phase: MatchPhase.LIVE_MAIN,
       settings: scenarioSettings,
     });
+    if (typeof (this.state as any).resetPlayerStats === 'function') {
+      await this.state.resetPlayerStats(matchId);
+    }
 
     if (!Array.isArray(events) || events.length === 0) {
       throw new BadRequestException('Aucun événement à rejouer');
@@ -822,6 +939,10 @@ export class SandboxService {
       if (delayMs > 0) {
         await new Promise((r) => setTimeout(r, delayMs));
       }
+    }
+
+    if (this.eventsRouter && typeof this.eventsRouter.drain === 'function') {
+      await this.eventsRouter.drain();
     }
 
     const durationMs = Date.now() - start;
@@ -847,6 +968,8 @@ export function cleanContainerLogPrefix(line: string): string {
   return line;
 }
 
+const fallbackIgnoreNextWorldSuicide = new Set<string>();
+
 /**
  * Parser de secours ultra-léger pour rejouer des logs même sans Agent Go actif
  */
@@ -855,24 +978,55 @@ export function parseCs2LineFallback(rawLine: string, matchId: string, serverId:
   line = line.replace(/^(?:L\s+)?\d{2}\/\d{2}\/\d{4}\s*-\s*\d{2}:\d{2}:\d{2}(?:\.\d{3})?\s*[-:]\s*/, '').trim();
   if (!line) return null;
 
+  if (line.includes('World triggered "Match_Start"')) {
+    fallbackIgnoreNextWorldSuicide.clear();
+    return { type: 'match_start', matchId, serverId, timestamp: Date.now(), payload: {} };
+  }
+
   if (line.includes('World triggered "Round_Start"')) {
+    fallbackIgnoreNextWorldSuicide.clear();
     return { type: 'round_start', matchId, serverId, timestamp: Date.now(), payload: {} };
+  }
+
+  const bombKilledMatch = line.match(/^"([^"<]+)<\d+><([^>]*)><([^>]+)>"(?:\s+\[[-\d\s]+\])?\s+was\s+killed\s+by\s+the\s+bomb\.?/);
+  if (bombKilledMatch) {
+    if (bombKilledMatch[2]) {
+      fallbackIgnoreNextWorldSuicide.add(`${matchId}:${bombKilledMatch[2]}`);
+    }
+    return null;
+  }
+
+  const discMatch = line.match(/^"([^"<]+)<\d+><([^>]*)><([^>]*)>"\s+disconnected/);
+  if (discMatch && discMatch[2]) {
+    fallbackIgnoreNextWorldSuicide.add(`${matchId}:${discMatch[2]}`);
+    return null;
   }
 
   const winMatch = line.match(/^Team "(TERRORIST|CT)" triggered "(SFUI_Notice_[A-Za-z_]+)"(?:\s*\(CT "(\d+)"\)\s*\(T "(\d+)"\))?/);
   if (winMatch) {
     const winner = winMatch[1] === 'TERRORIST' ? 'T' : 'CT';
     const sfui = winMatch[2].toLowerCase();
-    const reason = sfui.includes('target_bombed') ? 'target_bombed' : (sfui.includes('defused') ? 'defused' : 'elim');
+    const reason = sfui.includes('target_bombed')
+      ? 'bomb_exploded'
+      : ((sfui.includes('defused') || sfui.includes('target_saved')) ? 'defused' : 'elim');
     const scoreCT = winMatch[3] ? parseInt(winMatch[3], 10) : undefined;
     const scoreT = winMatch[4] ? parseInt(winMatch[4], 10) : undefined;
-    const round = (scoreCT !== undefined && scoreT !== undefined) ? scoreCT + scoreT : undefined;
-    return { type: 'team_round_win', matchId, serverId, round, timestamp: Date.now(), payload: { winner, team: winner, reason, scoreCT, scoreT } };
+    const score = (scoreCT !== undefined && scoreT !== undefined) ? { ct: scoreCT, t: scoreT } : undefined;
+    return {
+      type: 'team_round_win',
+      matchId,
+      serverId,
+      timestamp: Date.now(),
+      payload: { winner, team: winner, reason, scoreCT, scoreT, ...(score ? { score } : {}) },
+    };
   }
 
-  const killMatch = line.match(/^"([^"<]+)<\d+><([^>]*)><([^>]+)>".* killed "([^"<]+)<\d+><([^>]*)><([^>]+)>".* with "([^"]+)"(.*)$/);
+  const killMatch = line.match(/^"([^"<]+)<\d+><([^>]*)><([^>]+)>"(?:\s+\[[-\d\s]+\])?\s+killed\s+"([^"<]+)<\d+><([^>]*)><([^>]+)>"(?:\s+\[[-\d\s]+\])?\s+with\s+"([^"]+)"(.*)$/);
   if (killMatch) {
     const isHeadshot = Boolean(killMatch[8]?.includes('headshot'));
+    const isTeamkill = Boolean(killMatch[8]?.includes('friendlyfire')) || (
+      killMatch[3] === killMatch[6] && (killMatch[3] === 'CT' || killMatch[3] === 'TERRORIST' || killMatch[3] === 'T')
+    );
     return {
       type: 'kill',
       matchId,
@@ -884,8 +1038,104 @@ export function parseCs2LineFallback(rawLine: string, matchId: string, serverId:
         victim: { name: killMatch[4], steamId: killMatch[5], team: killMatch[6] },
         weapon: killMatch[7],
         headshot: isHeadshot,
+        ...(isTeamkill ? { teamkill: true } : {}),
       },
     };
+  }
+
+  const assistMatch = line.match(/^"([^"<]+)<\d+><([^>]*)><([^>]+)>"\s+(?:(flash)-)?assisted\s+killing\s+"([^"<]+)<\d+><([^>]*)><([^>]+)>"/);
+  if (assistMatch) {
+    const isFlash = Boolean(assistMatch[4]);
+    return {
+      type: 'assist',
+      matchId,
+      serverId,
+      timestamp: Date.now(),
+      payload: {
+        player: { name: assistMatch[1], steamId: assistMatch[2], team: assistMatch[3] },
+        victim: { name: assistMatch[5], steamId: assistMatch[6], team: assistMatch[7] },
+        flashAssist: isFlash,
+      },
+    };
+  }
+
+  const suicideMatch = line.match(/^"([^"<]+)<\d+><([^>]*)><([^>]+)>"(?:\s+\[[-\d\s]+\])?\s+committed\s+suicide\s+with\s+"([^"]+)"/);
+  if (suicideMatch) {
+    const key = `${matchId}:${suicideMatch[2]}`;
+    if (suicideMatch[4]?.toLowerCase() === 'world' && fallbackIgnoreNextWorldSuicide.has(key)) {
+      fallbackIgnoreNextWorldSuicide.delete(key);
+      return null;
+    }
+    return {
+      type: 'kill',
+      matchId,
+      serverId,
+      timestamp: Date.now(),
+      payload: {
+        kind: 'suicide',
+        player: { name: suicideMatch[1], steamId: suicideMatch[2], team: suicideMatch[3] },
+        weapon: suicideMatch[4],
+      },
+    };
+  }
+
+  const plantedMatch = line.match(/^"([^"<]+)<\d+><([^>]*)><([^>]+)>"\s+triggered\s+"Planted_The_Bomb"(?:\s+(?:at\s+bombsite|\(Site\))\s+(A|B)\)?)?/);
+  if (plantedMatch) {
+    return {
+      type: 'bomb_planted',
+      matchId,
+      serverId,
+      timestamp: Date.now(),
+      payload: {
+        planter: { name: plantedMatch[1], steamId: plantedMatch[2], team: plantedMatch[3] },
+        ...(plantedMatch[4] ? { site: plantedMatch[4] } : {}),
+      },
+    };
+  }
+
+  const beginPlantMatch = line.match(/^"([^"<]+)<\d+><([^>]*)><([^>]+)>"\s+triggered\s+"Bomb_Begin_Plant"\s+at\s+bombsite\s+(A|B)/);
+  if (beginPlantMatch) {
+    return {
+      type: 'begin_bomb_plant',
+      matchId,
+      serverId,
+      timestamp: Date.now(),
+      payload: {
+        player: { name: beginPlantMatch[1], steamId: beginPlantMatch[2], team: beginPlantMatch[3] },
+        site: beginPlantMatch[4],
+      },
+    };
+  }
+
+  const defusedMatch = line.match(/^"([^"<]+)<\d+><([^>]*)><([^>]+)>"\s+triggered\s+"Defused_The_Bomb"/);
+  if (defusedMatch) {
+    return {
+      type: 'bomb_defused',
+      matchId,
+      serverId,
+      timestamp: Date.now(),
+      payload: {
+        defuser: { name: defusedMatch[1], steamId: defusedMatch[2], team: defusedMatch[3] },
+      },
+    };
+  }
+
+  const defuseBeginMatch = line.match(/^"([^"<]+)<\d+><([^>]*)><([^>]+)>"\s+triggered\s+"Begin_Bomb_Defuse(?:_(With|Without)_Kit)?"/);
+  if (defuseBeginMatch) {
+    return {
+      type: 'defuse_begin',
+      matchId,
+      serverId,
+      timestamp: Date.now(),
+      payload: {
+        player: { name: defuseBeginMatch[1], steamId: defuseBeginMatch[2], team: defuseBeginMatch[3] },
+        hasKit: defuseBeginMatch[4] === 'With',
+      },
+    };
+  }
+
+  if (line.includes('triggered "Aborted_Bomb_Defuse"')) {
+    return { type: 'defuse_abort', matchId, serverId, timestamp: Date.now(), payload: {} };
   }
 
   if (line.includes('World triggered "Match_Start"')) {

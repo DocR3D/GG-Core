@@ -41,6 +41,7 @@ export const redisConst = {
 
   ready:        (m: string) => `match:${m}:ready`,          // hash
   playersHash:  (m: string) => `match:${m}:players`,
+  playerStatsHash: (m: string) => `match:${m}:player_stats`,
   lineupHome:   (m: string) => `match:${m}:lineup:home`,
   lineupAway:   (m: string) => `match:${m}:lineup:away`,
 

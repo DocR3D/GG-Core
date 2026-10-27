@@ -55,6 +55,48 @@ describe('Fallback Parser & Suicide vs Player Kill Handling', () => {
       expect(event.payload.winner).toBe('CT');
       expect(event.payload.reason).toBe('defused');
     });
+
+    it('distinguishes Bomb_Begin_Plant from Planted_The_Bomb', () => {
+      const beginLine = '"Player_03<5><[U:1:10000003]><TERRORIST>" triggered "Bomb_Begin_Plant" at bombsite B';
+      const beginEv = parseCs2LineFallback(beginLine, 'm-1', 'srv-a');
+      expect(beginEv).not.toBeNull();
+      expect(beginEv.type).toBe('begin_bomb_plant');
+
+      const plantedLine = '"Hydra_Three<8><[U:1:20000003]><TERRORIST>" triggered "Planted_The_Bomb" at [150 -100 80]';
+      const plantedEv = parseCs2LineFallback(plantedLine, 'm-1', 'srv-a');
+      expect(plantedEv).not.toBeNull();
+      expect(plantedEv.type).toBe('bomb_planted');
+      expect(plantedEv.payload.planter.name).toBe('Hydra_Three');
+    });
+
+    it('parses Defused_The_Bomb and Begin_Bomb_Defuse', () => {
+      const defusedLine = '"Phoenix_Three<3><[U:1:10000003]><CT>" triggered "Defused_The_Bomb"';
+      const defusedEv = parseCs2LineFallback(defusedLine, 'm-1', 'srv-a');
+      expect(defusedEv).not.toBeNull();
+      expect(defusedEv.type).toBe('bomb_defused');
+      expect(defusedEv.payload.defuser.name).toBe('Phoenix_Three');
+
+      const beginDefuseLine = '"Player_06<9><[U:1:10000006]><CT>" triggered "Begin_Bomb_Defuse_With_Kit"';
+      const beginDefuseEv = parseCs2LineFallback(beginDefuseLine, 'm-1', 'srv-a');
+      expect(beginDefuseEv).not.toBeNull();
+      expect(beginDefuseEv.type).toBe('defuse_begin');
+      expect(beginDefuseEv.payload.hasKit).toBe(true);
+    });
+
+    it('parses suicide and assist lines', () => {
+      const suicideLine = '"Player_01<2><[U:1:10000001]><TERRORIST>" [-959 -789 117] committed suicide with "world"';
+      const suicideEv = parseCs2LineFallback(suicideLine, 'm-1', 'srv-a');
+      expect(suicideEv).not.toBeNull();
+      expect(suicideEv.type).toBe('kill');
+      expect(suicideEv.payload.kind).toBe('suicide');
+      expect(suicideEv.payload.player.name).toBe('Player_01');
+
+      const assistLine = '"Player_06<9><[U:1:10000006]><CT>" flash-assisted killing "Player_01<2><[U:1:10000001]><TERRORIST>"';
+      const assistEv = parseCs2LineFallback(assistLine, 'm-1', 'srv-a');
+      expect(assistEv).not.toBeNull();
+      expect(assistEv.type).toBe('assist');
+      expect(assistEv.payload.flashAssist).toBe(true);
+    });
   });
 
   describe('DatabaseEventsHandler — Suicide vs Player Kill distinction', () => {

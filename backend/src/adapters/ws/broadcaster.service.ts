@@ -59,6 +59,7 @@ export class WsBroadcaster implements OnModuleInit {
         case 'sides_swapped':       return 'SIDES_SWAPPED';
         case 'match_state':         return 'MATCH_STATE';
         case 'kill':                return 'KILL';
+        case 'assist':              return 'ASSIST';
         case 'agent:action':        return 'AGENT_ACTION';
         case 'agent:result':        return 'AGENT_RESULT';
         case 'log:raw':             return 'LOG_RAW';
@@ -66,6 +67,7 @@ export class WsBroadcaster implements OnModuleInit {
         // Nouveaux événements "primaires" du parser Go
         case 'team_round_win':      return 'TEAM_ROUND_WIN';
         case 'bomb_planted':        return 'BOMB_PLANTED';
+        case 'bomb_defused':        return 'BOMB_DEFUSED';
         case 'begin_bomb_plant':    return 'BEGIN_BOMB_PLANT';
         case 'defuse_begin':        return 'DEFUSE_BEGIN';
         case 'defuse_abort':        return 'DEFUSE_ABORT';
@@ -178,6 +180,7 @@ export class WsBroadcaster implements OnModuleInit {
 
       switch (ev.name) {
         case 'KILL':              send('kill'); break;
+        case 'ASSIST':            send('assist'); break;
         case 'ROUND_START':       send('round:start'); break;
         case 'ROUND_END':         send('round:end'); break;
         case 'SCORE_UPDATE':      send('score:update'); break;
@@ -190,6 +193,7 @@ export class WsBroadcaster implements OnModuleInit {
 
         // Bomb / defuse
         case 'BOMB_PLANTED':      send('bomb:planted', asWs('bomb:planted' as WsEventType, ev, ev.payload, ev.seq!, ev.ts!)); break;
+        case 'BOMB_DEFUSED':      send('bomb_defused'); break;
         case 'BEGIN_BOMB_PLANT':  send('bomb:begin',    asWs('bomb:begin'    as WsEventType, ev, ev.payload, ev.seq!, ev.ts!)); break;
         case 'DEFUSE_BEGIN':      send('defuse:begin',  asWs('defuse:begin'  as WsEventType, ev, ev.payload, ev.seq!, ev.ts!)); break;
         case 'DEFUSE_ABORT':      send('defuse:abort',  asWs('defuse:abort'  as WsEventType, ev, ev.payload, ev.seq!, ev.ts!)); break;

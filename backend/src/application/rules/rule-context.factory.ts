@@ -34,6 +34,8 @@ export class RuleContextFactory {
       getOvertimeCount: this.mss.getOvertimeCount.bind(this.mss),
       setOvertimeCount: this.mss.setOvertimeCount.bind(this.mss),
       reconcileScore: this.mss.reconcileScore.bind(this.mss),
+      resetStreaks: this.mss.resetStreaks.bind(this.mss),
+      resetPlayerStats: this.mss.resetPlayerStats.bind(this.mss),
     } as const;
 
     return {

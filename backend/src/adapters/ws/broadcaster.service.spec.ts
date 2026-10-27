@@ -92,6 +92,62 @@ describe('WsBroadcaster & RealtimeEmitter (Anti-Double Delivery)', () => {
       expect(mockEmitter.emitAdmin).not.toHaveBeenCalled();
     });
 
+    it('routes assist events to emitBoth() with name ASSIST', async () => {
+      const assistEvent = {
+        v: 1,
+        id: 'ev-assist-1',
+        type: 'assist',
+        matchId: 'm-1',
+        serverId: 'srv-a',
+        source: 'logs',
+        kind: 'primary',
+        payload: {
+          player: { name: 'PlayerA', team: 'CT' },
+          victim: { name: 'PlayerB', team: 'TERRORIST' },
+          flashAssist: true,
+        },
+      };
+
+      mockRedisSub.emit('message', REDIS_CHANNELS.EVENTS, JSON.stringify(assistEvent));
+      await new Promise((resolve) => setImmediate(resolve));
+
+      expect(mockEmitter.emitBoth).toHaveBeenCalledWith(
+        'm-1',
+        'assist',
+        expect.objectContaining({
+          name: 'ASSIST',
+          matchId: 'm-1',
+        }),
+      );
+    });
+
+    it('routes bomb_defused events to emitBoth() with name BOMB_DEFUSED', async () => {
+      const defusedEvent = {
+        v: 1,
+        id: 'ev-defuse-1',
+        type: 'bomb_defused',
+        matchId: 'm-1',
+        serverId: 'srv-a',
+        source: 'logs',
+        kind: 'primary',
+        payload: {
+          defuser: { name: 'PlayerA', steamId: 'p1', team: 'CT' },
+        },
+      };
+
+      mockRedisSub.emit('message', REDIS_CHANNELS.EVENTS, JSON.stringify(defusedEvent));
+      await new Promise((resolve) => setImmediate(resolve));
+
+      expect(mockEmitter.emitBoth).toHaveBeenCalledWith(
+        'm-1',
+        'bomb_defused',
+        expect.objectContaining({
+          name: 'BOMB_DEFUSED',
+          matchId: 'm-1',
+        }),
+      );
+    });
+
     it('routes admin-only events (e.g. command) strictly to emitAdmin()', async () => {
       const commandEvent = {
         v: 1,

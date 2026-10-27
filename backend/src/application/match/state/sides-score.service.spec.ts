@@ -92,6 +92,24 @@ describe('SidesScoreService', () => {
       expect(score.away).toBe(5);
       expect(score.round).toBe(12);
     });
+
+    it('inverts ct_name and t_name in teams hash during swapSides', async () => {
+      await service.setSides(MATCH_ID, { home: 'CT', away: 'T' });
+      redisStore.set(redisConst.teams(MATCH_ID), {
+        home_name: 'Vitality',
+        away_name: 'Liquid',
+        ct_name: 'Vitality',
+        t_name: 'Liquid',
+      });
+
+      await service.swapSides(MATCH_ID);
+
+      const teams = redisStore.get(redisConst.teams(MATCH_ID));
+      expect(teams.ct_name).toBe('Liquid');
+      expect(teams.t_name).toBe('Vitality');
+      expect(teams.home_name).toBe('Vitality');
+      expect(teams.away_name).toBe('Liquid');
+    });
   });
 
   describe('reconcileScore', () => {
@@ -141,6 +159,24 @@ describe('SidesScoreService', () => {
       expect(s2.home).toBe(1);
       expect(s2.away).toBe(1);
       expect(s2.round).toBe(2);
+    });
+  });
+
+  describe('sideToLogical & logicalToSide', () => {
+    it('utilise le fallback CT=home et T=away si les sides ne sont pas encore initialisés dans Redis', async () => {
+      // Aucun sides stocké dans redisStore
+      expect(await service.sideToLogical('m-unset', 'CT')).toBe('home');
+      expect(await service.sideToLogical('m-unset', 'TERRORIST')).toBe('away');
+      expect(await service.logicalToSide('m-unset', 'home')).toBe('CT');
+      expect(await service.logicalToSide('m-unset', 'away')).toBe('T');
+    });
+
+    it('résout correctement selon les sides configurés', async () => {
+      await service.setSides(MATCH_ID, { home: 'T', away: 'CT' });
+      expect(await service.sideToLogical(MATCH_ID, 'T')).toBe('home');
+      expect(await service.sideToLogical(MATCH_ID, 'CT')).toBe('away');
+      expect(await service.logicalToSide(MATCH_ID, 'home')).toBe('T');
+      expect(await service.logicalToSide(MATCH_ID, 'away')).toBe('CT');
     });
   });
 });

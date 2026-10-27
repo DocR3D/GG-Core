@@ -1,3 +1,4 @@
+import 'dotenv/config';
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
 import * as bodyParser from 'body-parser';
@@ -16,8 +17,8 @@ async function bootstrap() {
   // ❗ 2) Parsers globaux pour /api et /sandbox
   app.use('/api', json({ limit: '1mb' }));
   app.use('/api', urlencoded({ extended: true }));
-  app.use('/sandbox', json({ limit: '1mb' }));
-  app.use('/sandbox', urlencoded({ extended: true }));
+  app.use('/sandbox', json({ limit: '15mb' }));
+  app.use('/sandbox', urlencoded({ extended: true, limit: '15mb' }));
 
   // 3) Prefix global /api en excluant /cs2/logs et /sandbox
   app.setGlobalPrefix('api', {
