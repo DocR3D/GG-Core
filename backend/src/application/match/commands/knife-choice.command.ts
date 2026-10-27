@@ -4,7 +4,7 @@ import { BaseCommand } from '@domain/commands/base.command';
 import { CommandEvent } from '@domain/events/command.event';
 import { RuleContext } from '@domain/rules';
 import { MatchPhase } from '@domain/phase.types';
-import { CS2_RULES } from '@domain/rules/rules.constants';
+import { CS2_RULES, CS2_CHAT_COMMANDS, CS2_RCON_COMMANDS, normalizeChatCommand } from '@domain/rules/rules.constants';
 
 @Injectable()
 export class KnifeChoiceCommand extends BaseCommand {
@@ -26,7 +26,8 @@ export class KnifeChoiceCommand extends BaseCommand {
   }
 
   async handle(event: CommandEvent, ctx: RuleContext): Promise<boolean> {
-    const isStay = event.payload.command === 'stay';
+    const cleanCmd = normalizeChatCommand(event.payload.command);
+    const isStay = cleanCmd === CS2_CHAT_COMMANDS.STAY;
     this.logCommand(isStay ? '!stay' : '!switch', event);
 
     const serverId = event.serverId ?? (await ctx.state.getServerIdFromMatchId(event.matchId));
@@ -36,6 +37,9 @@ export class KnifeChoiceCommand extends BaseCommand {
     }
 
     if (!isStay) {
+      if (serverId && typeof ctx.orch.rcon === 'function') {
+        await ctx.orch.rcon({ serverId, matchId: event.matchId, command: CS2_RCON_COMMANDS.SWAP_TEAMS });
+      }
       const swapped = await ctx.orch.swapSides(event.matchId);
       if (swapped) {
         await ctx.orch.push(event.matchId, 'sides:swapped' as any, {});

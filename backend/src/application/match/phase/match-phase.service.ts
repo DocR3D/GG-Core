@@ -26,7 +26,7 @@ export class MatchPhaseService {
     @Inject(REDIS_PUB) private readonly pub: Redis,
 @Inject(forwardRef(() => MatchCommandsService)) private readonly actions: MatchCommandsService,
     private readonly rcF: RuleContextFactory,   // OK une fois exporté + importé
-    private readonly pauseMatchService: PauseMatchService,
+    @Inject(forwardRef(() => PauseMatchService)) private readonly pauseMatchService: PauseMatchService,
     private readonly messageService: MessageService,
     private readonly registry: RuleRegistry,
   ) {}
@@ -37,6 +37,10 @@ export class MatchPhaseService {
   }
   async setReady(matchId: string, logical: 'home'|'away', ready: boolean) {
     await this.redis.hset(redisConst.ready(matchId), logical, ready ? 1 : 0);
+  }
+
+  async resetReady(matchId: string): Promise<void> {
+    await this.redis.hset(redisConst.ready(matchId), { home: '0', away: '0' });
   }
 
   public async startPhaseCountdown(
@@ -174,7 +178,13 @@ public async cancelPhaseCountdown(
 }
 
 
-private async applyPhase(
+public async isCountdownActive(matchId: string): Promise<boolean> {
+    const lockKey = redisConst.phaseLock(matchId);
+    const exists = await this.redis.exists(lockKey);
+    return exists === 1;
+  }
+
+  private async applyPhase(
   matchId: string,
   newPhase: MatchPhase,
   serverId: string,
@@ -186,9 +196,17 @@ private async applyPhase(
   // 0) Coup de balai global (garanti zéro fuite)
   this.messageService.stopPhaseGroups(matchId);
 
-  // 1) Écrire la nouvelle phase + nettoyer lock/pending
+  // 1) Écrire la nouvelle phase + nettoyer lock/pending + reset des états éphémères (ready, knife)
   await this.redis.set(phaseKey, newPhase);
   await this.redis.del(lockKey, pendingKey);
+  await this.resetReady(matchId);
+  await this.redis.del(
+    redisConst.knifeWinner(matchId),
+    redisConst.knifeWinnerSide(matchId),
+    redisConst.knifeWinnerLogical(matchId),
+    redisConst.knifeChoice(matchId),
+    redisConst.knifeChoiceT(matchId),
+  );
 
   // 2) Démarrer les messages de la NOUVELLE phase
   const rule = this.registry.getRule(newPhase);
@@ -222,9 +240,6 @@ private async applyPhase(
 
 
   async getPhase(matchId: string): Promise<MatchPhase> {
-    const cached = this.cache.get(matchId);
-    if (cached) return cached;
-
     const key = redisConst.phase(matchId);
     const val = (await this.redis.get(key)) as MatchPhase | null;
     const phase = val ?? MatchPhase.WARMUP_MAIN;
@@ -236,7 +251,8 @@ private async applyPhase(
     const key = redisConst.phase(matchId); // ⚠️ vérifie que c'est la même clé partout
     await this.redis.set(key, phase);
     this.cache.set(matchId, phase);
-    this.logger.debug(`[setPhase] match=${matchId} -> ${phase}`);
+    await this.resetReady(matchId);
+    this.logger.debug(`[setPhase] match=${matchId} -> ${phase} (ready flags reset)`);
   }
   
     /** Optionnel: transitions autorisées (anti-regression vers warmup_main) */

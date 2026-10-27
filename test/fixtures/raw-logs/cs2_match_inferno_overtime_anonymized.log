@@ -1,0 +1,247 @@
+L 10/26/2026 - 20:00:00: Loading map "de_inferno"
+L 10/26/2026 - 20:00:01: MatchStatus: Score: 0:0 on map "de_inferno" RoundsPlayed: 0
+L 10/26/2026 - 20:00:01: Team playing "CT": Team Alpha
+L 10/26/2026 - 20:00:01: Team playing "TERRORIST": Team Bravo
+L 10/26/2026 - 20:00:01: World triggered "Match_Start" on "de_inferno"
+L 10/26/2026 - 20:00:03: "Alpha_Romeo<1><[U:1:10000001]><CT>" say "!ready"
+L 10/26/2026 - 20:00:04: "Bravo_Sierra<6><[U:1:20000001]><TERRORIST>" say "!ready"
+L 10/26/2026 - 20:00:09: World triggered "Round_Start"
+L 10/26/2026 - 20:00:24: World triggered "Round_Start"
+L 10/26/2026 - 20:00:44: "Alpha_Romeo<1><[U:1:10000001]><CT>" [597 -64 180] killed "Bravo_Kilo<7><[U:1:20000002]><TERRORIST>" [-470 -58 86] with "m4a1_silencer" (headshot)
+L 10/26/2026 - 20:01:14: World triggered "Round_End"
+L 10/26/2026 - 20:01:15: Team "CT" triggered "SFUI_Notice_CTs_Win" (CT "1") (T "0")
+L 10/26/2026 - 20:01:16: Team "CT" scored "1" with "5" players
+L 10/26/2026 - 20:01:16: Team "TERRORIST" scored "0" with "5" players
+L 10/26/2026 - 20:01:31: World triggered "Round_Start"
+L 10/26/2026 - 20:01:51: "Alpha_Romeo<1><[U:1:10000001]><CT>" [597 -64 180] killed "Bravo_Kilo<7><[U:1:20000002]><TERRORIST>" [-470 -58 86] with "m4a1_silencer" (headshot)
+L 10/26/2026 - 20:02:21: World triggered "Round_End"
+L 10/26/2026 - 20:02:22: Team "CT" triggered "SFUI_Notice_CTs_Win" (CT "2") (T "0")
+L 10/26/2026 - 20:02:23: Team "CT" scored "2" with "5" players
+L 10/26/2026 - 20:02:23: Team "TERRORIST" scored "0" with "5" players
+L 10/26/2026 - 20:02:38: World triggered "Round_Start"
+L 10/26/2026 - 20:02:58: "Bravo_Sierra<6><[U:1:20000001]><TERRORIST>" [597 -64 180] killed "Alpha_Bravo<2><[U:1:10000002]><CT>" [-470 -58 86] with "ak47" (headshot)
+L 10/26/2026 - 20:03:13: "Bravo_Lima<8><[U:1:20000003]><TERRORIST>" triggered "Planted_The_Bomb" at [320 150 90]
+L 10/26/2026 - 20:03:53: World triggered "Round_End"
+L 10/26/2026 - 20:03:54: Team "TERRORIST" triggered "SFUI_Notice_Target_Bombed" (CT "2") (T "1")
+L 10/26/2026 - 20:03:55: Team "CT" scored "2" with "5" players
+L 10/26/2026 - 20:03:55: Team "TERRORIST" scored "1" with "5" players
+L 10/26/2026 - 20:04:10: World triggered "Round_Start"
+L 10/26/2026 - 20:04:30: "Bravo_Sierra<6><[U:1:20000001]><TERRORIST>" [597 -64 180] killed "Alpha_Bravo<2><[U:1:10000002]><CT>" [-470 -58 86] with "ak47" (headshot)
+L 10/26/2026 - 20:05:00: World triggered "Round_End"
+L 10/26/2026 - 20:05:01: Team "TERRORIST" triggered "SFUI_Notice_Terrorists_Win" (CT "2") (T "2")
+L 10/26/2026 - 20:05:02: Team "CT" scored "2" with "5" players
+L 10/26/2026 - 20:05:02: Team "TERRORIST" scored "2" with "5" players
+L 10/26/2026 - 20:05:17: World triggered "Round_Start"
+L 10/26/2026 - 20:05:37: "Alpha_Romeo<1><[U:1:10000001]><CT>" [597 -64 180] killed "Bravo_Kilo<7><[U:1:20000002]><TERRORIST>" [-470 -58 86] with "m4a1_silencer" (headshot)
+L 10/26/2026 - 20:05:52: "Bravo_Lima<8><[U:1:20000003]><TERRORIST>" triggered "Planted_The_Bomb" at [320 150 90]
+L 10/26/2026 - 20:06:17: "Alpha_Charlie<3><[U:1:10000003]><CT>" triggered "Defused_The_Bomb"
+L 10/26/2026 - 20:06:18: World triggered "Round_End"
+L 10/26/2026 - 20:06:19: Team "CT" triggered "SFUI_Notice_Bomb_Defused" (CT "3") (T "2")
+L 10/26/2026 - 20:06:20: Team "CT" scored "3" with "5" players
+L 10/26/2026 - 20:06:20: Team "TERRORIST" scored "2" with "5" players
+L 10/26/2026 - 20:06:35: World triggered "Round_Start"
+L 10/26/2026 - 20:06:55: "Alpha_Romeo<1><[U:1:10000001]><CT>" [597 -64 180] killed "Bravo_Kilo<7><[U:1:20000002]><TERRORIST>" [-470 -58 86] with "m4a1_silencer" (headshot)
+L 10/26/2026 - 20:07:25: World triggered "Round_End"
+L 10/26/2026 - 20:07:26: Team "CT" triggered "SFUI_Notice_CTs_Win" (CT "4") (T "2")
+L 10/26/2026 - 20:07:27: Team "CT" scored "4" with "5" players
+L 10/26/2026 - 20:07:27: Team "TERRORIST" scored "2" with "5" players
+L 10/26/2026 - 20:07:42: World triggered "Round_Start"
+L 10/26/2026 - 20:08:02: "Bravo_Sierra<6><[U:1:20000001]><TERRORIST>" [597 -64 180] killed "Alpha_Bravo<2><[U:1:10000002]><CT>" [-470 -58 86] with "ak47" (headshot)
+L 10/26/2026 - 20:08:17: "Bravo_Lima<8><[U:1:20000003]><TERRORIST>" triggered "Planted_The_Bomb" at [320 150 90]
+L 10/26/2026 - 20:08:57: World triggered "Round_End"
+L 10/26/2026 - 20:08:58: Team "TERRORIST" triggered "SFUI_Notice_Target_Bombed" (CT "4") (T "3")
+L 10/26/2026 - 20:08:59: Team "CT" scored "4" with "5" players
+L 10/26/2026 - 20:08:59: Team "TERRORIST" scored "3" with "5" players
+L 10/26/2026 - 20:09:14: World triggered "Round_Start"
+L 10/26/2026 - 20:09:34: "Bravo_Sierra<6><[U:1:20000001]><TERRORIST>" [597 -64 180] killed "Alpha_Bravo<2><[U:1:10000002]><CT>" [-470 -58 86] with "ak47" (headshot)
+L 10/26/2026 - 20:10:04: World triggered "Round_End"
+L 10/26/2026 - 20:10:05: Team "TERRORIST" triggered "SFUI_Notice_Terrorists_Win" (CT "4") (T "4")
+L 10/26/2026 - 20:10:06: Team "CT" scored "4" with "5" players
+L 10/26/2026 - 20:10:06: Team "TERRORIST" scored "4" with "5" players
+L 10/26/2026 - 20:10:21: World triggered "Round_Start"
+L 10/26/2026 - 20:10:41: "Alpha_Romeo<1><[U:1:10000001]><CT>" [597 -64 180] killed "Bravo_Kilo<7><[U:1:20000002]><TERRORIST>" [-470 -58 86] with "m4a1_silencer" (headshot)
+L 10/26/2026 - 20:11:11: World triggered "Round_End"
+L 10/26/2026 - 20:11:12: Team "CT" triggered "SFUI_Notice_CTs_Win" (CT "5") (T "4")
+L 10/26/2026 - 20:11:13: Team "CT" scored "5" with "5" players
+L 10/26/2026 - 20:11:13: Team "TERRORIST" scored "4" with "5" players
+L 10/26/2026 - 20:11:28: World triggered "Round_Start"
+L 10/26/2026 - 20:11:48: "Bravo_Sierra<6><[U:1:20000001]><TERRORIST>" [597 -64 180] killed "Alpha_Bravo<2><[U:1:10000002]><CT>" [-470 -58 86] with "ak47" (headshot)
+L 10/26/2026 - 20:12:03: "Bravo_Lima<8><[U:1:20000003]><TERRORIST>" triggered "Planted_The_Bomb" at [320 150 90]
+L 10/26/2026 - 20:12:43: World triggered "Round_End"
+L 10/26/2026 - 20:12:44: Team "TERRORIST" triggered "SFUI_Notice_Target_Bombed" (CT "5") (T "5")
+L 10/26/2026 - 20:12:45: Team "CT" scored "5" with "5" players
+L 10/26/2026 - 20:12:45: Team "TERRORIST" scored "5" with "5" players
+L 10/26/2026 - 20:13:00: World triggered "Round_Start"
+L 10/26/2026 - 20:13:20: "Alpha_Romeo<1><[U:1:10000001]><CT>" [597 -64 180] killed "Bravo_Kilo<7><[U:1:20000002]><TERRORIST>" [-470 -58 86] with "m4a1_silencer" (headshot)
+L 10/26/2026 - 20:13:35: "Bravo_Lima<8><[U:1:20000003]><TERRORIST>" triggered "Planted_The_Bomb" at [320 150 90]
+L 10/26/2026 - 20:14:00: "Alpha_Charlie<3><[U:1:10000003]><CT>" triggered "Defused_The_Bomb"
+L 10/26/2026 - 20:14:01: World triggered "Round_End"
+L 10/26/2026 - 20:14:02: Team "CT" triggered "SFUI_Notice_Bomb_Defused" (CT "6") (T "5")
+L 10/26/2026 - 20:14:03: Team "CT" scored "6" with "5" players
+L 10/26/2026 - 20:14:03: Team "TERRORIST" scored "5" with "5" players
+L 10/26/2026 - 20:14:18: World triggered "Round_Start"
+L 10/26/2026 - 20:14:38: "Bravo_Sierra<6><[U:1:20000001]><TERRORIST>" [597 -64 180] killed "Alpha_Bravo<2><[U:1:10000002]><CT>" [-470 -58 86] with "ak47" (headshot)
+L 10/26/2026 - 20:15:08: World triggered "Round_End"
+L 10/26/2026 - 20:15:09: Team "TERRORIST" triggered "SFUI_Notice_Terrorists_Win" (CT "6") (T "6")
+L 10/26/2026 - 20:15:10: Team "CT" scored "6" with "5" players
+L 10/26/2026 - 20:15:10: Team "TERRORIST" scored "6" with "5" players
+L 10/26/2026 - 20:15:25: World triggered "Round_Start"
+L 10/26/2026 - 20:15:45: "Bravo_Sierra<6><[U:1:20000001]><CT>" [597 -64 180] killed "Alpha_Bravo<2><[U:1:10000002]><TERRORIST>" [-470 -58 86] with "m4a1_silencer" (headshot)
+L 10/26/2026 - 20:16:15: World triggered "Round_End"
+L 10/26/2026 - 20:16:16: Team "CT" triggered "SFUI_Notice_CTs_Win" (CT "7") (T "6")
+L 10/26/2026 - 20:16:17: Team "CT" scored "7" with "5" players
+L 10/26/2026 - 20:16:17: Team "TERRORIST" scored "6" with "5" players
+L 10/26/2026 - 20:16:32: World triggered "Round_Start"
+L 10/26/2026 - 20:16:52: "Bravo_Sierra<6><[U:1:20000001]><CT>" [597 -64 180] killed "Alpha_Bravo<2><[U:1:10000002]><TERRORIST>" [-470 -58 86] with "m4a1_silencer" (headshot)
+L 10/26/2026 - 20:17:07: "Alpha_Charlie<3><[U:1:10000003]><TERRORIST>" triggered "Planted_The_Bomb" at [320 150 90]
+L 10/26/2026 - 20:17:32: "Bravo_Lima<8><[U:1:20000003]><CT>" triggered "Defused_The_Bomb"
+L 10/26/2026 - 20:17:33: World triggered "Round_End"
+L 10/26/2026 - 20:17:34: Team "CT" triggered "SFUI_Notice_Bomb_Defused" (CT "8") (T "6")
+L 10/26/2026 - 20:17:35: Team "CT" scored "8" with "5" players
+L 10/26/2026 - 20:17:35: Team "TERRORIST" scored "6" with "5" players
+L 10/26/2026 - 20:17:50: World triggered "Round_Start"
+L 10/26/2026 - 20:18:10: "Alpha_Romeo<1><[U:1:10000001]><TERRORIST>" [597 -64 180] killed "Bravo_Kilo<7><[U:1:20000002]><CT>" [-470 -58 86] with "ak47" (headshot)
+L 10/26/2026 - 20:18:25: "Alpha_Charlie<3><[U:1:10000003]><TERRORIST>" triggered "Planted_The_Bomb" at [320 150 90]
+L 10/26/2026 - 20:19:05: World triggered "Round_End"
+L 10/26/2026 - 20:19:06: Team "TERRORIST" triggered "SFUI_Notice_Target_Bombed" (CT "8") (T "7")
+L 10/26/2026 - 20:19:07: Team "CT" scored "8" with "5" players
+L 10/26/2026 - 20:19:07: Team "TERRORIST" scored "7" with "5" players
+L 10/26/2026 - 20:19:22: World triggered "Round_Start"
+L 10/26/2026 - 20:19:42: "Alpha_Romeo<1><[U:1:10000001]><TERRORIST>" [597 -64 180] killed "Bravo_Kilo<7><[U:1:20000002]><CT>" [-470 -58 86] with "ak47" (headshot)
+L 10/26/2026 - 20:20:12: World triggered "Round_End"
+L 10/26/2026 - 20:20:13: Team "TERRORIST" triggered "SFUI_Notice_Terrorists_Win" (CT "8") (T "8")
+L 10/26/2026 - 20:20:14: Team "CT" scored "8" with "5" players
+L 10/26/2026 - 20:20:14: Team "TERRORIST" scored "8" with "5" players
+L 10/26/2026 - 20:20:29: World triggered "Round_Start"
+L 10/26/2026 - 20:20:49: "Bravo_Sierra<6><[U:1:20000001]><CT>" [597 -64 180] killed "Alpha_Bravo<2><[U:1:10000002]><TERRORIST>" [-470 -58 86] with "m4a1_silencer" (headshot)
+L 10/26/2026 - 20:21:19: World triggered "Round_End"
+L 10/26/2026 - 20:21:20: Team "CT" triggered "SFUI_Notice_CTs_Win" (CT "9") (T "8")
+L 10/26/2026 - 20:21:21: Team "CT" scored "9" with "5" players
+L 10/26/2026 - 20:21:21: Team "TERRORIST" scored "8" with "5" players
+L 10/26/2026 - 20:21:36: World triggered "Round_Start"
+L 10/26/2026 - 20:21:56: "Alpha_Romeo<1><[U:1:10000001]><TERRORIST>" [597 -64 180] killed "Bravo_Kilo<7><[U:1:20000002]><CT>" [-470 -58 86] with "ak47" (headshot)
+L 10/26/2026 - 20:22:26: World triggered "Round_End"
+L 10/26/2026 - 20:22:27: Team "TERRORIST" triggered "SFUI_Notice_Terrorists_Win" (CT "9") (T "9")
+L 10/26/2026 - 20:22:28: Team "CT" scored "9" with "5" players
+L 10/26/2026 - 20:22:28: Team "TERRORIST" scored "9" with "5" players
+L 10/26/2026 - 20:22:43: World triggered "Round_Start"
+L 10/26/2026 - 20:23:03: "Alpha_Romeo<1><[U:1:10000001]><TERRORIST>" [597 -64 180] killed "Bravo_Kilo<7><[U:1:20000002]><CT>" [-470 -58 86] with "ak47" (headshot)
+L 10/26/2026 - 20:23:18: "Alpha_Charlie<3><[U:1:10000003]><TERRORIST>" triggered "Planted_The_Bomb" at [320 150 90]
+L 10/26/2026 - 20:23:58: World triggered "Round_End"
+L 10/26/2026 - 20:23:59: Team "TERRORIST" triggered "SFUI_Notice_Target_Bombed" (CT "9") (T "10")
+L 10/26/2026 - 20:24:00: Team "CT" scored "9" with "5" players
+L 10/26/2026 - 20:24:00: Team "TERRORIST" scored "10" with "5" players
+L 10/26/2026 - 20:24:15: World triggered "Round_Start"
+L 10/26/2026 - 20:24:35: "Bravo_Sierra<6><[U:1:20000001]><CT>" [597 -64 180] killed "Alpha_Bravo<2><[U:1:10000002]><TERRORIST>" [-470 -58 86] with "m4a1_silencer" (headshot)
+L 10/26/2026 - 20:24:50: "Alpha_Charlie<3><[U:1:10000003]><TERRORIST>" triggered "Planted_The_Bomb" at [320 150 90]
+L 10/26/2026 - 20:25:15: "Bravo_Lima<8><[U:1:20000003]><CT>" triggered "Defused_The_Bomb"
+L 10/26/2026 - 20:25:16: World triggered "Round_End"
+L 10/26/2026 - 20:25:17: Team "CT" triggered "SFUI_Notice_Bomb_Defused" (CT "10") (T "10")
+L 10/26/2026 - 20:25:18: Team "CT" scored "10" with "5" players
+L 10/26/2026 - 20:25:18: Team "TERRORIST" scored "10" with "5" players
+L 10/26/2026 - 20:25:33: World triggered "Round_Start"
+L 10/26/2026 - 20:25:53: "Bravo_Sierra<6><[U:1:20000001]><CT>" [597 -64 180] killed "Alpha_Bravo<2><[U:1:10000002]><TERRORIST>" [-470 -58 86] with "m4a1_silencer" (headshot)
+L 10/26/2026 - 20:26:23: World triggered "Round_End"
+L 10/26/2026 - 20:26:24: Team "CT" triggered "SFUI_Notice_CTs_Win" (CT "11") (T "10")
+L 10/26/2026 - 20:26:25: Team "CT" scored "11" with "5" players
+L 10/26/2026 - 20:26:25: Team "TERRORIST" scored "10" with "5" players
+L 10/26/2026 - 20:26:40: World triggered "Round_Start"
+L 10/26/2026 - 20:27:00: "Alpha_Romeo<1><[U:1:10000001]><TERRORIST>" [597 -64 180] killed "Bravo_Kilo<7><[U:1:20000002]><CT>" [-470 -58 86] with "ak47" (headshot)
+L 10/26/2026 - 20:27:30: World triggered "Round_End"
+L 10/26/2026 - 20:27:31: Team "TERRORIST" triggered "SFUI_Notice_Terrorists_Win" (CT "11") (T "11")
+L 10/26/2026 - 20:27:32: Team "CT" scored "11" with "5" players
+L 10/26/2026 - 20:27:32: Team "TERRORIST" scored "11" with "5" players
+L 10/26/2026 - 20:27:47: World triggered "Round_Start"
+L 10/26/2026 - 20:28:07: "Bravo_Sierra<6><[U:1:20000001]><CT>" [597 -64 180] killed "Alpha_Bravo<2><[U:1:10000002]><TERRORIST>" [-470 -58 86] with "m4a1_silencer" (headshot)
+L 10/26/2026 - 20:28:37: World triggered "Round_End"
+L 10/26/2026 - 20:28:38: Team "CT" triggered "SFUI_Notice_CTs_Win" (CT "12") (T "11")
+L 10/26/2026 - 20:28:39: Team "CT" scored "12" with "5" players
+L 10/26/2026 - 20:28:39: Team "TERRORIST" scored "11" with "5" players
+L 10/26/2026 - 20:28:54: World triggered "Round_Start"
+L 10/26/2026 - 20:29:14: "Alpha_Romeo<1><[U:1:10000001]><TERRORIST>" [597 -64 180] killed "Bravo_Kilo<7><[U:1:20000002]><CT>" [-470 -58 86] with "ak47" (headshot)
+L 10/26/2026 - 20:29:29: "Alpha_Charlie<3><[U:1:10000003]><TERRORIST>" triggered "Planted_The_Bomb" at [320 150 90]
+L 10/26/2026 - 20:30:09: World triggered "Round_End"
+L 10/26/2026 - 20:30:10: Team "TERRORIST" triggered "SFUI_Notice_Target_Bombed" (CT "12") (T "12")
+L 10/26/2026 - 20:30:11: Team "CT" scored "12" with "5" players
+L 10/26/2026 - 20:30:11: Team "TERRORIST" scored "12" with "5" players
+L 10/26/2026 - 20:30:26: World triggered "Round_Start"
+L 10/26/2026 - 20:30:46: "Bravo_Sierra<6><[U:1:20000001]><CT>" [597 -64 180] killed "Alpha_Bravo<2><[U:1:10000002]><TERRORIST>" [-470 -58 86] with "m4a1_silencer" (headshot)
+L 10/26/2026 - 20:31:16: World triggered "Round_End"
+L 10/26/2026 - 20:31:17: Team "CT" triggered "SFUI_Notice_CTs_Win" (CT "13") (T "12")
+L 10/26/2026 - 20:31:18: Team "CT" scored "13" with "5" players
+L 10/26/2026 - 20:31:18: Team "TERRORIST" scored "12" with "5" players
+L 10/26/2026 - 20:31:33: World triggered "Round_Start"
+L 10/26/2026 - 20:31:53: "Alpha_Romeo<1><[U:1:10000001]><TERRORIST>" [597 -64 180] killed "Bravo_Kilo<7><[U:1:20000002]><CT>" [-470 -58 86] with "ak47" (headshot)
+L 10/26/2026 - 20:32:23: World triggered "Round_End"
+L 10/26/2026 - 20:32:24: Team "TERRORIST" triggered "SFUI_Notice_Terrorists_Win" (CT "13") (T "13")
+L 10/26/2026 - 20:32:25: Team "CT" scored "13" with "5" players
+L 10/26/2026 - 20:32:25: Team "TERRORIST" scored "13" with "5" players
+L 10/26/2026 - 20:32:40: World triggered "Round_Start"
+L 10/26/2026 - 20:33:00: "Bravo_Sierra<6><[U:1:20000001]><CT>" [597 -64 180] killed "Alpha_Bravo<2><[U:1:10000002]><TERRORIST>" [-470 -58 86] with "m4a1_silencer" (headshot)
+L 10/26/2026 - 20:33:15: "Alpha_Charlie<3><[U:1:10000003]><TERRORIST>" triggered "Planted_The_Bomb" at [320 150 90]
+L 10/26/2026 - 20:33:40: "Bravo_Lima<8><[U:1:20000003]><CT>" triggered "Defused_The_Bomb"
+L 10/26/2026 - 20:33:41: World triggered "Round_End"
+L 10/26/2026 - 20:33:42: Team "CT" triggered "SFUI_Notice_Bomb_Defused" (CT "14") (T "13")
+L 10/26/2026 - 20:33:43: Team "CT" scored "14" with "5" players
+L 10/26/2026 - 20:33:43: Team "TERRORIST" scored "13" with "5" players
+L 10/26/2026 - 20:33:58: World triggered "Round_Start"
+L 10/26/2026 - 20:34:18: "Alpha_Romeo<1><[U:1:10000001]><CT>" [597 -64 180] killed "Bravo_Kilo<7><[U:1:20000002]><TERRORIST>" [-470 -58 86] with "m4a1_silencer" (headshot)
+L 10/26/2026 - 20:34:48: World triggered "Round_End"
+L 10/26/2026 - 20:34:49: Team "CT" triggered "SFUI_Notice_CTs_Win" (CT "15") (T "13")
+L 10/26/2026 - 20:34:50: Team "CT" scored "15" with "5" players
+L 10/26/2026 - 20:34:50: Team "TERRORIST" scored "13" with "5" players
+L 10/26/2026 - 20:35:05: World triggered "Round_Start"
+L 10/26/2026 - 20:35:25: "Bravo_Sierra<6><[U:1:20000001]><TERRORIST>" [597 -64 180] killed "Alpha_Bravo<2><[U:1:10000002]><CT>" [-470 -58 86] with "ak47" (headshot)
+L 10/26/2026 - 20:35:40: "Bravo_Lima<8><[U:1:20000003]><TERRORIST>" triggered "Planted_The_Bomb" at [320 150 90]
+L 10/26/2026 - 20:36:20: World triggered "Round_End"
+L 10/26/2026 - 20:36:21: Team "TERRORIST" triggered "SFUI_Notice_Target_Bombed" (CT "15") (T "14")
+L 10/26/2026 - 20:36:22: Team "CT" scored "15" with "5" players
+L 10/26/2026 - 20:36:22: Team "TERRORIST" scored "14" with "5" players
+L 10/26/2026 - 20:36:37: World triggered "Round_Start"
+L 10/26/2026 - 20:36:57: "Alpha_Romeo<1><[U:1:10000001]><CT>" [597 -64 180] killed "Bravo_Kilo<7><[U:1:20000002]><TERRORIST>" [-470 -58 86] with "m4a1_silencer" (headshot)
+L 10/26/2026 - 20:37:12: "Bravo_Lima<8><[U:1:20000003]><TERRORIST>" triggered "Planted_The_Bomb" at [320 150 90]
+L 10/26/2026 - 20:37:37: "Alpha_Charlie<3><[U:1:10000003]><CT>" triggered "Defused_The_Bomb"
+L 10/26/2026 - 20:37:38: World triggered "Round_End"
+L 10/26/2026 - 20:37:39: Team "CT" triggered "SFUI_Notice_Bomb_Defused" (CT "16") (T "14")
+L 10/26/2026 - 20:37:40: Team "CT" scored "16" with "5" players
+L 10/26/2026 - 20:37:40: Team "TERRORIST" scored "14" with "5" players
+L 10/26/2026 - 20:37:55: World triggered "Round_Start"
+L 10/26/2026 - 20:38:15: "Alpha_Romeo<1><[U:1:10000001]><CT>" [597 -64 180] killed "Bravo_Kilo<7><[U:1:20000002]><TERRORIST>" [-470 -58 86] with "m4a1_silencer" (headshot)
+L 10/26/2026 - 20:38:45: World triggered "Round_End"
+L 10/26/2026 - 20:38:46: Team "CT" triggered "SFUI_Notice_CTs_Win" (CT "17") (T "14")
+L 10/26/2026 - 20:38:47: Team "CT" scored "17" with "5" players
+L 10/26/2026 - 20:38:47: Team "TERRORIST" scored "14" with "5" players
+L 10/26/2026 - 20:39:02: World triggered "Round_Start"
+L 10/26/2026 - 20:39:22: "Alpha_Romeo<1><[U:1:10000001]><CT>" [597 -64 180] killed "Bravo_Kilo<7><[U:1:20000002]><TERRORIST>" [-470 -58 86] with "m4a1_silencer" (headshot)
+L 10/26/2026 - 20:39:37: "Bravo_Lima<8><[U:1:20000003]><TERRORIST>" triggered "Planted_The_Bomb" at [320 150 90]
+L 10/26/2026 - 20:40:02: "Alpha_Charlie<3><[U:1:10000003]><CT>" triggered "Defused_The_Bomb"
+L 10/26/2026 - 20:40:03: World triggered "Round_End"
+L 10/26/2026 - 20:40:04: Team "CT" triggered "SFUI_Notice_Bomb_Defused" (CT "18") (T "14")
+L 10/26/2026 - 20:40:05: Team "CT" scored "18" with "5" players
+L 10/26/2026 - 20:40:05: Team "TERRORIST" scored "14" with "5" players
+L 10/26/2026 - 20:40:20: World triggered "Round_Start"
+L 10/26/2026 - 20:40:40: "Bravo_Sierra<6><[U:1:20000001]><TERRORIST>" [597 -64 180] killed "Alpha_Bravo<2><[U:1:10000002]><CT>" [-470 -58 86] with "ak47" (headshot)
+L 10/26/2026 - 20:40:55: "Bravo_Lima<8><[U:1:20000003]><TERRORIST>" triggered "Planted_The_Bomb" at [320 150 90]
+L 10/26/2026 - 20:41:35: World triggered "Round_End"
+L 10/26/2026 - 20:41:36: Team "TERRORIST" triggered "SFUI_Notice_Target_Bombed" (CT "18") (T "15")
+L 10/26/2026 - 20:41:37: Team "CT" scored "18" with "5" players
+L 10/26/2026 - 20:41:37: Team "TERRORIST" scored "15" with "5" players
+L 10/26/2026 - 20:41:52: World triggered "Round_Start"
+L 10/26/2026 - 20:42:12: "Alpha_Romeo<1><[U:1:10000001]><TERRORIST>" [597 -64 180] killed "Bravo_Kilo<7><[U:1:20000002]><CT>" [-470 -58 86] with "ak47" (headshot)
+L 10/26/2026 - 20:42:42: World triggered "Round_End"
+L 10/26/2026 - 20:42:43: Team "TERRORIST" triggered "SFUI_Notice_Terrorists_Win" (CT "18") (T "16")
+L 10/26/2026 - 20:42:44: Team "CT" scored "18" with "5" players
+L 10/26/2026 - 20:42:44: Team "TERRORIST" scored "16" with "5" players
+L 10/26/2026 - 20:42:59: World triggered "Round_Start"
+L 10/26/2026 - 20:43:19: "Alpha_Romeo<1><[U:1:10000001]><TERRORIST>" [597 -64 180] killed "Bravo_Kilo<7><[U:1:20000002]><CT>" [-470 -58 86] with "ak47" (headshot)
+L 10/26/2026 - 20:43:34: "Alpha_Charlie<3><[U:1:10000003]><TERRORIST>" triggered "Planted_The_Bomb" at [320 150 90]
+L 10/26/2026 - 20:44:14: World triggered "Round_End"
+L 10/26/2026 - 20:44:15: Team "TERRORIST" triggered "SFUI_Notice_Target_Bombed" (CT "18") (T "17")
+L 10/26/2026 - 20:44:16: Team "CT" scored "18" with "5" players
+L 10/26/2026 - 20:44:16: Team "TERRORIST" scored "17" with "5" players
+L 10/26/2026 - 20:44:31: World triggered "Round_Start"
+L 10/26/2026 - 20:44:51: "Alpha_Romeo<1><[U:1:10000001]><TERRORIST>" [597 -64 180] killed "Bravo_Kilo<7><[U:1:20000002]><CT>" [-470 -58 86] with "ak47" (headshot)
+L 10/26/2026 - 20:45:21: World triggered "Round_End"
+L 10/26/2026 - 20:45:22: Team "TERRORIST" triggered "SFUI_Notice_Terrorists_Win" (CT "18") (T "18")
+L 10/26/2026 - 20:45:23: Team "CT" scored "18" with "5" players
+L 10/26/2026 - 20:45:23: Team "TERRORIST" scored "18" with "5" players

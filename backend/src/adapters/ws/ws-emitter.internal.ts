@@ -31,6 +31,12 @@ export class RealtimeEmitter {
     this.logger.debug(`[WS→admin:${matchId}] ${eventName} seq=${data?.seq} ts=${data?.ts}`);
   }
 
+  emitBoth(matchId: string, eventName: WsEventType, data: any) {
+    if (!this.io) { this.logger.warn(`emitBoth(${eventName}) without IO`); return; }
+    this.io.to(this.roomPublic(matchId)).to(this.roomAdmin(matchId)).emit(eventName, data);
+    this.logger.debug(`[WS→both:${matchId}] ${eventName} seq=${data?.seq} ts=${data?.ts}`);
+  }
+
   // NOUVEAU : émetteurs globaux (lobby)
   emitLobby(eventName: LobbyEventType, data: any) {
     if (!this.io) { this.logger.warn(`emitLobby(${eventName}) without IO`); return; }

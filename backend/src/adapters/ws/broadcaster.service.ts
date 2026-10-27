@@ -76,6 +76,7 @@ export class WsBroadcaster implements OnModuleInit {
         case 'player_name_change':  return 'PLAYER_NAME_CHANGE';
         case 'item_purchase':       return 'ITEM_PURCHASE';
         case 'grenade_throw':       return 'GRENADE_THROW';
+        case 'grenade_land':
         case 'grenade_landed':      return 'GRENADE_LAND';
         case 'player_blinded':      return 'PLAYER_BLINDED';
         case 'sfui_target_bombed':  return 'SFUI_TARGET_BOMBED';
@@ -163,10 +164,16 @@ export class WsBroadcaster implements OnModuleInit {
       const toAdmin  = ev.audience === 'admin'  || ev.audience === 'both';
 
       const send = (eventName: WsEventType, payload: any = ev) => {
-        if (toPublic) this.logger.verbose(`🛰️  → WS public[${ev!.matchId}] "${eventName}"`);
-        if (toAdmin)  this.logger.verbose(`🛰️  → WS admin [${ev!.matchId}] "${eventName}"`);
-        if (toPublic) this.emitter.emitPublic(ev!.matchId, eventName, payload);
-        if (toAdmin)  this.emitter.emitAdmin (ev!.matchId, eventName, payload);
+        if (toPublic && toAdmin) {
+          this.logger.verbose(`🛰️  → WS both[${ev!.matchId}] "${eventName}"`);
+          this.emitter.emitBoth(ev!.matchId, eventName, payload);
+        } else if (toPublic) {
+          this.logger.verbose(`🛰️  → WS public[${ev!.matchId}] "${eventName}"`);
+          this.emitter.emitPublic(ev!.matchId, eventName, payload);
+        } else if (toAdmin) {
+          this.logger.verbose(`🛰️  → WS admin [${ev!.matchId}] "${eventName}"`);
+          this.emitter.emitAdmin(ev!.matchId, eventName, payload);
+        }
       };
 
       switch (ev.name) {
@@ -280,10 +287,11 @@ async push(
   const ts  = Date.now();
   const dto = { type, matchId, seq, ts, payload };
 
-  if (audience === 'both' || audience === 'public') {
+  if (audience === 'both') {
+    this.emitter.emitBoth(matchId, type, dto);
+  } else if (audience === 'public') {
     this.emitter.emitPublic(matchId, type, dto);
-  }
-  if (audience === 'both' || audience === 'admin') {
+  } else if (audience === 'admin') {
     this.emitter.emitAdmin(matchId, type, dto);
   }
 }

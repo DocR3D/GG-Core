@@ -31,6 +31,7 @@ function baseCtx() {
       applyKnifeResult: jest.fn().mockResolvedValue(undefined),
       startPhaseCountdown: jest.fn().mockResolvedValue(undefined),
       startWarmup: jest.fn().mockResolvedValue(undefined),
+      resetReady: jest.fn().mockResolvedValue(undefined),
       sideToLogical: jest.fn().mockImplementation((_matchId: string, side: string) =>
         Promise.resolve(side === 'CT' ? 'home' : 'away'),
       ),

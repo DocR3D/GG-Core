@@ -25,6 +25,7 @@ export type RuleContext = {
     | 'setHalftimePlayed'
     | 'getOvertimeCount'
     | 'setOvertimeCount'
+    | 'reconcileScore'
   >;
 
   // helpers conservés

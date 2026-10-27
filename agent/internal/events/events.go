@@ -8,14 +8,15 @@ import (
 // ---- Event types (mirror de event.types.ts) ----
 const (
 	EvRoundStart       = "round_start"
+	EvRoundEnd         = "round_end"
 	EvBombPlanted      = "bomb_planted"
 	EvTeamRoundWin     = "team_round_win"
 	EvSfuiTargetBombed = "sfui_notice_target_bombed"
 	EvBombDefused      = "bomb_defused"
 	EvKill             = "kill"
-	EvPlayerConnected  = "player_connect"
-	EvPlayerDisc       = "player_disconnect"
-	EvPlayerNameChange = "name_change"
+	EvPlayerConnected  = "player_connected"
+	EvPlayerDisc       = "player_disconnected"
+	EvPlayerNameChange = "player_name_change"
 	EvDefuseBegin      = "defuse_begin"
 	EvDefuseAbort      = "defuse_abort"
 	EvMatchPaused      = "match_paused"

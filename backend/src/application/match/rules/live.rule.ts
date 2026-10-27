@@ -8,7 +8,7 @@ import { PauseCommand } from '@app/match/commands/pause.command';
 import { MatchPhase } from '@domain/phase.types';
 import { Logger } from '@nestjs/common';
 import { GameSide } from '@app/match/state';
-import { CS2_RULES, CS2_CFG } from '@domain/rules/rules.constants';
+import { CS2_RULES, CS2_CFG, CS2_RCON_COMMANDS } from '@domain/rules/rules.constants';
 
 export class LiveRule extends BaseRule implements PhaseRule {
   name = 'live_main' as const;
@@ -17,6 +17,7 @@ export class LiveRule extends BaseRule implements PhaseRule {
   publicTypes = new Set<EventType>([
     EventTypes.ROUND_START,
     EventTypes.TEAM_ROUND_WIN,
+    EventTypes.SFUI_TARGET_BOMBED,
     EventTypes.KILL,
     'match:state' as EventType,
     'score:update' as EventType,
@@ -31,6 +32,7 @@ export class LiveRule extends BaseRule implements PhaseRule {
     super();
     this.events.set(EventTypes.ROUND_START, this.onRoundStart.bind(this));
     this.events.set(EventTypes.TEAM_ROUND_WIN, this.onTeamRoundWin.bind(this));
+    this.events.set(EventTypes.SFUI_TARGET_BOMBED, this.onTeamRoundWin.bind(this));
     this.events.set(EventTypes.KILL, this.onKill.bind(this));
 
     // Délégation des commandes
@@ -47,10 +49,39 @@ export class LiveRule extends BaseRule implements PhaseRule {
     const serverId = ctx.serverId ?? (await ctx.state.getServerIdFromMatchId(ctx.matchId));
     if (!serverId) throw new Error(`Aucun serveur lié au match ${ctx.matchId}`);
 
+    const phase = typeof (ctx.orch as any)?.getPhase === 'function'
+      ? await ctx.orch.getPhase(ctx.matchId)
+      : MatchPhase.LIVE_MAIN;
+
+    const snapshot = typeof ctx.state?.getSnapshot === 'function'
+      ? await ctx.state.getSnapshot(ctx.matchId)
+      : null;
+    const totalRounds = (snapshot?.score?.ct ?? 0) + (snapshot?.score?.t ?? 0);
+    const otCount = typeof ctx.state?.getOvertimeCount === 'function'
+      ? await ctx.state.getOvertimeCount(ctx.matchId)
+      : 0;
+
+    if (phase === MatchPhase.OVERTIME || otCount > 0) {
+      await ctx.say('[live] Match en prolongation (OVERTIME).');
+      if (snapshot) {
+        await ctx.orch.push(ctx.matchId, 'match:state', snapshot);
+      }
+      return;
+    }
+
+    if (totalRounds > 0) {
+      await ctx.orch.rcon({ serverId, matchId: ctx.matchId, command: CS2_RCON_COMMANDS.UNPAUSE_MATCH }).catch(() => {});
+      await ctx.say('[live] Reprise du match LIVE.');
+      if (snapshot) {
+        await ctx.orch.push(ctx.matchId, 'match:state', snapshot);
+      }
+      return;
+    }
+
     await ctx.orch.rcon({
       serverId,
       matchId: ctx.matchId,
-      command: `exec ${CS2_CFG.COMPETITIVE}; exec ${CS2_CFG.COMPETITIVE_TMM}; mp_warmup_end 1`,
+      command: CS2_RCON_COMMANDS.COMPETITIVE_START,
     });
     await ctx.orch.restartGame({ serverId, matchId: ctx.matchId, delay: CS2_RULES.FAST_RESTART_DELAY_SEC });
 
@@ -77,8 +108,10 @@ export class LiveRule extends BaseRule implements PhaseRule {
   }
 
   private async onTeamRoundWin(ev: TeamRoundWinEvent, ctx: RuleContext) {
-    const winner = (ev.payload as any)?.winner as string | undefined;
+    const winner = ((ev.payload as any)?.winner || (ev.payload as any)?.team) as string | undefined;
     if (!winner) return;
+
+    this.logger.log(`[LiveRule] Team round win event received: winner=${winner} reason=${(ev.payload as any)?.reason} match=${ev.matchId}`);
 
     // 1) Anti-eBot Duplicate Round Guard
     // Prevents counting the same round twice if duplicate logs are emitted
@@ -96,12 +129,24 @@ export class LiveRule extends BaseRule implements PhaseRule {
     // 2) Increment Score & Economy
     await ctx.orch.roundEnd(ev.matchId, winner as any);
 
+    // Reconcilier immédiatement avec le score authoritative CS2 natif (si fourni dans l'événement)
+    const authoritativeScore = (ev.payload as any)?.score;
+    if (
+      authoritativeScore &&
+      typeof authoritativeScore.ct === 'number' &&
+      typeof authoritativeScore.t === 'number'
+    ) {
+      await ctx.state.reconcileScore(ev.matchId, authoritativeScore.ct, authoritativeScore.t);
+    }
+
     const snapshot = await ctx.state.getSnapshot(ev.matchId);
     const scoreCT = snapshot.score.ct;
     const scoreT = snapshot.score.t;
     const totalRounds = scoreCT + scoreT;
     const settings = await ctx.state.getSettings(ev.matchId);
     const mr = settings.mrFormat ?? CS2_RULES.DEFAULT_MR_HALF;
+
+    this.logger.log(`[LiveRule] Score updated: CT ${scoreCT} - ${scoreT} T (round ${totalRounds}) match=${ev.matchId}`);
 
     await ctx.orch.push(ev.matchId, 'score:update', {
       score: snapshot.score,
@@ -149,19 +194,15 @@ export class LiveRule extends BaseRule implements PhaseRule {
       // Tie at 12-12 -> Overtime check
       if (scoreCT === mr && scoreT === mr) {
         if (settings.overtimeEnabled) {
-          await ctx.say('[GG-Core] ÉGALITÉ 12-12 ! Début des prolongations (MR3)...');
+          await ctx.say(`[GG-Core] ÉGALITÉ ${scoreCT}-${scoreT} ! Début des prolongations (MR3)...`);
           if (serverId) {
-            await ctx.orch.rcon({ serverId, matchId: ev.matchId, command: `exec ${CS2_CFG.OVERTIME}` });
+            await ctx.orch.rcon({ serverId, matchId: ev.matchId, command: CS2_RCON_COMMANDS.OVERTIME_START });
           }
           await ctx.state.setOvertimeCount(ev.matchId, 1);
           await ctx.orch.setPhase(ev.matchId, MatchPhase.OVERTIME);
 
           if (settings.warmupAtOvertime) {
             await ctx.say('[GG-Core] Prolongations : Tapez !ready quand vous êtes prêts.');
-          } else {
-            if (serverId) {
-              await ctx.orch.restartGame({ serverId, matchId: ev.matchId, delay: CS2_RULES.FAST_RESTART_DELAY_SEC });
-            }
           }
           return;
         } else {
@@ -183,11 +224,11 @@ export class LiveRule extends BaseRule implements PhaseRule {
       }
 
       // Mid-overtime swap (every otMr rounds, e.g. 3 rounds)
-      const roundsInThisOt = (scoreCT + scoreT) - mr - ((otCount - 1) * otMr * 2);
+      const roundsInThisOt = (scoreCT + scoreT) - (mr * 2) - ((otCount - 1) * otMr * 2);
       if (roundsInThisOt === otMr) {
         await ctx.say(`[GG-Core] Prolongations : Mi-temps (round ${otMr}/${otMr * 2}). Inversion des côtés...`);
         if (serverId) {
-          await ctx.orch.rcon({ serverId, matchId: ev.matchId, command: 'mp_swapteams' });
+          await ctx.orch.rcon({ serverId, matchId: ev.matchId, command: CS2_RCON_COMMANDS.SWAP_TEAMS });
         }
         await ctx.orch.swapSides(ev.matchId);
         if (serverId) {
@@ -201,6 +242,10 @@ export class LiveRule extends BaseRule implements PhaseRule {
         const nextOt = otCount + 1;
         await ctx.state.setOvertimeCount(ev.matchId, nextOt);
         await ctx.say(`[GG-Core] Égalité en prolongations (${scoreCT}-${scoreT}) ! Début OT${nextOt}...`);
+        if (serverId) {
+          await ctx.orch.rcon({ serverId, matchId: ev.matchId, command: CS2_RCON_COMMANDS.SWAP_TEAMS });
+        }
+        await ctx.orch.swapSides(ev.matchId);
         if (serverId) {
           await ctx.orch.restartGame({ serverId, matchId: ev.matchId, delay: CS2_RULES.FAST_RESTART_DELAY_SEC });
         }

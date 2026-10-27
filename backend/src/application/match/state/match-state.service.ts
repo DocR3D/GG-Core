@@ -204,14 +204,13 @@ export class MatchStateService {
   updateEconomyOnRoundEnd(matchId: string, winnerSide: GameSide) {
     return this.economy.updateEconomyOnRoundEnd(matchId, normalizeSide(winnerSide));
   }
-  roundEnd(
+  async roundEnd(
     matchId: string,
     winnerSide: GameSide,
     playerEconomy?: { steamId: string; money: number; equip: number }[],
   ) {
     const norm = normalizeSide(winnerSide);
-    this.economy.updateEconomyOnRoundEnd(matchId, norm);
-    return this.economy.roundEnd(matchId, norm, playerEconomy);
+    return await this.economy.roundEnd(matchId, norm, playerEconomy);
   }
 
   // ───────────────────────────────────────────────────────────────────────────

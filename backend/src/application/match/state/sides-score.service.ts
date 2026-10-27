@@ -80,6 +80,13 @@ export class SidesScoreService {
     const s = await this.getSides(matchId);
     if (!s) return false;
     await this.setSides(matchId, { home: s.away, away: s.home });
+
+    // Inverser les scores CT et T en cohérence avec le changement de camp
+    const score = await this.getScore(matchId);
+    await this.redis.hset(redisConst.score(matchId), {
+      ct: String(score.t),
+      t: String(score.ct),
+    });
     return true;
   }
 

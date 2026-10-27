@@ -13,18 +13,21 @@ async function bootstrap() {
   // ✅ 1) TEXTE brut UNIQUEMENT pour /cs2/logs (d’abord)
   app.use('/cs2/logs', bodyParser.text({ type: () => true, limit: '2mb' }));
 
-  // ❗ 2) Parsers globaux - mais seulement sous /api
+  // ❗ 2) Parsers globaux pour /api et /sandbox
   app.use('/api', json({ limit: '1mb' }));
   app.use('/api', urlencoded({ extended: true }));
+  app.use('/sandbox', json({ limit: '1mb' }));
+  app.use('/sandbox', urlencoded({ extended: true }));
 
-  // 3) Prefix global /api en excluant /cs2/logs (comme tu l’avais)
+  // 3) Prefix global /api en excluant /cs2/logs et /sandbox
   app.setGlobalPrefix('api', {
     exclude: [
       { path: 'cs2/logs', method: RequestMethod.ALL },
       { path: 'cs2/logs/(.*)', method: RequestMethod.ALL },
+      { path: 'sandbox', method: RequestMethod.ALL },
+      { path: 'sandbox/(.*)', method: RequestMethod.ALL },
     ],
   });
-
 
   // app.enableCors({ origin: true, credentials: true });
   await app.listen(8081);

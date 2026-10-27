@@ -222,6 +222,10 @@ export class MatchOrchestrator {
     return this.state.applyKnifeResult(matchId, winnerFromEvent);
   }
 
+  isCountdownActive(matchId: string) {
+    return this.phase.isCountdownActive(matchId);
+  }
+
   startPhaseCountdown(matchId: string, nextPhase: MatchPhase, seconds: number, serverId: string) {
     return this.phase.startPhaseCountdown(matchId, nextPhase, seconds, serverId);
   }
@@ -234,7 +238,8 @@ export class MatchOrchestrator {
     return this.cmds.rcon(opts);
   }
 
-  execCfg(opts: { serverId: string; matchId: string }, cfg: string) {
+  async execCfg(opts: { serverId: string; matchId: string }, cfg: string) {
+    await this.cmds.rcon({ serverId: opts.serverId, matchId: opts.matchId, command: 'exec ' + cfg }).catch(() => {});
     return this.cmds.exec({ serverId: opts.serverId, matchId: opts.matchId, cfgName: cfg });
   }
 
@@ -250,6 +255,10 @@ export class MatchOrchestrator {
     return this.phase.setReady(matchId, team, ready);
   }
 
+  resetReady(matchId: string) {
+    return this.phase.resetReady(matchId);
+  }
+
   getKnifeResult(matchId: string) {
     return this.state.getKnifeResult(matchId);
   }
@@ -259,7 +268,6 @@ export class MatchOrchestrator {
   }
 
   swapSides(matchId: string) {
-    this.cmds.swapSides({ matchId });
     return this.state.swapSides(matchId);
   }
 
@@ -364,7 +372,9 @@ export class MatchOrchestrator {
 
     if (winnerSide) {
       winnerLogical = await this.state.sideToLogical(matchId, winnerSide);
-      winnerName = (winnerLogical === 'home' ? snapshot.teams.home_name : snapshot.teams.away_name) ?? 'Inconnu';
+      const configuredName = winnerLogical === 'home' ? snapshot.teams.home_name : snapshot.teams.away_name;
+      const defaultSideName = winnerSide === 'CT' ? 'Counter-Terrorists' : 'Terrorists';
+      winnerName = configuredName?.trim() || defaultSideName;
       winnerId = (winnerLogical === 'home' ? snapshot.teams.home_id : snapshot.teams.away_id) ?? undefined;
       await ctx.say(`[GG-Core] MATCH TERMINÉ ! Victoire de ${winnerName} (${snapshot.score.ct}-${snapshot.score.t}) !`);
     } else {

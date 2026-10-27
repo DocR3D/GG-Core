@@ -7,6 +7,7 @@ import { Logical } from '../state';
 
 import { PeriodicMessenger } from '@app/shared/periodic/periodic-messenger.service';
 import { buildTacPauseSpec, buildTecPauseSpec } from '@app/shared/periodic/messages-presets.types';
+import { CS2_RULES } from '@domain/rules/rules.constants';
 
 export type PauseReason = 'tactical' | 'technical' | 'admin';
 
@@ -270,7 +271,8 @@ export class PauseMatchService {
       const startedAt = parseInt(h.started_at, 10);
       const elapsedSec = Math.floor((Date.now() - startedAt) / 1000);
       const field = team === 'home' ? 'tac_bank_home' : 'tac_bank_away';
-      const bank = parseInt(h[field] ?? '0', 10);
+      const defaultBank = CS2_RULES.DEFAULT_TACTICAL_TIMEOUTS * CS2_RULES.DEFAULT_TACTICAL_TIMEOUT_SEC;
+      const bank = h[field] !== undefined ? parseInt(h[field], 10) : defaultBank;
       const debit = Math.min(elapsedSec, bank);
       const newBank = Math.max(0, bank - debit);
       await this.redis.hset(key, { [field]: String(newBank) });
@@ -297,7 +299,10 @@ export class PauseMatchService {
   async getTacBank(matchId: string, team: Logical): Promise<number> {
     const field = team === 'home' ? 'tac_bank_home' : 'tac_bank_away';
     const v = await this.redis.hget(this.key(matchId), field);
-    return parseInt(v ?? '0', 10);
+    if (v === null || v === undefined) {
+      return CS2_RULES.DEFAULT_TACTICAL_TIMEOUTS * CS2_RULES.DEFAULT_TACTICAL_TIMEOUT_SEC;
+    }
+    return parseInt(v, 10);
   }
 
   async setTacBank(matchId: string, team: Logical, seconds: number): Promise<void> {
@@ -317,7 +322,8 @@ export class PauseMatchService {
 
     if (reason === 'tactical' && team) {
       const field = team === 'home' ? 'tac_bank_home' : 'tac_bank_away';
-      const bank = parseInt(h[field] ?? '0', 10);
+      const defaultBank = CS2_RULES.DEFAULT_TACTICAL_TIMEOUTS * CS2_RULES.DEFAULT_TACTICAL_TIMEOUT_SEC;
+      const bank = h[field] !== undefined ? parseInt(h[field], 10) : defaultBank;
       return { allowed: bank >= minSec, remainingSec: bank, why: bank >= minSec ? 'ok' : 'no_bank' };
     }
 

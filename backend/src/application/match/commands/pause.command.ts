@@ -13,6 +13,7 @@ export class PauseCommand extends BaseCommand {
   private readonly logger = new Logger(PauseCommand.name);
 
   constructor(
+    @Inject(forwardRef(() => PauseMatchService))
     private readonly pauseService: PauseMatchService,
     @Inject(forwardRef(() => MatchCommandsService))
     private readonly rconService: MatchCommandsService,

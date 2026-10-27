@@ -11,7 +11,7 @@ import { REDIS_CHANNELS } from '@app/match/state/redis.keys';
 export class RuleContextFactory {
   constructor(
     private readonly mss: MatchStateService,
-    private readonly orch: MatchOrchestrator,
+    @Inject(forwardRef(() => MatchOrchestrator)) private readonly orch: MatchOrchestrator,
     @Inject(forwardRef(() => MatchCommandsService)) private readonly cmds: MatchCommandsService, // pour say()
     @Inject(REDIS_PUB) private readonly pub: Redis,
   ) {}
@@ -33,6 +33,7 @@ export class RuleContextFactory {
       setHalftimePlayed: this.mss.setHalftimePlayed.bind(this.mss),
       getOvertimeCount: this.mss.getOvertimeCount.bind(this.mss),
       setOvertimeCount: this.mss.setOvertimeCount.bind(this.mss),
+      reconcileScore: this.mss.reconcileScore.bind(this.mss),
     } as const;
 
     return {

@@ -91,5 +91,24 @@ services:
         condition: service_healthy
     restart: unless-stopped
 
+  cs2-dedicated:
+    image: cm2network/cs2:latest
+    container_name: ggcore-cs2-dev
+    profiles: ["cs2"]
+    network_mode: "host"
+    security_opt:
+      - seccomp=unconfined
+    environment:
+      - CS2_SERVERNAME=GG-Core Dedicated
+      - CS2_PORT=27015
+      - CS2_RCONPW=123456
+      - CS2_STARTMAP=de_inferno
+      - CS2_LAN=1
+      - CS2_ADDITIONAL_ARGS=-allow_round_backup_files +log on +mp_logdetail 3 +logaddress_add_http http://127.0.0.1:8082/logs?token=tonSuperSecret
+    volumes:
+      - cs2data:/home/steam/cs2-dedicated
+    restart: unless-stopped
+
 volumes:
   pgdata:
+  cs2data:

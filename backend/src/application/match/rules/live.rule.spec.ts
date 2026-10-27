@@ -283,15 +283,61 @@ describe('Overtime (MR3)', () => {
 
     expect(ctx.orch.endMatch).toHaveBeenCalledWith(MATCH_ID, 'CT', ctx);
   });
+
+  it('effectue l\'inversion des côtés à la mi-temps de l\'Overtime (round 3 de l\'OT, ex: 15-12)', async () => {
+    const rule = new LiveRule(makePauseCmd());
+    const ctx = makeCtx({
+      lastScoredRound: 26,
+      isHalftimePlayed: true,
+      overtimeCount: 1,
+      snapshot: {
+        score: { ct: 15, t: 12, round: 27 },
+        sides: { home: 'CT', away: 'T' },
+        teams: { home_name: 'TeamA', away_name: 'TeamB' },
+      },
+    });
+
+    await (rule as any).onTeamRoundWin(makeRoundWinEvent('CT', 'normal', 27), ctx);
+
+    expect(ctx.say).toHaveBeenCalledWith(expect.stringContaining('Prolongations : Mi-temps'));
+    expect(ctx.orch.swapSides).toHaveBeenCalledWith(MATCH_ID);
+    expect(ctx.orch.rcon).toHaveBeenCalledWith(
+      expect.objectContaining({ command: 'mp_swapteams' }),
+    );
+  });
+
+  it('avance vers OT2 en cas d\'égalité à la fin de l\'OT1 (15-15)', async () => {
+    const rule = new LiveRule(makePauseCmd());
+    const ctx = makeCtx({
+      lastScoredRound: 29,
+      isHalftimePlayed: true,
+      overtimeCount: 1,
+      snapshot: {
+        score: { ct: 15, t: 15, round: 30 },
+        sides: { home: 'CT', away: 'T' },
+        teams: { home_name: 'TeamA', away_name: 'TeamB' },
+      },
+    });
+
+    await (rule as any).onTeamRoundWin(makeRoundWinEvent('T', 'normal', 30), ctx);
+
+    expect(ctx.state.setOvertimeCount).toHaveBeenCalledWith(MATCH_ID, 2);
+    expect(ctx.say).toHaveBeenCalledWith(expect.stringContaining('Début OT2...'));
+    expect(ctx.orch.restartGame).toHaveBeenCalledWith(
+      expect.objectContaining({ delay: 3 }),
+    );
+  });
 });
 
 // ---------------------------------------------------------------------------
 // onEnter — vérification config RCON et restart
 // ---------------------------------------------------------------------------
 describe('LiveRule.onEnter', () => {
-  it('envoie la config competitive et programme le restart à 3s', async () => {
+  it('envoie la config competitive et programme le restart à 3s lors du début de match (round 0)', async () => {
     const rule = new LiveRule(makePauseCmd());
-    const ctx = makeCtx();
+    const ctx = makeCtx({
+      snapshot: { score: { ct: 0, t: 0, round: 0 } },
+    });
 
     await rule.onEnter(ctx);
 
@@ -302,5 +348,36 @@ describe('LiveRule.onEnter', () => {
       expect.objectContaining({ delay: 3 }),
     );
     expect(ctx.orch.setPhase).toHaveBeenCalledWith(MATCH_ID, 'live_main');
+  });
+
+  it('ne doit PAS réinitialiser le jeu ou écraser la config si la phase est OVERTIME', async () => {
+    const rule = new LiveRule(makePauseCmd());
+    const ctx = makeCtx({
+      overtimeCount: 1,
+      snapshot: { score: { ct: 12, t: 12, round: 24 } },
+    });
+    ctx.orch.getPhase = jest.fn().mockResolvedValue(MatchPhase.OVERTIME);
+
+    await rule.onEnter(ctx);
+
+    // Ne doit pas exécuter gamemode_competitive ni restartGame
+    expect(ctx.orch.restartGame).not.toHaveBeenCalled();
+    expect(ctx.orch.rcon).not.toHaveBeenCalledWith(
+      expect.objectContaining({ command: expect.stringContaining('gamemode_competitive') }),
+    );
+    expect(ctx.say).toHaveBeenCalledWith(expect.stringContaining('OVERTIME'));
+  });
+
+  it('ne doit PAS redémarrer le match si totalRounds > 0 (reprise en cours de jeu)', async () => {
+    const rule = new LiveRule(makePauseCmd());
+    const ctx = makeCtx({
+      snapshot: { score: { ct: 7, t: 5, round: 12 } },
+    });
+
+    await rule.onEnter(ctx);
+
+    // Ne doit pas relancer le match depuis le début
+    expect(ctx.orch.restartGame).not.toHaveBeenCalled();
+    expect(ctx.say).toHaveBeenCalledWith(expect.stringContaining('Reprise du match LIVE'));
   });
 });

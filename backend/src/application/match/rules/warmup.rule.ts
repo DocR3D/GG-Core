@@ -4,7 +4,7 @@ import type { CommandEvent } from '@domain/events/command.event';
 import { MatchPhase } from '@domain/phase.types';
 import { MessageMode, SaySpec } from '../messages/messages.types';
 import { ReadyCommand } from '@app/match/commands/ready.command'; // Import de la commande
-import { CS2_RULES, CS2_CHAT_COMMANDS } from '@domain/rules/rules.constants';
+import { CS2_RULES, CS2_CHAT_COMMANDS, CS2_CFG, CS2_RCON_COMMANDS } from '@domain/rules/rules.constants';
 
 export class WarmupRule extends BaseRule implements PhaseRule {
   name = 'warmup_rule' as const;
@@ -22,6 +22,17 @@ export class WarmupRule extends BaseRule implements PhaseRule {
   }
 
   async onEnter(ctx: RuleContext) {
+    const serverId = ctx.serverId ?? (await ctx.state.getServerIdFromMatchId(ctx.matchId));
+    if (serverId) {
+      await ctx.orch.rcon({
+        serverId,
+        matchId: ctx.matchId,
+        command: CS2_RCON_COMMANDS.WARMUP_INFINITE(CS2_CFG.WARMUP),
+      });
+    }
+    if (typeof (ctx.orch as any).resetReady === 'function') {
+      await (ctx.orch as any).resetReady(ctx.matchId);
+    }
     await ctx.say('[Warmup] Tapez !ready quand vous êtes prêts.');
     await ctx.orch.push(ctx.matchId, 'match:state', await ctx.state.getSnapshot(ctx.matchId));
   }
@@ -33,6 +44,10 @@ export class WarmupRule extends BaseRule implements PhaseRule {
 
     if (success) {
       if (await ctx.orch.isBothReady(ctx.matchId)) {
+        if (typeof (ctx.orch as any).isCountdownActive === 'function' && await (ctx.orch as any).isCountdownActive(ctx.matchId)) {
+          return;
+        }
+
         const currentPhase = await ctx.orch.getPhase(cmd.matchId);
         const targetPhase =
           currentPhase === MatchPhase.KNIFE_WARMUP
