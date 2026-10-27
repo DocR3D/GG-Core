@@ -16,6 +16,7 @@
 | `docs/context/infra.md` | Contexte Infrastructure |
 | `README.md` | README racine |
 | `backend/README.md` | README backend NestJS |
+| `docs/context/todo.md` | Backlog, roadmap MVP et tâches techniques restantes |
 
 ## Résumé du cahier des charges
 
