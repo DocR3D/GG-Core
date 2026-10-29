@@ -32,6 +32,7 @@ export class EconomyService {
   ) {}
 
   async initEconomy(matchId: string) {
+    await this.redis.del(redisConst.economyTeamHistory(matchId));
     await this.redis.hset(redisConst.economyTeam(matchId), {
       round: '1',
       home_loss_streak: '0',
@@ -52,6 +53,21 @@ export class EconomyService {
       home_win_streak: '0',
       away_win_streak: '0',
     });
+  }
+
+  /** Photographie séries / loss bonus des équipes pour `roundsPlayed` rounds joués (début de round). */
+  async snapshotTeamEconomy(matchId: string, roundsPlayed: number) {
+    const h = await this.redis.hgetall(redisConst.economyTeam(matchId));
+    await this.redis.hset(redisConst.economyTeamHistory(matchId), String(roundsPlayed), JSON.stringify(h ?? {}));
+  }
+
+  /** Backup restore CS2 : remet séries / loss bonus dans l'état photographié. Retourne false sans photo. */
+  async restoreTeamEconomy(matchId: string, roundsPlayed: number): Promise<boolean> {
+    const snap = await this.redis.hget(redisConst.economyTeamHistory(matchId), String(roundsPlayed));
+    if (!snap) return false;
+    const fields = JSON.parse(snap) as Record<string, string>;
+    if (Object.keys(fields).length) await this.redis.hset(redisConst.economyTeam(matchId), fields);
+    return true;
   }
 
   async getTeamEconomyMeta(matchId: string): Promise<TeamEconomyMeta> {

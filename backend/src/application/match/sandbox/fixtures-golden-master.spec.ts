@@ -477,3 +477,49 @@ describe('CS2 Oracle — GG-Core scoreboard equals CS2 end-of-match round_stats'
     );
   }
 });
+
+/**
+ * CS2 backup restore (mp_backup_restore_load_file) brings the whole round state back, team loss/win streaks
+ * included. round_stats does not carry streaks, so this checks a property on the real restore fixtures:
+ * right after the restore's `Round_Draw`, streaks equal those at the start of the restored round.
+ */
+describe('Backup restore — team streaks are rolled back with the restored round', () => {
+  type Restore = { drawLine: number; roundStartLine: number; roundsPlayed: number };
+
+  /** For each restore draw: line of the draw + line of the original Round_Start of the restored round. */
+  function findRestores(fixtureId: string): Restore[] {
+    const lines = fs.readFileSync(path.join(fixturesDir, 'raw-logs', fixtureId), 'utf8').split(/\r?\n/);
+    const restores: Restore[] = [];
+    lines.forEach((l, i) => {
+      const draw = l.match(/World triggered "SFUI_Notice_Round_Draw" \(CT "(\d+)"\) \(T "(\d+)"\)/);
+      if (!draw) return;
+      const n = Number(draw[1]) + Number(draw[2]);
+      if (n === 0) return;
+      // original end of the n-th round = last win line before the draw whose score totals n
+      let end = -1;
+      for (let j = i - 1; j >= 0 && end < 0; j--) {
+        const w = lines[j].match(/Team "(?:CT|TERRORIST)" triggered "SFUI_Notice_\w+" \(CT "(\d+)"\) \(T "(\d+)"\)/);
+        if (w && Number(w[1]) + Number(w[2]) === n) end = j;
+      }
+      const start = lines.findIndex((x, j) => j > end && x.includes('World triggered "Round_Start"'));
+      if (end >= 0 && start > end && start < i) restores.push({ drawLine: i, roundStartLine: start, roundsPlayed: n });
+    });
+    return restores;
+  }
+
+  const fixtures = ['gglan19_match69_nuke_backup_restore_anonymized.log', 'gglan19_match85_inferno_double_restore_anonymized.log'];
+
+  it.each(fixtures)('%s: streaks after each restore equal those at the start of the restored round', async (id) => {
+    const restores = findRestores(id);
+    expect(restores.length).toBeGreaterThan(0);
+
+    for (const r of restores) {
+      const atRoundStart = await replayFixture(id, 'raw-log', { untilLine: r.roundStartLine + 1 });
+      const afterRestore = await replayFixture(id, 'raw-log', { untilLine: r.drawLine + 1 });
+      expect({ roundsPlayed: r.roundsPlayed, streaks: afterRestore.snapshot.streaks }).toEqual({
+        roundsPlayed: r.roundsPlayed,
+        streaks: atRoundStart.snapshot.streaks,
+      });
+    }
+  });
+});

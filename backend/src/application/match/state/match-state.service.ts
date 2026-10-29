@@ -242,11 +242,16 @@ export class MatchStateService {
   setPlayerStats(matchId: string, steamId: string, stats: Partial<PlayerCombatStats>) {
     return this.playerStats.setPlayerStats(matchId, steamId, stats);
   }
-  snapshotPlayerStats(matchId: string, roundsPlayed: number) {
-    return this.playerStats.snapshotPlayerStats(matchId, roundsPlayed);
+  /** Photo de début de round (stats joueurs + séries d'équipe), base d'un rollback sur backup restore. */
+  async snapshotRound(matchId: string, roundsPlayed: number) {
+    await this.playerStats.snapshotPlayerStats(matchId, roundsPlayed);
+    await this.economy.snapshotTeamEconomy(matchId, roundsPlayed);
   }
-  restorePlayerStats(matchId: string, roundsPlayed: number) {
-    return this.playerStats.restorePlayerStats(matchId, roundsPlayed);
+  /** Backup restore CS2 : remet stats joueurs et séries d'équipe à la photo. Retourne false sans photo. */
+  async restoreRound(matchId: string, roundsPlayed: number): Promise<boolean> {
+    const restored = await this.playerStats.restorePlayerStats(matchId, roundsPlayed);
+    if (restored) await this.economy.restoreTeamEconomy(matchId, roundsPlayed);
+    return restored;
   }
   resetPlayerStats(matchId: string) {
     return this.playerStats.resetPlayerStats(matchId);

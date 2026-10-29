@@ -51,6 +51,8 @@ export const redisConst = {
 
   // Économie
   economyTeam:  (m: string) => `match:${m}:economy:team`,
+  // Photo de economy:team au début de chaque round (champ = nb de rounds joués) : rollback sur backup restore
+  economyTeamHistory: (m: string) => `match:${m}:economy:team_history`,
   moneyHash:    (m: string) => `match:${m}:money`,
   equipHash:    (m: string) => `match:${m}:equip`,
 

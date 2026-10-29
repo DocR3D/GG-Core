@@ -19,6 +19,8 @@ describe('EconomyService', () => {
         return Promise.resolve(Object.keys(data).length);
       }),
       hgetall: jest.fn().mockImplementation(() => Promise.resolve({ ...memoryHash })),
+      del: jest.fn().mockResolvedValue(0), // initEconomy clears the round history
+
       hincrby: jest.fn().mockImplementation((key: string, field: string, incr: number) => {
         const val = parseInt(memoryHash[field] || '0', 10) + incr;
         memoryHash[field] = String(val);
