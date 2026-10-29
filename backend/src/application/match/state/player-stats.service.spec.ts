@@ -59,6 +59,16 @@ describe('PlayerStatsService', () => {
     expect(stats.p2.score).toBe(0);
   });
 
+  it('teamkill: no kill, no headshot and no point for the killer, but a death for the victim (CS2 round_stats)', async () => {
+    const matchId = 'm-test-tk';
+    await service.recordKill(matchId, { steamId: 'p1', name: 'Player_01' }, { steamId: 'p2', name: 'Player_02' }, false);
+    await service.recordKill(matchId, { steamId: 'p1', name: 'Player_01' }, { steamId: 'p3', name: 'Player_03' }, true, true);
+
+    const stats = await service.getPlayerStats(matchId);
+    expect(stats.p1).toMatchObject({ kills: 1, headshots: 0, score: 2, deaths: 0 });
+    expect(stats.p3).toMatchObject({ kills: 0, deaths: 1 });
+  });
+
   it('records standard kills without headshot (+2 pts)', async () => {
     const matchId = 'm-test-1';
     await service.recordKill(
@@ -106,5 +116,23 @@ describe('PlayerStatsService', () => {
 
     await service.resetPlayerStats(matchId);
     expect(Object.keys(await service.getPlayerStats(matchId))).toHaveLength(0);
+  });
+
+  it('rolls stats back to a round-start snapshot (backup restore) and drops later kills/deaths', async () => {
+    const matchId = 'm-restore';
+    await service.recordKill(matchId, { steamId: 'p1' }, { steamId: 'p2' }, true);
+    await service.snapshotPlayerStats(matchId, 6); // start of round 7
+
+    // round 7 then the restore respawn (world suicides) — all voided by CS2
+    await service.recordKill(matchId, { steamId: 'p1' }, { steamId: 'p2' }, false);
+    await service.recordKill(matchId, undefined as any, { steamId: 'p1' }, false);
+
+    await expect(service.restorePlayerStats(matchId, 6)).resolves.toBe(true);
+    const stats = await service.getPlayerStats(matchId);
+    expect(stats.p1).toMatchObject({ kills: 1, headshots: 1, deaths: 0 });
+    expect(stats.p2).toMatchObject({ deaths: 1 });
+
+    await expect(service.restorePlayerStats(matchId, 3)).resolves.toBe(false); // no snapshot: untouched
+    expect((await service.getPlayerStats(matchId)).p1.kills).toBe(1);
   });
 });

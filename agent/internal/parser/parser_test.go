@@ -154,16 +154,38 @@ func TestTryParse(t *testing.T) {
 			},
 		},
 		{
-			name:     "Killed by the bomb is ignored",
+			// CS2 round_stats counts a bomb death as one death
+			name:     "Killed by the bomb is a death (suicide with bomb)",
 			logLine:  `"Player_03<6><[U:1:10000003]><TERRORIST>" [1256 -1309 8] was killed by the bomb.`,
+			wantType: events.EvKill,
+			wantOk:   true,
+			verifyAssert: func(t *testing.T, payload map[string]any) {
+				if payload["kind"] != "suicide" || payload["weapon"] != "bomb" {
+					t.Fatalf("expected kind=suicide weapon=bomb, got %v / %v", payload["kind"], payload["weapon"])
+				}
+				if player := payload["player"].(map[string]any); player["steamId"] != "[U:1:10000003]" || player["team"] != "TERRORIST" {
+					t.Fatalf("unexpected player: %v", player)
+				}
+			},
+		},
+		{
+			name:     "World suicide immediately after killed by the bomb is ignored (same death)",
+			logLine:  `"Player_03<6><[U:1:10000003]><TERRORIST>" [1256 -1309 8] committed suicide with "world"`,
 			wantType: "",
 			wantOk:   false,
 		},
 		{
-			name:     "World suicide immediately after killed by the bomb is ignored",
-			logLine:  `"Player_03<6><[U:1:10000003]><TERRORIST>" [1256 -1309 8] committed suicide with "world"`,
-			wantType: "",
-			wantOk:   false,
+			name:     "Player disconnect",
+			logLine:  `"Player_04<7><[U:1:10000004]><CT>" disconnected (reason "NETWORK_DISCONNECT_DISCONNECT_BY_USER")`,
+			wantType: events.EvPlayerDisc,
+			wantOk:   true,
+		},
+		{
+			// CS2 round_stats counts the suicide emitted on disconnect as a death
+			name:     "World suicide right after a disconnect is a death",
+			logLine:  `"Player_04<7><[U:1:10000004]><CT>" [2397 2079 133] committed suicide with "world"`,
+			wantType: events.EvKill,
+			wantOk:   true,
 		},
 		{
 			name:     "Suicide with World",

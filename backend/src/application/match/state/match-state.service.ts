@@ -242,6 +242,12 @@ export class MatchStateService {
   setPlayerStats(matchId: string, steamId: string, stats: Partial<PlayerCombatStats>) {
     return this.playerStats.setPlayerStats(matchId, steamId, stats);
   }
+  snapshotPlayerStats(matchId: string, roundsPlayed: number) {
+    return this.playerStats.snapshotPlayerStats(matchId, roundsPlayed);
+  }
+  restorePlayerStats(matchId: string, roundsPlayed: number) {
+    return this.playerStats.restorePlayerStats(matchId, roundsPlayed);
+  }
   resetPlayerStats(matchId: string) {
     return this.playerStats.resetPlayerStats(matchId);
   }

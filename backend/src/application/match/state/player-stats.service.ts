@@ -26,7 +26,7 @@ export class PlayerStatsService {
 
   /**
    * Enregistre un kill entre deux joueurs : incrémente kills, headshots, score du killer et deaths de la victime.
-   * En cas de teamkill (friendlyfire), applique la pénalité CS2 (-1 kill, -2 pts, pas de headshot pour le killer).
+   * En cas de teamkill (friendlyfire), le tueur ne gagne rien (ni kill, ni HS, ni point), comme dans CS2 round_stats.
    */
   async recordKill(
     matchId: string,
@@ -40,10 +40,9 @@ export class PlayerStatsService {
     // 1. Killer stats
     if (killer?.steamId) {
       const killerStats = await this.getOrCreatePlayer(matchId, killer.steamId, killer.name);
-      if (teamkill) {
-        killerStats.kills = (killerStats.kills || 0) - 1;
-        killerStats.score = (killerStats.score || 0) - 2;
-      } else {
+      // Teamkill : aucun kill ni point pour le tueur (CS2 round_stats ne compte que les kills ennemis,
+      // sans pénalité — vérifié sur logs réels GGLan #19). La victime prend bien sa mort (étape 2).
+      if (!teamkill) {
         killerStats.kills = (killerStats.kills || 0) + 1;
         if (headshot) {
           killerStats.headshots = (killerStats.headshots || 0) + 1;
@@ -159,6 +158,31 @@ export class PlayerStatsService {
    */
   async resetPlayerStats(matchId: string): Promise<void> {
     await this.redis.del(redisConst.playerStatsHash(matchId));
+    await this.redis.del(redisConst.playerStatsHistory(matchId));
+  }
+
+  /**
+   * Photographie les stats de tous les joueurs pour `roundsPlayed` rounds joués (appelé au début de chaque round,
+   * donc après les frags de fin du round précédent — même instant que le backup de round CS2).
+   */
+  async snapshotPlayerStats(matchId: string, roundsPlayed: number): Promise<void> {
+    const raw = await this.redis.hgetall(redisConst.playerStatsHash(matchId));
+    await this.redis.hset(redisConst.playerStatsHistory(matchId), String(roundsPlayed), JSON.stringify(raw ?? {}));
+  }
+
+  /**
+   * Remet les stats joueurs dans l'état photographié pour `roundsPlayed` rounds joués (backup restore CS2 :
+   * les rounds annulés et les morts techniques du respawn disparaissent). Retourne false sans photo.
+   */
+  async restorePlayerStats(matchId: string, roundsPlayed: number): Promise<boolean> {
+    const snap = await this.redis.hget(redisConst.playerStatsHistory(matchId), String(roundsPlayed));
+    if (!snap) return false;
+    const key = redisConst.playerStatsHash(matchId);
+    await this.redis.del(key);
+    for (const [steamId, json] of Object.entries(JSON.parse(snap) as Record<string, string>)) {
+      await this.redis.hset(key, steamId, json);
+    }
+    return true;
   }
 
   private async getOrCreatePlayer(

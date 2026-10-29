@@ -232,12 +232,24 @@ func TryParse(line string) (string, json.RawMessage, bool) {
 		return events.EvAssist, mustJSON(payload), true
 	}
 
+	// Bomb death: CS2 logs `was killed by the bomb.` then `committed suicide with "world"`.
+	// CS2 (round_stats) counts ONE death: emit it here and skip the twin line.
+	// (mirrored by parseCs2LineFallback in backend sandbox.service.ts)
 	if killedByBombRe.MatchString(line) {
+		player := grp(killedByBombRe, line, "player")
 		steam := grp(killedByBombRe, line, "psteam")
+		team := events.NormTeam(grp(killedByBombRe, line, "pteam"))
 		if steam != "" {
 			ignoreNextWorldSuicide[steam] = time.Now().Add(2 * time.Second)
 		}
-		return "", nil, false
+		vx, vy, vz := parseXYZBracket(grp(killedByBombRe, line, "pos"))
+		payload := map[string]any{
+			"kind":      "suicide",
+			"player":    map[string]any{"name": player, "steamId": steam, "team": team},
+			"weapon":    "bomb",
+			"victimPos": map[string]float64{"x": vx, "y": vy, "z": vz},
+		}
+		return events.EvKill, mustJSON(payload), true
 	}
 
 	if suicideRe.MatchString(line) {
@@ -395,9 +407,8 @@ func TryParse(line string) (string, json.RawMessage, bool) {
 		name := grp(playerDisconnectRe, line, "name")
 		steam := grp(playerDisconnectRe, line, "steam")
 		reason := grp(playerDisconnectRe, line, "reason")
-		if steam != "" {
-			ignoreNextWorldSuicide[steam] = time.Now().Add(2 * time.Second)
-		}
+		// The `committed suicide with "world"` that follows a disconnect IS a death for CS2 (round_stats):
+		// it is no longer skipped.
 		payload := map[string]any{
 			"player": map[string]any{"name": name, "steamId": steam},
 		}

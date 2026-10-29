@@ -98,6 +98,11 @@ export class KillAndBombEventsHandler {
 
       case EventTypes.ROUND_START: {
         this.pendingDefuser.delete(ev.matchId);
+        // Photo des stats au début du round (= instant du backup de round CS2) pour un éventuel rollback
+        if (!isWarmupEvent) {
+          const sc = await this.matchState.getScore(ev.matchId);
+          await this.matchState.snapshotPlayerStats(ev.matchId, (sc?.ct ?? 0) + (sc?.t ?? 0));
+        }
         return false;
       }
 
@@ -228,6 +233,19 @@ export class KillAndBombEventsHandler {
 
       case EventTypes.TEAM_ROUND_WIN: {
         const p = ev.payload as any;
+        // Backup restore (mp_backup_restore_load_file) : CS2 logge un `Round_Draw` portant le score restauré,
+        // égal ou inférieur au score courant. CS2 remet alors les stats joueurs à cet instant : on fait pareil
+        // (kills du round annulé et morts techniques du respawn effacés).
+        if (p?.reason === 'draw' && typeof p?.score?.ct === 'number' && typeof p?.score?.t === 'number') {
+          this.pendingDefuser.delete(ev.matchId);
+          const restored = p.score.ct + p.score.t;
+          const sc = await this.matchState.getScore(ev.matchId);
+          const current = (sc?.ct ?? 0) + (sc?.t ?? 0);
+          if (restored > 0 && restored <= current && (await this.matchState.restorePlayerStats(ev.matchId, restored))) {
+            this.logger.log(`[KillAndBombEventsHandler] backup restore detected match=${ev.matchId}: stats rolled back to ${restored} rounds played`);
+          }
+          return false;
+        }
         if (p?.reason === 'defused') {
           const defuser = this.pendingDefuser.get(ev.matchId);
           if (defuser?.steamId) {

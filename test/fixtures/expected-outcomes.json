@@ -512,7 +512,7 @@
     },
     "totals": {
       "kills": 280,
-      "deaths": 280,
+      "deaths": 282,
       "assists": 99,
       "flashAssists": 18,
       "headshots": 147,
@@ -626,7 +626,7 @@
         "logical": "home",
         "side": "CT",
         "kills": 27,
-        "deaths": 29,
+        "deaths": 30,
         "assists": 6,
         "flashAssists": 1,
         "headshots": 16,
@@ -668,7 +668,7 @@
         "logical": "home",
         "side": "CT",
         "kills": 26,
-        "deaths": 31,
+        "deaths": 32,
         "assists": 13,
         "flashAssists": 4,
         "headshots": 19,
@@ -711,14 +711,14 @@
       }
     },
     "totals": {
-      "kills": 218,
-      "deaths": 224,
+      "kills": 221,
+      "deaths": 225,
       "assists": 91,
       "flashAssists": 3,
       "headshots": 82,
       "plants": 19,
       "defuses": 4,
-      "score": 655
+      "score": 661
     },
     "scoreboardOrder": {
       "ct": [
@@ -729,8 +729,8 @@
         "[U:1:10000002]"
       ],
       "t": [
-        "[U:1:10000009]",
         "[U:1:10000001]",
+        "[U:1:10000009]",
         "[U:1:10000005]",
         "[U:1:10000003]",
         "[U:1:10000007]"
@@ -741,15 +741,15 @@
         "name": "Player_01",
         "logical": "away",
         "side": "T",
-        "kills": 25,
+        "kills": 26,
         "deaths": 24,
         "assists": 10,
         "flashAssists": 0,
         "headshots": 6,
-        "hsPercent": 24,
+        "hsPercent": 23,
         "plants": 2,
         "defuses": 0,
-        "score": 70
+        "score": 72
       },
       "[U:1:10000002]": {
         "name": "Player_02",
@@ -783,15 +783,15 @@
         "name": "Player_04",
         "logical": "home",
         "side": "CT",
-        "kills": 26,
+        "kills": 28,
         "deaths": 25,
         "assists": 9,
         "flashAssists": 0,
         "headshots": 9,
-        "hsPercent": 35,
+        "hsPercent": 32,
         "plants": 1,
         "defuses": 0,
-        "score": 72
+        "score": 76
       },
       "[U:1:10000005]": {
         "name": "Player_05",
@@ -868,7 +868,7 @@
         "logical": "home",
         "side": "CT",
         "kills": 27,
-        "deaths": 19,
+        "deaths": 20,
         "assists": 16,
         "flashAssists": 0,
         "headshots": 16,
@@ -911,14 +911,14 @@
       }
     },
     "totals": {
-      "kills": 237,
-      "deaths": 241,
+      "kills": 239,
+      "deaths": 246,
       "assists": 92,
       "flashAssists": 15,
       "headshots": 115,
       "plants": 19,
       "defuses": 3,
-      "score": 725
+      "score": 729
     },
     "scoreboardOrder": {
       "ct": [
@@ -956,7 +956,7 @@
         "logical": "home",
         "side": "T",
         "kills": 26,
-        "deaths": 24,
+        "deaths": 25,
         "assists": 13,
         "flashAssists": 4,
         "headshots": 15,
@@ -969,22 +969,22 @@
         "name": "Player_03",
         "logical": "away",
         "side": "CT",
-        "kills": 17,
-        "deaths": 28,
+        "kills": 18,
+        "deaths": 29,
         "assists": 8,
         "flashAssists": 0,
         "headshots": 4,
-        "hsPercent": 24,
+        "hsPercent": 22,
         "plants": 1,
         "defuses": 0,
-        "score": 48
+        "score": 50
       },
       "[U:1:10000004]": {
         "name": "Player_04",
         "logical": "away",
         "side": "CT",
         "kills": 29,
-        "deaths": 22,
+        "deaths": 23,
         "assists": 10,
         "flashAssists": 1,
         "headshots": 16,
@@ -1025,22 +1025,22 @@
         "name": "Player_07",
         "logical": "away",
         "side": "CT",
-        "kills": 22,
+        "kills": 23,
         "deaths": 22,
         "assists": 12,
         "flashAssists": 3,
         "headshots": 6,
-        "hsPercent": 27,
+        "hsPercent": 26,
         "plants": 3,
         "defuses": 0,
-        "score": 68
+        "score": 70
       },
       "[U:1:10000008]": {
         "name": "Player_08",
         "logical": "home",
         "side": "T",
         "kills": 18,
-        "deaths": 26,
+        "deaths": 27,
         "assists": 11,
         "flashAssists": 0,
         "headshots": 16,
@@ -1068,7 +1068,7 @@
         "logical": "home",
         "side": "T",
         "kills": 15,
-        "deaths": 23,
+        "deaths": 24,
         "assists": 9,
         "flashAssists": 3,
         "headshots": 5,
@@ -1111,14 +1111,14 @@
       }
     },
     "totals": {
-      "kills": 197,
-      "deaths": 199,
+      "kills": 198,
+      "deaths": 201,
       "assists": 67,
       "flashAssists": 3,
       "headshots": 85,
       "plants": 20,
       "defuses": 2,
-      "score": 590
+      "score": 592
     },
     "scoreboardOrder": {
       "ct": [
@@ -1142,7 +1142,7 @@
         "logical": "away",
         "side": "T",
         "kills": 13,
-        "deaths": 18,
+        "deaths": 19,
         "assists": 7,
         "flashAssists": 1,
         "headshots": 1,
@@ -1212,7 +1212,7 @@
         "logical": "home",
         "side": "CT",
         "kills": 16,
-        "deaths": 20,
+        "deaths": 21,
         "assists": 7,
         "flashAssists": 1,
         "headshots": 9,
@@ -1253,15 +1253,15 @@
         "name": "Player_09",
         "logical": "away",
         "side": "T",
-        "kills": 28,
+        "kills": 29,
         "deaths": 20,
         "assists": 7,
         "flashAssists": 0,
         "headshots": 15,
-        "hsPercent": 54,
+        "hsPercent": 52,
         "plants": 4,
         "defuses": 0,
-        "score": 86
+        "score": 88
       },
       "[U:1:10000010]": {
         "name": "Player_10",
@@ -1711,14 +1711,14 @@
       }
     },
     "totals": {
-      "kills": 101,
-      "deaths": 115,
-      "assists": 28,
+      "kills": 97,
+      "deaths": 98,
+      "assists": 27,
       "flashAssists": 1,
-      "headshots": 54,
+      "headshots": 51,
       "plants": 5,
       "defuses": 2,
-      "score": 298
+      "score": 286
     },
     "scoreboardOrder": {
       "ct": [
@@ -1741,22 +1741,22 @@
         "name": "Player_01",
         "logical": "away",
         "side": "CT",
-        "kills": 7,
-        "deaths": 14,
+        "kills": 6,
+        "deaths": 12,
         "assists": 1,
         "flashAssists": 0,
         "headshots": 3,
-        "hsPercent": 43,
+        "hsPercent": 50,
         "plants": 1,
         "defuses": 0,
-        "score": 20
+        "score": 18
       },
       "[U:1:10000002]": {
         "name": "Player_02",
         "logical": "away",
         "side": "CT",
         "kills": 7,
-        "deaths": 15,
+        "deaths": 13,
         "assists": 2,
         "flashAssists": 0,
         "headshots": 4,
@@ -1769,36 +1769,36 @@
         "name": "Player_03",
         "logical": "away",
         "side": "CT",
-        "kills": 8,
-        "deaths": 14,
+        "kills": 9,
+        "deaths": 13,
         "assists": 3,
         "flashAssists": 1,
         "headshots": 7,
-        "hsPercent": 88,
+        "hsPercent": 78,
         "plants": 0,
         "defuses": 0,
-        "score": 26
+        "score": 28
       },
       "[U:1:10000004]": {
         "name": "Player_04",
         "logical": "home",
         "side": "T",
-        "kills": 18,
-        "deaths": 10,
+        "kills": 17,
+        "deaths": 8,
         "assists": 3,
         "flashAssists": 0,
-        "headshots": 10,
-        "hsPercent": 56,
+        "headshots": 9,
+        "hsPercent": 53,
         "plants": 0,
         "defuses": 0,
-        "score": 49
+        "score": 46
       },
       "[U:1:10000005]": {
         "name": "Player_05",
         "logical": "home",
         "side": "T",
         "kills": 12,
-        "deaths": 8,
+        "deaths": 6,
         "assists": 0,
         "flashAssists": 0,
         "headshots": 3,
@@ -1811,22 +1811,22 @@
         "name": "Player_06",
         "logical": "home",
         "side": "T",
-        "kills": 16,
-        "deaths": 9,
+        "kills": 15,
+        "deaths": 7,
         "assists": 1,
         "flashAssists": 0,
         "headshots": 7,
-        "hsPercent": 44,
+        "hsPercent": 47,
         "plants": 0,
         "defuses": 0,
-        "score": 40
+        "score": 38
       },
       "[U:1:10000007]": {
         "name": "Player_07",
         "logical": "home",
         "side": "T",
         "kills": 7,
-        "deaths": 9,
+        "deaths": 7,
         "assists": 6,
         "flashAssists": 0,
         "headshots": 3,
@@ -1839,43 +1839,43 @@
         "name": "Player_08",
         "logical": "away",
         "side": "CT",
-        "kills": 3,
-        "deaths": 15,
+        "kills": 2,
+        "deaths": 14,
         "assists": 5,
         "flashAssists": 0,
-        "headshots": 2,
-        "hsPercent": 67,
+        "headshots": 1,
+        "hsPercent": 50,
         "plants": 1,
         "defuses": 0,
-        "score": 15
+        "score": 12
       },
       "[U:1:10000009]": {
         "name": "Player_09",
         "logical": "home",
         "side": "T",
-        "kills": 15,
-        "deaths": 5,
+        "kills": 14,
+        "deaths": 4,
         "assists": 4,
         "flashAssists": 0,
-        "headshots": 10,
-        "hsPercent": 67,
+        "headshots": 9,
+        "hsPercent": 64,
         "plants": 2,
         "defuses": 1,
-        "score": 50
+        "score": 47
       },
       "[U:1:10000010]": {
         "name": "Player_10",
         "logical": "away",
         "side": "CT",
         "kills": 8,
-        "deaths": 16,
-        "assists": 3,
+        "deaths": 14,
+        "assists": 2,
         "flashAssists": 0,
         "headshots": 5,
         "hsPercent": 63,
         "plants": 0,
         "defuses": 0,
-        "score": 24
+        "score": 23
       }
     }
   },
@@ -1895,7 +1895,7 @@
       "away": "CT"
     },
     "rosterCounts": {
-      "home": 5,
+      "home": 7,
       "away": 5
     },
     "streaks": {
@@ -1912,7 +1912,7 @@
     },
     "totals": {
       "kills": 104,
-      "deaths": 124,
+      "deaths": 106,
       "assists": 37,
       "flashAssists": 2,
       "headshots": 41,
@@ -1933,7 +1933,9 @@
         "[U:1:10000003]",
         "[U:1:10000010]",
         "[U:1:10000006]",
-        "[U:1:10000005]"
+        "[U:1:10000005]",
+        "[U:1:10000011]",
+        "[U:1:10000012]"
       ]
     },
     "players": {
@@ -1942,7 +1944,7 @@
         "logical": "away",
         "side": "CT",
         "kills": 13,
-        "deaths": 8,
+        "deaths": 6,
         "assists": 9,
         "flashAssists": 0,
         "headshots": 9,
@@ -1956,7 +1958,7 @@
         "logical": "home",
         "side": "T",
         "kills": 10,
-        "deaths": 17,
+        "deaths": 15,
         "assists": 2,
         "flashAssists": 0,
         "headshots": 5,
@@ -1970,7 +1972,7 @@
         "logical": "home",
         "side": "T",
         "kills": 9,
-        "deaths": 16,
+        "deaths": 14,
         "assists": 0,
         "flashAssists": 0,
         "headshots": 2,
@@ -1984,7 +1986,7 @@
         "logical": "away",
         "side": "CT",
         "kills": 16,
-        "deaths": 9,
+        "deaths": 7,
         "assists": 6,
         "flashAssists": 0,
         "headshots": 10,
@@ -1998,7 +2000,7 @@
         "logical": "home",
         "side": "T",
         "kills": 3,
-        "deaths": 13,
+        "deaths": 11,
         "assists": 3,
         "flashAssists": 0,
         "headshots": 2,
@@ -2012,7 +2014,7 @@
         "logical": "home",
         "side": "T",
         "kills": 5,
-        "deaths": 17,
+        "deaths": 15,
         "assists": 5,
         "flashAssists": 0,
         "headshots": 1,
@@ -2026,7 +2028,7 @@
         "logical": "away",
         "side": "CT",
         "kills": 13,
-        "deaths": 10,
+        "deaths": 8,
         "assists": 6,
         "flashAssists": 1,
         "headshots": 3,
@@ -2040,7 +2042,7 @@
         "logical": "away",
         "side": "CT",
         "kills": 15,
-        "deaths": 9,
+        "deaths": 7,
         "assists": 3,
         "flashAssists": 0,
         "headshots": 2,
@@ -2054,7 +2056,7 @@
         "logical": "away",
         "side": "CT",
         "kills": 13,
-        "deaths": 8,
+        "deaths": 6,
         "assists": 3,
         "flashAssists": 1,
         "headshots": 4,
@@ -2068,7 +2070,7 @@
         "logical": "home",
         "side": "T",
         "kills": 7,
-        "deaths": 17,
+        "deaths": 15,
         "assists": 0,
         "flashAssists": 0,
         "headshots": 3,
@@ -2076,6 +2078,34 @@
         "plants": 0,
         "defuses": 0,
         "score": 17
+      },
+      "[U:1:10000011]": {
+        "name": "Player_11",
+        "logical": "home",
+        "side": "T",
+        "kills": 0,
+        "deaths": 1,
+        "assists": 0,
+        "flashAssists": 0,
+        "headshots": 0,
+        "hsPercent": 0,
+        "plants": 0,
+        "defuses": 0,
+        "score": 0
+      },
+      "[U:1:10000012]": {
+        "name": "Player_12",
+        "logical": "home",
+        "side": "T",
+        "kills": 0,
+        "deaths": 1,
+        "assists": 0,
+        "flashAssists": 0,
+        "headshots": 0,
+        "hsPercent": 0,
+        "plants": 0,
+        "defuses": 0,
+        "score": 0
       }
     }
   },
@@ -2112,7 +2142,7 @@
     },
     "totals": {
       "kills": 171,
-      "deaths": 171,
+      "deaths": 175,
       "assists": 65,
       "flashAssists": 5,
       "headshots": 87,
@@ -2156,7 +2186,7 @@
         "logical": "home",
         "side": "T",
         "kills": 16,
-        "deaths": 16,
+        "deaths": 18,
         "assists": 5,
         "flashAssists": 0,
         "headshots": 10,
@@ -2184,7 +2214,7 @@
         "logical": "home",
         "side": "T",
         "kills": 24,
-        "deaths": 15,
+        "deaths": 16,
         "assists": 2,
         "flashAssists": 0,
         "headshots": 10,
@@ -2198,7 +2228,7 @@
         "logical": "home",
         "side": "T",
         "kills": 11,
-        "deaths": 17,
+        "deaths": 18,
         "assists": 7,
         "flashAssists": 0,
         "headshots": 8,
@@ -2312,7 +2342,7 @@
     },
     "totals": {
       "kills": 120,
-      "deaths": 120,
+      "deaths": 121,
       "assists": 38,
       "flashAssists": 3,
       "headshots": 57,
@@ -2370,7 +2400,7 @@
         "logical": "away",
         "side": "CT",
         "kills": 12,
-        "deaths": 10,
+        "deaths": 11,
         "assists": 2,
         "flashAssists": 0,
         "headshots": 4,
@@ -2911,14 +2941,14 @@
       }
     },
     "totals": {
-      "kills": 76,
+      "kills": 78,
       "deaths": 80,
       "assists": 0,
       "flashAssists": 0,
       "headshots": 35,
       "plants": 2,
       "defuses": 0,
-      "score": 191
+      "score": 195
     },
     "scoreboardOrder": {
       "ct": [
@@ -2941,15 +2971,15 @@
         "name": "Player_01",
         "logical": "home",
         "side": "T",
-        "kills": 9,
+        "kills": 11,
         "deaths": 6,
         "assists": 0,
         "flashAssists": 0,
         "headshots": 5,
-        "hsPercent": 56,
+        "hsPercent": 45,
         "plants": 0,
         "defuses": 0,
-        "score": 23
+        "score": 27
       },
       "[U:1:10000003]": {
         "name": "Player_03",
@@ -3111,14 +3141,14 @@
       }
     },
     "totals": {
-      "kills": 381,
+      "kills": 383,
       "deaths": 385,
       "assists": 0,
       "flashAssists": 0,
       "headshots": 162,
       "plants": 0,
       "defuses": 0,
-      "score": 924
+      "score": 928
     },
     "scoreboardOrder": {
       "ct": [
@@ -3169,15 +3199,15 @@
         "name": "Alpha_Mike",
         "logical": "home",
         "side": "CT",
-        "kills": 37,
+        "kills": 38,
         "deaths": 44,
         "assists": 0,
         "flashAssists": 0,
         "headshots": 28,
-        "hsPercent": 76,
+        "hsPercent": 74,
         "plants": 0,
         "defuses": 0,
-        "score": 102
+        "score": 104
       },
       "[U:1:1004]": {
         "name": "Alpha_Romeo",
@@ -3239,15 +3269,15 @@
         "name": "Bravo_Golf",
         "logical": "away",
         "side": "T",
-        "kills": 27,
+        "kills": 28,
         "deaths": 36,
         "assists": 0,
         "flashAssists": 0,
         "headshots": 8,
-        "hsPercent": 30,
+        "hsPercent": 29,
         "plants": 0,
         "defuses": 0,
-        "score": 62
+        "score": 64
       },
       "[U:1:2004]": {
         "name": "Bravo_November",

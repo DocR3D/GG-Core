@@ -26,6 +26,31 @@ describe('Fallback Parser & Suicide vs Player Kill Handling', () => {
       expect(event.type).not.toBe('kill');
     });
 
+    it('parses World Round_Draw (backup restore) like the Go parser: winner none, reason draw, restored score', () => {
+      const line = 'L 10/25/2025 - 11:01:49: World triggered "SFUI_Notice_Round_Draw" (CT "5") (T "1")';
+      const event = parseCs2LineFallback(line, 'm-1', 'srv-a');
+
+      expect(event).toMatchObject({
+        type: 'team_round_win',
+        payload: { winner: 'none', reason: 'draw', score: { ct: 5, t: 1 } },
+      });
+    });
+
+    it('counts a bomb death once: killed by the bomb is the death, its world-suicide twin is skipped', () => {
+      const bomb = parseCs2LineFallback('"Player_03<6><[U:1:10000003]><TERRORIST>" [1256 -1309 8] was killed by the bomb.', 'm-bomb', 'srv-a');
+      const twin = parseCs2LineFallback('"Player_03<6><[U:1:10000003]><TERRORIST>" [1256 -1309 8] committed suicide with "world"', 'm-bomb', 'srv-a');
+
+      expect(bomb).toMatchObject({ type: 'kill', payload: { kind: 'suicide', weapon: 'bomb' } });
+      expect(twin).toBeNull();
+    });
+
+    it('counts the world suicide that follows a disconnect as a death', () => {
+      parseCs2LineFallback('"Player_04<7><[U:1:10000004]><CT>" disconnected (reason "NETWORK_DISCONNECT_DISCONNECT_BY_USER")', 'm-disc', 'srv-a');
+      const suicide = parseCs2LineFallback('"Player_04<7><[U:1:10000004]><CT>" [2397 2079 133] committed suicide with "world"', 'm-disc', 'srv-a');
+
+      expect(suicide).toMatchObject({ type: 'kill', payload: { kind: 'suicide', weapon: 'world' } });
+    });
+
     it('ignores World Match_Reloaded on map without creating phantom kills', () => {
       const line = 'World triggered "Match_Reloaded" on "de_inferno"';
       const event = parseCs2LineFallback(line, 'm-1', 'srv-a');

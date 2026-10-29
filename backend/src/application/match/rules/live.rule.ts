@@ -116,7 +116,21 @@ export class LiveRule extends BaseRule implements PhaseRule {
 
   private async onTeamRoundWin(ev: TeamRoundWinEvent, ctx: RuleContext) {
     const winner = ((ev.payload as any)?.winner || (ev.payload as any)?.team) as string | undefined;
-    if (!winner || winner === 'none' || (ev.payload as any)?.reason === 'draw') return;
+    if (!winner || winner === 'none' || (ev.payload as any)?.reason === 'draw') {
+      // Backup restore : CS2 logge un Round_Draw portant le score restauré (souvent inférieur au courant).
+      // On réaligne le score tout de suite au lieu d'attendre le prochain round gagné.
+      const restored = (ev.payload as any)?.score;
+      if (typeof restored?.ct === 'number' && typeof restored?.t === 'number') {
+        const current = await ctx.state.getScore(ev.matchId);
+        if (restored.ct + restored.t <= (current?.ct ?? 0) + (current?.t ?? 0)) {
+          await ctx.state.reconcileScore(ev.matchId, restored.ct, restored.t);
+          // Les rounds annulés vont être rejoués avec les mêmes numéros : la garde anti-doublon doit les accepter
+          await ctx.state.setLastScoredRound(ev.matchId, restored.ct + restored.t);
+          await ctx.orch.push(ev.matchId, 'score:update', { score: await ctx.state.getScore(ev.matchId) });
+        }
+      }
+      return;
+    }
 
     this.logger.log(`[LiveRule] Team round win event received: winner=${winner} reason=${(ev.payload as any)?.reason} match=${ev.matchId}`);
 

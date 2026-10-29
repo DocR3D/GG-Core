@@ -417,22 +417,13 @@ describe('Fixtures Golden Master Suite — End-to-End Match Replays (Raw Logs & 
 /**
  * Known divergences between GG-Core and CS2's round_stats (scores always match; only K/D/A differ).
  * Declared with `it.failing`: the suite stays green while the gap exists and FAILS as soon as GG-Core
- * matches CS2 for that fixture — then remove the entry. See the 2026-10-28 analysis:
- *  - bomb deaths: CS2 counts `was killed by the bomb` (+ its `suicide with "world"` twin) as ONE death,
- *    GG-Core counts none;
- *  - `suicide with "world"` right after disconnected/switched: CS2 counts a death, GG-Core does not;
- *  - teamkills: round_stats `kills` = enemy kills (no −1 per teamkill), GG-Core applies −1;
- *  - backup restore (mp_backup_restore_load_file): CS2 rolls player stats back to the restored round,
- *    GG-Core keeps the voided round's kills and counts the restore respawn as a death for everyone,
- *    and omits players who joined a team briefly then disconnected (CS2 keeps them at 0/1/0).
+ * matches CS2 for that fixture — then remove the entry.
+ * Rules already aligned on CS2 (do not regress): a bomb death is ONE death, the world suicide after a
+ * disconnect is a death, a teamkill gives the killer nothing (no −1).
+ * Remaining gap — backup restore (mp_backup_restore_load_file): CS2 rolls player stats back to the restored
+ * round; GG-Core keeps the voided round's kills and counts the restore respawn as a death for everyone.
  */
 const KNOWN_ORACLE_GAPS: Record<string, string> = {
-  'gglan19_dust2_ot3_40rounds_anonymized.log': 'bomb death + suicide after leave not counted',
-  'gglan19_inferno_ot1_teamkills_anonymized.log': 'teamkill −1 kill vs round_stats enemy kills; bomb death',
-  'gglan19_match69_nuke_backup_restore_anonymized.log': 'stats not rolled back on backup restore',
-  'gglan19_match85_inferno_double_restore_anonymized.log': 'stats not rolled back on backup restore; brief joiners (suicide after leave) missing',
-  'gglan19_mirage_13-11_anonymized.log': 'bomb deaths not counted',
-  'gglan19_overpass_13-5_anonymized.log': 'bomb death not counted',
 };
 
 describe('CS2 Oracle — GG-Core scoreboard equals CS2 end-of-match round_stats', () => {

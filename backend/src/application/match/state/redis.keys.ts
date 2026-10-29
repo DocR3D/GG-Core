@@ -44,6 +44,8 @@ export const redisConst = {
   ready:        (m: string) => `match:${m}:ready`,          // hash
   playersHash:  (m: string) => `match:${m}:players`,
   playerStatsHash: (m: string) => `match:${m}:player_stats`,
+  // Photo des stats joueurs au début de chaque round (champ = nb de rounds joués) : rollback sur backup restore
+  playerStatsHistory: (m: string) => `match:${m}:player_stats_history`,
   lineupHome:   (m: string) => `match:${m}:lineup:home`,
   lineupAway:   (m: string) => `match:${m}:lineup:away`,
 

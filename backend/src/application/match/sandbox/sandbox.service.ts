@@ -988,18 +988,49 @@ export function parseCs2LineFallback(rawLine: string, matchId: string, serverId:
     return { type: 'round_start', matchId, serverId, timestamp: Date.now(), payload: {} };
   }
 
+  // Mort par la C4 : CS2 logge `was killed by the bomb.` puis `committed suicide with "world"`.
+  // CS2 (round_stats) compte UNE mort : on l'émet ici et on ignore la ligne jumelle.
+  // (miroir de agent/internal/parser/parser.go)
   const bombKilledMatch = line.match(/^"([^"<]+)<\d+><([^>]*)><([^>]+)>"(?:\s+\[[-\d\s]+\])?\s+was\s+killed\s+by\s+the\s+bomb\.?/);
   if (bombKilledMatch) {
     if (bombKilledMatch[2]) {
       fallbackIgnoreNextWorldSuicide.add(`${matchId}:${bombKilledMatch[2]}`);
     }
+    return {
+      type: 'kill',
+      matchId,
+      serverId,
+      timestamp: Date.now(),
+      payload: {
+        kind: 'suicide',
+        player: { name: bombKilledMatch[1], steamId: bombKilledMatch[2], team: bombKilledMatch[3] },
+        weapon: 'bomb',
+      },
+    };
+  }
+
+  // Déconnexion : le `committed suicide with "world"` qui suit EST une mort pour CS2 (round_stats),
+  // il n'est donc plus ignoré.
+  const discMatch = line.match(/^"([^"<]+)<\d+><([^>]*)><([^>]*)>"\s+disconnected/);
+  if (discMatch && discMatch[2]) {
     return null;
   }
 
-  const discMatch = line.match(/^"([^"<]+)<\d+><([^>]*)><([^>]*)>"\s+disconnected/);
-  if (discMatch && discMatch[2]) {
-    fallbackIgnoreNextWorldSuicide.add(`${matchId}:${discMatch[2]}`);
-    return null;
+  // Round nul (`World triggered "SFUI_Notice_Round_Draw"`), émis notamment par un backup restore avec le score
+  // restauré. Même payload que le parser Go : { winner: 'none', reason: 'draw', score }.
+  const drawMatch = line.match(/^World triggered "SFUI_Notice_Round_Draw"(?:\s*\(CT "(\d+)"\)\s*\(T "(\d+)"\))?/);
+  if (drawMatch) {
+    return {
+      type: 'team_round_win',
+      matchId,
+      serverId,
+      timestamp: Date.now(),
+      payload: {
+        winner: 'none',
+        reason: 'draw',
+        ...(drawMatch[1] !== undefined ? { score: { ct: parseInt(drawMatch[1], 10), t: parseInt(drawMatch[2], 10) } } : {}),
+      },
+    };
   }
 
   const winMatch = line.match(/^Team "(TERRORIST|CT)" triggered "(SFUI_Notice_[A-Za-z_]+)"(?:\s*\(CT "(\d+)"\)\s*\(T "(\d+)"\))?/);
