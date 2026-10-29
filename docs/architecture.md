@@ -1,4 +1,4 @@
-# Architecture eBot++
+# Architecture GG-Core
 
 ##  Vue d’ensemble
 
@@ -64,17 +64,18 @@ SOoT = Source of Truth historique (vérité absolue).
 - Expose une **API REST** (`/api/...`)
 - Diffuse un flux **WebSocket** vers le frontend
 
-###  PostgreSQL *(pas encore fait)*
+###  PostgreSQL (Prisma)
 - Base de données relationnelle pour l’historique (vérité absolue) :
-  - Tournois, équipes, joueurs
-  - Matchs, rounds, stats
-  - **`events_primary` / `events_secondary`** pour rejouer/réconstruire l’état
+  - Tournois, équipes, joueurs, rosters, serveurs
+  - Matchs (BO1/BO3/BO5, brackets), vétos, maps, stats joueurs
+  - **`events_primary`** : chaque événement de match, indexé par `match_id` (identifiant temps réel) et rattaché à son `match_map_id` quand le match est lié au modèle relationnel (`matchMapId` passé à `POST /api/matches/:id/init`)
+  - `events_secondary` (télémétrie) : prévu
 
 ###  Redis
 - Sert de **bus temps réel** (Pub/Sub, éventuellement Streams)
 - Découple les services (Agent ↔ Backend ↔ Frontend)
 
-###  Frontend Next.js *(pas encore fait)*
+###  Frontend Next.js *(pas encore fait — console `/sandbox` servie par le backend en attendant)*
 - Application web publique : live scoreboard, overlays, mini‑map
 - Console admin pour l’organisation (contrôle des matchs)
 
@@ -94,6 +95,6 @@ SOoT = Source of Truth historique (vérité absolue).
 ##  Contraintes & Rappels
 
 - Côté serveurs CS2, seules les commandes suivantes sont nécessaires :  
-  `rcon_password 123456` et `logaddress_add_http "http://<BACKEND_HOST>:8081/cs2/logs"`
+  `rcon_password 123456` et `logaddress_add_http "http://<AGENT_HOST>:8082/logs?token=<token>"` (vers l’**agent** du serveur, pas le backend : `/cs2/logs` attend du JSON déjà parsé)
 - **PostgreSQL `events_*` = vérité absolue**. Redis est éphémère/temps réel.
 - Manager Go crée 1 **agent** par serveur CS2 et les supervise.

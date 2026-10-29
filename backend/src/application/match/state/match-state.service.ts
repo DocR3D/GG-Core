@@ -46,6 +46,14 @@ export class MatchStateService {
     return this.sidesScore.getServerIdFromMatchId(matchId);
   }
 
+  // Match temps réel ↔ MatchMap PostgreSQL
+  setDbMatchMapId(matchId: string, matchMapId: string) {
+    return this.sidesScore.setDbMatchMapId(matchId, matchMapId);
+  }
+  getDbMatchMapId(matchId: string) {
+    return this.sidesScore.getDbMatchMapId(matchId);
+  }
+
   // ───────────────────────────────────────────────────────────────────────────
   // Sides / Score / Phase
   // ───────────────────────────────────────────────────────────────────────────
@@ -167,6 +175,9 @@ export class MatchStateService {
   }
   getScoreWithTeams(matchId: string) {
     return this.teamsRoster.getScoreWithTeams(matchId);
+  }
+  getTeamIds(matchId: string) {
+    return this.teamsRoster.getTeamIds(matchId);
   }
 
   upsertPlayer(matchId: string, p: PlayerInfo, opts?: { preserveLogical?: boolean }) {

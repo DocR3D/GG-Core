@@ -73,8 +73,9 @@ docker/
 ## Déploiement LAN (objectif < 15 min)
 1. `docker compose -f infra/docker-compose.dev.yml up -d`
 2. Configurer `agents.d/srv-a.yaml` avec IP + RCON du serveur CS2
-3. Sur le serveur CS2 : `rcon_password` + `logaddress_add_http http://<manager-ip>:8082/logs`
-4. Créer le match via `POST /api/matches/init`
+3. Sur le serveur CS2 : `rcon_password` + `logaddress_add_http "http://<manager-ip>:8082/logs?token=<logs.token>"`
+4. Appliquer le schéma PostgreSQL : `cd backend && npx prisma db push`
+5. Créer le match via `POST /api/matches/:id/start` (ou `/init`), avec `matchMapId` pour lier l'historique au tournoi
 
 ## Dépendances Go (`agent/go.mod`)
 - `github.com/fsnotify/fsnotify` — file watching (manager)

@@ -38,6 +38,14 @@ export class SidesScoreService {
     }
   }
 
+  async setDbMatchMapId(matchId: string, matchMapId: string) {
+    await this.redis.set(redisConst.dbMatchMap(matchId), matchMapId);
+  }
+
+  async getDbMatchMapId(matchId: string): Promise<string | null> {
+    return (await this.redis.get(redisConst.dbMatchMap(matchId))) ?? null;
+  }
+
   async getMatchIdFromServerId(serverId: string): Promise<string | undefined> {
     const key = this.serverMatchKey(serverId);
     return (await this.redis.get(key)) as string | undefined;

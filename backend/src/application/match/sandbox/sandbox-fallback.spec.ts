@@ -100,8 +100,11 @@ describe('Fallback Parser & Suicide vs Player Kill Handling', () => {
   });
 
   describe('DatabaseEventsHandler — Suicide vs Player Kill distinction', () => {
+    const MAP_UUID = '11111111-1111-4111-8111-111111111111';
+    const HOME_UUID = '22222222-2222-4222-8222-222222222222';
     let handler: DatabaseEventsHandler;
     let mockPersistence: any;
+    let mockState: any;
 
     beforeEach(() => {
       mockPersistence = {
@@ -109,8 +112,15 @@ describe('Fallback Parser & Suicide vs Player Kill Handling', () => {
         resolvePlayer: jest.fn().mockResolvedValue({ id: 'p-uuid-1' }),
         recordPlayerKill: jest.fn().mockResolvedValue(undefined),
         recordRoundResult: jest.fn().mockResolvedValue(undefined),
+        findMatchMap: jest.fn().mockResolvedValue({ id: MAP_UUID, matchId: 'match-uuid', match: { format: 'BO1' } }),
       };
-      handler = new DatabaseEventsHandler(mockPersistence);
+      // Match "m-1" rattaché au MatchMap MAP_UUID, home = CT = HOME_UUID
+      mockState = {
+        getDbMatchMapId: jest.fn().mockResolvedValue(MAP_UUID),
+        sideToLogical: jest.fn().mockResolvedValue('home'),
+        getTeamIds: jest.fn().mockResolvedValue({ home_id: HOME_UUID, away_id: null }),
+      };
+      handler = new DatabaseEventsHandler(mockPersistence, mockState);
     });
 
     it('does NOT award a player kill when kind is suicide (e.g. death by world)', async () => {
@@ -130,10 +140,11 @@ describe('Fallback Parser & Suicide vs Player Kill Handling', () => {
 
       // L'événement est consigné dans l'Event Sourcing historique
       expect(mockPersistence.recordEventLog).toHaveBeenCalledWith(
-        'm-1',
+        MAP_UUID,
         EventTypes.KILL,
         suicideEvent.payload,
         expect.any(Number),
+        expect.objectContaining({ matchId: 'm-1' }),
       );
 
       // Mais il n'incrémente AUCUN frag dans les stats de joueurs
@@ -165,9 +176,9 @@ describe('Fallback Parser & Suicide vs Player Kill Handling', () => {
       });
       expect(mockPersistence.recordPlayerKill).toHaveBeenCalledWith(
         expect.objectContaining({
-          matchMapId: 'm-1',
+          matchMapId: MAP_UUID,
           playerId: 'p-uuid-1',
-          teamId: 'CT',
+          teamId: HOME_UUID,
           isHeadshot: true,
         }),
       );

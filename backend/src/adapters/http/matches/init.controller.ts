@@ -13,6 +13,8 @@ export type InitDto = {
   awayTech?: number;
   teams?: { home_id?: string; away_id?: string; home_name?: string; away_name?: string };
   serverId?: string;
+  /** UUID du MatchMap PostgreSQL joué : rattache l'event sourcing et les stats au modèle relationnel */
+  matchMapId?: string;
   mapName?: string;
   settings?: Partial<MatchSettings>;
 };
@@ -49,6 +51,10 @@ export class MatchInitController {
     if (dto.serverId) {
       await this.matchState.setServerIdToMatchId(dto.serverId, matchId);
       this.logger.debug(`BOUND server "${dto.serverId}" -> match "${matchId}"`);
+    }
+    if (dto.matchMapId) {
+      await this.matchState.setDbMatchMapId(matchId, dto.matchMapId);
+      this.logger.debug(`LINKED match "${matchId}" -> MatchMap "${dto.matchMapId}"`);
     }
     return { ok: true, matchId };
   }

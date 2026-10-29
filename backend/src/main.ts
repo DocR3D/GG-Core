@@ -30,7 +30,10 @@ async function bootstrap() {
     ],
   });
 
-  // app.enableCors({ origin: true, credentials: true });
+  // CORS REST : origines autorisées via CORS_ORIGIN (liste séparée par des virgules), ex. le frontend Next.js
+  const corsOrigins = (process.env.CORS_ORIGIN || 'http://localhost:3000')
+    .split(',').map((o) => o.trim()).filter(Boolean);
+  app.enableCors({ origin: corsOrigins, credentials: true });
   await app.listen(8081);
 }
 bootstrap();

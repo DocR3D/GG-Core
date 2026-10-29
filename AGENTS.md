@@ -58,7 +58,7 @@ Pour toute tâche d'envergure, consulter les fiches techniques dans `docs/` et `
 
 ### Cycle de Vie d'un Match (Phases)
 ```
-warmup_knife ➔ knife_live ➔ knife_choice ➔ warmup_main ➔ live_main ➔ halftime ➔ overtime ➔ postgame
+warmup_knife ➔ knife_live ➔ knife_choice ➔ warmup_main ➔ live_main ➔ half_time ➔ overtime ➔ postgame
 ```
 
 ---
@@ -102,13 +102,20 @@ Avant de considérer une tâche comme achevée, toujours valider la non-régress
 cd backend
 npm run typecheck    # Vérification stricte des types TypeScript (tsc --noEmit)
 npm run build        # Compilation complète NestJS
-npm test             # Exécution des 25 tests unitaires Jest
+npm test             # Suite Jest complète (dont Golden Master sur fixtures réelles)
+
+# Intégration PostgreSQL réelle (base à jour via `npx prisma db push`) — obligatoire si la persistance change
+DB_IT=1 npx jest --config jest.config.ts event-sourcing.db
 
 # Agent Go
 cd agent
 go build ./cmd/agent
 go build ./cmd/manager
+go test ./...
 ```
+
+- **Golden Master** (`fixtures-golden-master.spec.ts`) : ne régénérer `test/fixtures/expected-outcomes.json` (`UPDATE_GOLDEN=1`) qu'après un changement de comportement **voulu**, et relire le diff avant de commiter.
+- Les specs unitaires mockent Prisma : elles ne détectent pas les erreurs de types de colonnes (UUID, FK). D'où le test `event-sourcing.db`.
 
 ---
 

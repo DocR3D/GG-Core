@@ -52,6 +52,11 @@ export class TeamsRosterService {
     }
   }
 
+  async getTeamIds(matchId: string): Promise<{ home_id: string | null; away_id: string | null }> {
+    const doc = await this.readTeamsDoc(matchId);
+    return { home_id: doc.home_id || null, away_id: doc.away_id || null };
+  }
+
   async setTeams(
     matchId: string,
     ids: Partial<TeamsDoc>,

@@ -14,6 +14,10 @@ function getScenarioFixturePath(filename: string): string {
   return path.resolve(repoRoot, 'test', 'fixtures', 'scenarios', filename);
 }
 
+const MAP_UUID = '11111111-1111-4111-8111-111111111111';
+const HOME_UUID = '22222222-2222-4222-8222-222222222222';
+const AWAY_UUID = '33333333-3333-4333-8333-333333333333';
+
 describe('Scenario Replay — Real LAN Matches via DatabaseEventsHandler', () => {
   let handler: DatabaseEventsHandler;
   let persistenceService: TournamentPersistenceService;
@@ -110,10 +114,24 @@ describe('Scenario Replay — Real LAN Matches via DatabaseEventsHandler', () =>
           return Promise.resolve(entry);
         }),
       },
+      matchMap: {
+        findUnique: jest.fn(({ where }) =>
+          Promise.resolve(
+            where.id === MAP_UUID ? { id: MAP_UUID, matchId: 'match-uuid', match: { format: 'BO1' } } : null,
+          ),
+        ),
+      },
+    };
+
+    // Les matchs rejoués sont rattachés à un MatchMap + équipes relationnelles (comme via POST /matches/:id/init)
+    const stateMock: any = {
+      getDbMatchMapId: jest.fn().mockResolvedValue(MAP_UUID),
+      sideToLogical: jest.fn(async (_m: string, side: string) => (side === 'CT' ? 'home' : 'away')),
+      getTeamIds: jest.fn().mockResolvedValue({ home_id: HOME_UUID, away_id: AWAY_UUID }),
     };
 
     persistenceService = new TournamentPersistenceService(prismaMock as PrismaService);
-    handler = new DatabaseEventsHandler(persistenceService);
+    handler = new DatabaseEventsHandler(persistenceService, stateMock);
   });
 
   it('Scenario 01: should accurately process all 221 events of Mirage match from GGLan 19', async () => {

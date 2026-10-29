@@ -21,6 +21,7 @@ type KnifeState = {
 
 export class KnifeRule extends BaseRule implements PhaseRule {
   name = 'knife_live' as const;
+  private readonly logger = new Logger(KnifeRule.name);
 
   publicTypes = new Set<EventType>([
     EventTypes.KILL,
@@ -84,8 +85,8 @@ export class KnifeRule extends BaseRule implements PhaseRule {
     else if (logical === 'away') st.deathsAway.add(key);
   }
 private async onTeamRoundWin(ev: TeamRoundWinEvent, ctx: RuleContext) {
-  // Trace utile pour diagnostiquer
-  await ctx.say(`[knife] onTeamRoundWin payload=${JSON.stringify(ev.payload)}`);
+  // Trace de diagnostic : logs serveur uniquement (ctx.say part dans le chat in-game)
+  this.logger.debug(`[knife] onTeamRoundWin payload=${JSON.stringify(ev.payload)} match=${ev.matchId}`);
 
   const st = this.state.get(ev.matchId);
   const serverId = ctx.serverId ?? (await ctx.state.getServerIdFromMatchId(ev.matchId));

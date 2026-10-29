@@ -94,7 +94,7 @@ export class LiveRule extends BaseRule implements PhaseRule {
 
     await ctx.say('[live] Passage en phase LIVE.');
     await ctx.orch.push(ctx.matchId, 'match:state', await ctx.state.getSnapshot(ctx.matchId));
-    ctx.orch.setPhase(ctx.matchId, MatchPhase.LIVE_MAIN);
+    await ctx.orch.setPhase(ctx.matchId, MatchPhase.LIVE_MAIN);
   }
 
   async onExit(_: RuleContext) {}

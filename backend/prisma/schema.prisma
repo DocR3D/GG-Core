@@ -312,6 +312,10 @@ model PlayerMapStats {
 model EventPrimary {
   id          BigInt    @id @default(autoincrement())
   matchMapId  String?   @map("match_map_id") @db.Uuid
+  // Identifiant de match côté moteur temps réel (clé Redis, ex: "m-7ef15f093f") : toujours renseigné,
+  // même quand le match n'est pas (encore) rattaché à un MatchMap relationnel.
+  matchId     String?   @map("match_id") @db.VarChar(64)
+  serverId    String?   @map("server_id") @db.VarChar(64)
   timestamp   BigInt
   type        String    @db.VarChar(64)
   payload     Json      @db.JsonB
@@ -320,5 +324,6 @@ model EventPrimary {
   matchMap    MatchMap? @relation(fields: [matchMapId], references: [id], onDelete: Cascade)
 
   @@index([matchMapId, timestamp])
+  @@index([matchId, timestamp])
   @@map("events_primary")
 }

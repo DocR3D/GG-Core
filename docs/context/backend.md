@@ -73,6 +73,7 @@ match:{id}:knife_winner_logical — 'home' | 'away'
 match:{id}:knife_choice         — 'pending' | 'stay' | 'switch'
 server:{serverId}:currentMatch  — matchId courant
 match:{id}:server               — serverId courant
+match:{id}:db_match_map         — UUID du MatchMap PostgreSQL lié (optionnel)
 ```
 
 #### Match Orchestration
@@ -129,15 +130,20 @@ Redis ggbot:events
 
 | Endpoint | Rôle |
 |----------|------|
-| `GET /health` | Health check |
-| `POST /cs2/logs` | Reçoit logs CS2 (NDJSON), résout matchId, publie Redis |
+| `GET /api/health` | Health check |
+| `POST /cs2/logs` | Reçoit les événements **JSON déjà parsés par l'agent** (NDJSON / tableau / objet), résout matchId, publie Redis. Une ligne de log CS2 brute → 400 |
 | `GET /api/matches/:id/snapshot` | État complet match |
 | `GET /api/matches/:id/score-with-teams` | Score + équipes |
 | `PATCH /api/matches/:id/teams` | Set noms/IDs équipes |
-| `POST /api/matches/init` | Créer/initialiser un match |
+| `POST /api/matches/:id/init` | Initialise un match (sides, score, timeouts, équipes, settings, liaison `serverId`, liaison `matchMapId` PostgreSQL) |
+| `POST /api/matches/:id/start` | `init` + démarrage serveur (changelevel, warmup.cfg, `tv_record`, phase initiale) |
+| `POST /api/matches/init` | Compat smoke tests CI (`matchId` dans le body) |
 | `GET /api/matches/:id/players` | Joueurs du match |
 | `GET /api/matches/:id/economy` | Économie |
-| `GET/PUT /api/matches/:id/sides` | Sides |
+| `GET/PATCH /api/matches/:id/sides`, `PATCH .../sides/swap` | Sides |
+| `/sandbox`, `/sandbox/*` | Console Sandbox / Round Doctor : `inject`, `simulate/round-win`, `simulate/command`, `rcon`, `restore-ingame`, `replay/raw-log`, `replay/scenario`, `fixtures`, `state/:matchId` |
+
+CORS REST : origines autorisées via `CORS_ORIGIN` (liste séparée par des virgules, défaut `http://localhost:3000`).
 
 #### WebSocket (`adapters/ws/`)
 - `match.gateway.ts` — Socket.IO `/ws`, rooms `match:{id}:public` et `match:{id}:admin`
@@ -151,8 +157,17 @@ Redis ggbot:events
 
 #### Database (`adapters/database/`)
 - `PrismaService` — Client Prisma connecté à PostgreSQL (gestion cycle de vie NestJS `onModuleInit`/`onModuleDestroy`)
-- `DatabaseModule` — Module global exportant `PrismaService`
+- `DatabaseModule` — Module global exportant `PrismaService` et `TournamentPersistenceService`
 - Modèles Prisma : `Tournament`, `Team`, `Player`, `TeamRoster`, `Server`, `Match`, `MatchVeto`, `MatchMap`, `PlayerMapStats`, `EventPrimary`
+
+**Liaison moteur temps réel ↔ modèle relationnel**
+- Les matchs temps réel ont des identifiants libres (`m-7ef15f093f`, `m-sandbox-1`) ; les tables relationnelles utilisent des **UUID**.
+- `POST /api/matches/:id/init` avec `matchMapId` (UUID d'un `MatchMap`) pose `match:{id}:db_match_map`. À défaut, un matchId qui est lui-même l'UUID d'un `MatchMap` est accepté.
+- `DatabaseEventsHandler` (asynchrone, non bloquant) :
+  - écrit **toujours** l'événement dans `events_primary` avec `match_id` / `server_id`, et `match_map_id` seulement si la liaison est résolue (cache 30 s) ;
+  - n'écrit les `PlayerMapStats` que si le `MatchMap` **et** l'UUID d'équipe (`teams.home_id/away_id`, via côté CT/T → home/away) sont connus.
+- Fin de match : progression du bracket uniquement pour un `MatchMap` d'un match **BO1** (ou un matchId = UUID de `Match`) ; les séries BO3/BO5 ne sont pas avancées à la fin d'une map.
+- Test d'intégration sur vraie base : `DB_IT=1 npx jest --config jest.config.ts event-sourcing.db` (les autres specs mockent Prisma).
 
 ---
 

@@ -18,7 +18,7 @@ import { MatchSettings, DEFAULT_MATCH_SETTINGS } from '@domain/match-settings.ty
 import { CS2_CFG } from '@domain/rules/rules.constants';
 import { REDIS_CHANNELS } from './state/redis.keys';
 import { RuleContext } from '@domain/rules';
-import { TournamentPersistenceService } from '@adapters/database/tournament-persistence.service';
+import { TournamentPersistenceService, isUuid } from '@adapters/database/tournament-persistence.service';
 
 type ResumeMeta = { source?: 'expired' | 'admin' | 'chat'; reason?: 'tactical'|'technical'|'admin' };
 
@@ -293,7 +293,7 @@ export class MatchOrchestrator {
   }
 
   async onRoundStart(ev: (RoundStartEvent & { serverId?: string }) | (GenericMatchEvent & { serverId?: string })) {
-    this.phase.setRoundPhase(ev.matchId, RoundPhase.LIVE);
+    await this.phase.setRoundPhase(ev.matchId, RoundPhase.LIVE);
 
     const ctx = this.ctxFactory.make({ matchId: ev.matchId, serverId: ev.serverId });
     const s = await ctx.state.getSnapshot(ctx.matchId);
@@ -316,7 +316,7 @@ export class MatchOrchestrator {
   }
 
   setPhase(matchId: string, phase: Phase) {
-    this.sides.setPhase(matchId, phase);
+    return this.sides.setPhase(matchId, phase);
   }
 
   async getPhase(matchId: string) {
@@ -407,10 +407,17 @@ export class MatchOrchestrator {
       sides: snapshot.sides,
     });
 
-    // 5. Update Database persistence if winner identified
+    // 5. Update Database persistence if winner identified (only for matches linked to the relational model)
     if (winnerId && this.tournamentPersistence) {
       try {
-        await this.tournamentPersistence.advanceBracketMatch(matchId, winnerId);
+        const dbMatchId = isUuid(winnerId)
+          ? await this.tournamentPersistence.resolveBracketMatchId(matchId, await this.state.getDbMatchMapId(matchId))
+          : null;
+        if (dbMatchId) {
+          await this.tournamentPersistence.advanceBracketMatch(dbMatchId, winnerId);
+        } else {
+          this.log.debug(`[endMatch] match ${matchId} not linked to a database Match/Team: bracket progression skipped`);
+        }
       } catch (err: any) {
         this.log.warn(`[endMatch] Database bracket progression skipped: ${err?.message}`);
       }

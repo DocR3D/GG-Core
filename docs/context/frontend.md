@@ -76,13 +76,16 @@
 
 ## API REST à consommer
 ```
-GET  /health
-GET  /api/matches/:id/snapshot
-GET  /api/matches/:id/score-with-teams
-GET  /api/matches/:id/players
-GET  /api/matches/:id/economy
-GET  /api/matches/:id/sides
-PUT  /api/matches/:id/sides
-POST /api/matches/init
+GET   /api/health
+GET   /api/matches/:id/snapshot
+GET   /api/matches/:id/score-with-teams
+GET   /api/matches/:id/players
+GET   /api/matches/:id/economy
+GET   /api/matches/:id/sides
+PATCH /api/matches/:id/sides
+PATCH /api/matches/:id/sides/swap
+POST  /api/matches/:id/init      (body : sides, teams, serverId, matchMapId, settings…)
+POST  /api/matches/:id/start     (init + démarrage serveur)
 PATCH /api/matches/:id/teams
 ```
+CORS : ajouter l'origine du frontend à `CORS_ORIGIN` côté backend (défaut `http://localhost:3000`).

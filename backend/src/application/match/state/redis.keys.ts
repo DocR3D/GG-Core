@@ -11,6 +11,8 @@ export const redisConst = {
   // Liaison serveur ↔ match
   serverMatch: (serverId: string) => `server:${serverId}:currentMatch`,
   matchServer: (matchId: string) => `match:${matchId}:server`,
+  // Liaison match temps réel ↔ MatchMap PostgreSQL (UUID)
+  dbMatchMap: (matchId: string) => `match:${matchId}:db_match_map`,
 
   // Bus d’événements & Canaux Pub/Sub
   events: REDIS_CHANNELS.EVENTS,

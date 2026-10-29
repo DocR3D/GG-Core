@@ -23,6 +23,9 @@ describe('TournamentPersistenceService', () => {
       findUnique: jest.Mock;
       update: jest.Mock;
     };
+    matchMap: {
+      findUnique: jest.Mock;
+    };
     matchVeto: {
       upsert: jest.Mock;
     };
@@ -47,6 +50,9 @@ describe('TournamentPersistenceService', () => {
       match: {
         findUnique: jest.fn(),
         update: jest.fn(),
+      },
+      matchMap: {
+        findUnique: jest.fn(),
       },
       matchVeto: {
         upsert: jest.fn(),
@@ -210,16 +216,32 @@ describe('TournamentPersistenceService', () => {
     it('should write raw event sourcing record to EventPrimary with BigInt timestamp', async () => {
       prisma.eventPrimary.create.mockResolvedValue({ id: BigInt(1001) });
 
+      const mapUuid = '11111111-1111-4111-8111-111111111111';
       const timestamp = 1700000000000;
-      await service.recordEventLog('map-1', 'bomb_planted', { site: 'A' }, timestamp);
+      await service.recordEventLog(mapUuid, 'bomb_planted', { site: 'A' }, timestamp, {
+        matchId: 'm-final',
+        serverId: 'srv-a',
+      });
 
       expect(prisma.eventPrimary.create).toHaveBeenCalledWith({
         data: {
-          matchMapId: 'map-1',
+          matchMapId: mapUuid,
+          matchId: 'm-final',
+          serverId: 'srv-a',
           timestamp: BigInt(timestamp),
           type: 'bomb_planted',
           payload: { site: 'A' },
         },
+      });
+    });
+
+    it('should never send a non-UUID matchMapId to the UUID column (real-time ids like "m-sandbox-1")', async () => {
+      prisma.eventPrimary.create.mockResolvedValue({ id: BigInt(1002) });
+
+      await service.recordEventLog('m-sandbox-1', 'round_start', {}, 1, { matchId: 'm-sandbox-1' });
+
+      expect(prisma.eventPrimary.create).toHaveBeenCalledWith({
+        data: expect.objectContaining({ matchMapId: null, matchId: 'm-sandbox-1' }),
       });
     });
   });
@@ -298,6 +320,33 @@ describe('TournamentPersistenceService', () => {
       expect(leaderboard[1].username).toBe('s1mple');
       expect(leaderboard[1].kills).toBe(30);
       expect(leaderboard[1].kdRatio).toBe(1.5);
+    });
+  });
+
+  describe('resolveBracketMatchId', () => {
+    const MAP_UUID = '11111111-1111-4111-8111-111111111111';
+    const MATCH_UUID = '44444444-4444-4444-8444-444444444444';
+
+    it('returns null without querying the DB for real-time ids that are not UUIDs', async () => {
+      await expect(service.resolveBracketMatchId('m-sandbox-1', null)).resolves.toBeNull();
+      expect(prisma.matchMap.findUnique).not.toHaveBeenCalled();
+      expect(prisma.match.findUnique).not.toHaveBeenCalled();
+    });
+
+    it('returns the parent Match of a linked BO1 map', async () => {
+      prisma.matchMap.findUnique.mockResolvedValue({ id: MAP_UUID, matchId: MATCH_UUID, match: { format: 'BO1' } });
+      await expect(service.resolveBracketMatchId('m-final', MAP_UUID)).resolves.toBe(MATCH_UUID);
+    });
+
+    it('does not advance the bracket at the end of a single map of a BO3 series', async () => {
+      prisma.matchMap.findUnique.mockResolvedValue({ id: MAP_UUID, matchId: MATCH_UUID, match: { format: 'BO3' } });
+      await expect(service.resolveBracketMatchId('m-final', MAP_UUID)).resolves.toBeNull();
+    });
+
+    it('keeps supporting a real-time matchId that is directly a Match UUID', async () => {
+      prisma.matchMap.findUnique.mockResolvedValue(null);
+      prisma.match.findUnique.mockResolvedValue({ id: MATCH_UUID });
+      await expect(service.resolveBracketMatchId(MATCH_UUID, null)).resolves.toBe(MATCH_UUID);
     });
   });
 

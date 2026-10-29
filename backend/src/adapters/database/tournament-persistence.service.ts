@@ -25,6 +25,19 @@ export interface VetoStepInput {
   sidePick?: TeamSide | null;
 }
 
+export interface EventRef {
+  /** Identifiant de match côté moteur temps réel (clé Redis) */
+  matchId?: string | null;
+  serverId?: string | null;
+}
+
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+/** Les colonnes relationnelles (MatchMap, Match, Team…) sont des UUID PostgreSQL. */
+export function isUuid(value: string | null | undefined): value is string {
+  return !!value && UUID_RE.test(value);
+}
+
 @Injectable()
 export class TournamentPersistenceService {
   private readonly logger = new Logger(TournamentPersistenceService.name);
@@ -118,15 +131,49 @@ export class TournamentPersistenceService {
     type: string,
     payload: any,
     timestamp: number = Date.now(),
+    ref: EventRef = {},
   ) {
     return this.prisma.eventPrimary.create({
       data: {
-        matchMapId,
+        matchMapId: isUuid(matchMapId) ? matchMapId : null,
+        matchId: ref.matchId ?? null,
+        serverId: ref.serverId ?? null,
         timestamp: BigInt(timestamp),
         type,
-        payload,
+        payload: payload ?? {},
       },
     });
+  }
+
+  /**
+   * Retourne le MatchMap correspondant à un UUID, ou null (identifiant non-UUID ou inconnu en base).
+   */
+  async findMatchMap(matchMapId: string | null | undefined) {
+    if (!isUuid(matchMapId)) return null;
+    return this.prisma.matchMap.findUnique({
+      where: { id: matchMapId },
+      select: { id: true, matchId: true, match: { select: { format: true } } },
+    });
+  }
+
+  /**
+   * Résout le Match relationnel dont il faut faire avancer le bracket en fin de map :
+   * - map rattachée (MatchMap) d'un match BO1 → ce match ;
+   * - map d'une série BO3/BO5 → null (le vainqueur de la série n'est pas connu à la fin d'une map) ;
+   * - sinon, identifiant temps réel qui est directement l'UUID d'un Match existant.
+   */
+  async resolveBracketMatchId(matchId: string, linkedMatchMapId?: string | null): Promise<string | null> {
+    const matchMap = await this.findMatchMap(linkedMatchMapId ?? matchId);
+    if (matchMap) {
+      if (matchMap.match.format === 'BO1') return matchMap.matchId;
+      this.logger.log(
+        `[resolveBracketMatchId] map ${matchMap.id} belongs to a ${matchMap.match.format} series: bracket progression skipped`,
+      );
+      return null;
+    }
+    if (!isUuid(matchId)) return null;
+    const match = await this.prisma.match.findUnique({ where: { id: matchId }, select: { id: true } });
+    return match?.id ?? null;
   }
 
   /**
