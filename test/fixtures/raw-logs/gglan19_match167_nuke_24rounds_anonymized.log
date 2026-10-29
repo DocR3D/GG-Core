@@ -1204,7 +1204,6 @@ L 10/25/2026 - 11:22:50: Starting Freeze period
 L 10/25/2026 - 11:22:50: MatchStatus: Team playing "CT": Team Alpha
 L 10/25/2026 - 11:22:50: MatchStatus: Team playing "TERRORIST": Team Bravo
 L 10/25/2026 - 11:22:50: MatchStatus: Score: 1:0 on map "de_nuke" RoundsPlayed: 1
-L 10/25/2026 - 11:22:54: "Player_01<0><[U:1:10000001]><CT>" say "!stay "
 L 10/25/2026 - 11:22:54: server_cvar: "mp_roundtime" "5"
 L 10/25/2026 - 11:22:54: server_cvar: "mp_roundtime_defuse" "0"
 L 10/25/2026 - 11:22:54: server_cvar: "mp_roundtime_hostage" "0"

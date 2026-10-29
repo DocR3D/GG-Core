@@ -5965,7 +5965,6 @@ L 10/25/2026 - 10:21:37: MatchStatus: Score: 13:14 on map "de_ancient" RoundsPla
 L 10/25/2026 - 10:21:37: World triggered "Round_End"
 L 10/25/2026 - 10:21:49: "Player_02<4><[U:1:10000002]><TERRORIST>" say "!ready"
 L 10/25/2026 - 10:22:22: "Player_04<8><[U:1:10000004]><CT>" say_team "!ready"
-L 10/25/2026 - 10:22:32: "Player_04<8><[U:1:10000004]><CT>" say "!admin c'est nul"
 L 10/25/2026 - 10:22:42: "Player_01<3><[U:1:10000001]>" switched from team <TERRORIST> to <CT>
 L 10/25/2026 - 10:22:42: "Player_02<4><[U:1:10000002]>" switched from team <TERRORIST> to <CT>
 L 10/25/2026 - 10:22:42: "Player_03<6><[U:1:10000003]>" switched from team <CT> to <TERRORIST>
