@@ -93,6 +93,12 @@ Le cœur moteur de match, l'arbitrage automatisé, le calcul de scores/stats CS2
   - Modificateurs de tirs : Wallbangs (`penetrated`), traversée de smoke (`throughsmoke`), No-scopes (`noscope`), tirs aveuglé (`attackerblind`), tirs en l'air (`attackerinair`).
   - Kills par arme spécifique (couteau, Zeus, HE, molotov).
   - Séries par round : 3K, 4K, 5K (Ace) et premiers frags du round (Entry frags).
+* **Dégâts / ADR (méthode eBot)** : cumuler les lignes `"A" attacked "B" … (damage "N")` par round, en **plafonnant aux PV restants** de la victime (un tir AWP à 447 compte 100) et en excluant les dégâts sur coéquipier. Référence : `processAttacked` dans [eBot-CSGO `Match.php`](https://github.com/deStrO/eBot-CSGO/blob/master/src/eBot/Match/Match.php). Le champ `dmg` de `round_stats` peut servir d'oracle.
+* **Multi-kills, clutchs, first kills (méthode eBot)** : compteurs par round comme eBot (`k1`…`k5` kills dans le round, `v1`…`v5` clutch 1vN gagné, `firstKill` premier frag du round), remis à zéro à chaque round et inclus dans la photo de début de round (rollback backup restore).
+* **Lecture des blocs `round_stats` de CS2** : CS2 logge à chaque fin de round un bloc `JSON_BEGIN{ … "round_stats" … }}JSON_END` (par `accountid` : argent, kills, deaths, assists, dmg, hsp, adr, mvp, 3k/4k/5k, clutchk, firstk, pistolk, sniperk…). Le type `ROUND_STATS` existe mais aucun parser ne le lit (bloc multi-lignes).
+  - Apporterait l'**argent exact par joueur** (aujourd'hui non suivi : les logs n'ont que `purchased` sans prix, ni revente) et toutes les stats ci-dessus « gratuitement », calculées par CS2.
+  - Travail : accumulateur multi-lignes dans les **deux** parsers (Go + `parseCs2LineFallback`), `accountid` → `[U:1:…]`, handler backend (`setPlayerMoney`, dmg/ADR), exposition snapshot/scoreboard (~200 lignes, branche dédiée).
+  - À vérifier : convar qui active ces blocs (présents à la GGLan avec `mp_logdetail 1`) ; le bloc arrive quelques secondes après la fin du round (argent du début de freeze time, pas pendant les achats). Note : eBot ne le lit pas non plus.
 
 ### 11. 📦 Dépôt d'outillage séparé (Log Anonymizer & Demo Parser)
 * **Besoin** : Isoler les scripts locaux d'anonymisation de logs (`scratch/` et `scripts/`) dans un package CLI dédié pour les futurs tournois.
