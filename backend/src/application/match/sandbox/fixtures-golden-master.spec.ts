@@ -130,7 +130,12 @@ function createInMemoryRedis() {
 const fixturesDir = path.resolve(__dirname, '../../../../../test/fixtures');
 const outcomesPath = path.join(fixturesDir, 'expected-outcomes.json');
 
-type FixtureType = 'raw-log' | 'scenario';
+/** go-events: JSONL produced by the Go agent parser ({ line, type, payload } per event). */
+type FixtureType = 'raw-log' | 'scenario' | 'go-events';
+
+/** A fixture id of test/fixtures, or an absolute path (bulk oracle on local logs). */
+const rawLogPath = (fixtureId: string) =>
+  path.isAbsolute(fixtureId) ? fixtureId : path.join(fixturesDir, 'raw-logs', fixtureId);
 
 /** Every fixture on disk (raw CS2 logs + JSON scenarios). */
 function listFixtureFiles(): { id: string; type: FixtureType }[] {
@@ -212,11 +217,19 @@ async function replayFixture(fixtureId: string, type: FixtureType, opts: { until
   // Load events from raw-log or scenario JSON
   let events: any[] = [];
   if (type === 'raw-log') {
-    const lines = fs.readFileSync(path.join(fixturesDir, 'raw-logs', fixtureId), 'utf8').split(/\r?\n/);
+    const lines = fs.readFileSync(rawLogPath(fixtureId), 'utf8').split(/\r?\n/);
     for (const line of lines.slice(0, opts.untilLine ?? lines.length)) {
       const parsed = parseCs2LineFallback(line, matchId, serverId);
       if (parsed) events.push(parsed);
     }
+  } else if (type === 'go-events') {
+    // events parsed by the Go agent, tagged with their 0-based source line
+    events = fs
+      .readFileSync(fixtureId, 'utf8')
+      .split(/\r?\n/)
+      .filter(Boolean)
+      .map((l) => JSON.parse(l))
+      .filter((e) => e.line < (opts.untilLine ?? Infinity));
   } else {
     const parsed = JSON.parse(fs.readFileSync(path.join(fixturesDir, 'scenarios', fixtureId), 'utf8'));
     events = Array.isArray(parsed) ? parsed : parsed.events || [];
@@ -281,7 +294,7 @@ async function replayFixture(fixtureId: string, type: FixtureType, opts: { until
  *   last usable truth is one round before the end. `endLine` lets the replay stop at the same instant.
  */
 function readCs2Truth(fixtureId: string) {
-  const lines = fs.readFileSync(path.join(fixturesDir, 'raw-logs', fixtureId), 'utf8').split(/\r?\n/);
+  const lines = fs.readFileSync(rawLogPath(fixtureId), 'utf8').split(/\r?\n/);
   const body = (l: string) => l.replace(/^.*?L \d{2}\/\d{2}\/\d{4} - [\d:.]+:\s*/, '');
 
   const gameOver = lines.map(body).find((l) => l.startsWith('Game Over:'));
@@ -321,6 +334,21 @@ function readCs2Truth(fixtureId: string) {
     scoreAtBlock: block?.score ?? null,
     players: block?.players ?? {},
   };
+}
+
+/** Per-player deltas GG-Core − CS2 (empty = identical). CS2 empty slots (spectator / coach) are not required. */
+function cs2Deltas(truthPlayers: ReturnType<typeof readCs2Truth>['players'], playersBySteamId: Record<string, any>) {
+  const deltas: Record<string, string> = {};
+  for (const [steamId, cs2] of Object.entries(truthPlayers)) {
+    const p = playersBySteamId[steamId];
+    if (!p) {
+      if (cs2.kills + cs2.deaths + cs2.assists > 0) deltas[steamId] = 'missing on GG-Core scoreboard';
+      continue;
+    }
+    const d = { K: p.kills - cs2.kills, D: p.deaths - cs2.deaths, A: p.assists - cs2.assists };
+    if (d.K || d.D || d.A) deltas[steamId] = `ΔK=${d.K} ΔD=${d.D} ΔA=${d.A} (CS2 ${cs2.kills}/${cs2.deaths}/${cs2.assists})`;
+  }
+  return deltas;
 }
 
 describe('Fixtures Golden Master Suite — End-to-End Match Replays (Raw Logs & JSON Scenarios)', () => {
@@ -450,19 +478,7 @@ describe('CS2 Oracle — GG-Core scoreboard equals CS2 end-of-match round_stats'
   async function expectPlayersMatchCs2(id: string, type: FixtureType) {
     const truth = readCs2Truth(id);
     const { playersBySteamId } = await replayFixture(id, type, { untilLine: truth.endLine });
-
-    const deltas: Record<string, string> = {};
-    for (const [steamId, cs2] of Object.entries(truth.players)) {
-      const p = playersBySteamId[steamId];
-      if (!p) {
-        // CS2 lists empty slots (spectator / coach) too: only players with stats must be on the scoreboard
-        if (cs2.kills + cs2.deaths + cs2.assists > 0) deltas[steamId] = 'missing on GG-Core scoreboard';
-        continue;
-      }
-      const d = { K: p.kills - cs2.kills, D: p.deaths - cs2.deaths, A: p.assists - cs2.assists };
-      if (d.K || d.D || d.A) deltas[steamId] = `ΔK=${d.K} ΔD=${d.D} ΔA=${d.A} (CS2 ${cs2.kills}/${cs2.deaths}/${cs2.assists})`;
-    }
-    expect(deltas).toEqual({});
+    expect(cs2Deltas(truth.players, playersBySteamId)).toEqual({});
   }
 
   const matching = withTruth.filter((f) => !(f.id in KNOWN_ORACLE_GAPS));
@@ -509,7 +525,7 @@ describe('Backup restore — team streaks are rolled back with the restored roun
 
   const fixtures = ['gglan19_match69_nuke_backup_restore_anonymized.log', 'gglan19_match85_inferno_double_restore_anonymized.log'];
 
-  it.each(fixtures)('%s: streaks after each restore equal those at the start of the restored round', async (id) => {
+  it.each(fixtures)('%s: team streaks after each restore equal those at the start of the restored round', async (id) => {
     const restores = findRestores(id);
     expect(restores.length).toBeGreaterThan(0);
 
@@ -521,5 +537,38 @@ describe('Backup restore — team streaks are rolled back with the restored roun
         streaks: atRoundStart.snapshot.streaks,
       });
     }
+  });
+});
+
+/**
+ * Bulk CS2 oracle on LOCAL logs (never committed: real matches). Enabled only with BULK_ORACLE_DIR=<dir> holding
+ * extracted *.log matches (scripts/make-fixture.mjs) and, optionally, <dir>/go/<name>.jsonl = the same logs parsed
+ * by the Go agent parser (`BULK_DUMP_DIR=<dir> go test ./internal/parser -run TestBulkDump`). Each match is checked
+ * through both parsers:
+ *   BULK_ORACLE_DIR=/path/to/bulk npx jest --config jest.config.ts fixtures-golden-master -t "Bulk"
+ */
+const BULK_DIR = process.env.BULK_ORACLE_DIR;
+(BULK_DIR ? describe : describe.skip)('Bulk CS2 oracle (local logs, BULK_ORACLE_DIR)', () => {
+  const dir = BULK_DIR ?? '';
+  const logs = dir ? fs.readdirSync(dir).filter((f) => f.endsWith('.log')).sort() : [];
+  const withGo = dir !== '' && fs.existsSync(path.join(dir, 'go'));
+  const cases = logs.flatMap((log) => [
+    { log, parser: 'fallback' as const },
+    ...(withGo ? [{ log, parser: 'go' as const }] : []),
+  ]);
+
+  it.each(cases)('$log [$parser parser]: score and every player K/D/A match CS2', async ({ log, parser }) => {
+    const logPath = path.join(dir, log);
+    const truth = readCs2Truth(logPath);
+    const source = parser === 'go' ? path.join(dir, 'go', log.replace(/\.log$/, '.jsonl')) : logPath;
+    const type: FixtureType = parser === 'go' ? 'go-events' : 'raw-log';
+
+    const full = await replayFixture(source, type);
+    const atBlock = await replayFixture(source, type, { untilLine: truth.endLine });
+    expect({
+      finalScore: { ct: full.snapshot.score.ct, t: full.snapshot.score.t },
+      scoreAtBlock: { ct: atBlock.snapshot.score.ct, t: atBlock.snapshot.score.t },
+      deltas: cs2Deltas(truth.players, atBlock.playersBySteamId),
+    }).toEqual({ finalScore: truth.finalScore, scoreAtBlock: truth.scoreAtBlock, deltas: {} });
   });
 });

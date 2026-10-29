@@ -75,3 +75,23 @@ cd backend && UPDATE_GOLDEN=1 npx jest --config jest.config.ts fixtures-golden-m
 ```
 
 Règles d'anonymisation (liste blanche) : seules les lignes de log de jeu (`L date - heure:`) de formes connues sont gardées ; **pas** de lignes `rcon from` (rapports de dégâts eBot nominatifs), de bruit moteur (`[SV CommandQueue]`, `[SteamNetSockets]` avec SteamID/IP), d'`ACCOLADE`, ni de chat libre (seules les commandes `!xxx` restent). Joueurs → `Player_NN` / `[U:1:100000NN]` (y compris les `accountid` des `round_stats`), équipes → `Team Alpha` / `Team Bravo`, nom d'hôte JSON → `GG-Core fixture`, adresses → `10.0.0.1`.
+
+## 🧪 6. Oracle CS2 en masse (logs réels locaux, jamais commités)
+
+Pour valider GG-Core sur **tous** les matchs d'une LAN (et pas seulement les fixtures commitées), via les **deux** parsers :
+
+```bash
+# 1. extraire + anonymiser chaque match complet d'un dossier de logs (local)
+node scripts/bulk-extract.mjs "<Logs_Serveurs_CS2>" <bulk_dir> scripts/make-fixture.mjs
+# (le script écarte lui-même les extraits non fiables : match commencé en cours de route (rotation de log) ou plusieurs serveurs
+# entremêlés dans le même fichier (plusieurs Match_Start) — la vérité CS2 ne correspond plus au segment)
+
+# 2. faire parser chaque log par le parser Go de l'agent (un appel TryParse par ligne, comme l'agent)
+cd agent && BULK_DUMP_DIR=<bulk_dir> go test ./internal/parser -run TestBulkDump -count=1
+
+# 3. oracle : score + K/D/A de chaque joueur vs round_stats, parser de secours ET parser Go
+cd backend && BULK_ORACLE_DIR=<bulk_dir> npx jest --config jest.config.ts fixtures-golden-master -t "Bulk"
+```
+
+Résultat GGLan #19 (2026-10-29) : 44 matchs propres × 2 parsers → scores 88/88, K/D/A identiques sur 43/44 ; le seul écart
+est 1 assist que CS2 compte sans qu'aucune ligne `assisted killing` n'apparaisse dans le log. Parser Go = parser de secours sur 44/44.
