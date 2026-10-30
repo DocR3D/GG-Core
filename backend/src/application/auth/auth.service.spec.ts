@@ -94,6 +94,22 @@ describe('règles d’accès', () => {
     expect(res.redirect).toHaveBeenCalledWith(302, '/login?next=%2Fsandbox');
   });
 
+  it('un joueur connecté ouvre une page admin dans un navigateur → page « réservé aux admins » (pas /login : boucle)', () => {
+    process.env = { ...ENV, JWT_SECRET: 'test-secret' };
+    const token = service().sign({ sub: PLAYER, role: 'player', name: 'p', via: 'steam' });
+    const res: any = { redirect: jest.fn(), status: jest.fn(() => res), type: jest.fn(() => res), send: jest.fn(), json: jest.fn() };
+    const next = jest.fn();
+    new AuthMiddleware(service()).use(
+      { method: 'GET', path: '/sandbox', originalUrl: '/sandbox', headers: { cookie: `${SESSION_COOKIE}=${token}` }, accepts: () => true } as any,
+      res,
+      next,
+    );
+    expect(next).not.toHaveBeenCalled();
+    expect(res.redirect).not.toHaveBeenCalled();
+    expect(res.status).toHaveBeenCalledWith(403);
+    expect(res.send.mock.calls[0][0]).toContain('Réservé aux admins');
+  });
+
   it('un joueur connecté n’a pas les droits admin → 403', () => {
     process.env = { ...ENV, JWT_SECRET: 'test-secret' };
     const token = service().sign({ sub: PLAYER, role: 'player', name: 'p', via: 'steam' });

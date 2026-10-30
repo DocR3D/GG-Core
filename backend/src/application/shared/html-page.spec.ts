@@ -15,7 +15,7 @@ describe('htmlPage - barre du site', () => {
       htmlPage({ title: 't', body: '' }),
     );
     const bar = nav(html);
-    expect(bar).toContain('<a href="/login">Zap&lt;3</a>');
+    expect(bar).toContain('<li>Zap&lt;3</li>');
     expect(bar).toContain('<a href="/auth/logout">Se déconnecter</a>');
     expect(bar).not.toContain('>Connexion<');
   });

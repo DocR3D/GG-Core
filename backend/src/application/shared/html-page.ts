@@ -20,12 +20,12 @@ const NAV: Record<PageTheme, [string, string][]> = {
 export function htmlPage(opts: { title: string; body: string; refreshSec?: number; theme?: PageTheme }): string {
   const theme = opts.theme ?? 'public';
   const refresh = opts.refreshSec && opts.refreshSec > 0 ? `<meta http-equiv="refresh" content="${Math.floor(opts.refreshSec)}">` : '';
-  // logged in: who (link to the account page) and a way out, instead of "Connexion"
+  // logged in: who (plain text) and a way out, instead of "Connexion"
   const session = currentSession();
-  const account: [string, string][] = session
-    ? [['/login', escapeHtml(session.name)], ['/auth/logout', 'Se déconnecter']]
-    : [['/login', 'Connexion']];
-  const links = [...NAV[theme], ...account].map(([href, label]) => `<li><a href="${href}">${label}</a></li>`).join('');
+  const account = session
+    ? `<li>${escapeHtml(session.name)}</li><li><a href="/auth/logout">Se déconnecter</a></li>`
+    : '<li><a href="/login">Connexion</a></li>';
+  const links = NAV[theme].map(([href, label]) => `<li><a href="${href}">${label}</a></li>`).join('') + account;
   return `<!doctype html>
 <html lang="fr" data-theme="dark"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">${refresh}
 <title>${escapeHtml(opts.title)}</title>

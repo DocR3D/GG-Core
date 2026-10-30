@@ -7,7 +7,6 @@ import { htmlPage } from '@app/shared/html-page';
 
 const esc = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 /** Only local paths: never redirect to another site after login (open redirect). */
-const ROLE_FR = { admin: 'admin', player: 'joueur', visitor: 'visiteur' } as const;
 const safeNext = (next: unknown) => (typeof next === 'string' && /^\/(?!\/)/.test(next) ? next : '/view');
 const page = (title: string, body: string) => htmlPage({ title, body: `<h1>${esc(title)}</h1>\n${body}` });
 
@@ -19,19 +18,20 @@ const page = (title: string, body: string) => htmlPage({ title, body: `<h1>${esc
 export class AuthController {
   constructor(private readonly auth: AuthService) {}
 
+  /**
+   * Login page - only for someone not logged in: a logged-in visitor goes on to where it was heading (a page it
+   * may not open shows "admin only" instead of sending it back here, see AuthMiddleware). To change account:
+   * log out, then log in again.
+   */
   @Get('login')
   login(@Req() req: Request & { ggSession?: Session | null }, @Query('next') next: string, @Query('error') error: string, @Res() res: Response) {
-    const s = req.ggSession;
     const to = safeNext(next);
-    const who = s
-      ? `<p>Connecté en tant que <b>${esc(s.name)}</b>, ${ROLE_FR[s.role]}${s.via === 'steam' ? ` (SteamID ${esc(s.sub)})` : ''}. <a href="/auth/logout">Se déconnecter</a></p>
-${s.role === 'admin' ? '' : '<p>Ce compte n’a pas les droits d’administration.</p>'}`
-      : '';
+    if (req.ggSession) return res.redirect(302, to);
     const err = error ? `<p><b>${esc(error)}</b></p>` : '';
     res.type('html').send(
       page(
         'Connexion',
-        `${who}${err}
+        `${err}
 <p><a href="/auth/steam?next=${encodeURIComponent(to)}" role="button">Se connecter avec Steam</a></p>
 <details>
 <summary>Connexion admin sans Internet</summary>

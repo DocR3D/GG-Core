@@ -3,6 +3,7 @@ import { Injectable, NestMiddleware } from '@nestjs/common';
 import type { NextFunction, Request, Response } from 'express';
 import { AuthService, Session } from '@app/auth/auth.service';
 import { runWithSession } from '@app/shared/request-session';
+import { escapeHtml, htmlPage } from '@app/shared/html-page';
 
 /**
  * Access rules (V1):
@@ -11,7 +12,8 @@ import { runWithSession } from '@app/shared/request-session';
  * - any logged-in user (captains): the veto actions (POST /veto/:matchId/rps|start|step) - the veto service
  *   checks who is captain of what;
  * - admin only: everything else that changes something (POST / PUT / PATCH / DELETE) and the Sandbox tools.
- * Browsers are sent to /login; API calls get 401 (not logged in) or 403 (logged in, not admin).
+ * Browsers: not logged in → /login; logged in without the right → an "admin only" page (sending them to /login
+ * would loop: /login sends a logged-in visitor back). API calls get 401 (not logged in) or 403 (not admin).
  */
 @Injectable()
 export class AuthMiddleware implements NestMiddleware {
@@ -29,12 +31,26 @@ export class AuthMiddleware implements NestMiddleware {
     if (session && isCaptainAction(req.method, req.path)) return next();
 
     const isPage = (req.method === 'GET' || req.method === 'HEAD') && !!req.accepts('html') && !req.path.startsWith('/api');
-    if (isPage) return res.redirect(302, `/login?next=${encodeURIComponent(req.originalUrl)}`);
+    if (isPage && !session) return res.redirect(302, `/login?next=${encodeURIComponent(req.originalUrl)}`);
+    if (isPage) return res.status(403).type('html').send(adminOnlyPage(session!));
     res.status(session ? 403 : 401).json({
       statusCode: session ? 403 : 401,
       message: session ? 'admin role required' : 'authentication required (Sign in through Steam on /login, or Authorization: Bearer <admin token>)',
     });
   }
+}
+
+const ROLE_FR: Record<string, string> = { admin: 'admin', player: 'joueur', visitor: 'visiteur' };
+
+/** A logged-in visitor without the admin right opened an admin page. */
+function adminOnlyPage(session: Session): string {
+  return htmlPage({
+    title: 'Réservé aux admins',
+    body: `<h1>Réservé aux admins</h1>
+<p>Cette page est réservée aux admins. Tu es connecté en tant que <b>${escapeHtml(session.name)}</b> (${ROLE_FR[session.role] ?? session.role}).</p>
+<p>Pour utiliser un autre compte, <a href="/auth/logout">déconnecte-toi</a> puis reconnecte-toi.</p>
+<p><a href="/view">Voir les tournois</a></p>`,
+  });
 }
 
 export function isPublic(method: string, path: string): boolean {

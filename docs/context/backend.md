@@ -163,7 +163,10 @@ Redis ggbot:events
 
 **Authentification (V1)** - `AuthService` + contrôle d'accès au niveau Express (`main.ts`, toutes les routes) :
 - public : lectures (`GET`/`HEAD`) hors Sandbox, `/login`, `/auth/*`, `/api/health` ; `/cs2/logs` (jeton de logs de l'agent) et `/ws` (garde JWT) ont leur propre authentification ;
-- admin : toute modification (`POST`/`PUT`/`PATCH`/`DELETE`) et le Sandbox - navigateur redirigé vers `/login`, API → 401 (non connecté) / 403 (pas admin) ;
+- admin : toute modification (`POST`/`PUT`/`PATCH`/`DELETE`) et le Sandbox - navigateur non connecté redirigé vers `/login`,
+  connecté sans le droit : page « Réservé aux admins » (403) ; API → 401 (non connecté) / 403 (pas admin) ;
+- `/login` n'est proposé qu'à un visiteur non connecté (connecté : renvoyé vers `next`) ; changer de compte = se
+  déconnecter (barre du site : nom + « Se déconnecter ») ;
 - `GET /login` (page), `GET /auth/steam` → Steam OpenID → `GET /auth/steam/return` (assertion vérifiée auprès de Steam, rôle selon le SteamID : admin si dans `GG_ADMIN_STEAMIDS`, joueur si SteamID connu, sinon visiteur), `POST /auth/local` (mot de passe admin hors ligne `GG_ADMIN_PASSWORD`), `GET /auth/logout`, `GET /auth/me` ;
 - session : JWT signé (`JWT_SECRET`) dans un cookie HttpOnly (24 h) ; scripts / curl : `Authorization: Bearer <GG_ADMIN_TOKEN>`.
 
