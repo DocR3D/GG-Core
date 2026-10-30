@@ -1,10 +1,12 @@
+# Agent config for CS2 server "srv-a". ${VAR:-default} references are expanded from the environment:
+# defaults target a native (127.0.0.1) setup, docker-compose overrides them with service names.
 version: 1
 serverId: srv-a
 
 cs2:
-  addr: 127.0.0.1
-  port: 27015
-  rconPassword: "123456"
+  addr: "${GG_CS2_HOST:-127.0.0.1}"
+  port: ${GG_CS2_PORT:-27015}
+  rconPassword: "${GG_RCON_PASSWORD:-123456}"
   rcon:
     connectTimeoutMs: 2000
     commandTimeoutMs: 2000
@@ -16,8 +18,8 @@ cstv:
 
 logs:
   bind: "0.0.0.0:8082"
-  token: "tonSuperSecret"
-  backendPostUrl: "http://127.0.0.1:8081/cs2/logs"
+  token: "${GG_LOGS_TOKEN:-tonSuperSecret}"
+  backendPostUrl: "${GG_BACKEND_URL:-http://127.0.0.1:8081}/cs2/logs"
   batch:
     maxLines: 100
     maxDelayMs: 75
@@ -29,7 +31,7 @@ logs:
     maxBufferLines: 10000
 
 redis:
-  url: "redis://127.0.0.1:6379"
+  url: "${GG_REDIS_URL:-redis://127.0.0.1:6379}"
   actionsChannel: "ggbot:agent:srv-a:actions"
   stateKey: "ggbot:agent:srv-a:state"
   stateTtlSec: 10

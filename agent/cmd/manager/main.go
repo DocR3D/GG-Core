@@ -31,6 +31,8 @@ import (
 	"syscall"
 	"time"
 
+	"ggbot/internal/config"
+
 	fsnotify "github.com/fsnotify/fsnotify"
 	redis "github.com/redis/go-redis/v9"
 	"gopkg.in/yaml.v3"
@@ -45,6 +47,9 @@ var (
 	flLogLevel   = flag.String("log-level", "info", "Log level: debug|info|warn|error")
 	flBackoffMax = flag.Duration("restart-backoff-max", 30*time.Second, "Max backoff when restarting a crashed agent")
 )
+
+// heartbeatRecheck: how often a heartbeat seen at startup is re-checked (agent heartbeat TTL is ~10 s).
+const heartbeatRecheck = 5 * time.Second
 
 // ---- Config minimal parsing (we only need serverId here)
 
@@ -120,7 +125,7 @@ func loadAgentYAML(path string) (AgentYAML, error) {
 	if err != nil {
 		return a, err
 	}
-	if err := yaml.Unmarshal(b, &a); err != nil {
+	if err := yaml.Unmarshal(config.ExpandEnv(b), &a); err != nil {
 		return a, err
 	}
 	if a.ServerID == "" {
@@ -346,13 +351,56 @@ func (m *Manager) handleFileCreateOrWrite(path string, alive map[string]bool) er
 		return nil
 	}
 
-	// If agent heartbeat says alive → do not start duplicate
+	// If agent heartbeat says alive → do not start duplicate, but keep watching: the heartbeat may be
+	// stale (agent killed < TTL ago, e.g. container/WSL restart) or the external agent may die later.
 	if alive[serverId] {
-		log.Printf("[manager] %s present and heartbeat alive → skip start (external agent assumed)", serverId)
+		log.Printf("[manager] %s present and heartbeat alive → skip start (external agent assumed), watching heartbeat", serverId)
+		go m.startWhenHeartbeatGone(serverId, path, h)
 		return nil
 	}
 
 	return m.startAgent(serverId, path, h)
+}
+
+// startWhenHeartbeatGone polls the agent heartbeat and starts our own agent as soon as it is gone,
+// unless an agent for this serverId has been started meanwhile.
+func (m *Manager) startWhenHeartbeatGone(serverId, path, fileHash string) {
+	ticker := time.NewTicker(heartbeatRecheck)
+	defer ticker.Stop()
+	for {
+		select {
+		case <-m.ctx.Done():
+			return
+		case <-ticker.C:
+		}
+		m.mu.Lock()
+		_, running := m.procs[serverId]
+		currentPath := m.bySrv[serverId]
+		m.mu.Unlock()
+		if running || currentPath != path {
+			return // started by another path, or config file removed/replaced
+		}
+		if m.heartbeatAlive(serverId) {
+			continue
+		}
+		log.Printf("[manager] %s heartbeat gone → starting agent", serverId)
+		if err := m.startAgent(serverId, path, fileHash); err != nil {
+			log.Printf("[manager] start %s after heartbeat loss: %v", serverId, err)
+		}
+		return
+	}
+}
+
+// heartbeatAlive reports whether ggbot:agent:<serverId>:state still has a TTL (agent refreshing it).
+func (m *Manager) heartbeatAlive(serverId string) bool {
+	if m.rdb == nil {
+		return false
+	}
+	ttl, err := m.rdb.TTL(m.ctx, "ggbot:agent:"+serverId+":state").Result()
+	if err != nil {
+		return true // Redis unreachable: stay safe, never start a duplicate agent
+	}
+	return ttl > 0
 }
 
 func (m *Manager) handleFileRemove(path string) {

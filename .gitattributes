@@ -1,0 +1,7 @@
+# Files executed inside Linux containers / WSL must keep LF even on Windows checkouts (core.autocrlf=true)
+Makefile          text eol=lf
+*.sh              text eol=lf
+*.mk              text eol=lf
+agents.d/*.yaml   text eol=lf
+agent/cfg/**      text eol=lf
+infra/**          text eol=lf

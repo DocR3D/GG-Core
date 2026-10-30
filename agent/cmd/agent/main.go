@@ -34,6 +34,7 @@ import (
 	// ...
 	"ggbot/internal/parser"
 
+	"ggbot/internal/config"
 	"ggbot/internal/execfg"
 	myrcon "ggbot/internal/rcon"
 
@@ -169,7 +170,7 @@ func main() {
 		log.Fatalf("read config: %v", err)
 	}
 	var cfg AgentConfig
-	if err := yaml.Unmarshal(b, &cfg); err != nil {
+	if err := yaml.Unmarshal(config.ExpandEnv(b), &cfg); err != nil {
 		log.Fatalf("yaml: %v", err)
 	}
 	if *flServerID != "" {

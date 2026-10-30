@@ -13,13 +13,16 @@
 
 ## Docker Compose
 
-### Dev (`infra/docker-compose.dev.yml`)
-Services :
+### Dev (`infra/docker-compose.dev.yml`) — piloté par le `Makefile` racine
+`make up` (stack), `make up-cs2` (+ CS2 conteneurisé), `make up CS2=local` (CS2 hors Docker), `make test`, `make replay F=…`, `make logs S=…`, `make doctor`, `make reset`. Seul prérequis : Docker + Compose v2 (sous Windows : depuis un terminal WSL).
+
+Services (réseau `ggcore` 172.30.0.0/24) :
 - **redis** — `redis:7-alpine`, port 6379
-- **postgres** — `postgres:16-alpine`, port 5432
-- **backend** — NestJS dev (hot-reload), port 8081, volume `../backend:/app`
-- **manager** — Go manager, volumes `../agents.d:/etc/ggbot/agents.d` + `../agent/cfg:/app/cfg`, expose 8082-8083
-- **log-drain** — consomme Redis streams → fichier
+- **postgres** — `postgres:16-alpine`, port 5432, volume `infra_pgdata`
+- **backend** — NestJS dev (hot-reload), port 8081, volume `../backend:/app` + `../test:/test:ro` (fixtures) ; au démarrage : `prisma generate` + `prisma db push` (`npx --no-install` : aucun téléchargement au runtime). `node_modules` = volume anonyme renouvelé à chaque `make up`.
+- **manager** — Go manager, IP fixe 172.30.0.10, volumes `../agents.d` + `../agent/cfg`, ports 8082-8083. Les YAML `agents.d/*.yaml` acceptent `${VAR:-défaut}` : défauts natifs (127.0.0.1), surchargés par compose (`GG_REDIS_URL`, `GG_BACKEND_URL`, `GG_CS2_HOST`, `GG_RCON_PASSWORD`, `GG_LOGS_TOKEN`).
+- **cs2** *(profil `cs2`)* — `cm2network/cs2` vanilla, ports 27015 tcp/udp + 27020 udp, volume `infra_cs2data` (~73 Go au 1er lancement), `logaddress_add_http` → `http://172.30.0.10:8082/logs`.
+- **log-drain** *(profil `debug`)* — copie le bus Redis dans `infra/logs/`.
 
 ### Monolith (`infra/docker-compose.monolith.yml`)
 - **ggbot-aio** — tout-en-un, ports 3000 (API/WS) + 8081 (/cs2/logs)

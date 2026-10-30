@@ -22,20 +22,33 @@ Prévu : analyse CSTV/GOTV (positions, grenades), replays mini-map.
 ## Démarrage rapide
 
 ### Prérequis
-- Docker + Docker Compose
-- `git`
+- **Docker + Docker Compose v2** — c'est tout (ni Node ni Go à installer : tout tourne en conteneurs).
+- Linux / macOS : `make`. Windows : WSL2 avec Docker dans WSL (ou Docker Desktop), et `make` dans WSL (`sudo apt install make`).
+- Si `docker` exige `sudo` : `sudo usermod -aG docker $USER` puis rouvrir le terminal.
 
-### Installation
+### Lancer le projet
 ```bash
 git clone https://github.com/DocR3D/GG-Core.git
-cd GG-Core/infra
-docker compose -f docker-compose.dev.yml up -d --build
-docker compose -f docker-compose.dev.yml logs -f
+cd GG-Core
+make            # liste des commandes
+make doctor     # vérifie Docker, droits, espace disque
+make up         # Redis + PostgreSQL + backend + agent Go (schéma de base appliqué automatiquement)
+make up-cs2     # idem + serveur CS2 dédié vanilla en conteneur (~73 Go téléchargés au 1er lancement)
+make replay F=gglan19_mirage_13-11_anonymized.log   # rejoue un vrai match dans la Sandbox
+make test       # typecheck + Jest + intégration PostgreSQL + Go
+make down       # arrêt (données conservées)
 ```
+
+Sous Windows : lancer ces commandes depuis un terminal WSL, dans le dépôt (ex. `cd /mnt/d/DEV/GG-Core`).
+- WSL s'arrête quand plus aucun terminal WSL n'est ouvert (et Docker avec lui) : garder un terminal WSL ouvert pendant les tests. Les conteneurs redémarrent seuls à la réouverture.
+- Les données Docker (dont les ~73 Go de CS2) vivent dans le disque virtuel de WSL, **sur C: par défaut**. Si C: est petit, déplacer la distribution avant `make up-cs2` : `wsl --shutdown` puis `wsl --manage Debian --move D:\WSL\Debian`.
+
+**CS2 déjà installé via Steam (pas de téléchargement)** : lancer `scripts/start-cs2-dedicated.bat` côté Windows puis `make up CS2=local` — l'agent se connecte au CS2 de la machine hôte.
 
 - Backend (REST) : http://localhost:8081/api (health : `/api/health`)
 - WebSocket : ws://localhost:8081
 - Console Sandbox (rejeu de logs, injection d'état, RCON) : http://localhost:8081/sandbox
+- Serveur CS2 conteneurisé : `connect localhost:27015` (RCON `123456`)
 
 ### Configuration serveur CS2
 Les logs CS2 sont envoyés à l'**agent Go** du serveur (un port par serveur, `8082` pour `srv-a`), qui les parse puis les transmet au backend.
