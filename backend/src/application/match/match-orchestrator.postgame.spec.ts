@@ -10,7 +10,7 @@ import { DEFAULT_MATCH_SETTINGS } from '@domain/match-settings.types';
 const MATCH_ID = 'm-postgame';
 const SERVER_ID = 'srv-a';
 
-function setup(settings: Partial<typeof DEFAULT_MATCH_SETTINGS> = {}) {
+function setup(settings: Partial<typeof DEFAULT_MATCH_SETTINGS> = {}, persistence?: any) {
   const cmds = {
     rcon: jest.fn().mockResolvedValue({ ok: true }),
     exec: jest.fn().mockResolvedValue({ ok: true }),
@@ -30,7 +30,7 @@ function setup(settings: Partial<typeof DEFAULT_MATCH_SETTINGS> = {}) {
   };
   const ws = { push: jest.fn().mockResolvedValue(undefined) };
   const sides = { setPhase: jest.fn().mockResolvedValue(undefined) };
-  const orch = new MatchOrchestrator(ws as any, {} as any, {} as any, cmds as any, state as any, sides as any, {} as any, {} as any);
+  const orch = new MatchOrchestrator(ws as any, {} as any, {} as any, cmds as any, state as any, sides as any, {} as any, {} as any, persistence);
   const ctx = { serverId: SERVER_ID, say: jest.fn().mockResolvedValue(undefined) } as any;
   return { orch, cmds, state, ctx };
 }
@@ -38,6 +38,25 @@ function setup(settings: Partial<typeof DEFAULT_MATCH_SETTINGS> = {}) {
 const flush = async () => {
   for (let i = 0; i < 5; i++) await Promise.resolve();
 };
+
+describe('MatchOrchestrator.endMatch — résultat du game en base', () => {
+  it('écrit le score home/away (selon les côtés finaux) en automatique / confirmé', async () => {
+    const persistence = {
+      recordGameResult: jest.fn().mockResolvedValue(null),
+      resolveBracketMatchId: jest.fn().mockResolvedValue(null),
+    };
+    const { orch, state, ctx } = setup({ postgameKickDelaySec: 0 }, persistence);
+    state.getDbMatchMapId.mockResolvedValue('map-uuid');
+    // home a fini côté T : CT 7 - T 13 → home 13, away 7
+    state.getSnapshot.mockResolvedValue({ score: { ct: 7, t: 13 }, teams: { home_name: 'A', away_name: 'B' }, sides: { home: 'T', away: 'CT' } });
+
+    await orch.endMatch(MATCH_ID, 'T', ctx);
+
+    expect(persistence.recordGameResult).toHaveBeenCalledWith(expect.objectContaining({
+      matchMapId: 'map-uuid', scoreHome: 13, scoreAway: 7, source: 'AUTOMATIC', status: 'CONFIRMED', reportedBy: 'cs2',
+    }));
+  });
+});
 
 describe('MatchOrchestrator.endMatch — postgame', () => {
   beforeEach(() => jest.useFakeTimers());

@@ -487,7 +487,26 @@ export class MatchOrchestrator {
       sides: snapshot.sides,
     });
 
-    // 5. Update Database persistence if winner identified (only for matches linked to the relational model)
+    // 5a. Game result in the tournament model (only when this map is linked to a MatchMap): automatic, confirmed
+    if (this.tournamentPersistence) {
+      try {
+        const homeSide = snapshot.sides?.home === 'T' ? 't' : 'ct';
+        const awaySide = homeSide === 'ct' ? 't' : 'ct';
+        await this.tournamentPersistence.recordGameResult({
+          matchMapId: await this.state.getDbMatchMapId(matchId),
+          scoreHome: snapshot.score[homeSide] ?? 0,
+          scoreAway: snapshot.score[awaySide] ?? 0,
+          winnerTeamId: winnerId ?? null,
+          source: 'AUTOMATIC',
+          status: 'CONFIRMED',
+          reportedBy: 'cs2',
+        });
+      } catch (err: any) {
+        this.log.warn(`[endMatch] game result not recorded: ${err?.message}`);
+      }
+    }
+
+    // 5b. Update Database persistence if winner identified (only for matches linked to the relational model)
     if (winnerId && this.tournamentPersistence) {
       try {
         const dbMatchId = isUuid(winnerId)

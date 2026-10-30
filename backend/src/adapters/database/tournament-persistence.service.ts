@@ -1,6 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from './prisma.service';
-import { VetoAction, TeamSide } from '@prisma/client';
+import { VetoAction, TeamSide, ResultSource, ResultStatus } from '@prisma/client';
 
 export interface ResolvePlayerInput {
   steamId?: string | null;
@@ -153,6 +153,37 @@ export class TournamentPersistenceService {
     return this.prisma.matchMap.findUnique({
       where: { id: matchMapId },
       select: { id: true, matchId: true, match: { select: { format: true } } },
+    });
+  }
+
+  /**
+   * Enregistre le résultat générique d'un game (MatchMap) : score home/away, vainqueur (null = nul), source,
+   * statut et auteur. Sans effet si le game n'existe pas en base (match non rattaché au modèle relationnel).
+   */
+  async recordGameResult(input: {
+    matchMapId: string | null | undefined;
+    scoreHome: number;
+    scoreAway: number;
+    winnerTeamId: string | null;
+    source: ResultSource;
+    status: ResultStatus;
+    reportedBy: string;
+  }) {
+    const matchMap = await this.findMatchMap(input.matchMapId);
+    if (!matchMap) return null;
+    return this.prisma.matchMap.update({
+      where: { id: matchMap.id },
+      data: {
+        scoreHome: input.scoreHome,
+        scoreAway: input.scoreAway,
+        winnerId: isUuid(input.winnerTeamId) ? input.winnerTeamId : null,
+        status: 'FINISHED',
+        endedAt: new Date(),
+        resultSource: input.source,
+        resultStatus: input.status,
+        reportedBy: input.reportedBy,
+        reportedAt: new Date(),
+      },
     });
   }
 

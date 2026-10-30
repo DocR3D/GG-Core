@@ -58,6 +58,19 @@ enum MatchStatus {
   CANCELLED
 }
 
+/// Où vient le résultat d'un game : moteur de jeu (CS2) ou saisie humaine (admin, plus tard capitaine).
+enum ResultSource {
+  AUTOMATIC
+  MANUAL
+}
+
+/// Cycle de vie d'un résultat : déclaré → confirmé, ou contesté (arbitrage admin).
+enum ResultStatus {
+  REPORTED
+  CONFIRMED
+  DISPUTED
+}
+
 enum MapStatus {
   PENDING
   WARMUP
@@ -91,6 +104,8 @@ model Tournament {
   id          String           @id @default(uuid()) @db.Uuid
   name        String           @db.VarChar(128)
   slug        String           @unique @db.VarChar(64)
+  /// Jeu du tournoi (identifiant libre, ex. "cs2") : le cœur tournoi est agnostique du jeu (docs/architecture-multi-jeux.md)
+  game        String           @default("cs2") @db.VarChar(32)
   status      TournamentStatus @default(UPCOMING)
   settings    Json?            @db.JsonB
   startDate   DateTime?        @map("start_date")
@@ -146,6 +161,7 @@ model TeamRoster {
   playerId     String     @map("player_id") @db.Uuid
   role         RosterRole @default(STARTER)
   createdAt    DateTime   @default(now()) @map("created_at")
+  updatedAt    DateTime   @default(now()) @updatedAt @map("updated_at")
 
   tournament   Tournament @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
   team         Team       @relation(fields: [teamId], references: [id], onDelete: Cascade)
@@ -165,6 +181,8 @@ model TeamRoster {
 model Server {
   id           String       @id @default(uuid()) @db.Uuid
   name         String       @unique @db.VarChar(64)
+  /// Jeu servi par ce serveur (ex. "cs2")
+  game         String       @default("cs2") @db.VarChar(32)
   ip           String       @db.VarChar(64)
   port         Int          @default(27015)
   rconPort     Int?         @map("rcon_port")
@@ -259,6 +277,11 @@ model MatchMap {
   scoreAway   Int            @default(0) @map("score_away")
   status      MapStatus      @default(PENDING)
   winnerId    String?        @map("winner_id") @db.Uuid
+  /// Résultat générique du game : source, statut, auteur (ex. "cs2" pour le moteur, nom de l'admin) et date
+  resultSource ResultSource? @map("result_source")
+  resultStatus ResultStatus? @map("result_status")
+  reportedBy   String?       @map("reported_by") @db.VarChar(64)
+  reportedAt   DateTime?     @map("reported_at")
   demoFile    String?        @map("demo_file") @db.VarChar(255)
   startedAt   DateTime?      @map("started_at")
   endedAt     DateTime?      @map("ended_at")

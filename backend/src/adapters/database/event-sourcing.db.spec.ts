@@ -105,4 +105,19 @@ describeDb('Event sourcing — real PostgreSQL', () => {
     await expect(persistence.resolveBracketMatchId(linkedMatchId, matchMapId)).resolves.toBe(map.matchId);
     await expect(persistence.resolveBracketMatchId(unlinkedMatchId, null)).resolves.toBeNull();
   });
+
+  it('records the generic game result (enums, author, date) on the linked MatchMap; tournament / server default to cs2', async () => {
+    await persistence.recordGameResult({
+      matchMapId, scoreHome: 13, scoreAway: 11, winnerTeamId: homeTeamId,
+      source: 'AUTOMATIC', status: 'CONFIRMED', reportedBy: 'cs2',
+    });
+    const map = await prisma.matchMap.findUniqueOrThrow({ where: { id: matchMapId } });
+    expect(map).toEqual(expect.objectContaining({
+      scoreHome: 13, scoreAway: 11, winnerId: homeTeamId, status: 'FINISHED',
+      resultSource: 'AUTOMATIC', resultStatus: 'CONFIRMED', reportedBy: 'cs2',
+    }));
+    expect(map.reportedAt).toBeInstanceOf(Date);
+    const tournament = await prisma.tournament.findUniqueOrThrow({ where: { id: tournamentId } });
+    expect(tournament.game).toBe('cs2');
+  });
 });

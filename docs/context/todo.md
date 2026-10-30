@@ -103,7 +103,7 @@ Le cœur moteur de match, l'arbitrage automatisé, le calcul de scores/stats CS2
 ### 12. 🧰 Petites suites identifiées
 * **Sandbox** : bouton « Terminer / libérer le serveur » (un replay coupé laisse son match en cours et bloque un replay d'un autre match sur ce serveur — 409).
 * **Restauration de backup** : restaurer aussi l'économie (argent) comme CS2 ; aujourd'hui score, stats et séries seulement.
-* **Fin de map** : mettre à jour `MatchMap.status/scoreHome/scoreAway/winnerId` ; séries BO3/BO5 (aujourd'hui BO1).
+* **Séries BO3/BO5** : faire avancer la série à partir des résultats de games (le résultat de chaque map CS2 est déjà écrit dans `MatchMap`) ; aujourd'hui seul le BO1 fait avancer l'arbre.
 * **Parser de secours** : parser les commandes chat comme le parser Go.
 
 ---

@@ -25,6 +25,7 @@ describe('TournamentPersistenceService', () => {
     };
     matchMap: {
       findUnique: jest.Mock;
+      update: jest.Mock;
     };
     matchVeto: {
       upsert: jest.Mock;
@@ -53,6 +54,7 @@ describe('TournamentPersistenceService', () => {
       },
       matchMap: {
         findUnique: jest.fn(),
+        update: jest.fn(),
       },
       matchVeto: {
         upsert: jest.fn(),
@@ -209,6 +211,45 @@ describe('TournamentPersistenceService', () => {
           },
         }),
       );
+    });
+  });
+
+  describe('recordGameResult', () => {
+    const MAP_UUID = '11111111-1111-4111-8111-111111111111';
+    const TEAM_UUID = '22222222-2222-4222-8222-222222222222';
+
+    it('écrit le résultat générique du game : score, vainqueur, source, statut, auteur', async () => {
+      prisma.matchMap.findUnique.mockResolvedValue({ id: MAP_UUID, matchId: 'x', match: { format: 'BO3' } });
+      await service.recordGameResult({
+        matchMapId: MAP_UUID, scoreHome: 13, scoreAway: 11, winnerTeamId: TEAM_UUID,
+        source: 'AUTOMATIC', status: 'CONFIRMED', reportedBy: 'cs2',
+      });
+      expect(prisma.matchMap.update).toHaveBeenCalledWith({
+        where: { id: MAP_UUID },
+        data: expect.objectContaining({
+          scoreHome: 13, scoreAway: 11, winnerId: TEAM_UUID, status: 'FINISHED',
+          resultSource: 'AUTOMATIC', resultStatus: 'CONFIRMED', reportedBy: 'cs2',
+        }),
+      });
+    });
+
+    it('nul : vainqueur null', async () => {
+      prisma.matchMap.findUnique.mockResolvedValue({ id: MAP_UUID, matchId: 'x', match: { format: 'BO1' } });
+      await service.recordGameResult({
+        matchMapId: MAP_UUID, scoreHome: 15, scoreAway: 15, winnerTeamId: null,
+        source: 'AUTOMATIC', status: 'CONFIRMED', reportedBy: 'cs2',
+      });
+      expect(prisma.matchMap.update).toHaveBeenCalledWith(expect.objectContaining({
+        data: expect.objectContaining({ winnerId: null }),
+      }));
+    });
+
+    it('ne fait rien pour un match non rattaché au modèle relationnel (identifiant temps réel)', async () => {
+      expect(await service.recordGameResult({
+        matchMapId: 'm-sandbox-1', scoreHome: 1, scoreAway: 0, winnerTeamId: null,
+        source: 'AUTOMATIC', status: 'CONFIRMED', reportedBy: 'cs2',
+      })).toBeNull();
+      expect(prisma.matchMap.update).not.toHaveBeenCalled();
     });
   });
 
