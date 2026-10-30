@@ -316,6 +316,61 @@ describe('TournamentPersistenceService', () => {
       })).rejects.toMatchObject({ code });
       expect(prisma.matchMap.upsert).not.toHaveBeenCalled();
     });
+
+    describe('nuls', () => {
+      const draw = { matchId: MATCH, mapOrder: 1, scoreHome: 12, scoreAway: 12, reportedBy: 'admin' };
+
+      it.each([
+        ['bracket du haut', { stageId: 'st', bracketType: 'UPPER' }],
+        ['bracket du bas', { stageId: 'st', bracketType: 'LOWER' }],
+        ['grande finale', { stageId: 'st', bracketType: 'FINAL' }],
+        ['ancien arbre sans phase (relié au match suivant)', { stageId: null, bracketType: 'UPPER', nextMatchId: 'n' }],
+        ['match bonus de classement', { stageId: null, bracketType: 'UPPER', placement: 7 }],
+      ])('refuse un nul saisi pour un match qui doit avoir un vainqueur : %s', async (_l, over) => {
+        prisma.match.findUnique.mockResolvedValue({ ...series('BO1', []), ...over });
+        await expect(service.recordManualGameResult(draw)).rejects.toMatchObject({ code: 'invalid' });
+        expect(prisma.matchMap.upsert).not.toHaveBeenCalled();
+      });
+
+      it.each([
+        ['match de poule', { stageId: 'st', bracketType: 'ROUND_ROBIN' }],
+        ['match bonus « fun » (bracketType UPPER par défaut, hors phase)', { stageId: null, bracketType: 'UPPER', placement: null }],
+      ])('accepte un nul : %s', async (_l, over) => {
+        prisma.match.findUnique.mockResolvedValue({ ...series('BO1', []), ...over });
+        jest.spyOn(service, 'updateSeries').mockResolvedValue({ scoreHome: 0, scoreAway: 0, winnerId: null });
+        await service.recordManualGameResult(draw);
+        expect(prisma.matchMap.upsert).toHaveBeenCalledWith(expect.objectContaining({ create: expect.objectContaining({ winnerId: null }) }));
+      });
+
+      it.each([
+        ['BO1 de poule nul', 'BO1', [game(null)], true],
+        ['BO3 de poule à 1-1 puis un game nul', 'BO3', [game(HOME), game(AWAY), game(null)], true],
+        ['BO3 de poule à 1-0 puis un game nul (il reste un game)', 'BO3', [game(HOME), game(null)], false],
+      ])('série de poule : %s → terminée sur un nul = %s', async (_l, format, maps, finished) => {
+        prisma.match.findUnique.mockResolvedValue({ ...series(format, maps), stageId: 'st', bracketType: 'ROUND_ROBIN', placement: null });
+        await service.updateSeries(MATCH);
+        const data = prisma.match.update.mock.calls[0][0].data;
+        expect(data.status === 'FINISHED' && data.winnerId === null).toBe(finished);
+      });
+
+      it('un game nul ne termine jamais une série d’arbre', async () => {
+        prisma.match.findUnique.mockResolvedValue({ ...series('BO1', [game(null)]), stageId: 'st', bracketType: 'UPPER', placement: null });
+        await service.updateSeries(MATCH);
+        expect(prisma.match.update.mock.calls[0][0].data.status).not.toBe('FINISHED');
+      });
+
+      it('nul arrivé automatiquement sur un match d’arbre : enregistré CONTESTÉ, pas confirmé', async () => {
+        const MAP = '66666666-6666-4666-8666-666666666666';
+        prisma.matchMap.findUnique.mockResolvedValue({
+          id: MAP, matchId: MATCH,
+          match: { format: 'BO1', bracketType: 'LOWER', placement: null, stageId: 'st', nextMatchId: 'n', loserNextMatchId: null },
+        });
+        await service.recordGameResult({
+          matchMapId: MAP, scoreHome: 15, scoreAway: 15, winnerTeamId: null, source: 'AUTOMATIC', status: 'CONFIRMED', reportedBy: 'cs2',
+        });
+        expect(prisma.matchMap.update).toHaveBeenCalledWith(expect.objectContaining({ data: expect.objectContaining({ resultStatus: 'DISPUTED' }) }));
+      });
+    });
   });
 
   describe('recordEventLog', () => {

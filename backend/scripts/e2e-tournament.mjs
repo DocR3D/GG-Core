@@ -116,9 +116,9 @@ async function main() {
   ok(q[0].seeds[0] === rows[0].teamId, 'group winner is Elite seed 1');
 
   console.log('\n6. ASCII view (look for anything odd)\n');
-  const ascii = await fetch(`${API}/api/tournament/tournaments/${t.id}/ascii`).then((r) => r.text());
+  const ascii = await fetch(`${API}/view/tournaments/${t.id}.txt`).then((r) => r.text());
   console.log(ascii);
-  console.log(`View: ${API}/api/tournament/tournaments/${t.id}/view`);
+  console.log(`View: ${API}/view/tournaments/${t.id}`);
 
   console.log(failures ? `\n✗ ${failures} check(s) failed` : '\n✓ all checks passed');
   process.exit(failures ? 1 : 0);

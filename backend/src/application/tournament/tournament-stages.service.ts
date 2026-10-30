@@ -287,14 +287,18 @@ export class TournamentStagesService {
   }
 
   /**
-   * Deletes a tournament (stages, matches, games and their stats cascade) and the teams that no longer take part
-   * in any tournament (no stage entry, match or roster left) — teams created for that tournament only.
+   * Deletes a tournament (stages, matches, games and their stats cascade) and the teams / players that no longer
+   * take part in any tournament — those created for that tournament only.
    */
   async deleteTournament(tournamentId: string) {
     const tournament = await this.mustFind('tournament', () =>
       this.prisma.tournament.findUnique({
         where: { id: tournamentId },
-        include: { stages: { include: { teams: { select: { teamId: true } } } }, matches: { select: { teamHomeId: true, teamAwayId: true } } },
+        include: {
+          stages: { include: { teams: { select: { teamId: true } } } },
+          matches: { select: { teamHomeId: true, teamAwayId: true } },
+          rosters: { select: { playerId: true } },
+        },
       }),
     );
     const teamIds = [
@@ -316,7 +320,15 @@ export class TournamentStagesService {
         select: { id: true },
       });
       await tx.team.deleteMany({ where: { id: { in: orphans.map((t) => t.id) } } });
-      return { deleted: tournament.name, teamsDeleted: orphans.length };
+      // players of this tournament only (e.g. fake players of a simulation): no roster nor stats left
+      const players = await tx.player.deleteMany({
+        where: {
+          id: { in: tournament.rosters.map((r) => r.playerId) },
+          rosters: { none: {} },
+          mapStats: { none: {} },
+        },
+      });
+      return { deleted: tournament.name, teamsDeleted: orphans.length, playersDeleted: players.count };
     });
   }
 
@@ -452,6 +464,7 @@ export class TournamentStagesService {
         status: g.status,
         source: g.resultSource,
         server: g.server?.name ?? null,
+        resultStatus: g.resultStatus,
       })),
     });
 

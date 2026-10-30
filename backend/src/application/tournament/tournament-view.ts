@@ -10,6 +10,8 @@ export interface ViewGame {
   status: string; // MapStatus
   source: string | null; // AUTOMATIC | MANUAL
   server: string | null;
+  /** REPORTED | CONFIRMED | DISPUTED */
+  resultStatus?: string | null;
 }
 
 export interface ViewMatch {
@@ -87,7 +89,8 @@ function renderMatchLine(m: ViewMatch, nameWidth: number, prefix: string): strin
   for (const g of m.games) {
     const gScore = g.status === 'FINISHED' || g.status === 'LIVE' ? `${g.scoreHome}-${g.scoreAway}` : '';
     const src = g.source === 'AUTOMATIC' ? 'auto' : g.source === 'MANUAL' ? 'saisie admin' : '';
-    const parts = [`game ${g.order}`, g.mapName, gScore, g.status === 'LIVE' ? 'EN COURS' : '', src, g.server ? `serveur ${g.server}` : '']
+    const parts = [`game ${g.order}`, g.mapName, gScore, g.status === 'LIVE' ? 'EN COURS' : '', src, g.server ? `serveur ${g.server}` : '',
+      g.resultStatus === 'DISPUTED' ? '⚠ contesté (à arbitrer)' : '']
       .filter(Boolean);
     lines.push(`${' '.repeat(prefix.length + 4)}${parts.join('  ·  ')}`);
   }
@@ -220,8 +223,10 @@ function buildTournamentLines(t: TournamentView): { lines: string[]; links: Line
 }
 
 /** Minimal HTML page: no CSS, no script, just the text. */
-export function asciiPage(title: string, body: string, bodyIsHtml = false): string {
-  return `<!doctype html>\n<html lang="fr"><head><meta charset="utf-8"><title>${escapeHtml(title)}</title></head>\n<body><pre>${bodyIsHtml ? body : escapeHtml(body)}</pre></body></html>\n`;
+export function asciiPage(title: string, body: string, bodyIsHtml = false, refreshSec?: number): string {
+  // optional auto refresh (e.g. to follow a simulated tournament): still no script
+  const refresh = refreshSec && refreshSec > 0 ? `<meta http-equiv="refresh" content="${Math.floor(refreshSec)}">` : '';
+  return `<!doctype html>\n<html lang="fr"><head><meta charset="utf-8">${refresh}<title>${escapeHtml(title)}</title></head>\n<body><pre>${bodyIsHtml ? body : escapeHtml(body)}</pre></body></html>\n`;
 }
 
 /**

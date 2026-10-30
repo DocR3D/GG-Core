@@ -27,6 +27,9 @@ async function bootstrap() {
       { path: 'cs2/logs/(.*)', method: RequestMethod.ALL },
       { path: 'sandbox', method: RequestMethod.ALL },
       { path: 'sandbox/(.*)', method: RequestMethod.ALL },
+      // human pages (plain-text views), /api stays the JSON API
+      { path: 'view', method: RequestMethod.ALL },
+      { path: 'view/(.*)', method: RequestMethod.ALL },
     ],
   });
 

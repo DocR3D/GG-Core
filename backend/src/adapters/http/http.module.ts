@@ -17,8 +17,11 @@ import { Cs2LogsController } from './cs2-logs/cs2-logs.controller';
 import { Cs2LogsModule } from './cs2-logs/cs2-logs.module';
 import { HealthController } from './health/health.controller';
 import { SandboxController } from './sandbox/sandbox.controller';
+import { SandboxTournamentController } from './sandbox/sandbox-tournament.controller';
+import { TournamentSimulationService } from '@app/tournament/simulation/tournament-simulation.service';
 import { TournamentMatchesController } from './tournament/tournament-matches.controller';
 import { TournamentController } from './tournament/tournament.controller';
+import { ViewController } from './view/view.controller';
 import { TournamentStagesService } from '@app/tournament/tournament-stages.service';
 import { TournamentLaunchService } from '@app/tournament/tournament-launch.service';
 
@@ -39,9 +42,11 @@ import { TournamentLaunchService } from '@app/tournament/tournament-launch.servi
     Cs2LogsController,
     HealthController,
     SandboxController,
+    SandboxTournamentController,
     TournamentMatchesController,
     TournamentController,
+    ViewController,
   ],
-  providers: [TournamentStagesService, TournamentLaunchService],
+  providers: [TournamentStagesService, TournamentLaunchService, TournamentSimulationService],
 })
 export class HttpModule {}

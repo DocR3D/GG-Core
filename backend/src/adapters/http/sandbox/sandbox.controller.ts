@@ -302,6 +302,7 @@ export class SandboxController {
   <div class="header">
     <div class="title-group">
       <h1>GG-Core Match Sandbox & Round Doctor <span class="badge">LAN-First</span></h1>
+      <a href="/sandbox/tournament">Tournois simulés →</a>
     </div>
     <div class="status-pill">
       <span class="dot"></span>

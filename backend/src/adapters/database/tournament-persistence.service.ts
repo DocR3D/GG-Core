@@ -37,6 +37,23 @@ const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/
 /** Wins needed to take a series, per format. */
 const WINS_NEEDED: Record<'BO1' | 'BO3' | 'BO5', number> = { BO1: 1, BO3: 2, BO5: 3 };
 
+/**
+ * Elimination (bracket) matches and placement matches need a winner: no draw. Group matches and "fun"
+ * bonus matches may end on a draw.
+ */
+function needsWinner(match: {
+  bracketType: string;
+  placement: number | null;
+  stageId: string | null;
+  nextMatchId: string | null;
+  loserNextMatchId: string | null;
+}): boolean {
+  if (match.placement != null) return true;
+  // bracketType defaults to UPPER on every match: a bracket match is one of a stage, or one that feeds another
+  const inBracket = !!(match.stageId || match.nextMatchId || match.loserNextMatchId);
+  return inBracket && ['UPPER', 'LOWER', 'FINAL'].includes(match.bracketType);
+}
+
 /** Column of the next match receiving a team: the wired slot, or the first free one (legacy brackets). */
 function slotField(slot: 'HOME' | 'AWAY' | null, homeTaken: string | null): 'teamHomeId' | 'teamAwayId' {
   if (slot) return slot === 'HOME' ? 'teamHomeId' : 'teamAwayId';
@@ -168,7 +185,11 @@ export class TournamentPersistenceService {
     if (!isUuid(matchMapId)) return null;
     return this.prisma.matchMap.findUnique({
       where: { id: matchMapId },
-      select: { id: true, matchId: true, match: { select: { format: true } } },
+      select: {
+        id: true,
+        matchId: true,
+        match: { select: { format: true, bracketType: true, placement: true, stageId: true, nextMatchId: true, loserNextMatchId: true } },
+      },
     });
   }
 
@@ -187,6 +208,12 @@ export class TournamentPersistenceService {
   }) {
     const matchMap = await this.findMatchMap(input.matchMapId);
     if (!matchMap) return null;
+    // A match that needs a winner cannot end on a draw: an automatic draw (e.g. overtime disabled on the server)
+    // is recorded DISPUTED — it does not advance the bracket and the admin sees it — instead of blocking silently.
+    const disputedDraw = !isUuid(input.winnerTeamId) && needsWinner(matchMap.match);
+    if (disputedDraw) {
+      this.logger.warn(`[recordGameResult] draw ${input.scoreHome}-${input.scoreAway} on game ${matchMap.id} of a match that needs a winner: DISPUTED`);
+    }
     return this.prisma.matchMap.update({
       where: { id: matchMap.id },
       data: {
@@ -196,7 +223,7 @@ export class TournamentPersistenceService {
         status: 'FINISHED',
         endedAt: new Date(),
         resultSource: input.source,
-        resultStatus: input.status,
+        resultStatus: disputedDraw ? 'DISPUTED' : input.status,
         reportedBy: input.reportedBy,
         reportedAt: new Date(),
       },
@@ -363,7 +390,8 @@ export class TournamentPersistenceService {
   }
 
   /**
-   * Recompute a series (Match) from its CONFIRMED games (+ starting advantage): series score, then — once a team reached the wins
+   * Recompute a series (Match) from its CONFIRMED games (+ starting advantage): series score, a draw when every
+   * game was played without a winner (where draws are allowed), then — once a team reached the wins
    * needed by the format (BO1: 1, BO3: 2, BO5: 3) — finish it and advance the bracket. Same path for every
    * game, automatic (CS2) or manual (admin). A finished series is never re-advanced.
    */
@@ -379,9 +407,22 @@ export class TournamentPersistenceService {
     const winnerId =
       scoreHome >= needed ? match.teamHomeId : scoreAway >= needed ? match.teamAwayId : null;
 
+    // Every game of the series played without a winner (e.g. a BO1 group match ending 12-12): the series is a
+    // draw — only where a draw is allowed; a bracket / placement match never ends on a draw.
+    const gamesPlayed = match.maps.filter((m) => m.resultStatus === 'CONFIRMED').length;
+    const isDraw = !winnerId && gamesPlayed >= needed * 2 - 1 && !needsWinner(match);
+
     await this.prisma.match.update({
       where: { id: matchId },
-      data: { scoreHome, scoreAway, ...(match.status === 'PENDING' ? { status: 'LIVE' as const } : {}) },
+      data: {
+        scoreHome,
+        scoreAway,
+        ...(isDraw && match.status !== 'FINISHED'
+          ? { status: 'FINISHED' as const, winnerId: null }
+          : match.status === 'PENDING'
+            ? { status: 'LIVE' as const }
+            : {}),
+      },
     });
     if (winnerId && match.status !== 'FINISHED') {
       await this.advanceBracketMatch(matchId, winnerId);
@@ -417,6 +458,9 @@ export class TournamentPersistenceService {
 
     const winnerId =
       input.scoreHome > input.scoreAway ? match.teamHomeId : input.scoreAway > input.scoreHome ? match.teamAwayId : null;
+    if (!winnerId && needsWinner(match)) {
+      throw new ManualResultError('invalid', 'a bracket or placement match must have a winner: no draw');
+    }
     const result = {
       scoreHome: input.scoreHome,
       scoreAway: input.scoreAway,

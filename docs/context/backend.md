@@ -151,7 +151,8 @@ Redis ggbot:events
 | `GET /api/tournament/servers` · `POST /api/tournament/servers` | Serveurs de jeu avec disponibilité (`free` / `busy` + match en cours / `disabled`) · enregistrer un serveur (`{ name: id de l'agent, ip, port?, game? }`) |
 | `POST /api/tournament/servers/:id/disable` \| `enable` \| `release` | Désactiver un PC mort (jamais choisi) / le remettre en service / **libérer** un serveur bloqué sur un match qui ne finira jamais |
 | `POST /api/tournament/matches/:id/games/:order/launch` | Lancer le game n° `order` d'une série sur un serveur choisi : `{ server, mapName, settings? }`. Le moteur temps réel utilise l'UUID du game comme matchId : le résultat remonte seul (game → série → arbre). Relancer sur un autre serveur après un crash = même appel. 409 si serveur désactivé / occupé / jeu différent |
-| `GET /api/tournament/view` · `GET /api/tournament/tournaments/:id/view` | Pages **sans CSS ni JS** (un `<pre>`) : liste des tournois · vue ASCII d'un tournoi (poules, classements, arbres en colonnes, matchs, games, serveurs, qualifiés, matchs bonus) ; chaque libellé de match est un lien vers `GET /api/tournament/matches/:id/view` (détail : série, games avec auteur / serveur, stats joueurs, provenance et suite dans l'arbre, cliquables). `…/ascii` = texte brut, `…/overview` = JSON |
+| `/sandbox/tournament` | **Tournois simulés** (outil de dev, page HTML sans CSS ni JS) : un scénario JSON de `test/fixtures/tournaments` joué en accéléré — équipes, joueurs et stats CS2 factices, résultats déterministes, games « en cours » pendant `delayMs`, N séries en parallèle, pause / reprendre / game suivant / arrêter. API : `GET scenarios`, `GET\|POST runs`, `GET runs/:id`, `POST runs/:id/(pause\|resume\|step\|stop)`. Relancer un scénario remplace son tournoi. Suivi en direct : `/view/tournaments/:id?refresh=N` |
+| `GET /api/tournament/tournaments/:id/overview` | Données JSON des pages `/view` (phases, poules, classements, arbres, matchs, games, serveurs, classement final) |
 | `GET /api/matches/:id/review` | Résultat gelé (désaccord `Game Over` serveur / GG-Core) ou `null` |
 | `POST /api/matches/:id/review/accept-server` \| `.../review/dismiss` | Décision admin : prendre le score du serveur et terminer le match (un nul reste un nul), ou lever le gel |
 | `POST /api/matches/init` | Compat smoke tests CI (`matchId` dans le body) |
@@ -159,6 +160,12 @@ Redis ggbot:events
 | `GET /api/matches/:id/economy` | Économie |
 | `GET/PATCH /api/matches/:id/sides`, `PATCH .../sides/swap` | Sides |
 | `/sandbox`, `/sandbox/*` | Console Sandbox / Round Doctor : `inject`, `simulate/round-win`, `simulate/command`, `rcon`, `restore-ingame`, `replay/raw-log`, `replay/scenario`, `replay/rounds/start`, `replay/rounds/step`, `replay/rounds/:matchId`, `fixtures`, `state/:matchId`. Un replay pilote aussi le vrai serveur (voulu : reproduire un bug) ; il est refusé (409) si le serveur fait tourner **un autre** match non terminé |
+
+**Pages humaines (hors `/api`, réservé à l'API JSON)** — `<pre>` sans CSS ni JS :
+- `GET /view` : liste des tournois ;
+- `GET /view/tournaments/:id` : vue ASCII d'un tournoi (poules, classements, arbres en colonnes avec la progression, matchs, games, serveurs, qualifiés, matchs bonus, classement final) ; chaque libellé de match est un lien ; `?refresh=N` recharge toutes les N s ; `GET /view/tournaments/:id.txt` = même texte brut (pour `curl`) ;
+- `GET /view/matches/:id` : détail d'un match (série, games avec auteur / serveur, stats joueurs, provenance et suite dans l'arbre, cliquables) ;
+- `GET /sandbox`, `GET /sandbox/tournament` : outils de dev (Sandbox de match, tournois simulés).
 
 CORS REST : origines autorisées via `CORS_ORIGIN` (liste séparée par des virgules, défaut `http://localhost:3000`).
 

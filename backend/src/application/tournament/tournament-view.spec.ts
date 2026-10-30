@@ -80,8 +80,8 @@ describe('renderBracketTree', () => {
 
 describe('pages HTML avec liens', () => {
   it('vue du tournoi : chaque libellé de match est un lien vers sa page de détail, le texte reste identique', () => {
-    const html = renderTournamentHtml(view, (id) => `../../matches/${id}/view`);
-    expect(html).toContain('<a href="../../matches/m/view">R1</a>');
+    const html = renderTournamentHtml(view, (id) => `/view/matches/${id}`);
+    expect(html).toContain('<a href="/view/matches/m">R1</a>');
     expect(html.replace(/<[^>]+>/g, '').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&amp;/g, '&'))
       .toBe(renderTournamentAscii(view));
   });
@@ -99,10 +99,10 @@ describe('pages HTML avec liens', () => {
         stats: [{ team: 'Alpha', player: 'Player_01', kills: 20, deaths: 12, assists: 4, headshots: 9, adr: 88.4 }],
       }],
     };
-    const html = renderMatchDetailHtml(detail, '../../tournaments/t/view', (id) => `../${id}/view`);
-    expect(html).toContain('<a href="../../tournaments/t/view">← GGLan IT</a>');
-    expect(html).toContain('<a href="../a/view">H T1#1</a>');
-    expect(html).toContain('<a href="../b/view">B T2#4</a> (extérieur)');
+    const html = renderMatchDetailHtml(detail, '/view/tournaments/t', (id) => `/view/matches/${id}`);
+    expect(html).toContain('<a href="/view/tournaments/t">← GGLan IT</a>');
+    expect(html).toContain('<a href="/view/matches/a">H T1#1</a>');
+    expect(html).toContain('<a href="/view/matches/b">B T2#4</a> (extérieur)');
     expect(html).toContain('auto (cs2)');
     expect(html).toContain('serveur srv-a');
     expect(html).toMatch(/Player_01\s+20\s+12\s+4\s+9\s+88\.4/);

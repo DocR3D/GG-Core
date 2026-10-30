@@ -1,5 +1,5 @@
 // src/adapters/http/tournament/tournament.controller.ts
-import { BadRequestException, Body, ConflictException, Controller, Delete, Get, Header, NotFoundException, Param, ParseIntPipe, Post } from '@nestjs/common';
+import { BadRequestException, Body, ConflictException, Controller, Delete, Get, NotFoundException, Param, ParseIntPipe, Post } from '@nestjs/common';
 import { MatchFormat, StageType } from '@prisma/client';
 import {
   DoubleElimFormats,
@@ -8,7 +8,6 @@ import {
   TournamentStagesService,
 } from '@app/tournament/tournament-stages.service';
 import { TournamentLaunchService } from '@app/tournament/tournament-launch.service';
-import { asciiPage, renderMatchDetailHtml, renderTournamentAscii, renderTournamentHtml } from '@app/tournament/tournament-view';
 import { MatchSettings } from '@domain/match-settings.types';
 
 /**
@@ -22,48 +21,10 @@ export class TournamentController {
     private readonly launch: TournamentLaunchService,
   ) {}
 
-  // --- Plain-text views (no frontend yet): a bare <pre>, F5 to refresh -------------------------------
-
-  /** List of tournaments with a link to their view. */
-  @Get('view')
-  @Header('Content-Type', 'text/html; charset=utf-8')
-  async viewList() {
-    const list = await this.stages.listTournaments();
-    const esc = (v: string) => v.replace(/&/g, '&amp;').replace(/</g, '&lt;');
-    const items = list.map((t) => `<li><a href="tournaments/${t.id}/view">${esc(t.name)}</a> (${esc(t.game)}, ${t.status})</li>`);
-    return `<!doctype html>
-<html lang="fr"><head><meta charset="utf-8"><title>Tournois</title></head>
-<body><ul>${items.join('')}</ul></body></html>
-`;
-  }
-
-  @Get('tournaments/:id/view')
-  @Header('Content-Type', 'text/html; charset=utf-8')
-  async view(@Param('id') tournamentId: string) {
-    const overview = await this.run(() => this.stages.getOverview(tournamentId));
-    // every match label links to its detail page (relative: works behind any host / prefix)
-    return asciiPage(overview.name, renderTournamentHtml(overview, (id) => `../../matches/${id}/view`), true);
-  }
-
-  /** Detail of a match: series, games, player stats, where its teams come from and where they go (links). */
-  @Get('matches/:id/view')
-  @Header('Content-Type', 'text/html; charset=utf-8')
-  async matchView(@Param('id') matchId: string) {
-    const detail = await this.run(() => this.stages.getMatchDetail(matchId));
-    return renderMatchDetailHtml(detail, `../../tournaments/${detail.tournament.id}/view`, (id) => `../${id}/view`);
-  }
-
-  /** The data behind the views, as JSON. */
+  /** The data behind the /view pages, as JSON. */
   @Get('tournaments/:id/overview')
   overview(@Param('id') tournamentId: string) {
     return this.run(() => this.stages.getOverview(tournamentId));
-  }
-
-  /** Same view as plain text (e.g. `curl …/ascii` in a terminal). */
-  @Get('tournaments/:id/ascii')
-  @Header('Content-Type', 'text/plain; charset=utf-8')
-  async ascii(@Param('id') tournamentId: string) {
-    return renderTournamentAscii(await this.run(() => this.stages.getOverview(tournamentId)));
   }
 
   // --- Servers ------------------------------------------------------------------------------------------

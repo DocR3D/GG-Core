@@ -133,6 +133,31 @@ describeDb('Group stage — real PostgreSQL', () => {
     await expect(stages.generateDoubleElimination(stage.id)).rejects.toMatchObject({ code: 'conflict' });
   });
 
+  it('draws: allowed in groups (1 point each), refused in a bracket', async () => {
+    const t = await stages.createTournament({ name: `IT draws ${Date.now()}` });
+    const teams = await stages.createTeams(['IT D1', 'IT D2', 'IT D3']);
+    const groups = await stages.createStage(t.id, { name: 'P', type: 'ROUND_ROBIN', order: 1 });
+    const bracket = await stages.createStage(t.id, { name: 'A', type: 'DOUBLE_ELIM', order: 2 });
+    try {
+      await stages.generateGroups(groups.id, { teamIds: teams.map((x) => x.id), groupCount: 1 });
+      const groupMatch = await prisma.match.findFirstOrThrow({ where: { stageId: groups.id } });
+      await persistence.recordManualGameResult({ matchId: groupMatch.id, mapOrder: 1, scoreHome: 12, scoreAway: 12, reportedBy: 'admin-it' });
+      const st = await stages.getStandings(groups.id);
+      const drawn = st.groups[0].standings.filter((r) => r.draws === 1);
+      expect(drawn.map((r) => r.points)).toEqual([1, 1]);
+
+      await stages.generateDoubleElimination(bracket.id, { teamIds: teams.map((x) => x.id) });
+      const ready = await prisma.match.findFirstOrThrow({
+        where: { stageId: bracket.id, teamHomeId: { not: null }, teamAwayId: { not: null } },
+      });
+      await expect(
+        persistence.recordManualGameResult({ matchId: ready.id, mapOrder: 1, scoreHome: 12, scoreAway: 12, reportedBy: 'admin-it' }),
+      ).rejects.toMatchObject({ code: 'invalid' });
+    } finally {
+      await stages.deleteTournament(t.id);
+    }
+  });
+
   it('deleting a tournament removes its stages / matches and the teams that play nowhere else', async () => {
     const other = await stages.createTournament({ name: `IT other ${Date.now()}` });
     const doomed = await stages.createTournament({ name: `IT doomed ${Date.now()}` });
@@ -143,7 +168,7 @@ describeDb('Group stage — real PostgreSQL', () => {
     await stages.generateGroups(s2.id, { teamIds: [shared.id, own1.id, own2.id], groupCount: 1 });
 
     const res = await stages.deleteTournament(doomed.id);
-    expect(res).toEqual({ deleted: doomed.name, teamsDeleted: 2 });
+    expect(res).toEqual({ deleted: doomed.name, teamsDeleted: 2, playersDeleted: 0 });
     expect(await prisma.team.count({ where: { id: { in: [own1.id, own2.id] } } })).toBe(0);
     expect(await prisma.team.findUnique({ where: { id: shared.id } })).not.toBeNull(); // still in the other tournament
     expect(await prisma.match.count({ where: { tournamentId: doomed.id } })).toBe(0);

@@ -98,7 +98,8 @@ est 1 assist que CS2 compte sans qu'aucune ligne `assisted killing` n'apparaisse
 
 ## Tournois fictifs (`tournaments/`)
 
-Scénarios de tournoi joués par l'API (`make tournament F=fake-gglan-32.json`) : équipes, phases, qualification et règle de
+Scénarios de tournoi joués par la simulation du Sandbox — page `/sandbox/tournament` (en accéléré, pause, pas à pas) ou
+`make tournament F=fake-gglan-32.json` (instantané) : équipes, phases, qualification et règle de
 résultats **déterministe** (le meilleur seed gagne, avec des surprises tirées d'un générateur à graine fixe : même fichier =
 même tournoi). Données inventées, aucune donnée réelle. Joué jusqu'au vainqueur : poules, qualification, puis arbres en
 double élimination (formats par phase optionnels : `"formats": { "upper", "lower", "grandFinal" }`).
