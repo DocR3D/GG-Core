@@ -51,6 +51,7 @@ Le cœur moteur de match, l'arbitrage automatisé, le calcul de scores/stats CS2
     - Vérification à l'événement `player_connected` ou `player_connect`.
     - Si le joueur n'appartient à aucune des deux équipes inscrites, émission d'une commande RCON pour le kicker (`kickid <userid> "Vous n'êtes pas inscrit sur ce match"`).
     - Option désactivable pour les matchs d'entraînement / tests.
+    - Accepter **tout le roster** de l'équipe (titulaires **et remplaçants**), pas seulement les titulaires : les remplaçants jouent notamment les matchs bonus.
 
 ### 5. 🌐 Orchestration Dynamique de la Flotte de Serveurs (Multi-serveurs)
 * **Origine** : Objectif de superviser jusqu'à 32 (ou 64) serveurs simultanément en LAN.

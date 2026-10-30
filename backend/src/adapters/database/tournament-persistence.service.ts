@@ -357,7 +357,7 @@ export class TournamentPersistenceService {
   }
 
   /**
-   * Recompute a series (Match) from its CONFIRMED games: series score, then — once a team reached the wins
+   * Recompute a series (Match) from its CONFIRMED games (+ starting advantage): series score, then — once a team reached the wins
    * needed by the format (BO1: 1, BO3: 2, BO5: 3) — finish it and advance the bracket. Same path for every
    * game, automatic (CS2) or manual (admin). A finished series is never re-advanced.
    */
@@ -366,8 +366,9 @@ export class TournamentPersistenceService {
     if (!match) return null;
 
     const confirmed = match.maps.filter((m) => m.resultStatus === 'CONFIRMED' && m.winnerId);
-    const scoreHome = confirmed.filter((m) => m.winnerId === match.teamHomeId).length;
-    const scoreAway = confirmed.filter((m) => m.winnerId === match.teamAwayId).length;
+    // Starting advantage counts as games already won (grand final: one map up for the upper-bracket finalist)
+    const scoreHome = match.advantageHome + confirmed.filter((m) => m.winnerId === match.teamHomeId).length;
+    const scoreAway = match.advantageAway + confirmed.filter((m) => m.winnerId === match.teamAwayId).length;
     const needed = WINS_NEEDED[match.format];
     const winnerId =
       scoreHome >= needed ? match.teamHomeId : scoreAway >= needed ? match.teamAwayId : null;

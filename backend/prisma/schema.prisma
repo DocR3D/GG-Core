@@ -43,6 +43,12 @@ enum MatchStage {
   SHOWMATCH
 }
 
+/// Moteur d'une phase : poules (chacun contre chacun) ou double élimination.
+enum StageType {
+  ROUND_ROBIN
+  DOUBLE_ELIM
+}
+
 enum BracketType {
   UPPER
   LOWER
@@ -115,6 +121,7 @@ model Tournament {
 
   matches     Match[]
   rosters     TeamRoster[]
+  stages      Stage[]
 
   @@map("tournaments")
 }
@@ -134,6 +141,7 @@ model Team {
   mapsWon          MatchMap[]        @relation("TeamWinnerMapMatches")
   vetoActions      MatchVeto[]       @relation("TeamVetoActions")
   playerMapStats   PlayerMapStats[]
+  stageEntries     StageTeam[]
 
   @@map("teams")
 }
@@ -216,10 +224,26 @@ model Match {
   status            MatchStatus  @default(PENDING)
   winnerId          String?      @map("winner_id") @db.Uuid
   scheduledAt       DateTime?    @map("scheduled_at")
+  /// Phase et poule du match (null = match hors arbre : bonus / showmatch, ou ancien modèle)
+  stageId           String?      @map("stage_id") @db.Uuid
+  groupId           String?      @map("group_id") @db.Uuid
+  /// Position du match dans son round (ordre d'affichage / câblage de l'arbre)
+  bracketPosition   Int?         @map("bracket_position")
+  /// Avance de départ en games (grande finale : une map d'avance pour le finaliste du bracket supérieur)
+  advantageHome     Int          @default(0) @map("advantage_home")
+  advantageAway     Int          @default(0) @map("advantage_away")
+  /// Victoire administrative (équipe absente)
+  isForfeit         Boolean      @default(false) @map("is_forfeit")
+  /// Les stats de ce match comptent-elles dans les classements officiels ? (non pour un match bonus « fun »)
+  countsInStats     Boolean      @default(true) @map("counts_in_stats")
+  /// Match de classement : le vainqueur termine à cette place, le perdant à la suivante (ex. 7 → 7e / 8e)
+  placement         Int?
   createdAt         DateTime     @default(now()) @map("created_at")
   updatedAt         DateTime     @updatedAt @map("updated_at")
 
   tournament        Tournament   @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
+  stageRef          Stage?       @relation(fields: [stageId], references: [id], onDelete: Cascade)
+  group             StageGroup?  @relation(fields: [groupId], references: [id], onDelete: SetNull)
   teamHome          Team?        @relation("TeamHomeMatches", fields: [teamHomeId], references: [id], onDelete: SetNull)
   teamAway          Team?        @relation("TeamAwayMatches", fields: [teamAwayId], references: [id], onDelete: SetNull)
   winner            Team?        @relation("TeamWinnerMatches", fields: [winnerId], references: [id], onDelete: SetNull)
@@ -237,7 +261,68 @@ model Match {
   @@index([tournamentId])
   @@index([teamHomeId])
   @@index([teamAwayId])
+  @@index([stageId])
   @@map("matches")
+}
+
+// =============================================================================
+// STAGES (phases du tournoi : poules, double élimination)
+// =============================================================================
+
+/// Une phase du tournoi (ex. « Poules », « Élite », « Amateur »). Les réglages (nombre de poules, formats par
+/// round, règles de qualification…) sont en JSON : ils varient par type de phase.
+model Stage {
+  id           String     @id @default(uuid()) @db.Uuid
+  tournamentId String     @map("tournament_id") @db.Uuid
+  name         String     @db.VarChar(64)
+  type         StageType
+  order        Int
+  settings     Json?      @db.JsonB
+  createdAt    DateTime   @default(now()) @map("created_at")
+  updatedAt    DateTime   @updatedAt @map("updated_at")
+
+  tournament   Tournament   @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
+  groups       StageGroup[]
+  teams        StageTeam[]
+  matches      Match[]
+
+  @@unique([tournamentId, order])
+  @@map("stages")
+}
+
+/// Une poule d'une phase ROUND_ROBIN (ex. « A »).
+model StageGroup {
+  id        String     @id @default(uuid()) @db.Uuid
+  stageId   String     @map("stage_id") @db.Uuid
+  name      String     @db.VarChar(32)
+  createdAt DateTime   @default(now()) @map("created_at")
+  updatedAt DateTime   @updatedAt @map("updated_at")
+
+  stage     Stage      @relation(fields: [stageId], references: [id], onDelete: Cascade)
+  teams     StageTeam[]
+  matches   Match[]
+
+  @@unique([stageId, name])
+  @@map("stage_groups")
+}
+
+/// Participant d'une phase : seed, et poule pour une phase ROUND_ROBIN.
+model StageTeam {
+  id        String      @id @default(uuid()) @db.Uuid
+  stageId   String      @map("stage_id") @db.Uuid
+  teamId    String      @map("team_id") @db.Uuid
+  groupId   String?     @map("group_id") @db.Uuid
+  seed      Int
+  createdAt DateTime    @default(now()) @map("created_at")
+  updatedAt DateTime    @updatedAt @map("updated_at")
+
+  stage     Stage       @relation(fields: [stageId], references: [id], onDelete: Cascade)
+  team      Team        @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  group     StageGroup? @relation(fields: [groupId], references: [id], onDelete: SetNull)
+
+  @@unique([stageId, teamId])
+  @@index([groupId])
+  @@map("stage_teams")
 }
 
 // =============================================================================

@@ -260,8 +260,8 @@ describe('TournamentPersistenceService', () => {
     const HOME = '44444444-4444-4444-8444-444444444444';
     const AWAY = '55555555-5555-4555-8555-555555555555';
     const game = (winnerId: string | null, status = 'CONFIRMED') => ({ winnerId, resultStatus: status });
-    const series = (format: string, maps: any[], status = 'LIVE') =>
-      ({ id: MATCH, format, status, teamHomeId: HOME, teamAwayId: AWAY, maps });
+    const series = (format: string, maps: any[], status = 'LIVE', advantageHome = 0) =>
+      ({ id: MATCH, format, status, teamHomeId: HOME, teamAwayId: AWAY, advantageHome, advantageAway: 0, maps });
 
     it('BO3 à 1-0 : met à jour le score de la série sans terminer le match', async () => {
       prisma.match.findUnique.mockResolvedValue(series('BO3', [game(HOME)]));
@@ -277,6 +277,13 @@ describe('TournamentPersistenceService', () => {
       );
       const advance = jest.spyOn(service, 'advanceBracketMatch').mockResolvedValue({} as any);
       await expect(service.updateSeries(MATCH)).resolves.toEqual({ scoreHome: 2, scoreAway: 1, winnerId: HOME });
+      expect(advance).toHaveBeenCalledWith(MATCH, HOME);
+    });
+
+    it("grande finale BO3 avec une map d'avance : une seule map gagnée suffit au finaliste du bracket supérieur", async () => {
+      prisma.match.findUnique.mockResolvedValue(series('BO3', [game(HOME)], 'LIVE', 1));
+      const advance = jest.spyOn(service, 'advanceBracketMatch').mockResolvedValue({} as any);
+      await expect(service.updateSeries(MATCH)).resolves.toEqual({ scoreHome: 2, scoreAway: 0, winnerId: HOME });
       expect(advance).toHaveBeenCalledWith(MATCH, HOME);
     });
 

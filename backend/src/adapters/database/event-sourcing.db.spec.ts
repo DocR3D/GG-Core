@@ -147,4 +147,32 @@ describeDb('Event sourcing — real PostgreSQL', () => {
       matchId: semi.id, mapOrder: 3, scoreHome: 1, scoreAway: 13, reportedBy: 'admin-it',
     })).rejects.toMatchObject({ code: 'finished' });
   });
+
+  it('stages, groups, stage teams and the new match fields round-trip (grand final advantage, bonus match)', async () => {
+    const stage = await prisma.stage.create({
+      data: { tournamentId, name: 'Poules', type: 'ROUND_ROBIN', order: 1, settings: { groupCount: 2 } },
+    });
+    const group = await prisma.stageGroup.create({ data: { stageId: stage.id, name: 'A' } });
+    await prisma.stageTeam.createMany({
+      data: [
+        { stageId: stage.id, teamId: homeTeamId, groupId: group.id, seed: 1 },
+        { stageId: stage.id, teamId: awayTeamId, groupId: group.id, seed: 2 },
+      ],
+    });
+    const loaded = await prisma.stage.findUniqueOrThrow({ where: { id: stage.id }, include: { groups: { include: { teams: true } } } });
+    expect(loaded.groups[0].teams.map((t) => t.seed).sort()).toEqual([1, 2]);
+
+    // Grand final BO3, upper-bracket finalist one map up: one more map wins it
+    const gf = await prisma.match.create({
+      data: { tournamentId, stageId: stage.id, teamHomeId: homeTeamId, teamAwayId: awayTeamId, format: 'BO3', advantageHome: 1 },
+    });
+    const res = await persistence.recordManualGameResult({ matchId: gf.id, mapOrder: 1, scoreHome: 13, scoreAway: 9, reportedBy: 'admin-it' });
+    expect(res.series).toEqual({ scoreHome: 2, scoreAway: 0, winnerId: homeTeamId });
+
+    // Bonus placement match: outside any stage, stats not counted
+    const bonus = await prisma.match.create({
+      data: { tournamentId, teamHomeId: homeTeamId, teamAwayId: awayTeamId, stage: 'SHOWMATCH', countsInStats: false, placement: 7 },
+    });
+    expect(bonus).toEqual(expect.objectContaining({ stageId: null, countsInStats: false, placement: 7, isForfeit: false }));
+  });
 });
