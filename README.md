@@ -64,6 +64,17 @@ logaddress_add_http "http://<AGENT_HOST>:8082/logs?token=<logs.token de agents.d
 
 ---
 
+### Connexion et droits
+- **Secrets générés automatiquement** : au premier `make`, le fichier `.env` (ignoré par git) est créé avec des valeurs
+  **aléatoires** (session, mot de passe admin, jeton admin, jeton des logs CS2, mot de passe RCON) ; ensuite il est
+  réutilisé, jamais écrasé. Aucune valeur par défaut publique : la stack refuse de démarrer sans lui. `make admin` affiche
+  l'URL de connexion et le mot de passe admin.
+- **Lecture publique** : `/view` (tournois, arbres, matchs) et les `GET` de `/api`.
+- **Admin** pour tout ce qui modifie (`POST` / `PATCH` / `DELETE`) et pour le Sandbox : connexion sur
+  **http://localhost:8081/login** avec **« Se connecter avec Steam »** (mets ton SteamID64 dans `GG_ADMIN_STEAMIDS` du
+  `.env`, ou `GG_ADMIN_STEAMIDS=<id> make up`) ou, sans Internet, avec le **mot de passe admin** (`make admin`).
+- **Scripts / curl** : `-H "Authorization: Bearer <GG_ADMIN_TOKEN du .env>"` (les cibles `make` le font).
+
 ## Structure du dépôt
 ```
 /agent       # Go : agent (RCON, logs HTTP, parser) + manager (1 agent par serveur)

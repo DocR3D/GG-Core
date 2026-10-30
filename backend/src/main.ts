@@ -2,8 +2,10 @@ import 'dotenv/config';
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
 import * as bodyParser from 'body-parser';
-import { json, urlencoded } from 'express';
+import { json, urlencoded, static as serveStatic } from 'express';
+import * as path from 'path';
 import { RequestMethod } from '@nestjs/common';
+import { AuthMiddleware } from './adapters/http/auth/auth.middleware';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule, { logger: ['log','error','warn','debug','verbose'] });
@@ -19,6 +21,15 @@ async function bootstrap() {
   app.use('/api', urlencoded({ extended: true }));
   app.use('/sandbox', json({ limit: '15mb' }));
   app.use('/sandbox', urlencoded({ extended: true, limit: '15mb' }));
+  app.use('/auth', urlencoded({ extended: false })); // login form
+
+  // Stylesheet of the server-rendered pages (Pico.css), served locally: no CDN (LAN-first)
+  app.use('/assets', serveStatic(path.join(process.cwd(), 'node_modules/@picocss/pico/css'), { index: false, maxAge: '1d' }));
+
+  // Access rules for EVERY request, at the Express level: a Nest module middleware would only cover the
+  // /api-prefixed routes, not /sandbox, /view, /login, /auth (excluded from the prefix below)
+  const access = app.get(AuthMiddleware);
+  app.use((req: any, res: any, next: any) => access.use(req, res, next));
 
   // 3) Prefix global /api en excluant /cs2/logs et /sandbox
   app.setGlobalPrefix('api', {
@@ -27,6 +38,9 @@ async function bootstrap() {
       { path: 'cs2/logs/(.*)', method: RequestMethod.ALL },
       { path: 'sandbox', method: RequestMethod.ALL },
       { path: 'sandbox/(.*)', method: RequestMethod.ALL },
+      // login pages
+      { path: 'login', method: RequestMethod.ALL },
+      { path: 'auth/(.*)', method: RequestMethod.ALL },
       // human pages (plain-text views), /api stays the JSON API
       { path: 'view', method: RequestMethod.ALL },
       { path: 'view/(.*)', method: RequestMethod.ALL },

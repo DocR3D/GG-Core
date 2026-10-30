@@ -40,11 +40,17 @@ Services (réseau `ggcore` 172.30.0.0/24) :
 ```
 PORT=8081
 WS_PATH=/ws
-JWT_SECRET=dev-change-me
 REDIS_URL=redis://redis:6379
 DATABASE_URL=postgresql://postgres:postgres@postgres:5432/ggcore?schema=public
 ALLOWED_IPS=<CIDR whitelist pour /cs2/logs>
 CORS_ORIGIN=http://localhost:3000
+# Secrets générés aléatoirement au premier `make` dans .env (infra/gen-secrets.sh), jamais écrasés ;
+# le compose refuse de démarrer sans eux (aucune valeur par défaut publique). Voir .env.example, `make admin`.
+JWT_SECRET, GG_ADMIN_TOKEN, GG_ADMIN_PASSWORD, GG_LOGS_TOKEN, GG_RCON_PASSWORD
+# À renseigner
+GG_ADMIN_STEAMIDS=<SteamID64 des admins, séparés par des virgules>
+AUTH_PUBLIC_URL=                 # URL publique si Steam doit renvoyer le navigateur ailleurs (tunnel)
+AUTH_DISABLED=                   # 1 = pas d'authentification (dev jetable uniquement, jamais en LAN)
 ```
 
 ## Structure des dossiers infra

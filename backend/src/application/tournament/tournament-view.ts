@@ -2,6 +2,8 @@
 // Plain-text (ASCII) rendering of a tournament: what the admin needs to check groups, results and brackets,
 // without any frontend. Pure function, unit-tested; served inside a bare <pre> page.
 
+import { escapeHtml, htmlPage } from '@app/shared/html-page';
+
 export interface ViewGame {
   order: number;
   mapName: string;
@@ -128,7 +130,6 @@ function linkify(text: string, links: { col: number; len: number; matchId: strin
   return html + escapeHtml(chars.slice(pos).join(''));
 }
 
-const escapeHtml = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 
 function buildTournamentLines(t: TournamentView): { lines: string[]; links: LineLink[] } {
   const names = t.stages.flatMap((s) => [
@@ -225,8 +226,7 @@ function buildTournamentLines(t: TournamentView): { lines: string[]; links: Line
 /** Minimal HTML page: no CSS, no script, just the text. */
 export function asciiPage(title: string, body: string, bodyIsHtml = false, refreshSec?: number): string {
   // optional auto refresh (e.g. to follow a simulated tournament): still no script
-  const refresh = refreshSec && refreshSec > 0 ? `<meta http-equiv="refresh" content="${Math.floor(refreshSec)}">` : '';
-  return `<!doctype html>\n<html lang="fr"><head><meta charset="utf-8">${refresh}<title>${escapeHtml(title)}</title></head>\n<body><pre>${bodyIsHtml ? body : escapeHtml(body)}</pre></body></html>\n`;
+  return htmlPage({ title, body: `<pre>${bodyIsHtml ? body : escapeHtml(body)}</pre>`, refreshSec });
 }
 
 /**

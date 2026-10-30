@@ -13,6 +13,7 @@ import {
 } from '@nestjs/common';
 import type { Response } from 'express';
 import { TournamentError } from '@app/tournament/tournament-stages.service';
+import { htmlPage } from '@app/shared/html-page';
 import {
   SimulationRun,
   TournamentSimulationService,
@@ -37,26 +38,27 @@ export class SandboxTournamentController {
     const options = scenarios.map((s) => `<option>${esc(s)}</option>`).join('');
     const rows = runs.map((r) => this.row(r)).join('\n');
     const active = runs.some((r) => r.status === 'running' || r.status === 'paused');
-    return `<!doctype html>
-<html lang="fr"><head><meta charset="utf-8"><title>Sandbox — tournois simulés</title>${active ? '<meta http-equiv="refresh" content="3">' : ''}</head>
-<body>
-<h1>Sandbox — tournois simulés</h1>
-<p><a href="/sandbox">← Sandbox</a> · <a href="/view">tous les tournois</a></p>
+    return htmlPage({
+      title: 'Sandbox — tournois simulés',
+      refreshSec: active ? 3 : undefined,
+      body: `<h1>Sandbox — tournois simulés</h1>
+<nav><ul><li><a href="/sandbox">← Sandbox</a></li><li><a href="/view">Tous les tournois</a></li></ul></nav>
 <form method="post" action="${PAGE}/runs">
 <input type="hidden" name="_form" value="1">
-<p>Scénario <select name="fixtureName">${options}</select>
- · délai entre games <input type="number" name="delayMs" value="800" min="0" step="100"> ms
- · séries en parallèle <input type="number" name="parallel" value="4" min="1" max="16"></p>
-<p><label><input type="checkbox" name="withStats" checked> joueurs et stats CS2 factices</label>
- · <label><input type="checkbox" name="paused"> démarrer en pause (pas à pas)</label>
- · <button>Lancer la simulation</button></p>
-<p>Relancer un scénario remplace son tournoi précédent. Résultats déterministes : même fichier, même tournoi.</p>
+<fieldset>
+<label>Scénario <select name="fixtureName">${options}</select></label>
+<label>Délai entre games (ms) <input type="number" name="delayMs" value="800" min="0" step="100"></label>
+<label>Séries en parallèle <input type="number" name="parallel" value="4" min="1" max="16"></label>
+<label><input type="checkbox" name="withStats" checked> Joueurs et stats CS2 factices</label>
+<label><input type="checkbox" name="paused"> Démarrer en pause (pas à pas)</label>
+</fieldset>
+<button>Lancer la simulation</button>
+<p><small>Relancer un scénario remplace son tournoi précédent. Résultats déterministes : même fichier, même tournoi.</small></p>
 </form>
 <h2>Simulations</h2>
-${runs.length ? `<table border="1" cellpadding="4">\n<tr><th>Tournoi</th><th>État</th><th>Étape</th><th>Séries / games</th><th>Actions</th></tr>\n${rows}\n</table>` : '<p>Aucune simulation lancée.</p>'}
-${active ? '<p>(page rafraîchie toutes les 3 s pendant une simulation)</p>' : ''}
-</body></html>
-`;
+${runs.length ? `<figure><table>\n<thead><tr><th>Tournoi</th><th>État</th><th>Étape</th><th>Séries / games</th><th>Actions</th></tr></thead>\n<tbody>${rows}</tbody>\n</table></figure>` : '<p>Aucune simulation lancée.</p>'}
+${active ? '<p><small>Page rafraîchie toutes les 3 s pendant une simulation.</small></p>' : ''}`,
+    });
   }
 
   @Get('scenarios')

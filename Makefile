@@ -8,7 +8,12 @@
 #   make test       → typecheck + Jest + Go + intégration PostgreSQL
 
 SHELL        := /bin/bash
-COMPOSE      := docker compose -f infra/docker-compose.dev.yml
+# Secrets: .env (git-ignored) created / completed with RANDOM values on the first make — nothing to configure,
+# no public default. Only the admin token is read here (loading the whole .env would override variables given
+# on the command line, e.g. GG_ADMIN_STEAMIDS=<id> make up).
+_SECRETS     := $(shell bash infra/gen-secrets.sh)
+GG_ADMIN_TOKEN := $(shell grep '^GG_ADMIN_TOKEN=' .env 2>/dev/null | cut -d= -f2-)
+COMPOSE      := docker compose --env-file .env -f infra/docker-compose.dev.yml
 API          := http://localhost:8081
 F            ?=
 S            ?=
@@ -22,7 +27,7 @@ ifeq ($(CS2),local)
 endif
 
 .DEFAULT_GOAL := help
-.PHONY: help doctor _core up up-cs2 down restart ps logs status sandbox replay fixtures test test-backend test-db test-go e2e-tournament tournament shell-backend psql redis-cli reset
+.PHONY: help doctor admin _core up up-cs2 down restart ps logs status sandbox replay fixtures test test-backend test-db test-go e2e-tournament tournament shell-backend psql redis-cli reset
 
 help: ## Affiche cette aide
 	@echo "GG-Core — commandes disponibles :"
@@ -43,6 +48,12 @@ doctor: ## Vérifie les prérequis (Docker, Compose, droits, disque)
 	@root=$$(docker info -f '{{.DockerRootDir}}'); free=$$(df -BG --output=avail "$$root" 2>/dev/null | tail -1 | tr -dc 0-9); \
 	  if [ -n "$$free" ] && [ "$$free" -lt 90 ]; then echo "⚠️  $${free} Go libres sous $$root : le serveur CS2 (make up-cs2) en demande ~75"; \
 	  else echo "✅ Espace disque Docker : $${free:-?} Go libres"; fi
+
+admin: ## Affiche la connexion admin (URL, mot de passe hors ligne, SteamID64 admins) — secrets dans .env
+	@echo "Connexion : $(API)/login"
+	@echo "Mot de passe admin hors ligne : $$(grep '^GG_ADMIN_PASSWORD=' .env | cut -d= -f2-)"
+	@echo "Admins Steam (GG_ADMIN_STEAMIDS) : $${GG_ADMIN_STEAMIDS:-$$(grep '^GG_ADMIN_STEAMIDS=' .env | cut -d= -f2-)}"
+	@echo "curl : -H \"Authorization: Bearer <GG_ADMIN_TOKEN de .env>\""
 
 up: doctor ## Lance la stack (Redis, Postgres, backend, agent) et attend qu'elle soit prête
 	@$(MAKE) --no-print-directory _core
@@ -79,8 +90,8 @@ status: ## Résumé de l'état et des URLs
 	@echo "   Logs agent     http://localhost:8082/logs (srv-a)"
 	@echo "   Postgres       postgresql://postgres:postgres@localhost:5432/ggcore"
 	@echo "   Redis          redis://localhost:6379"
-	@if [ "$(CS2)" = "local" ]; then echo "   CS2 (hors Docker) attendu sur $(GG_CS2_HOST):27015 — logaddress_add_http \"http://<IP de cette machine>:8082/logs?token=tonSuperSecret\""; \
-	 elif $(COMPOSE) --profile cs2 ps --services --status running 2>/dev/null | grep -qx cs2; then echo "   CS2            connect localhost:27015 (RCON 123456)"; fi
+	@if [ "$(CS2)" = "local" ]; then echo "   CS2 (hors Docker) attendu sur $(GG_CS2_HOST):27015 — logaddress_add_http \"http://<IP de cette machine>:8082/logs?token=$$(grep '^GG_LOGS_TOKEN=' .env | cut -d= -f2-)\" (RCON : $$(grep '^GG_RCON_PASSWORD=' .env | cut -d= -f2-))"; \
+	 elif $(COMPOSE) --profile cs2 ps --services --status running 2>/dev/null | grep -qx cs2; then echo "   CS2            connect localhost:27015 (RCON $$(grep '^GG_RCON_PASSWORD=' .env | cut -d= -f2-))"; fi
 	@echo ""
 
 sandbox: ## Affiche l'URL de la Sandbox
@@ -92,7 +103,7 @@ fixtures: ## Liste les fixtures rejouables
 replay: ## Rejoue une fixture dans la Sandbox (F=gglan19_mirage_13-11_anonymized.log)
 	@test -n "$(F)" || { echo "Usage : make replay F=<fichier de test/fixtures/raw-logs ou scenarios> (voir make fixtures)"; exit 1; }
 	@case "$(F)" in *.json) ep=scenario ;; *) ep=raw-log ;; esac; \
-	  curl -fsS -X POST "$(API)/sandbox/replay/$$ep" -H 'Content-Type: application/json' \
+	  curl -fsS -X POST "$(API)/sandbox/replay/$$ep" -H 'Content-Type: application/json' -H "Authorization: Bearer $(GG_ADMIN_TOKEN)" \
 	    -d "{\"fixtureName\":\"$(F)\",\"matchId\":\"m-sandbox-1\",\"serverId\":\"srv-a\",\"speed\":\"instant\"}" >/dev/null \
 	  && echo "✅ $(F) rejoué → $(API)/sandbox (match m-sandbox-1)" || { echo "❌ replay échoué (backend lancé ? nom correct ?)"; exit 1; }
 

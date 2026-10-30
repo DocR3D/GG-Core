@@ -16,10 +16,12 @@ import { SubscribersModule } from './application/subscribers/subscribers.module'
 import { AdminModule } from './application/admin.module';
 
 import { HealthController } from './adapters/http/health/health.controller';
+import { AuthModule } from './adapters/http/auth/auth.module';
 
 @Module({
   imports: [
     // adapters
+    AuthModule,
     RedisModule,
     DatabaseModule,
     WsModule,

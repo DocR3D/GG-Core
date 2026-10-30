@@ -161,6 +161,12 @@ Redis ggbot:events
 | `GET/PATCH /api/matches/:id/sides`, `PATCH .../sides/swap` | Sides |
 | `/sandbox`, `/sandbox/*` | Console Sandbox / Round Doctor : `inject`, `simulate/round-win`, `simulate/command`, `rcon`, `restore-ingame`, `replay/raw-log`, `replay/scenario`, `replay/rounds/start`, `replay/rounds/step`, `replay/rounds/:matchId`, `fixtures`, `state/:matchId`. Un replay pilote aussi le vrai serveur (voulu : reproduire un bug) ; il est refusé (409) si le serveur fait tourner **un autre** match non terminé |
 
+**Authentification (V1)** — `AuthService` + contrôle d'accès au niveau Express (`main.ts`, toutes les routes) :
+- public : lectures (`GET`/`HEAD`) hors Sandbox, `/login`, `/auth/*`, `/api/health` ; `/cs2/logs` (jeton de logs de l'agent) et `/ws` (garde JWT) ont leur propre authentification ;
+- admin : toute modification (`POST`/`PUT`/`PATCH`/`DELETE`) et le Sandbox — navigateur redirigé vers `/login`, API → 401 (non connecté) / 403 (pas admin) ;
+- `GET /login` (page), `GET /auth/steam` → Steam OpenID → `GET /auth/steam/return` (assertion vérifiée auprès de Steam, rôle selon le SteamID : admin si dans `GG_ADMIN_STEAMIDS`, joueur si SteamID connu, sinon visiteur), `POST /auth/local` (mot de passe admin hors ligne `GG_ADMIN_PASSWORD`), `GET /auth/logout`, `GET /auth/me` ;
+- session : JWT signé (`JWT_SECRET`) dans un cookie HttpOnly (24 h) ; scripts / curl : `Authorization: Bearer <GG_ADMIN_TOKEN>`.
+
 **Pages humaines (hors `/api`, réservé à l'API JSON)** — `<pre>` sans CSS ni JS :
 - `GET /view` : liste des tournois ;
 - `GET /view/tournaments/:id` : vue ASCII d'un tournoi (poules, classements, arbres en colonnes avec la progression, matchs, games, serveurs, qualifiés, matchs bonus, classement final) ; chaque libellé de match est un lien ; `?refresh=N` recharge toutes les N s ; `GET /view/tournaments/:id.txt` = même texte brut (pour `curl`) ;

@@ -3,6 +3,7 @@ import { BadRequestException, ConflictException, Controller, Get, Header, NotFou
 import type { Response } from 'express';
 import { TournamentError, TournamentStagesService } from '@app/tournament/tournament-stages.service';
 import { asciiPage, renderMatchDetailHtml, renderTournamentAscii, renderTournamentHtml } from '@app/tournament/tournament-view';
+import { htmlPage } from '@app/shared/html-page';
 
 const esc = (v: string) => v.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 
@@ -21,10 +22,12 @@ export class ViewController {
   async list() {
     const list = await this.stages.listTournaments();
     const items = list.map((t) => `<li><a href="/view/tournaments/${t.id}">${esc(t.name)}</a> (${esc(t.game)}, ${t.status})</li>`);
-    return `<!doctype html>
-<html lang="fr"><head><meta charset="utf-8"><title>Tournois</title></head>
-<body><p><a href="/sandbox/tournament">Sandbox — tournois simulés</a></p><ul>${items.join('')}</ul></body></html>
-`;
+    return htmlPage({
+      title: 'Tournois',
+      body: `<h1>Tournois</h1>
+<nav><ul><li><a href="/sandbox/tournament">Sandbox — tournois simulés</a></li><li><a href="/login">Connexion</a></li></ul></nav>
+${items.length ? `<ul>${items.join('')}</ul>` : '<p>Aucun tournoi.</p>'}`,
+    });
   }
 
   /**

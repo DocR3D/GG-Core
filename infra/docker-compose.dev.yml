@@ -67,7 +67,15 @@ services:
     environment:
       PORT: "8081"
       WS_PATH: "/ws"
-      JWT_SECRET: "${JWT_SECRET:-dev-change-me}"
+      # Secrets come from .env, generated with random values by the Makefile (infra/gen-secrets.sh): no public
+      # default — the stack refuses to start without them.
+      JWT_SECRET: "${JWT_SECRET:?missing: run make up (generates .env)}"
+      # Authentication (V1): Steam sign-in, admins = these SteamID64 (comma separated); offline admin password and
+      # admin token for scripts / curl.
+      GG_ADMIN_STEAMIDS: "${GG_ADMIN_STEAMIDS:-}"
+      GG_ADMIN_PASSWORD: "${GG_ADMIN_PASSWORD:?missing: run make up (generates .env)}"
+      GG_ADMIN_TOKEN: "${GG_ADMIN_TOKEN:?missing: run make up (generates .env)}"
+      AUTH_PUBLIC_URL: "${AUTH_PUBLIC_URL:-}"
       REDIS_URL: "redis://redis:6379"
       DATABASE_URL: "postgresql://postgres:postgres@postgres:5432/ggcore?schema=public"
       SERVER_IDS: "srv-a"
@@ -76,7 +84,7 @@ services:
       CHOKIDAR_USEPOLLING: "1"
       WATCHPACK_POLLING: "true"
       # Replays Sandbox envoyés à l'agent Go (parsing réel) plutôt qu'au parser de secours
-      AGENT_LOGS_URL: "http://manager:8082/logs?token=${GG_LOGS_TOKEN:-tonSuperSecret}"
+      AGENT_LOGS_URL: "http://manager:8082/logs?token=${GG_LOGS_TOKEN:?missing: run make up (generates .env)}"
     depends_on:
       redis:
         condition: service_healthy
@@ -110,8 +118,8 @@ services:
       GG_BACKEND_URL: "http://backend:8081"
       GG_CS2_HOST: "${GG_CS2_HOST:-cs2}"
       GG_CS2_PORT: "${GG_CS2_PORT:-27015}"
-      GG_RCON_PASSWORD: "${GG_RCON_PASSWORD:-123456}"
-      GG_LOGS_TOKEN: "${GG_LOGS_TOKEN:-tonSuperSecret}"
+      GG_RCON_PASSWORD: "${GG_RCON_PASSWORD:?missing: run make up (generates .env)}"
+      GG_LOGS_TOKEN: "${GG_LOGS_TOKEN:?missing: run make up (generates .env)}"
     volumes:
       - ../agents.d:/etc/ggbot/agents.d:ro
       - ../agent/cfg:/app/cfg:ro
@@ -132,7 +140,7 @@ services:
     environment:
       CS2_SERVERNAME: "GG-Core Dev"
       CS2_PORT: "27015"
-      CS2_RCONPW: "${GG_RCON_PASSWORD:-123456}"
+      CS2_RCONPW: "${GG_RCON_PASSWORD:?missing: run make up (generates .env)}"
       CS2_STARTMAP: "de_inferno"
       CS2_LAN: "1"
       # The image writes server.cfg from these variables (executed after the launch args): setting
@@ -140,7 +148,7 @@ services:
       TV_ENABLE: "1"
       CS2_LOG_DETAIL: "3"
       # Zero Plugin : uniquement logaddress_add_http + RCON natif
-      CS2_ADDITIONAL_ARGS: "-allow_round_backup_files +log on +logaddress_add_http \"http://172.30.0.10:8082/logs?token=${GG_LOGS_TOKEN:-tonSuperSecret}\""
+      CS2_ADDITIONAL_ARGS: "-allow_round_backup_files +log on +logaddress_add_http \"http://172.30.0.10:8082/logs?token=${GG_LOGS_TOKEN:?missing: run make up (generates .env)}\""
     volumes:
       - cs2data:/home/steam/cs2-dedicated
     ports:

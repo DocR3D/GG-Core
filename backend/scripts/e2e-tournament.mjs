@@ -9,6 +9,8 @@
 // it is released first, its CS2 (if running) receives the usual match commands.
 
 const API = process.env.API || 'http://localhost:8081';
+// admin token (set in the backend container by the dev stack): the scenario creates and changes data
+const ADMIN_AUTH = process.env.GG_ADMIN_TOKEN ? { Authorization: `Bearer ${process.env.GG_ADMIN_TOKEN}` } : {};
 const SERVER = process.env.E2E_SERVER || 'srv-a';
 const AUTO_FIXTURES = ['gglan19_mirage_13-11_anonymized.log', 'gglan19_overpass_13-5_anonymized.log'];
 
@@ -22,7 +24,7 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 async function req(method, path, body) {
   const res = await fetch(API + path, {
     method,
-    headers: body ? { 'Content-Type': 'application/json' } : undefined,
+    headers: { ...(body ? { 'Content-Type': 'application/json' } : {}), ...ADMIN_AUTH },
     body: body ? JSON.stringify(body) : undefined,
   });
   const text = await res.text();

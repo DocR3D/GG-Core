@@ -5,6 +5,8 @@
 import { basename } from 'node:path';
 
 const API = process.env.API || 'http://localhost:8081';
+// admin token (set in the backend container by the dev stack): the scenario creates and changes data
+const ADMIN_AUTH = process.env.GG_ADMIN_TOKEN ? { Authorization: `Bearer ${process.env.GG_ADMIN_TOKEN}` } : {};
 const file = process.argv[2];
 if (!file) {
   console.error('usage: node scripts/tournament-scenario.mjs <scenario.json>');
@@ -14,7 +16,7 @@ if (!file) {
 async function api(method, path, body) {
   const res = await fetch(API + path, {
     method,
-    headers: body ? { 'Content-Type': 'application/json' } : undefined,
+    headers: { ...(body ? { 'Content-Type': 'application/json' } : {}), ...ADMIN_AUTH },
     body: body ? JSON.stringify(body) : undefined,
   });
   const text = await res.text();
