@@ -1,13 +1,26 @@
 /*
- * GG-Core - design shared by every page. Loaded after Pico.css, before the theme (admin.css or public.css).
+ * GG-Core - design shared by every page, the Sandbox included. Loaded after Pico.css, before the theme
+ * (admin.css or public.css). The Sandbox (/sandbox) has its own layout but takes its colors and font from the
+ * variables below: change them here, every page follows.
  *
  * Change the look here, never in the pages: pages produce plain semantic HTML (h1, nav, table, form, pre...)
- * plus the few classes listed below. Colors and font come from gglan.fr (red on black, Poppins).
+ * plus the few classes listed below. Colors and font come from gglan.fr (red on black, Poppins); CT / T use the
+ * colors of the game itself.
+ *
+ * Principles:
+ * - red means "you can act": action buttons, the line saying it is your turn, focus. Never decoration.
+ * - sentence case everywhere, no forced capitals.
+ * - numbers that are compared (scores, ASCII views) use the monospace face, so they line up.
  *
  * Class vocabulary (the contract between pages and design - add a class here before using it in a page):
  *   body > header      site bar: .gg-brand (logo text) + nav
  *   .gg-brand          "GG-Core" mark; its <b> is the red part
  *   .gg-actions        row of buttons, each in its own <form> (veto: maps, sides, rock-paper-scissors)
+ *   .gg-turn           the one line saying what happens now (veto); .gg-you when the viewer has to act
+ *   button.secondary   action that is not the expected one (let the opponent start, undo)
+ *   button.danger      destructive action (start the veto over, stop a simulation)
+ *   .gg-ct / .gg-t     a CT / T side: text, or a button choosing that side
+ *   .gg-meta           small secondary line under a title (tournament, format, links)
  */
 
 @font-face { font-family: Poppins; font-style: normal; font-weight: 400; font-display: swap; src: url(/assets/fonts/poppins-latin-400-normal.woff2) format('woff2'); }
@@ -21,80 +34,120 @@
   --gg-red-lighter: #fa8e8e;
   --gg-black: #1d1f24;
   --gg-surface: #262930;
-  --gg-gray-800: #333840;
-  --gg-gray-700: #434a54;
-  --gg-gray-500: #8e99ab;
-  --gg-gray-300: #dde3ed;
+  --gg-line: #333840;
+  --gg-line-strong: #434a54;
+  --gg-muted: #8e99ab;
+  --gg-text: #dde3ed;
   --gg-white: #f5f7fa;
-  --gg-win: #3ba164;
+  /* CS2 sides, as players know them in game */
+  --gg-ct: #6f9fe6;
+  --gg-t: #e3a23f;
+  --gg-ok: #3ba164;
 
-  --pico-font-family-sans-serif: Poppins, system-ui, 'Segoe UI', Roboto, sans-serif;
-  --pico-font-family-monospace: ui-monospace, Consolas, 'Cascadia Mono', Menlo, monospace;
+  --gg-font: Poppins, system-ui, 'Segoe UI', Roboto, sans-serif;
+  --gg-mono: ui-monospace, 'Cascadia Mono', Consolas, Menlo, monospace;
+  /* type scale, ratio 1.25 */
+  --gg-step--1: 0.875rem;
+  --gg-step-1: 1.25rem;
+  --gg-step-2: 1.5625rem;
+  --gg-step-3: 1.953rem;
+
+  --pico-font-family-sans-serif: var(--gg-font);
+  --pico-font-family-monospace: var(--gg-mono);
   --pico-border-radius: 0.375rem;
 }
 
 /* Dark only, like gglan.fr (data-theme="dark" is set by the page skeleton). */
 :root[data-theme='dark'] {
   --pico-background-color: var(--gg-black);
-  --pico-color: var(--gg-gray-300);
+  --pico-color: var(--gg-text);
   --pico-h1-color: var(--gg-white);
   --pico-h2-color: var(--gg-white);
   --pico-h3-color: var(--gg-white);
-  --pico-h4-color: var(--gg-gray-300);
-  --pico-h5-color: var(--gg-gray-300);
-  --pico-h6-color: var(--gg-gray-300);
-  --pico-muted-color: var(--gg-gray-500);
-  --pico-muted-border-color: var(--gg-gray-800);
-  --pico-border-color: var(--gg-gray-700);
+  --pico-h4-color: var(--gg-text);
+  --pico-h5-color: var(--gg-text);
+  --pico-h6-color: var(--gg-text);
+  --pico-muted-color: var(--gg-muted);
+  --pico-muted-border-color: var(--gg-line);
+  --pico-border-color: var(--gg-line-strong);
   --pico-text-selection-color: rgba(222, 27, 27, 0.35);
 
-  --pico-primary: var(--gg-red-light);
+  /* links stay in the text color (underlined): red is kept for actions */
+  --pico-primary: var(--gg-text);
+  --pico-primary-underline: var(--gg-line-strong);
+  --pico-primary-hover: var(--gg-white);
+  --pico-primary-hover-underline: var(--gg-red-light);
   --pico-primary-background: var(--gg-red);
   --pico-primary-border: var(--gg-red);
-  --pico-primary-underline: rgba(245, 83, 83, 0.5);
-  --pico-primary-hover: var(--gg-red-lighter);
   --pico-primary-hover-background: var(--gg-red-light);
   --pico-primary-hover-border: var(--gg-red-light);
-  --pico-primary-hover-underline: var(--gg-red-lighter);
-  --pico-primary-focus: rgba(222, 27, 27, 0.4);
+  --pico-primary-focus: rgba(245, 83, 83, 0.45);
   --pico-primary-inverse: #fff;
 
   --pico-card-background-color: var(--gg-surface);
-  --pico-card-sectioning-background-color: var(--gg-gray-800);
+  --pico-card-sectioning-background-color: var(--gg-line);
   --pico-code-background-color: var(--gg-surface);
-  --pico-code-color: var(--gg-gray-300);
+  --pico-code-color: var(--gg-text);
   --pico-form-element-background-color: var(--gg-surface);
   --pico-form-element-active-background-color: var(--gg-surface);
-  --pico-form-element-border-color: var(--gg-gray-700);
+  --pico-form-element-border-color: var(--gg-line-strong);
   --pico-form-element-active-border-color: var(--gg-red);
   --pico-form-element-focus-color: var(--pico-primary-focus);
   --pico-form-element-color: var(--gg-white);
-  --pico-table-border-color: var(--gg-gray-800);
+  --pico-table-border-color: var(--gg-line);
   --pico-table-row-stripped-background-color: var(--gg-surface);
 }
 
+/* Type: one family, sentence case, a clear scale */
+h1, h2, h3 { font-weight: 600; letter-spacing: -0.01em; }
+h1 { font-size: var(--gg-step-3); line-height: 1.2; margin-bottom: 0.5rem; }
+h2 { font-size: var(--gg-step-1); margin-top: 2rem; }
+h3 { font-size: 1rem; }
+.gg-meta { color: var(--gg-muted); font-size: var(--gg-step--1); }
+.gg-meta a { color: var(--gg-muted); }
+
+:focus-visible { outline: 2px solid var(--gg-red-light); outline-offset: 2px; }
+
 /* Site bar */
-body > header {
-  border-bottom: 1px solid var(--gg-gray-800);
-  padding-block: 0.5rem;
-}
+body > header { border-bottom: 1px solid var(--gg-line); padding-block: 0.5rem; }
 body > header nav { align-items: center; }
-.gg-brand {
-  font-weight: 700;
-  font-size: 1.15rem;
-  letter-spacing: 0.02em;
-  color: var(--gg-white);
-  text-decoration: none;
-}
+body > header nav a { color: var(--gg-muted); text-decoration: none; }
+body > header nav a:hover { color: var(--gg-white); }
+.gg-brand { font-weight: 700; font-size: var(--gg-step-1); letter-spacing: -0.01em; color: var(--gg-white) !important; }
 .gg-brand b { color: var(--gg-red); }
 
-/* ASCII views (trees, standings): keep the box-drawing characters aligned, scroll instead of wrapping. */
-pre {
-  overflow-x: auto;
-  line-height: 1.35;
-  padding: 1rem 1.25rem;
-  border-left: 3px solid var(--gg-red);
+/* Buttons: plain red = the expected action; outlined = the others */
+button.secondary,
+[role='button'].secondary {
+  background: transparent;
+  color: var(--gg-text);
+  border-color: var(--gg-line-strong);
 }
+button.secondary:hover { border-color: var(--gg-text); color: var(--gg-white); background: transparent; }
+button.danger {
+  background: transparent;
+  color: var(--gg-red-light);
+  border-color: var(--gg-red);
+}
+button.danger:hover { background: var(--gg-red); color: #fff; }
+
+/* CS2 sides */
+.gg-ct { color: var(--gg-ct); font-weight: 600; }
+.gg-t { color: var(--gg-t); font-weight: 600; }
+button.gg-ct { background: var(--gg-ct); border-color: var(--gg-ct); color: var(--gg-black); min-width: 6rem; }
+button.gg-t { background: var(--gg-t); border-color: var(--gg-t); color: var(--gg-black); min-width: 6rem; }
+button.gg-ct:hover, button.gg-t:hover { filter: brightness(1.12); }
+
+/* What happens now (veto): the one large line of the page */
+.gg-turn {
+  font-size: var(--gg-step-2);
+  font-weight: 600;
+  line-height: 1.3;
+  color: var(--gg-muted);
+  margin: 1.5rem 0;
+  max-width: 34ch;
+}
+.gg-turn.gg-you { color: var(--gg-red-light); }
 
 /* Row of one-button forms */
 .gg-actions {
@@ -105,3 +158,21 @@ pre {
 }
 .gg-actions form { margin: 0; }
 .gg-actions button { margin: 0; }
+
+/* Struck-out = banned / not played */
+del { color: var(--gg-muted); text-decoration-color: var(--gg-muted); }
+
+/* ASCII views (trees, standings): keep the box-drawing characters aligned, scroll instead of wrapping. */
+pre {
+  overflow-x: auto;
+  line-height: 1.35;
+  padding: 1rem 1.25rem;
+  border: 1px solid var(--gg-line);
+}
+pre a { color: var(--gg-white); }
+
+/* Narrow screens: wide tables scroll inside themselves instead of widening the page */
+@media (max-width: 640px) {
+  table { display: block; overflow-x: auto; white-space: nowrap; }
+  .gg-turn { font-size: var(--gg-step-1); }
+}

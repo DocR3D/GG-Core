@@ -369,7 +369,7 @@ export function renderMatchDetailHtml(d: MatchDetailView, tournamentHref: string
   };
   const width = Math.max(14, d.home?.length ?? 0, d.away?.length ?? 0);
 
-  link(`← ${d.tournament.name}`, tournamentHref);
+  link(d.tournament.name, tournamentHref, 'Tournoi : ');
   lines.push('');
   lines.push(`${d.context} - ${d.label} - ${d.format} - ${d.isForfeit ? 'forfait' : statusFr(d.status)}`);
   if (d.placement) lines.push(`Match de classement : ${d.placement}e / ${d.placement + 1}e place`);

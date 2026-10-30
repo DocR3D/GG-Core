@@ -100,7 +100,7 @@ describe('pages HTML avec liens', () => {
       }],
     };
     const html = renderMatchDetailHtml(detail, '/view/tournaments/t', (id) => `/view/matches/${id}`);
-    expect(html).toContain('<a href="/view/tournaments/t">← GGLan IT</a>');
+    expect(html).toContain('Tournoi : <a href="/view/tournaments/t">GGLan IT</a>');
     expect(html).toContain('<a href="/view/matches/a">H T1#1</a>');
     expect(html).toContain('<a href="/view/matches/b">B T2#4</a> (extérieur)');
     expect(html).toContain('auto (cs2)');

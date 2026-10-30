@@ -7,6 +7,7 @@ import { htmlPage } from '@app/shared/html-page';
 
 const esc = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 /** Only local paths: never redirect to another site after login (open redirect). */
+const ROLE_FR = { admin: 'admin', player: 'joueur', visitor: 'visiteur' } as const;
 const safeNext = (next: unknown) => (typeof next === 'string' && /^\/(?!\/)/.test(next) ? next : '/view');
 const page = (title: string, body: string) => htmlPage({ title, body: `<h1>${esc(title)}</h1>\n${body}` });
 
@@ -23,24 +24,24 @@ export class AuthController {
     const s = req.ggSession;
     const to = safeNext(next);
     const who = s
-      ? `<p>Connecté : <b>${esc(s.name)}</b> (${s.role}${s.via === 'steam' ? `, Steam ${esc(s.sub)}` : ''}) · <a href="/auth/logout">se déconnecter</a></p>
+      ? `<p>Connecté en tant que <b>${esc(s.name)}</b>, ${ROLE_FR[s.role]}${s.via === 'steam' ? ` (SteamID ${esc(s.sub)})` : ''}. <a href="/auth/logout">Se déconnecter</a></p>
 ${s.role === 'admin' ? '' : '<p>Ce compte n’a pas les droits d’administration.</p>'}`
       : '';
     const err = error ? `<p><b>${esc(error)}</b></p>` : '';
     res.type('html').send(
       page(
-        'GG-Core - connexion',
+        'Connexion',
         `${who}${err}
 <p><a href="/auth/steam?next=${encodeURIComponent(to)}" role="button">Se connecter avec Steam</a></p>
 <details>
-<summary>Connexion admin hors ligne (sans Internet)</summary>
+<summary>Connexion admin sans Internet</summary>
 <form method="post" action="/auth/local">
 <label>Mot de passe admin <input type="password" name="password" autocomplete="current-password" required></label>
 <input type="hidden" name="next" value="${esc(to)}">
 <button>Se connecter</button>
 </form>
 </details>
-<p><a href="/view">Tournois (accès public)</a></p>`,
+<p><a href="/view">Voir les tournois sans se connecter</a></p>`,
       ),
     );
   }

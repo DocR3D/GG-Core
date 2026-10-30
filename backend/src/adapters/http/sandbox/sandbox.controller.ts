@@ -185,35 +185,35 @@ export class SandboxController {
   <link rel="stylesheet" href="/assets/css/base.css">
   <style>
     :root {
-      /* GG-Lan palette, same values as public/css/base.css */
-      --bg-dark: #1d1f24;
-      --bg-card: #262930;
-      --bg-input: #333840;
-      --border: #434a54;
-      --text: #f5f7fa;
-      --text-muted: #8e99ab;
-      --accent: #f55353;
-      --accent-hover: #de1b1b;
-      --ct: #38bdf8;
-      --ct-bg: rgba(56, 189, 248, 0.15);
-      --t: #fb923c;
-      --t-bg: rgba(251, 146, 60, 0.15);
-      --success: #10b981;
-      --danger: #ef4444;
+      /* Colors from public/css/base.css (--gg-*): change them there, the Sandbox follows */
+      --bg-dark: var(--gg-black);
+      --bg-card: var(--gg-surface);
+      --bg-input: var(--gg-line);
+      --border: var(--gg-line-strong);
+      --text: var(--gg-white);
+      --text-muted: var(--gg-muted);
+      --accent: var(--gg-red-light);
+      --accent-hover: var(--gg-red);
+      --ct: var(--gg-ct);
+      --ct-bg: color-mix(in srgb, var(--gg-ct) 15%, transparent);
+      --t: var(--gg-t);
+      --t-bg: color-mix(in srgb, var(--gg-t) 15%, transparent);
+      --success: var(--gg-ok);
+      --danger: var(--gg-red-light);
     }
-    * { box-sizing: border-box; margin: 0; padding: 0; font-family: Poppins, system-ui, 'Segoe UI', Roboto, sans-serif; }
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: var(--gg-font); }
     body { background-color: var(--bg-dark); color: var(--text); padding: 24px; }
     a { color: var(--accent); }
     .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; padding-bottom: 16px; border-bottom: 1px solid var(--border); }
     .title-group h1 { font-size: 1.6rem; color: #fff; display: flex; align-items: center; gap: 10px; }
-    .badge { background: var(--accent-hover); color: #fff; font-size: 0.75rem; font-weight: bold; padding: 3px 8px; border-radius: 4px; text-transform: uppercase; }
+    .badge { background: var(--accent-hover); color: #fff; font-size: 0.75rem; font-weight: bold; padding: 3px 8px; border-radius: 4px;  }
     .status-pill { display: flex; align-items: center; gap: 8px; font-size: 0.85rem; color: var(--text-muted); background: var(--bg-card); padding: 6px 14px; border-radius: 20px; border: 1px solid var(--border); }
     .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--success); }
     
-    .presets-title { font-size: 0.95rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-muted); margin-bottom: 12px; }
+    .presets-title { font-size: 0.95rem; font-weight: 600;  letter-spacing: 0.05em; color: var(--text-muted); margin-bottom: 12px; }
     .presets-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 12px; margin-bottom: 24px; }
     .preset-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: 8px; padding: 14px; cursor: pointer; transition: all 0.2s; position: relative; }
-    .preset-card:hover { border-color: var(--accent); transform: translateY(-2px); box-shadow: 0 4px 12px rgba(0,0,0,0.3); }
+    .preset-card:hover { border-color: var(--accent); }
     .preset-header { display: flex; justify-content: space-between; margin-bottom: 6px; }
     .preset-name { font-weight: bold; font-size: 0.95rem; color: #fff; }
     .preset-phase { font-size: 0.75rem; background: var(--bg-input); padding: 2px 6px; border-radius: 4px; }
@@ -228,7 +228,7 @@ export class SandboxController {
     
     .form-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px; margin-bottom: 14px; }
     .form-group { display: flex; flex-direction: column; gap: 6px; }
-    label { font-size: 0.8rem; font-weight: 500; color: var(--text-muted); text-transform: uppercase; }
+    label { font-size: 0.8rem; font-weight: 500; color: var(--text-muted);  }
     input, select { background: var(--bg-input); border: 1px solid var(--border); color: #fff; padding: 8px 12px; border-radius: 6px; font-size: 0.9rem; outline: none; }
     input:focus, select:focus { border-color: var(--accent); }
 
@@ -239,7 +239,7 @@ export class SandboxController {
     .score-box input { font-size: 2rem; font-weight: bold; text-align: center; width: 80px; margin: 8px auto 0 auto; display: block; }
 
     .btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; padding: 10px 18px; border-radius: 6px; font-size: 0.9rem; font-weight: 600; cursor: pointer; border: none; transition: 0.2s; }
-    .btn:hover { filter: brightness(1.1); transform: translateY(-1px); }
+    .btn:hover { filter: brightness(1.1); }
     .btn-accent { background: var(--accent-hover); color: #fff; }
     .btn-primary { background: var(--success); color: #fff; }
     .btn-ct { background: var(--ct); color: #000; }
@@ -249,7 +249,7 @@ export class SandboxController {
 
     .action-group { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 16px; }
 
-    .terminal { background: #090d16; border: 1px solid #1e293b; border-radius: 6px; padding: 12px; font-family: 'Courier New', Courier, monospace; font-size: 0.85rem; height: 300px; overflow-y: auto; color: #a5f3fc; line-height: 1.5; }
+    .terminal { background: #090d16; border: 1px solid #1e293b; border-radius: 6px; padding: 12px; font-family: var(--gg-mono); font-size: 0.85rem; height: 300px; overflow-y: auto; color: #a5f3fc; line-height: 1.5; }
     .terminal .entry { margin-bottom: 6px; word-break: break-word; }
     .terminal .time { color: var(--text-muted); margin-right: 8px; font-size: 0.75rem; }
     .terminal .cmd { color: var(--accent); font-weight: bold; }
@@ -257,19 +257,19 @@ export class SandboxController {
     .terminal .error { color: var(--danger); }
 
     .ws-pill { display: inline-flex; align-items: center; gap: 6px; font-size: 0.75rem; padding: 2px 8px; border-radius: 12px; font-weight: 600; border: 1px solid var(--border); }
-    .ws-pill.connected { background: rgba(16, 185, 129, 0.15); border-color: #10b981; color: #10b981; }
-    .ws-pill.connecting { background: rgba(245, 158, 11, 0.15); border-color: #f59e0b; color: #f59e0b; }
-    .ws-pill.disconnected { background: rgba(239, 68, 68, 0.15); border-color: #ef4444; color: #ef4444; }
+    .ws-pill.connected { background: rgba(16, 185, 129, 0.15); border-color: var(--success); color: var(--success); }
+    .ws-pill.connecting { background: rgba(245, 158, 11, 0.15); border-color: var(--t); color: var(--t); }
+    .ws-pill.disconnected { background: rgba(239, 68, 68, 0.15); border-color: var(--danger); color: var(--danger); }
 
     .log-filter-bar { display: flex; align-items: center; gap: 6px; margin-bottom: 8px; flex-wrap: wrap; }
-    .filter-label { font-size: 0.75rem; color: var(--text-muted); font-weight: 600; text-transform: uppercase; margin-right: 4px; }
+    .filter-label { font-size: 0.75rem; color: var(--text-muted); font-weight: 600;  margin-right: 4px; }
     .filter-btn { background: var(--bg-input); color: var(--text-muted); border: 1px solid var(--border); border-radius: 12px; padding: 2px 10px; font-size: 0.75rem; cursor: pointer; transition: 0.15s; }
     .filter-btn:hover { background: var(--border); color: #fff; }
     .filter-btn.active { background: var(--accent-hover); color: #fff; font-weight: bold; border-color: var(--accent); }
 
-    .tag-kill { background: #ef4444; color: #fff; font-size: 0.65rem; font-weight: bold; padding: 1px 5px; border-radius: 3px; margin-right: 6px; }
-    .tag-round { background: #10b981; color: #000; font-size: 0.65rem; font-weight: bold; padding: 1px 5px; border-radius: 3px; margin-right: 6px; }
-    .tag-score { background: #f59e0b; color: #000; font-size: 0.65rem; font-weight: bold; padding: 1px 5px; border-radius: 3px; margin-right: 6px; }
+    .tag-kill { background: var(--danger); color: #fff; font-size: 0.65rem; font-weight: bold; padding: 1px 5px; border-radius: 3px; margin-right: 6px; }
+    .tag-round { background: var(--success); color: #000; font-size: 0.65rem; font-weight: bold; padding: 1px 5px; border-radius: 3px; margin-right: 6px; }
+    .tag-score { background: var(--t); color: #000; font-size: 0.65rem; font-weight: bold; padding: 1px 5px; border-radius: 3px; margin-right: 6px; }
     .tag-phase { background: #a855f7; color: #fff; font-size: 0.65rem; font-weight: bold; padding: 1px 5px; border-radius: 3px; margin-right: 6px; }
     .tag-bomb { background: #f97316; color: #000; font-size: 0.65rem; font-weight: bold; padding: 1px 5px; border-radius: 3px; margin-right: 6px; }
     .tag-chat { background: #06b6d4; color: #000; font-size: 0.65rem; font-weight: bold; padding: 1px 5px; border-radius: 3px; margin-right: 6px; }
@@ -289,15 +289,15 @@ export class SandboxController {
     .team-score-badge.t { background: var(--t); color: #000; }
 
     .sb-table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
-    .sb-table th { background: rgba(0,0,0,0.3); color: var(--text-muted); font-weight: 600; text-transform: uppercase; font-size: 0.72rem; padding: 8px 10px; text-align: right; }
+    .sb-table th { background: rgba(0,0,0,0.3); color: var(--text-muted); font-weight: 600;  font-size: 0.72rem; padding: 8px 10px; text-align: right; }
     .sb-table th.col-player { text-align: left; }
     .sb-table td { padding: 8px 10px; border-bottom: 1px solid rgba(255,255,255,0.05); text-align: right; }
     .sb-table td.col-player { text-align: left; font-weight: 600; color: #fff; }
     .sb-table tr:hover { background: rgba(255,255,255,0.03); }
     .sb-table .val-cash { color: #34d399; font-weight: 600; }
     .sb-table .val-equip { color: #94a3b8; }
-    .sb-table .val-score { color: #f59e0b; font-weight: bold; }
-    .sb-table .val-hs { color: #38bdf8; font-size: 0.8rem; font-weight: 600; }
+    .sb-table .val-score { color: var(--t); font-weight: bold; }
+    .sb-table .val-hs { color: var(--ct); font-size: 0.8rem; font-weight: 600; }
     .sb-table .empty-row { text-align: center; color: var(--text-muted); font-style: italic; padding: 16px; }
   </style>
 </head>
@@ -305,7 +305,7 @@ export class SandboxController {
   <div class="header">
     <div class="title-group">
       <h1>GG-Core Match Sandbox & Round Doctor <span class="badge">LAN-First</span></h1>
-      <a href="/sandbox/tournament">Tournois simulés →</a>
+      <a href="/sandbox/tournament">Tournois simulés</a>
     </div>
     <div class="status-pill">
       <span class="dot"></span>
@@ -313,17 +313,17 @@ export class SandboxController {
     </div>
   </div>
 
-  <div class="presets-title">⚡ Scénarios Prédéfinis (Presets 1-Clic)</div>
+  <div class="presets-title">Scénarios Prédéfinis (Presets 1-Clic)</div>
   <div class="presets-grid" id="presets-container">
     <!-- Presets injectés dynamiquement -->
   </div>
 
-  <!-- 🏆 CS2 Live TAB Scoreboard -->
+  <!-- CS2 Live TAB Scoreboard -->
   <div class="scoreboard-container">
     <div class="card" style="margin-bottom: 0;">
       <div class="card-title" style="margin-bottom: 12px; display: flex; justify-content: space-between; align-items: center;">
         <div style="display: flex; align-items: center; gap: 10px;">
-          <span>🏆 Scoreboard CS2 (Vue TAB Temps Réel)</span>
+          <span>Scoreboard CS2 (Vue TAB Temps Réel)</span>
           <span class="badge" style="background: #3b82f6; color: #fff;">Live CS2</span>
         </div>
         <div style="font-size: 0.85rem; color: var(--text-muted); font-weight: normal;">
@@ -337,17 +337,17 @@ export class SandboxController {
         <div class="scoreboard-team-box ct" id="sbHomeBox">
           <div class="team-box-header">
             <div class="team-title" id="sbHomeTitle" style="color: var(--ct);">
-              <span id="sbHomeIcon">🛡️</span>
-              <span id="sbHomeTeamName">ÉQUIPE 1 (HOME)</span>
+              <span id="sbHomeIcon"></span>
+              <span id="sbHomeTeamName">Équipe 1 (HOME)</span>
               <span class="badge" id="sbHomeSideBadge" style="background: var(--ct); color: #000; font-size: 0.72rem; padding: 1px 6px; border-radius: 4px; font-weight: bold;">CT</span>
             </div>
             <div class="team-score-badge ct" id="sbHomeScore">0</div>
           </div>
           <div style="display: flex; align-items: center; justify-content: space-between; font-size: 0.72rem; padding: 4px 10px; margin: 4px 0 8px 0; background: rgba(0,0,0,0.22); border-radius: 4px;">
-            <span id="sbHomeWinStreak" style="font-weight: 600; color: #fbbf24; display: none;">🔥 0 W</span>
+            <span id="sbHomeWinStreak" style="font-weight: 600; color: var(--t); display: none;">0 W</span>
             <span id="sbHomeLossStreak" style="color: var(--text-muted); display: inline-flex; align-items: center; gap: 5px; margin-left: auto;">
               <span>Loss Bonus :</span>
-              <span id="sbHomeLossPips" style="letter-spacing: 2px; color: #ef4444; font-size: 0.85rem;">○○○○○</span>
+              <span id="sbHomeLossPips" style="letter-spacing: 2px; color: var(--danger); font-size: 0.85rem;">○○○○○</span>
               <span id="sbHomeLossBonus" style="color: var(--text-muted);">($1,400)</span>
             </span>
           </div>
@@ -374,17 +374,17 @@ export class SandboxController {
         <div class="scoreboard-team-box t" id="sbAwayBox">
           <div class="team-box-header">
             <div class="team-title" id="sbAwayTitle" style="color: var(--t);">
-              <span id="sbAwayIcon">💣</span>
-              <span id="sbAwayTeamName">ÉQUIPE 2 (AWAY)</span>
+              <span id="sbAwayIcon"></span>
+              <span id="sbAwayTeamName">Équipe 2 (AWAY)</span>
               <span class="badge" id="sbAwaySideBadge" style="background: var(--t); color: #000; font-size: 0.72rem; padding: 1px 6px; border-radius: 4px; font-weight: bold;">T</span>
             </div>
             <div class="team-score-badge t" id="sbAwayScore">0</div>
           </div>
           <div style="display: flex; align-items: center; justify-content: space-between; font-size: 0.72rem; padding: 4px 10px; margin: 4px 0 8px 0; background: rgba(0,0,0,0.22); border-radius: 4px;">
-            <span id="sbAwayWinStreak" style="font-weight: 600; color: #fbbf24; display: none;">🔥 0 W</span>
+            <span id="sbAwayWinStreak" style="font-weight: 600; color: var(--t); display: none;">0 W</span>
             <span id="sbAwayLossStreak" style="color: var(--text-muted); display: inline-flex; align-items: center; gap: 5px; margin-left: auto;">
               <span>Loss Bonus :</span>
-              <span id="sbAwayLossPips" style="letter-spacing: 2px; color: #ef4444; font-size: 0.85rem;">○○○○○</span>
+              <span id="sbAwayLossPips" style="letter-spacing: 2px; color: var(--danger); font-size: 0.85rem;">○○○○○</span>
               <span id="sbAwayLossBonus" style="color: var(--text-muted);">($1,400)</span>
             </span>
           </div>
@@ -469,18 +469,18 @@ export class SandboxController {
 
         <div class="score-container">
           <div class="score-box ct">
-            <div style="font-weight: bold; color: var(--ct);">SCORE CT</div>
+            <div style="font-weight: bold; color: var(--ct);">Score CT</div>
             <input type="number" id="scoreCt" value="6" min="0">
           </div>
           <div class="score-box t">
-            <div style="font-weight: bold; color: var(--t);">SCORE T</div>
+            <div style="font-weight: bold; color: var(--t);">Score T</div>
             <input type="number" id="scoreT" value="5" min="0">
           </div>
         </div>
 
         <!-- Joueur de Test / Connexion In-Game -->
         <div style="margin-top: 16px; padding-top: 14px; border-top: 1px dashed var(--border);">
-          <label style="color: var(--accent); margin-bottom: 8px; display: block;">🎮 Joueur Cobaye / In-Game Tester</label>
+          <label style="color: var(--accent); margin-bottom: 8px; display: block;">Joueur Cobaye / In-Game Tester</label>
           <div class="form-row">
             <div class="form-group">
               <label>SteamID (AccountID ou SteamID64)</label>
@@ -511,12 +511,12 @@ export class SandboxController {
 
         <!-- Actions Principales -->
         <div style="margin-top: 10px;">
-          <button class="btn" style="width: 100%; background: linear-gradient(135deg, #10b981 0%, #059669 100%); color: #fff; font-size: 1.05rem; font-weight: bold; padding: 14px; margin-bottom: 10px; border: none; border-radius: 6px; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px; box-shadow: 0 4px 14px rgba(16, 185, 129, 0.35);" onclick="applyEverywhere()">
-            🚀 1-CLIC : APPLIQUER PARTOUT (GG-Core + CS2 In-Game)
+          <button class="btn" style="width: 100%; background: linear-gradient(135deg, var(--success) 0%, #059669 100%); color: #fff; font-size: 1.05rem; font-weight: bold; padding: 14px; margin-bottom: 10px; border: none; border-radius: 6px; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px; box-shadow: 0 4px 14px rgba(16, 185, 129, 0.35);" onclick="applyEverywhere()">
+            Appliquer partout en 1 clic (GG-Core + CS2 en jeu)
           </button>
           <div class="action-group">
-            <button class="btn btn-primary" style="flex: 1;" onclick="injectState()">⚡ Injecter GG-Core (Redis/WS seul)</button>
-            <button class="btn btn-accent" style="flex: 1;" onclick="restoreInGame()">🎮 Restaurer In-Game (RCON seul)</button>
+            <button class="btn btn-primary" style="flex: 1;" onclick="injectState()">Injecter GG-Core (Redis/WS seul)</button>
+            <button class="btn btn-accent" style="flex: 1;" onclick="restoreInGame()">Restaurer In-Game (RCON seul)</button>
           </div>
         </div>
       </div>
@@ -524,7 +524,7 @@ export class SandboxController {
       <!-- Card Replay de Match Réel -->
       <div class="card" style="border-color: #6366f1;">
         <div class="card-title" style="color: #a5b4fc;">
-          <span>🎞️ Replay de Match Réel (.log Valve / Scénario JSON)</span>
+          <span>Replay de Match Réel (.log Valve / Scénario JSON)</span>
           <span class="badge" style="background: #6366f1; color: #fff;">End-to-End</span>
         </div>
         <p style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 14px;">
@@ -541,10 +541,10 @@ export class SandboxController {
           <div class="form-group" style="flex: 1;">
             <label>Vitesse</label>
             <select id="replaySpeed">
-              <option value="fast" selected>🚀 Accéléré (x10)</option>
-              <option value="instant">⚡ Instantané (Stress Test)</option>
-              <option value="realtime">⏱️ Temps Réel</option>
-              <option value="rounds">🎯 Round par round</option>
+              <option value="fast" selected>Accéléré (x10)</option>
+              <option value="instant">Instantané (Stress Test)</option>
+              <option value="realtime">Temps Réel</option>
+              <option value="rounds">Round par round</option>
             </select>
           </div>
         </div>
@@ -556,18 +556,18 @@ export class SandboxController {
         </div>
 
         <div class="action-group">
-          <button class="btn" id="btnStartReplay" style="flex: 1; background: #6366f1; color: #fff;" onclick="startReplay()">▶️ Lancer la Simulation</button>
+          <button class="btn" id="btnStartReplay" style="flex: 1; background: #6366f1; color: #fff;" onclick="startReplay()">Lancer la Simulation</button>
         </div>
 
         <!-- Barre de navigation du replay round par round -->
         <div id="roundReplayBar" style="display: none; margin-top: 12px; padding: 10px 14px; background: var(--bg-input); border-radius: 6px; border: 1px solid #6366f1;">
           <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
-            <button class="btn" id="btnRoundPrev" onclick="stepRound('prev')">⏮ Round précédent</button>
+            <button class="btn" id="btnRoundPrev" onclick="stepRound('prev')">Round précédent</button>
             <div style="flex: 1; min-width: 160px; text-align: center;">
               <div id="roundReplayLabel" style="font-weight: 600;">Round 0 / 0</div>
               <div id="roundReplayDetail" style="font-size: 0.8rem; color: var(--text-muted);">Aucun round joué</div>
             </div>
-            <button class="btn" id="btnRoundNext" style="background: #6366f1; color: #fff;" onclick="stepRound('next')">Round suivant ⏭</button>
+            <button class="btn" id="btnRoundNext" style="background: #6366f1; color: #fff;" onclick="stepRound('next')">Round suivant </button>
           </div>
           <div style="display: flex; align-items: center; gap: 8px; margin-top: 8px;">
             <label style="font-size: 0.8rem; color: var(--text-muted);">Aller au round</label>
@@ -589,33 +589,33 @@ export class SandboxController {
         <div style="margin-bottom: 14px;">
           <label style="margin-bottom: 6px; display: block;">Victoire de Round</label>
           <div class="action-group">
-            <button class="btn btn-ct" onclick="simulateWin('CT')">🏆 Simuler Victoire CT</button>
-            <button class="btn btn-t" onclick="simulateWin('T')">💣 Simuler Victoire T</button>
+            <button class="btn btn-ct" onclick="simulateWin('CT')">Simuler Victoire CT</button>
+            <button class="btn btn-t" onclick="simulateWin('T')">Simuler Victoire T</button>
           </div>
         </div>
 
         <div style="margin-bottom: 14px;">
           <label style="margin-bottom: 6px; display: block;">Commandes Joueur In-Game (Chat !cmd)</label>
           <div class="action-group">
-            <button class="btn btn-outline" style="border-color: var(--ct); color: var(--ct);" onclick="simulateCmd('!ready', 'CT')">💬 !ready (CT)</button>
-            <button class="btn btn-outline" style="border-color: var(--t); color: var(--t);" onclick="simulateCmd('!ready', 'T')">💬 !ready (T)</button>
-            <button class="btn btn-outline" onclick="simulateCmd('!pause')">⏸️ !pause</button>
-            <button class="btn btn-outline" onclick="simulateCmd('!unpause')">▶️ !unpause</button>
-            <button class="btn btn-outline" onclick="simulateCmd('!stay')">🛡️ !stay</button>
-            <button class="btn btn-outline" onclick="simulateCmd('!switch')">🔀 !switch</button>
+            <button class="btn btn-outline" style="border-color: var(--ct); color: var(--ct);" onclick="simulateCmd('!ready', 'CT')">!ready (CT)</button>
+            <button class="btn btn-outline" style="border-color: var(--t); color: var(--t);" onclick="simulateCmd('!ready', 'T')">!ready (T)</button>
+            <button class="btn btn-outline" onclick="simulateCmd('!pause')">!pause</button>
+            <button class="btn btn-outline" onclick="simulateCmd('!unpause')">!unpause</button>
+            <button class="btn btn-outline" onclick="simulateCmd('!stay')">!stay</button>
+            <button class="btn btn-outline" onclick="simulateCmd('!switch')">!switch</button>
           </div>
         </div>
 
         <div style="margin-bottom: 14px;">
-          <label style="margin-bottom: 6px; display: block; color: var(--accent);">🛠️ Contrôles Directs RCON Serveur CS2</label>
+          <label style="margin-bottom: 6px; display: block; color: var(--accent);">Contrôles Directs RCON Serveur CS2</label>
           <div class="action-group">
-            <button class="btn btn-outline" style="border-color: var(--success); color: var(--success);" onclick="sendRcon('mp_unpause_match; unpause')">▶️ Unpause</button>
-            <button class="btn btn-outline" style="border-color: #38bdf8; color: #38bdf8;" onclick="sendRcon('exec warmup.cfg; mp_warmup_start 1; mp_warmuptime 999999; mp_warmup_pausetimer 1')">🔥 Start Warmup</button>
-            <button class="btn btn-outline" style="border-color: #f59e0b; color: #f59e0b;" onclick="sendRcon('exec knife.cfg')">🔪 Start Knife Round</button>
-            <button class="btn btn-outline" style="border-color: var(--t); color: var(--t);" onclick="sendRcon('mp_warmup_end 1')">⏹️ End Warmup</button>
+            <button class="btn btn-outline" style="border-color: var(--success); color: var(--success);" onclick="sendRcon('mp_unpause_match; unpause')">Unpause</button>
+            <button class="btn btn-outline" style="border-color: var(--ct); color: var(--ct);" onclick="sendRcon('exec warmup.cfg; mp_warmup_start 1; mp_warmuptime 999999; mp_warmup_pausetimer 1')">Start Warmup</button>
+            <button class="btn btn-outline" style="border-color: var(--t); color: var(--t);" onclick="sendRcon('exec knife.cfg')">Start Knife Round</button>
+            <button class="btn btn-outline" style="border-color: var(--t); color: var(--t);" onclick="sendRcon('mp_warmup_end 1')">End Warmup</button>
             <button class="btn btn-outline" onclick="sendRcon('status')">ℹ️ CS2 Status</button>
-            <button class="btn btn-outline" onclick="sendRcon('bot_quota 2; bot_quota_mode fill')">👥 Fix Bots 1v1</button>
-            <button class="btn btn-outline" style="border-color: var(--accent); color: var(--accent);" onclick="sendRconMap()">🗺️ Reload Map</button>
+            <button class="btn btn-outline" onclick="sendRcon('bot_quota 2; bot_quota_mode fill')">Fix Bots 1v1</button>
+            <button class="btn btn-outline" style="border-color: var(--accent); color: var(--accent);" onclick="sendRconMap()">Reload Map</button>
           </div>
         </div>
 
@@ -718,7 +718,7 @@ export class SandboxController {
       if (lblRound) lblRound.textContent = round;
       if (lblHalftime) {
         lblHalftime.textContent = round > 12 ? '2ème Mi-temps (Swap)' : '1ère Mi-temps';
-        lblHalftime.style.color = round > 12 ? '#38bdf8' : 'var(--text-muted)';
+        lblHalftime.style.color = round > 12 ? 'var(--ct)' : 'var(--text-muted)';
       }
       if (lblOvertime) {
         if (round > 24) {
@@ -793,7 +793,7 @@ export class SandboxController {
 
         const data = await res.json();
         if (data.ok) {
-          log('success', '✅ État injecté avec succès ! Scoreboard et WebSockets mis à jour.');
+          log('success', 'État injecté avec succès ! Scoreboard et WebSockets mis à jour.');
         } else {
           log('error', 'Erreur injection: ' + JSON.stringify(data));
         }
@@ -838,7 +838,7 @@ export class SandboxController {
 
         const data = await res.json();
         if (data.ok) {
-          log('success', '🎮 Backup généré : ' + data.backupFileName);
+          log('success', 'Backup généré : ' + data.backupFileName);
           log('cmd', 'RCON exécuté : ' + data.rconCommand);
           log('time', 'Restauré in-game pour ' + d.player.name + ' (' + d.player.side + ') avec score ' + d.scoreCt + ' - ' + d.scoreT);
         } else {
@@ -871,7 +871,7 @@ export class SandboxController {
 
     async function applyEverywhere() {
       const d = getFormData();
-      log('time', '🚀 1-Clic : Application partout (GG-Core + CS2 In-Game) pour ' + d.matchId + '...');
+      log('time', '1-Clic : Application partout (GG-Core + CS2 In-Game) pour ' + d.matchId + '...');
       await restoreInGame();
       setTimeout(refreshState, 600);
     }
@@ -951,16 +951,16 @@ export class SandboxController {
           if (!sel) return;
           sel.innerHTML = '<option value="">-- Choisir un match archivé --</option>';
           const rawGroup = document.createElement('optgroup');
-          rawGroup.label = '📄 Logs Bruts Valve CS2 (.log)';
+          rawGroup.label = 'Logs Bruts Valve CS2 (.log)';
           const scGroup = document.createElement('optgroup');
-          scGroup.label = '📦 Scénarios Structurés JSON (.json)';
+          scGroup.label = 'Scénarios Structurés JSON (.json)';
 
           data.fixtures.forEach(function(f) {
             const opt = document.createElement('option');
             opt.value = f.id;
             opt.dataset.type = f.type;
             const sizeStr = f.sizeBytes ? (' (' + Math.round(f.sizeBytes / 1024) + ' KB)') : '';
-            opt.textContent = (f.type === 'raw-log' ? '📄 ' : '📦 ') + f.name + sizeStr;
+            opt.textContent = (f.type === 'raw-log' ? '' : '') + f.name + sizeStr;
             if (f.type === 'raw-log') {
               rawGroup.appendChild(opt);
             } else {
@@ -1090,8 +1090,8 @@ export class SandboxController {
         const tag = first.includes('_') ? first.split('_')[0] : (first.includes(' ') ? first.split(' ')[0] : '');
         if (tag && tag.length >= 3) awayName = tag;
       }
-      homeName = homeName || (homeIsCt ? (localTeams.ct_name || 'ÉQUIPE 1') : (localTeams.t_name || 'ÉQUIPE 1'));
-      awayName = awayName || (awayIsCt ? (localTeams.ct_name || 'ÉQUIPE 2') : (localTeams.t_name || 'ÉQUIPE 2'));
+      homeName = homeName || (homeIsCt ? (localTeams.ct_name || 'Équipe 1') : (localTeams.t_name || 'Équipe 1'));
+      awayName = awayName || (awayIsCt ? (localTeams.ct_name || 'Équipe 2') : (localTeams.t_name || 'Équipe 2'));
 
       // 1. Box Home (Gauche)
       const homeBox = document.getElementById('sbHomeBox');
@@ -1107,7 +1107,7 @@ export class SandboxController {
         homeScore.textContent = scoreHome;
       }
       if (homeTitle) homeTitle.style.color = homeIsCt ? 'var(--ct)' : 'var(--t)';
-      if (homeIcon) homeIcon.textContent = homeIsCt ? '🛡️' : '💣';
+      if (homeIcon) homeIcon.textContent = '';
       if (homeTeamName) homeTeamName.textContent = homeName.toUpperCase();
       if (homeSideBadge) {
         homeSideBadge.style.background = homeIsCt ? 'var(--ct)' : 'var(--t)';
@@ -1128,7 +1128,7 @@ export class SandboxController {
         awayScore.textContent = scoreAway;
       }
       if (awayTitle) awayTitle.style.color = awayIsCt ? 'var(--ct)' : 'var(--t)';
-      if (awayIcon) awayIcon.textContent = awayIsCt ? '🛡️' : '💣';
+      if (awayIcon) awayIcon.textContent = '';
       if (awayTeamName) awayTeamName.textContent = awayName.toUpperCase();
       if (awaySideBadge) {
         awaySideBadge.style.background = awayIsCt ? 'var(--ct)' : 'var(--t)';
@@ -1145,10 +1145,10 @@ export class SandboxController {
       const homeBonusEl = document.getElementById('sbHomeLossBonus');
       if (homeWinEl) {
         if (localStreaks.home.win >= 2) {
-          homeWinEl.textContent = '🔥 ' + localStreaks.home.win + ' W';
+          homeWinEl.textContent = localStreaks.home.win + ' W';
           homeWinEl.style.display = 'inline-block';
         } else if (localStreaks.home.win === 1) {
-          homeWinEl.textContent = '⚡ 1 W';
+          homeWinEl.textContent = '1 W';
           homeWinEl.style.display = 'inline-block';
         } else {
           homeWinEl.style.display = 'none';
@@ -1163,10 +1163,10 @@ export class SandboxController {
       const awayBonusEl = document.getElementById('sbAwayLossBonus');
       if (awayWinEl) {
         if (localStreaks.away.win >= 2) {
-          awayWinEl.textContent = '🔥 ' + localStreaks.away.win + ' W';
+          awayWinEl.textContent = localStreaks.away.win + ' W';
           awayWinEl.style.display = 'inline-block';
         } else if (localStreaks.away.win === 1) {
-          awayWinEl.textContent = '⚡ 1 W';
+          awayWinEl.textContent = '1 W';
           awayWinEl.style.display = 'inline-block';
         } else {
           awayWinEl.style.display = 'none';
@@ -1250,7 +1250,7 @@ export class SandboxController {
         const data = await res.json();
         if (!data.ok) { log('error', 'Erreur replay round par round: ' + JSON.stringify(data)); return; }
         renderRoundReplay(data);
-        log('success', '🎯 Replay round par round prêt : ' + data.totalRounds + ' rounds. Utilisez « Round suivant ».');
+        log('success', 'Replay round par round prêt : ' + data.totalRounds + ' rounds. Utilisez « Round suivant ».');
         setTimeout(refreshState, 300);
       } catch (err) {
         log('error', 'Erreur réseau replay round par round: ' + err.message);
@@ -1270,7 +1270,7 @@ export class SandboxController {
         if (!data.ok) { log('error', 'Erreur round par round: ' + (data.message || JSON.stringify(data))); return; }
         if (action !== 'next') clearScoreboard();
         renderRoundReplay(data);
-        log('time', '🎯 Round ' + data.cursor + '/' + data.totalRounds + (data.cursor > 0 ? ' · ' + describeRoundEnd(data.rounds[data.cursor - 1].end) : ''));
+        log('time', 'Round ' + data.cursor + '/' + data.totalRounds + (data.cursor > 0 ? ' · ' + describeRoundEnd(data.rounds[data.cursor - 1].end) : ''));
         setTimeout(refreshState, 200);
       } catch (err) {
         log('error', 'Erreur réseau round par round: ' + err.message);
@@ -1295,7 +1295,7 @@ export class SandboxController {
       const endpoint = isJson ? '/sandbox/replay/scenario' : '/sandbox/replay/raw-log';
       const typeLabel = isJson ? 'Scénario JSON' : 'Logs bruts Valve CS2 (.log)';
 
-      log('time', '▶️ Démarrage replay ' + typeLabel + ' (Vitesse: ' + speed + ')...');
+      log('time', 'Démarrage replay ' + typeLabel + ' (Vitesse: ' + speed + ')...');
 
       const payload = {
         matchId: d.matchId,
@@ -1337,7 +1337,7 @@ export class SandboxController {
         if (data.ok) {
           const count = data.linesSent || data.eventsSent;
           const modeStr = data.mode || 'scenario';
-          log('success', '✅ Replay terminé avec succès (' + modeStr + ') : ' + count + ' éléments traités en ' + data.durationMs + 'ms');
+          log('success', 'Replay terminé avec succès (' + modeStr + ') : ' + count + ' éléments traités en ' + data.durationMs + 'ms');
           setTimeout(refreshState, 500);
         } else {
           log('error', 'Erreur replay: ' + JSON.stringify(data));
@@ -1509,22 +1509,22 @@ export class SandboxController {
         currentSocket.on('connect', () => {
           if (pill) {
             pill.className = 'ws-pill connected';
-            pill.textContent = '🟢 WS Live (' + matchId + ')';
+            pill.textContent = 'WS Live (' + matchId + ')';
           }
-          log('success', '🛰️ Abonné au flux WebSocket en direct (match: ' + matchId + ')', 'system');
+          log('success', 'Abonné au flux WebSocket en direct (match: ' + matchId + ')', 'system');
         });
 
         currentSocket.on('disconnect', () => {
           if (pill) {
             pill.className = 'ws-pill disconnected';
-            pill.textContent = '🔴 Déconnecté';
+            pill.textContent = 'Déconnecté';
           }
         });
 
         currentSocket.on('connect_error', (err) => {
           if (pill) {
             pill.className = 'ws-pill disconnected';
-            pill.textContent = '⚠️ Erreur WS';
+            pill.textContent = 'Erreur WS';
           }
         });
 
@@ -1551,8 +1551,8 @@ export class SandboxController {
           const killerSide = p?.killer?.team || p?.killer_team || p?.player?.team ? (' (' + (p?.killer?.team || p?.killer_team || p?.player?.team) + ')') : '';
           const victimSide = p?.victim?.team || p?.victim_team ? (' (' + (p?.victim?.team || p?.victim_team) + ')') : '';
           const weapon = p?.weapon || 'arme';
-          const hs = p?.headshot ? ' 🎯 (HS)' : '';
-          log('entry', '<span class="tag-kill">KILL</span> <b>' + killer + killerSide + '</b> [' + weapon + ']' + hs + ' ➔ <b>' + victimName + victimSide + '</b>', 'combat');
+          const hs = p?.headshot ? ' (HS)' : '';
+          log('entry', '<span class="tag-kill">KILL</span> <b>' + killer + killerSide + '</b> [' + weapon + ']' + hs + ' <b>' + victimName + victimSide + '</b>', 'combat');
 
           if (autoSync && String(localPhase).toLowerCase() !== 'postgame') {
             const rawKillerSide = p?.killer?.team || p?.killer_team || (p?.victim?.team === 'CT' || p?.victim_team === 'CT' ? 'T' : 'CT');
@@ -1589,8 +1589,8 @@ export class SandboxController {
           const player = p?.player?.name || 'Inconnu';
           const playerSide = p?.player?.team ? (' (' + p.player.team + ')') : '';
           const victim = p?.victim?.name || 'Inconnu';
-          const flash = p?.flashAssist ? ' ⚡ (Flash)' : '';
-          log('entry', '<span class="tag-kill" style="background:#0284c7;">ASSIST</span> <b>' + player + playerSide + '</b>' + flash + ' ➔ <b>' + victim + '</b>', 'combat');
+          const flash = p?.flashAssist ? ' (Flash)' : '';
+          log('entry', '<span class="tag-kill" style="background:#0284c7;">ASSIST</span> <b>' + player + playerSide + '</b>' + flash + ' <b>' + victim + '</b>', 'combat');
 
           if (autoSync) {
             const aPlayer = getOrAddLocalPlayer(p?.player || { name: player, team: p?.player?.team }, p?.player?.team);

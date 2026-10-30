@@ -2,6 +2,7 @@
 import { Injectable, NestMiddleware } from '@nestjs/common';
 import type { NextFunction, Request, Response } from 'express';
 import { AuthService, Session } from '@app/auth/auth.service';
+import { runWithSession } from '@app/shared/request-session';
 
 /**
  * Access rules (V1):
@@ -19,6 +20,11 @@ export class AuthMiddleware implements NestMiddleware {
   use(req: Request & { ggSession?: Session | null }, res: Response, next: NextFunction) {
     const session = this.auth.sessionFromBearer(req.headers.authorization) ?? this.auth.sessionFromCookie(req.headers.cookie);
     req.ggSession = session;
+    // the rest of the request knows who is logged in (site bar of the pages)
+    runWithSession(session, () => this.decide(req, res, next, session));
+  }
+
+  private decide(req: Request, res: Response, next: NextFunction, session: Session | null) {
     if (this.auth.disabled || isPublic(req.method, req.path) || session?.role === 'admin') return next();
     if (session && isCaptainAction(req.method, req.path)) return next();
 

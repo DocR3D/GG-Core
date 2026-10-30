@@ -104,16 +104,16 @@ ${active ? '<p><small>Page rafraîchie toutes les 3 s pendant une simulation.</s
 
   private row(r: SimulationRun) {
     const state = { running: 'en cours', paused: 'en pause', done: 'terminé', stopped: 'arrêté', error: `erreur : ${r.error ?? ''}` }[r.status];
-    const button = (action: string, label: string) =>
-      `<form method="post" action="${PAGE}/runs/${r.id}/${action}"><input type="hidden" name="_form" value="1"><button>${label}</button></form>`;
+    const button = (action: string, label: string, cls = '') =>
+      `<form method="post" action="${PAGE}/runs/${r.id}/${action}"><input type="hidden" name="_form" value="1"><button${cls ? ` class="${cls}"` : ''}>${label}</button></form>`;
     const actions =
       r.status === 'running'
-        ? button('pause', 'pause') + button('stop', 'arrêter')
+        ? button('pause', 'Pause', 'secondary') + button('stop', 'Arrêter', 'danger')
         : r.status === 'paused'
-          ? button('resume', 'reprendre') + button('step', 'game suivant') + button('stop', 'arrêter')
+          ? button('resume', 'Reprendre') + button('step', 'Game suivant', 'secondary') + button('stop', 'Arrêter', 'danger')
           : '';
     const view = `/view/tournaments/${r.tournamentId}`;
-    return `<tr><td><a href="${view}?refresh=2">${esc(r.name)}</a> (<a href="${view}">sans rafraîchissement</a>)</td><td>${esc(state)}</td><td>${esc(r.phase)}</td><td>${r.seriesPlayed} / ${r.gamesPlayed}</td><td>${actions}</td></tr>`;
+    return `<tr><td><a href="${view}?refresh=2">${esc(r.name)}</a><br><a class="gg-meta" href="${view}">sans rafraîchissement</a></td><td>${esc(state)}</td><td>${esc(r.phase)}</td><td>${r.seriesPlayed} / ${r.gamesPlayed}</td><td>${actions}</td></tr>`;
   }
 
   private async wrap<T>(fn: () => Promise<T> | T): Promise<T> {

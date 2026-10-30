@@ -5,6 +5,7 @@ import { TournamentError, TournamentStagesService } from '@app/tournament/tourna
 import { asciiPage, renderMatchDetailHtml, renderTournamentAscii, renderTournamentHtml } from '@app/tournament/tournament-view';
 import { htmlPage } from '@app/shared/html-page';
 
+const STATUS_FR: Record<string, string> = { UPCOMING: 'à venir', ACTIVE: 'en cours', COMPLETED: 'terminé', ARCHIVED: 'archivé' };
 const esc = (v: string) => v.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 
 /**
@@ -21,11 +22,13 @@ export class ViewController {
   @Header('Content-Type', 'text/html; charset=utf-8')
   async list() {
     const list = await this.stages.listTournaments();
-    const items = list.map((t) => `<li><a href="/view/tournaments/${t.id}">${esc(t.name)}</a> (${esc(t.game)}, ${t.status})</li>`);
+    const items = list.map(
+      (t) => `<li><a href="/view/tournaments/${t.id}">${esc(t.name)}</a> <span class="gg-meta">${esc(t.game)}, ${STATUS_FR[t.status] ?? t.status}</span></li>`,
+    );
     return htmlPage({
       title: 'Tournois',
       body: `<h1>Tournois</h1>
-${items.length ? `<ul>${items.join('')}</ul>` : '<p>Aucun tournoi.</p>'}`,
+${items.length ? `<ul>${items.join('')}</ul>` : '<p>Aucun tournoi pour l’instant.</p>'}`,
     });
   }
 

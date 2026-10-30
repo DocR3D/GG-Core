@@ -210,7 +210,11 @@ Redis ggbot:events
 - socle Pico.css classless et Poppins (`@fontsource/poppins`) servis depuis `node_modules`, sans CDN (LAN-first) ;
 - CSS standard (variables, imbrication natives), pas de SCSS ni de Tailwind : pas d'étape de compilation, et le style
   ne doit pas être écrit dans le HTML ;
-- la page `/sandbox` garde ses styles intégrés, alignés sur la même palette.
+- la page `/sandbox` garde sa mise en page intégrée, mais ses couleurs et sa police sont les variables `--gg-*` de
+  `base.css` : elle suit toute modification ;
+- principes : le rouge signale seulement ce qu'on peut faire maintenant (boutons d'action, « à toi de jouer »,
+  focus), CT / T aux couleurs du jeu, casse normale (pas de majuscules forcées), pas d'emojis, de flèches ni de
+  chaînes à points médians ; boutons `secondary` (autre action) et `danger` (destructif).
 
 CORS REST : origines autorisées via `CORS_ORIGIN` (liste séparée par des virgules, défaut `http://localhost:3000`).
 
