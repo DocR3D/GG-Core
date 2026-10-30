@@ -1,0 +1,33 @@
+/*
+ * GG-Core - admin console (Sandbox, tournament operations). Loaded after base.css.
+ * Dense and functional: smaller text, tighter spacing, full width for tables. Red stays for actions and alerts.
+ */
+
+:root {
+  --pico-font-size: 93.75%;
+  --pico-spacing: 0.75rem;
+  --pico-form-element-spacing-vertical: 0.45rem;
+  --pico-form-element-spacing-horizontal: 0.75rem;
+  --pico-typography-spacing-vertical: 0.75rem;
+}
+
+body > header,
+body > main {
+  max-width: 1600px;
+  padding-inline: 1.5rem;
+}
+
+/* Form fields side by side instead of one full-width field per line */
+fieldset {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(14rem, 1fr));
+  gap: 0 1rem;
+  align-items: end;
+}
+
+h1 { font-size: 1.5rem; }
+h2 { font-size: 1.2rem; }
+
+table { font-size: 0.9rem; }
+td form { display: inline-block; margin: 0 0.25rem 0 0; }
+td form button { padding: 0.2rem 0.6rem; font-size: 0.85rem; }

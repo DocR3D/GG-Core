@@ -182,16 +182,18 @@ export class SandboxController {
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>GG-Core Match Sandbox & Round Doctor</title>
   <script src="/socket.io/socket.io.js"></script>
+  <link rel="stylesheet" href="/assets/css/base.css">
   <style>
     :root {
-      --bg-dark: #0f172a;
-      --bg-card: #1e293b;
-      --bg-input: #334155;
-      --border: #475569;
-      --text: #f8fafc;
-      --text-muted: #94a3b8;
-      --accent: #f59e0b;
-      --accent-hover: #d97706;
+      /* GG-Lan palette, same values as public/css/base.css */
+      --bg-dark: #1d1f24;
+      --bg-card: #262930;
+      --bg-input: #333840;
+      --border: #434a54;
+      --text: #f5f7fa;
+      --text-muted: #8e99ab;
+      --accent: #f55353;
+      --accent-hover: #de1b1b;
       --ct: #38bdf8;
       --ct-bg: rgba(56, 189, 248, 0.15);
       --t: #fb923c;
@@ -199,11 +201,12 @@ export class SandboxController {
       --success: #10b981;
       --danger: #ef4444;
     }
-    * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; }
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: Poppins, system-ui, 'Segoe UI', Roboto, sans-serif; }
     body { background-color: var(--bg-dark); color: var(--text); padding: 24px; }
+    a { color: var(--accent); }
     .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; padding-bottom: 16px; border-bottom: 1px solid var(--border); }
     .title-group h1 { font-size: 1.6rem; color: #fff; display: flex; align-items: center; gap: 10px; }
-    .badge { background: var(--accent); color: #000; font-size: 0.75rem; font-weight: bold; padding: 3px 8px; border-radius: 4px; text-transform: uppercase; }
+    .badge { background: var(--accent-hover); color: #fff; font-size: 0.75rem; font-weight: bold; padding: 3px 8px; border-radius: 4px; text-transform: uppercase; }
     .status-pill { display: flex; align-items: center; gap: 8px; font-size: 0.85rem; color: var(--text-muted); background: var(--bg-card); padding: 6px 14px; border-radius: 20px; border: 1px solid var(--border); }
     .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--success); }
     
@@ -237,7 +240,7 @@ export class SandboxController {
 
     .btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; padding: 10px 18px; border-radius: 6px; font-size: 0.9rem; font-weight: 600; cursor: pointer; border: none; transition: 0.2s; }
     .btn:hover { filter: brightness(1.1); transform: translateY(-1px); }
-    .btn-accent { background: var(--accent); color: #000; }
+    .btn-accent { background: var(--accent-hover); color: #fff; }
     .btn-primary { background: var(--success); color: #fff; }
     .btn-ct { background: var(--ct); color: #000; }
     .btn-t { background: var(--t); color: #000; }
@@ -262,7 +265,7 @@ export class SandboxController {
     .filter-label { font-size: 0.75rem; color: var(--text-muted); font-weight: 600; text-transform: uppercase; margin-right: 4px; }
     .filter-btn { background: var(--bg-input); color: var(--text-muted); border: 1px solid var(--border); border-radius: 12px; padding: 2px 10px; font-size: 0.75rem; cursor: pointer; transition: 0.15s; }
     .filter-btn:hover { background: var(--border); color: #fff; }
-    .filter-btn.active { background: var(--accent); color: #000; font-weight: bold; border-color: var(--accent); }
+    .filter-btn.active { background: var(--accent-hover); color: #fff; font-weight: bold; border-color: var(--accent); }
 
     .tag-kill { background: #ef4444; color: #fff; font-size: 0.65rem; font-weight: bold; padding: 1px 5px; border-radius: 3px; margin-right: 6px; }
     .tag-round { background: #10b981; color: #000; font-size: 0.65rem; font-weight: bold; padding: 1px 5px; border-radius: 3px; margin-right: 6px; }

@@ -151,7 +151,7 @@ Redis ggbot:events
 | `GET /api/tournament/servers` · `POST /api/tournament/servers` | Serveurs de jeu avec disponibilité (`free` / `busy` + match en cours / `disabled`) · enregistrer un serveur (`{ name: id de l'agent, ip, port?, game? }`) |
 | `POST /api/tournament/servers/:id/disable` \| `enable` \| `release` | Désactiver un PC mort (jamais choisi) / le remettre en service / **libérer** un serveur bloqué sur un match qui ne finira jamais |
 | `POST /api/tournament/matches/:id/games/:order/launch` | Lancer le game n° `order` d'une série sur un serveur choisi : `{ server, mapName, settings? }`. Le moteur temps réel utilise l'UUID du game comme matchId : le résultat remonte seul (game → série → arbre). Relancer sur un autre serveur après un crash = même appel. 409 si serveur désactivé / occupé / jeu différent |
-| `/sandbox/tournament` | **Tournois simulés** (outil de dev, page HTML sans CSS ni JS) : un scénario JSON de `test/fixtures/tournaments` joué en accéléré - équipes, joueurs et stats CS2 factices, résultats déterministes, games « en cours » pendant `delayMs`, N séries en parallèle, pause / reprendre / game suivant / arrêter. API : `GET scenarios`, `GET\|POST runs`, `GET runs/:id`, `POST runs/:id/(pause\|resume\|step\|stop)`. Relancer un scénario remplace son tournoi. Suivi en direct : `/view/tournaments/:id?refresh=N` |
+| `/sandbox/tournament` | **Tournois simulés** (outil de dev, page HTML sans JS) : un scénario JSON de `test/fixtures/tournaments` joué en accéléré - équipes, joueurs et stats CS2 factices, résultats déterministes, games « en cours » pendant `delayMs`, N séries en parallèle, pause / reprendre / game suivant / arrêter. API : `GET scenarios`, `GET\|POST runs`, `GET runs/:id`, `POST runs/:id/(pause\|resume\|step\|stop)`. Relancer un scénario remplace son tournoi. Suivi en direct : `/view/tournaments/:id?refresh=N` |
 | `GET /api/tournament/tournaments/:id/overview` | Données JSON des pages `/view` (phases, poules, classements, arbres, matchs, games, serveurs, classement final) |
 | `GET /api/matches/:id/review` | Résultat gelé (désaccord `Game Over` serveur / GG-Core) ou `null` |
 | `POST /api/matches/:id/review/accept-server` \| `.../review/dismiss` | Décision admin : prendre le score du serveur et terminer le match (un nul reste un nul), ou lever le gel |
@@ -167,11 +167,21 @@ Redis ggbot:events
 - `GET /login` (page), `GET /auth/steam` → Steam OpenID → `GET /auth/steam/return` (assertion vérifiée auprès de Steam, rôle selon le SteamID : admin si dans `GG_ADMIN_STEAMIDS`, joueur si SteamID connu, sinon visiteur), `POST /auth/local` (mot de passe admin hors ligne `GG_ADMIN_PASSWORD`), `GET /auth/logout`, `GET /auth/me` ;
 - session : JWT signé (`JWT_SECRET`) dans un cookie HttpOnly (24 h) ; scripts / curl : `Authorization: Bearer <GG_ADMIN_TOKEN>`.
 
-**Pages humaines (hors `/api`, réservé à l'API JSON)** - `<pre>` sans CSS ni JS :
+**Pages humaines (hors `/api`, réservé à l'API JSON)** - HTML simple sans JS (vues de tournoi en `<pre>`) :
 - `GET /view` : liste des tournois ;
 - `GET /view/tournaments/:id` : vue ASCII d'un tournoi (poules, classements, arbres en colonnes avec la progression, matchs, games, serveurs, qualifiés, matchs bonus, classement final) ; chaque libellé de match est un lien ; `?refresh=N` recharge toutes les N s ; `GET /view/tournaments/:id.txt` = même texte brut (pour `curl`) ;
 - `GET /view/matches/:id` : détail d'un match (série, games avec auteur / serveur, stats joueurs, provenance et suite dans l'arbre, cliquables) ;
 - `GET /sandbox`, `GET /sandbox/tournament` : outils de dev (Sandbox de match, tournois simulés).
+
+**Design des pages** - le style vit uniquement dans le CSS, jamais dans les pages :
+- squelette commun `htmlPage({ title, body, theme })` (`application/shared/html-page.ts`) : barre du site, thème sombre ;
+- `backend/public/css/` servi sous `/assets/css` (sans cache : une modification se voit en rafraîchissant) :
+  `base.css` (palette gglan.fr rouge sur noir, police Poppins, variables Pico surchargées, **vocabulaire de classes**
+  autorisé dans les pages), puis `admin.css` (Sandbox, opérations : dense) ou `public.css` (joueurs, spectateurs) ;
+- socle Pico.css classless et Poppins (`@fontsource/poppins`) servis depuis `node_modules`, sans CDN (LAN-first) ;
+- CSS standard (variables, imbrication natives), pas de SCSS ni de Tailwind : pas d'étape de compilation, et le style
+  ne doit pas être écrit dans le HTML ;
+- la page `/sandbox` garde ses styles intégrés, alignés sur la même palette.
 
 CORS REST : origines autorisées via `CORS_ORIGIN` (liste séparée par des virgules, défaut `http://localhost:3000`).
 

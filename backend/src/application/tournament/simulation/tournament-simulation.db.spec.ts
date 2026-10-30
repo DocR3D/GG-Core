@@ -60,6 +60,8 @@ describeDb('Tournament simulation - real PostgreSQL', () => {
       if (await prisma.matchMap.count({ where: { match: { tournamentId: rerun.tournamentId }, status: 'LIVE' } })) break;
       await new Promise((r) => setTimeout(r, 100));
     }
+    // A third start while that one is still active is refused (it would delete the tournament being played)
+    await expect(sim.start({ scenario, delayMs: 0 })).rejects.toMatchObject({ code: 'conflict' });
     sim.control(rerun.id, 'stop');
     for (let i = 0; i < 50 && sim.getRun(rerun.id).status !== 'stopped'; i++) await new Promise((r) => setTimeout(r, 100));
     expect(sim.getRun(rerun.id).status).toBe('stopped');

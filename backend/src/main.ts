@@ -23,8 +23,11 @@ async function bootstrap() {
   app.use('/sandbox', urlencoded({ extended: true, limit: '15mb' }));
   app.use('/auth', urlencoded({ extended: false })); // login form
 
-  // Stylesheet of the server-rendered pages (Pico.css), served locally: no CDN (LAN-first)
+  // Stylesheets and font of the server-rendered pages, served locally: no CDN (LAN-first). Our own CSS is
+  // revalidated on every load (no maxAge) so a design change shows up on refresh.
   app.use('/assets', serveStatic(path.join(process.cwd(), 'node_modules/@picocss/pico/css'), { index: false, maxAge: '1d' }));
+  app.use('/assets/css', serveStatic(path.join(process.cwd(), 'public/css'), { index: false }));
+  app.use('/assets/fonts', serveStatic(path.join(process.cwd(), 'node_modules/@fontsource/poppins/files'), { index: false, maxAge: '30d' }));
 
   // Access rules for EVERY request, at the Express level: a Nest module middleware would only cover the
   // /api-prefixed routes, not /sandbox, /view, /login, /auth (excluded from the prefix below)

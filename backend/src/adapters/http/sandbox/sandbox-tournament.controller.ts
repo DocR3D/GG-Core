@@ -39,10 +39,10 @@ export class SandboxTournamentController {
     const rows = runs.map((r) => this.row(r)).join('\n');
     const active = runs.some((r) => r.status === 'running' || r.status === 'paused');
     return htmlPage({
+      theme: 'admin',
       title: 'Sandbox - tournois simulés',
       refreshSec: active ? 3 : undefined,
       body: `<h1>Sandbox - tournois simulés</h1>
-<nav><ul><li><a href="/sandbox">← Sandbox</a></li><li><a href="/view">Tous les tournois</a></li></ul></nav>
 <form method="post" action="${PAGE}/runs">
 <input type="hidden" name="_form" value="1">
 <fieldset>

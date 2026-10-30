@@ -97,6 +97,12 @@ export class TournamentSimulationService {
     const scenario = opts.scenario ?? this.loadScenario(opts.fixtureName);
     if (!scenario?.name || !scenario.stages?.length) throw new TournamentError('invalid', 'scenario needs a name and stages');
 
+    // Replacing the tournament of a run still playing would delete its data under its feet (FK errors).
+    const busy = [...this.runs.values()].find(
+      (r) => (r.status === 'running' || r.status === 'paused') && r.name.startsWith(`${scenario.name} `),
+    );
+    if (busy) throw new TournamentError('conflict', `scenario already being simulated (${busy.name}): stop that run first`);
+
     for (const old of await this.stages.listTournaments()) {
       if (old.name.startsWith(`${scenario.name} `)) await this.stages.deleteTournament(old.id);
     }

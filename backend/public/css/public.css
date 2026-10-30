@@ -1,0 +1,15 @@
+/*
+ * GG-Core - pages for players and spectators (tournaments, matches, login). Loaded after base.css.
+ * GG-Lan identity: bold uppercase headings with a red mark, readable at a distance.
+ */
+
+h1,
+h2 {
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+h1 {
+  border-left: 4px solid var(--gg-red);
+  padding-left: 0.6rem;
+}

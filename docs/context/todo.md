@@ -105,6 +105,16 @@ Le cœur moteur de match, l'arbitrage automatisé, le calcul de scores/stats CS2
 * **Restauration de backup** : restaurer aussi l'économie (argent) comme CS2 ; aujourd'hui score, stats et séries seulement.
 * **Parser de secours** : parser les commandes chat comme le parser Go.
 
+### 13. 🎥 Overlays OBS (score en direct sur le stream)
+* **Besoin** : pages « source navigateur » pour OBS (score, prochain match, arbre, MVP de la map).
+* **Prévu** : thème `overlay` (`backend/public/css/overlay.css` + `htmlPage({ theme: 'overlay' })`) : fond transparent,
+  sans barre du site, 1920×1080 ; une adresse par serveur (`/overlay/server/:serverId/score`) qui suit le match en cours ;
+  mise à jour par le WebSocket public, pas par rechargement (seule exception à « pages sans JS »).
+
+### 14. 🎨 Page charte du design
+* Une page qui montre tous les éléments (titres, tableaux, boutons, formulaires, bloc ASCII, classes du vocabulaire de
+  `base.css`) dans les deux thèmes : l'équivalent léger d'un Storybook, pour juger une modification du CSS d'un coup d'œil.
+
 ---
 
 ## ✅ Chantiers Achevés
