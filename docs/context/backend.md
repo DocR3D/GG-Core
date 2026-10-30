@@ -140,6 +140,11 @@ Redis ggbot:events
 | `PATCH /api/matches/:id/teams` | Set noms/IDs équipes |
 | `POST /api/matches/:id/init` | Initialise un match (sides, score, timeouts, équipes, settings, liaison `serverId`, liaison `matchMapId` PostgreSQL) |
 | `POST /api/matches/:id/start` | `init` + démarrage serveur (changelevel, warmup.cfg, `tv_record`, phase initiale). `settings` : `knifeEnabled`, `mrFormat`, `overtimeEnabled`, `overtimeMrFormat`, `warmupAfterKnife`, `warmupAtHalftime`, `warmupAtOvertime`, `postgameAction`, `postgameResetDelaySec`, `postgameKickDelaySec`, `tacticalPauseBankSec` |
+| `POST /api/tournament/tournaments` · `POST /api/tournament/teams` | Créer un tournoi (`{ name, slug?, game? }`, jeu `cs2` par défaut) · des équipes par nom (`{ names }`, en attendant l'import) |
+| `POST /api/tournament/tournaments/:id/stages` | Créer une phase : `{ name, type: ROUND_ROBIN \| DOUBLE_ELIM, order, settings? }` |
+| `POST /api/tournament/stages/:id/groups/generate` | Poules : `{ teamIds? (ordre des seeds), groupCount, format? }` → répartition en serpentin + matchs chacun contre chacun. Sans `teamIds`, prend les qualifiés de la phase. Refusé si un match de la phase est terminé |
+| `GET /api/tournament/stages/:id/standings` | Classement de chaque poule (points 3/1/0, puis confrontation directe, différence de score, score marqué ; `tied` = égalité à trancher par l'admin) |
+| `POST /api/tournament/stages/:id/qualify` | `{ rules: [{ ranks: [1,2], targetStageId }, …], manualOrder? }` → qualifiés envoyés aux phases suivantes, seeds croisés (1ers A, B…, puis 2es). Refusé si poules non terminées ou égalité non résolue à une frontière |
 | `POST /api/tournament/matches/:id/games/:order/result` | **Saisie admin** du résultat du game n° `order` d'une série (Match en base, UUID) : `{ scoreHome, scoreAway, mapName?, reportedBy? }` → game `MANUAL` / `CONFIRMED`, puis mise à jour de la série (BO1/BO3/BO5) et de l'arbre. 404 match inconnu, 409 série terminée, 400 saisie invalide |
 | `GET /api/matches/:id/review` | Résultat gelé (désaccord `Game Over` serveur / GG-Core) ou `null` |
 | `POST /api/matches/:id/review/accept-server` \| `.../review/dismiss` | Décision admin : prendre le score du serveur et terminer le match (un nul reste un nul), ou lever le gel |

@@ -107,7 +107,7 @@ npm run build        # Compilation complète NestJS
 npm test             # Suite Jest complète (dont Golden Master sur fixtures réelles)
 
 # Intégration PostgreSQL réelle (base à jour via `npx prisma db push`) — obligatoire si la persistance change
-DB_IT=1 npx jest --config jest.config.ts event-sourcing.db
+DB_IT=1 npx jest --config jest.config.ts db.spec   # tous les *.db.spec.ts (ou : make test-db)
 
 # Agent Go
 cd agent

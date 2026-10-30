@@ -103,7 +103,7 @@ test-backend: ## Typecheck + suite Jest complète (dans le conteneur backend)
 
 test-db: ## Test d'intégration sur un vrai PostgreSQL
 	@$(COMPOSE) up -d --wait postgres
-	@$(COMPOSE) run --rm --no-deps backend sh -c "npx --no-install prisma generate >/dev/null && npx --no-install prisma db push --skip-generate >/dev/null && DB_IT=1 npx --no-install jest --config jest.config.ts event-sourcing.db"
+	@$(COMPOSE) run --rm --no-deps backend sh -c "npx --no-install prisma generate >/dev/null && npx --no-install prisma db push --skip-generate >/dev/null && DB_IT=1 npx --no-install jest --config jest.config.ts db.spec"
 
 test-go: ## Build + tests de l'agent Go
 	@docker run --rm -v "$(CURDIR)/agent:/src" -v ggcore-gocache:/root/.cache -v ggcore-gomod:/go/pkg/mod -w /src golang:1.23 \

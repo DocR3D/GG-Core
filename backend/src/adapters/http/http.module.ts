@@ -18,6 +18,8 @@ import { Cs2LogsModule } from './cs2-logs/cs2-logs.module';
 import { HealthController } from './health/health.controller';
 import { SandboxController } from './sandbox/sandbox.controller';
 import { TournamentMatchesController } from './tournament/tournament-matches.controller';
+import { TournamentController } from './tournament/tournament.controller';
+import { TournamentStagesService } from '@app/tournament/tournament-stages.service';
 
 @Module({
   imports: [
@@ -37,6 +39,8 @@ import { TournamentMatchesController } from './tournament/tournament-matches.con
     HealthController,
     SandboxController,
     TournamentMatchesController,
+    TournamentController,
   ],
+  providers: [TournamentStagesService],
 })
 export class HttpModule {}
