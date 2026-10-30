@@ -15,12 +15,15 @@ import { MatchPhase, Phase, RoundPhase } from '@domain/phase.types';
 import { MatchSettings } from '@domain/match-settings.types';
 import { CS2_CFG, CS2_RULES, CS2_RCON_COMMANDS } from '@domain/rules/rules.constants';
 import { GameSide, normalizeSide } from '@domain/side.types';
+import { EventTypes } from '@domain/events/event.types';
 import { RoundBackupService, ValveBackupOptions, ValveBackupPlayer } from '../backup/round-backup.service';
 import {
   InjectStateDto,
   InGameRestoreDto,
   ReplayRawLogDto,
   ReplayScenarioDto,
+  StartRoundReplayDto,
+  StepRoundReplayDto,
   AvailableFixture,
 } from './sandbox.dto';
 
@@ -43,6 +46,8 @@ export interface SandboxPreset {
 @Injectable()
 export class SandboxService {
   private readonly logger = new Logger(SandboxService.name);
+  /** Sessions de replay round par round, par matchId */
+  private readonly roundSessions = new Map<string, RoundReplaySession>();
 
   constructor(
     @Inject(REDIS_CMD) private readonly redis: Redis,
@@ -712,6 +717,122 @@ export class SandboxService {
     const matchId = (dto.matchId || 'm-sandbox-1').trim();
     const serverId = (dto.serverId || 'srv-a').trim();
 
+    const lines = await this.loadRawLines(dto);
+    await this.resetForReplay(matchId, serverId, DEFAULT_REPLAY_SETTINGS);
+
+    const start = Date.now();
+    const { mode, linesSent } = await this.sendRawLines(lines, matchId, serverId, dto.speed || 'fast');
+    const durationMs = Date.now() - start;
+    this.logger.log(`[Sandbox] Replay terminé (${mode}) : ${linesSent}/${lines.length} lignes en ${durationMs}ms`);
+
+    return { ok: true, totalLines: lines.length, linesSent, mode, durationMs };
+  }
+
+  /**
+   * Rejoue un scénario complet d'événements structurés JSON
+   */
+  async replayScenario(dto: ReplayScenarioDto): Promise<{
+    ok: boolean;
+    totalEvents: number;
+    eventsSent: number;
+    durationMs: number;
+  }> {
+    const matchId = (dto.matchId || 'm-sandbox-1').trim();
+    const serverId = (dto.serverId || 'srv-a').trim();
+
+    const { events, settings } = await this.loadScenario(dto);
+    await this.resetForReplay(matchId, serverId, settings);
+
+    const start = Date.now();
+    const eventsSent = await this.sendScenarioEvents(events, matchId, serverId, dto.speed || 'fast');
+    const durationMs = Date.now() - start;
+    this.logger.log(`[Sandbox] Replay de scénario terminé : ${eventsSent} événements en ${durationMs}ms`);
+
+    return { ok: true, totalEvents: events.length, eventsSent, durationMs };
+  }
+
+  // ---------------------------------------------------------------------------
+  // Replay round par round (session par match, rejouée par tranches d'un round)
+  // ---------------------------------------------------------------------------
+
+  /**
+   * Charge un log brut ou un scénario, le découpe en rounds et réinitialise le match.
+   * Aucun round n'est joué : avancer avec stepRoundByRound.
+   */
+  async startRoundByRound(dto: StartRoundReplayDto): Promise<RoundReplayStatus> {
+    const matchId = (dto.matchId || 'm-sandbox-1').trim();
+    const serverId = (dto.serverId || 'srv-a').trim();
+    const kind: 'raw-log' | 'scenario' =
+      dto.events || dto.fixtureName?.endsWith('.json') ? 'scenario' : 'raw-log';
+
+    let session: RoundReplaySession;
+    if (kind === 'scenario') {
+      const { events, settings } = await this.loadScenario(dto);
+      session = { kind, matchId, serverId, settings, chunks: splitScenarioIntoRounds(events), cursor: 0 };
+    } else {
+      const lines = await this.loadRawLines(dto);
+      session = { kind, matchId, serverId, settings: DEFAULT_REPLAY_SETTINGS, chunks: splitRawLogIntoRounds(lines), cursor: 0 };
+    }
+
+    await this.resetForReplay(matchId, serverId, session.settings);
+    this.roundSessions.set(matchId, session);
+    this.logger.log(`[Sandbox] Replay round par round prêt (${kind}) : ${session.chunks.length} rounds, match ${matchId}`);
+    return this.roundStatus(session);
+  }
+
+  /**
+   * Avance / recule dans la session round par round.
+   * Reculer = réinitialiser puis rejouer jusqu'au round visé (l'état ne se « dé-joue » pas).
+   */
+  async stepRoundByRound(dto: StepRoundReplayDto): Promise<RoundReplayStatus> {
+    const matchId = (dto.matchId || 'm-sandbox-1').trim();
+    const session = this.roundSessions.get(matchId);
+    if (!session) throw new BadRequestException(`Aucun replay round par round en cours pour ${matchId}`);
+
+    const wanted =
+      dto.action === 'next' ? session.cursor + 1 :
+      dto.action === 'prev' ? session.cursor - 1 :
+      Number(dto.round);
+    if (!Number.isInteger(wanted)) throw new BadRequestException('round invalide');
+    const target = Math.max(0, Math.min(session.chunks.length, wanted));
+
+    if (target < session.cursor) {
+      await this.resetForReplay(session.matchId, session.serverId, session.settings);
+      session.cursor = 0;
+    }
+    for (const chunk of session.chunks.slice(session.cursor, target)) {
+      if (session.kind === 'scenario') {
+        await this.sendScenarioEvents(chunk.items as any[], session.matchId, session.serverId, 'instant');
+      } else {
+        await this.sendRawLines(chunk.items as string[], session.matchId, session.serverId, 'instant');
+      }
+    }
+    session.cursor = target;
+    return this.roundStatus(session);
+  }
+
+  getRoundByRoundStatus(matchId: string): RoundReplayStatus | { ok: false } {
+    const session = this.roundSessions.get((matchId || '').trim());
+    return session ? this.roundStatus(session) : { ok: false };
+  }
+
+  private roundStatus(session: RoundReplaySession): RoundReplayStatus {
+    return {
+      ok: true,
+      matchId: session.matchId,
+      kind: session.kind,
+      cursor: session.cursor,
+      totalRounds: session.chunks.length,
+      rounds: session.chunks.map((c, i) => ({ index: i + 1, end: c.end })),
+    };
+  }
+
+  // ---------------------------------------------------------------------------
+  // Briques communes du replay
+  // ---------------------------------------------------------------------------
+
+  /** Remet le match dans un état vierge (roster, stats, séries, score, phase LIVE) avant un rejeu. */
+  private async resetForReplay(matchId: string, serverId: string, settings: Partial<MatchSettings>) {
     // S'assurer de la liaison serveur ↔ matchId
     await this.state.setServerIdToMatchId(serverId, matchId);
     await this.redis.set(redisConst.matchServer(matchId), serverId);
@@ -732,7 +853,6 @@ export class SandboxService {
       await (this.state as any).resetStreaks(matchId);
     }
 
-    // Réinitialiser l'état pour garantir un rejeu propre
     await this.injectState({
       matchId,
       serverId,
@@ -743,20 +863,14 @@ export class SandboxService {
       halftimePlayed: false,
       overtimeCount: 0,
       phase: MatchPhase.LIVE_MAIN,
-      settings: {
-        overtimeEnabled: true,
-        mrFormat: 12,
-        overtimeMrFormat: 3,
-        warmupAtHalftime: false,
-        warmupAtOvertime: false,
-        warmupAfterKnife: false,
-        knifeEnabled: false,
-      },
+      settings,
     });
     if (typeof (this.state as any).resetPlayerStats === 'function') {
       await this.state.resetPlayerStats(matchId);
     }
+  }
 
+  private async loadRawLines(dto: { content?: string; fixtureName?: string; maxLines?: number }): Promise<string[]> {
     let rawText = dto.content || '';
     if (!rawText && dto.fixtureName) {
       const fixturesDir = this.getFixturesDirectory();
@@ -765,23 +879,47 @@ export class SandboxService {
       if (!fs.existsSync(filePath)) throw new BadRequestException(`Fichier introuvable: ${dto.fixtureName}`);
       rawText = await fs.promises.readFile(filePath, 'utf8');
     }
-
     if (!rawText.trim()) {
       throw new BadRequestException('Aucun contenu de log fourni');
     }
-
     const allLines = rawText.split(/\r?\n/).map((l) => l.trim()).filter(Boolean);
-    const lines = dto.maxLines && dto.maxLines > 0 ? allLines.slice(0, dto.maxLines) : allLines;
+    return dto.maxLines && dto.maxLines > 0 ? allLines.slice(0, dto.maxLines) : allLines;
+  }
 
-    const start = Date.now();
+  private async loadScenario(dto: { events?: any[]; fixtureName?: string }): Promise<{ events: any[]; settings: Partial<MatchSettings> }> {
+    let events: any[] = dto.events || [];
+    let settings: Partial<MatchSettings> = { ...DEFAULT_REPLAY_SETTINGS };
+
+    if (events.length === 0 && dto.fixtureName) {
+      const fixturesDir = this.getFixturesDirectory();
+      if (!fixturesDir) throw new BadRequestException('Répertoire de fixtures introuvable');
+      const filePath = path.join(fixturesDir, 'scenarios', dto.fixtureName);
+      if (!fs.existsSync(filePath)) throw new BadRequestException(`Scénario introuvable: ${dto.fixtureName}`);
+      const content = JSON.parse(await fs.promises.readFile(filePath, 'utf8'));
+      events = Array.isArray(content.events) ? content.events : (Array.isArray(content) ? content : []);
+      if (content.metadata?.settings) {
+        settings = { ...settings, ...content.metadata.settings };
+      } else if (content.metadata?.mrFormat) {
+        settings.mrFormat = Number(content.metadata.mrFormat);
+      }
+    }
+    if (!Array.isArray(events) || events.length === 0) {
+      throw new BadRequestException('Aucun événement à rejouer');
+    }
+    return { events, settings };
+  }
+
+  /** Envoie des lignes de log brutes à l'Agent Go (HTTP) ou, s'il est injoignable, au parser de secours. */
+  private async sendRawLines(
+    lines: string[],
+    matchId: string,
+    serverId: string,
+    speed: 'instant' | 'fast' | 'realtime',
+  ): Promise<{ mode: 'agent_http' | 'fallback_parser'; linesSent: number }> {
     const agentUrl = process.env.AGENT_LOGS_URL || 'http://127.0.0.1:8082/logs?token=tonSuperSecret';
-
-    let mode: 'agent_http' | 'fallback_parser' = 'agent_http';
-    let linesSent = 0;
-
-    const speed = dto.speed || 'fast';
     const batchSize = speed === 'instant' ? 100 : (speed === 'realtime' ? 1 : 25);
     const delayMs = speed === 'instant' ? 0 : (speed === 'realtime' ? 400 : 25);
+    let linesSent = 0;
 
     // Tester la connectivité vers l'Agent Go
     let agentAvailable = false;
@@ -794,6 +932,7 @@ export class SandboxService {
       agentAvailable = false;
     }
 
+    let mode: 'agent_http' | 'fallback_parser';
     if (agentAvailable) {
       mode = 'agent_http';
       for (let i = 0; i < lines.length; i += batchSize) {
@@ -831,101 +970,16 @@ export class SandboxService {
     if (this.eventsRouter && typeof this.eventsRouter.drain === 'function') {
       await this.eventsRouter.drain();
     }
-
-    const durationMs = Date.now() - start;
-    this.logger.log(`[Sandbox] Replay terminé (${mode}) : ${linesSent}/${lines.length} lignes en ${durationMs}ms`);
-
-    return {
-      ok: true,
-      totalLines: lines.length,
-      linesSent,
-      mode,
-      durationMs,
-    };
+    return { mode, linesSent };
   }
 
-  /**
-   * Rejoue un scénario complet d'événements structurés JSON
-   */
-  async replayScenario(dto: ReplayScenarioDto): Promise<{
-    ok: boolean;
-    totalEvents: number;
-    eventsSent: number;
-    durationMs: number;
-  }> {
-    const matchId = (dto.matchId || 'm-sandbox-1').trim();
-    const serverId = (dto.serverId || 'srv-a').trim();
-
-    // S'assurer de la liaison serveur ↔ matchId
-    await this.state.setServerIdToMatchId(serverId, matchId);
-    await this.redis.set(redisConst.matchServer(matchId), serverId);
-
-    // Purger les événements en cours avant de réinitialiser l'état
-    if (this.eventsRouter && typeof this.eventsRouter.drain === 'function') {
-      await this.eventsRouter.drain();
-    }
-
-    // Réinitialiser complètement le roster et les statistiques pour un rejeu propre
-    if (typeof (this.state as any).clearRoster === 'function') {
-      await this.state.clearRoster(matchId);
-    }
-    if (typeof (this.state as any).resetPlayerStats === 'function') {
-      await this.state.resetPlayerStats(matchId);
-    }
-    if (typeof (this.state as any).resetStreaks === 'function') {
-      await (this.state as any).resetStreaks(matchId);
-    }
-
-    let events: any[] = dto.events || [];
-    let scenarioSettings: Partial<MatchSettings> = {
-      overtimeEnabled: true,
-      mrFormat: 12,
-      overtimeMrFormat: 3,
-      warmupAtHalftime: false,
-      warmupAtOvertime: false,
-      warmupAfterKnife: false,
-      knifeEnabled: false,
-    };
-
-    if (events.length === 0 && dto.fixtureName) {
-      const fixturesDir = this.getFixturesDirectory();
-      if (!fixturesDir) throw new BadRequestException('Répertoire de fixtures introuvable');
-      const filePath = path.join(fixturesDir, 'scenarios', dto.fixtureName);
-      if (!fs.existsSync(filePath)) throw new BadRequestException(`Scénario introuvable: ${dto.fixtureName}`);
-      const content = JSON.parse(await fs.promises.readFile(filePath, 'utf8'));
-      events = Array.isArray(content.events) ? content.events : (Array.isArray(content) ? content : []);
-      if (content.metadata?.settings) {
-        scenarioSettings = { ...scenarioSettings, ...content.metadata.settings };
-      } else if (content.metadata?.mrFormat) {
-        scenarioSettings.mrFormat = Number(content.metadata.mrFormat);
-      }
-    }
-
-    // Réinitialiser l'état pour garantir un rejeu propre
-    await this.injectState({
-      matchId,
-      serverId,
-      sides: { home: 'CT', away: 'T' },
-      teams: { home_name: '', away_name: '' },
-      score: { ct: 0, t: 0, round: 0 },
-      lastScoredRound: 0,
-      halftimePlayed: false,
-      overtimeCount: 0,
-      phase: MatchPhase.LIVE_MAIN,
-      settings: scenarioSettings,
-    });
-    if (typeof (this.state as any).resetPlayerStats === 'function') {
-      await this.state.resetPlayerStats(matchId);
-    }
-
-    if (!Array.isArray(events) || events.length === 0) {
-      throw new BadRequestException('Aucun événement à rejouer');
-    }
-
-    const start = Date.now();
-    const speed = dto.speed || 'fast';
+  private async sendScenarioEvents(
+    events: any[],
+    matchId: string,
+    serverId: string,
+    speed: 'instant' | 'fast' | 'realtime',
+  ): Promise<number> {
     const delayMs = speed === 'instant' ? 0 : (speed === 'realtime' ? 300 : 20);
-
     let eventsSent = 0;
     for (const rawEv of events) {
       const ev = {
@@ -944,17 +998,94 @@ export class SandboxService {
     if (this.eventsRouter && typeof this.eventsRouter.drain === 'function') {
       await this.eventsRouter.drain();
     }
-
-    const durationMs = Date.now() - start;
-    this.logger.log(`[Sandbox] Replay de scénario terminé : ${eventsSent} événements en ${durationMs}ms`);
-
-    return {
-      ok: true,
-      totalEvents: events.length,
-      eventsSent,
-      durationMs,
-    };
+    return eventsSent;
   }
+}
+
+/** Réglages de match utilisés par tous les replays (Fast LAN, MR12, OT MR3). */
+const DEFAULT_REPLAY_SETTINGS: Partial<MatchSettings> = {
+  overtimeEnabled: true,
+  mrFormat: 12,
+  overtimeMrFormat: 3,
+  warmupAtHalftime: false,
+  warmupAtOvertime: false,
+  warmupAfterKnife: false,
+  knifeEnabled: false,
+};
+
+type RoundReplaySession = {
+  kind: 'raw-log' | 'scenario';
+  matchId: string;
+  serverId: string;
+  settings: Partial<MatchSettings>;
+  chunks: RoundChunk<string | any>[];
+  /** Nombre de rounds déjà joués (0 = aucun) */
+  cursor: number;
+};
+
+export type RoundReplayStatus = {
+  ok: true;
+  matchId: string;
+  kind: 'raw-log' | 'scenario';
+  cursor: number;
+  totalRounds: number;
+  rounds: { index: number; end: RoundEnd | null }[];
+};
+
+/** Fin de round telle que loggée par CS2 : score officiel et notice SFUI (CTs_Win, Target_Bombed, Round_Draw…). */
+export type RoundEnd = { ct: number; t: number; outcome: string };
+export type RoundChunk<T> = { items: T[]; end: RoundEnd | null };
+
+const RAW_ROUND_END = /(?:Team "(?:CT|TERRORIST)"|World) triggered "SFUI_Notice_([A-Za-z_]+)" \(CT "(\d+)"\) \(T "(\d+)"\)/;
+const RAW_ROUND_START = /World triggered "Round_Start"/;
+
+/**
+ * Découpe un log brut en tranches d'un round. Une tranche se ferme juste AVANT le `Round_Start` qui suit
+ * la fin du round : elle contient donc les frags d'après-round, Round_End et le freeze time suivant.
+ * Un `Round_Draw` (ex. backup restore) est une fin de round comme une autre. Découpage sans perte :
+ * la concaténation des tranches redonne exactement les lignes d'origine.
+ */
+export function splitRawLogIntoRounds(lines: string[]): RoundChunk<string>[] {
+  const chunks: RoundChunk<string>[] = [];
+  let current: string[] = [];
+  let end: RoundEnd | null = null;
+  for (const line of lines) {
+    if (end && RAW_ROUND_START.test(line)) {
+      chunks.push({ items: current, end });
+      current = [];
+      end = null;
+    }
+    current.push(line);
+    const m = line.match(RAW_ROUND_END);
+    if (m) end = { ct: Number(m[2]), t: Number(m[3]), outcome: m[1] };
+  }
+  if (current.length) chunks.push({ items: current, end });
+  return chunks;
+}
+
+/** Même découpage pour un scénario JSON : fin = team_round_win / sfui target bombed, début = round_start. */
+export function splitScenarioIntoRounds(events: any[]): RoundChunk<any>[] {
+  const chunks: RoundChunk<any>[] = [];
+  let current: any[] = [];
+  let end: RoundEnd | null = null;
+  for (const ev of events) {
+    if (end && ev?.type === EventTypes.ROUND_START) {
+      chunks.push({ items: current, end });
+      current = [];
+      end = null;
+    }
+    current.push(ev);
+    if (ev?.type === EventTypes.TEAM_ROUND_WIN || ev?.type === EventTypes.SFUI_TARGET_BOMBED) {
+      const s = ev.payload?.score;
+      end = {
+        ct: Number(s?.ct ?? ev.payload?.scoreCT ?? NaN),
+        t: Number(s?.t ?? ev.payload?.scoreT ?? NaN),
+        outcome: String(ev.payload?.reason ?? ev.payload?.winner ?? 'round_end'),
+      };
+    }
+  }
+  if (current.length) chunks.push({ items: current, end });
+  return chunks;
 }
 
 /**

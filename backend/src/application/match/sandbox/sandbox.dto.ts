@@ -72,6 +72,24 @@ export class ReplayScenarioDto {
   speed?: 'instant' | 'fast' | 'realtime';
 }
 
+/** Démarre un replay round par round (log brut ou scénario JSON, fixture ou contenu fourni). */
+export class StartRoundReplayDto {
+  matchId?: string;
+  serverId?: string;
+  fixtureName?: string;
+  /** Log brut fourni directement */
+  content?: string;
+  /** Scénario fourni directement */
+  events?: any[];
+}
+
+/** next / prev : un round ; goto : aller au round `round` (0 = avant le 1er round). */
+export class StepRoundReplayDto {
+  matchId?: string;
+  action!: 'next' | 'prev' | 'goto';
+  round?: number;
+}
+
 export interface AvailableFixture {
   id: string;
   name: string;

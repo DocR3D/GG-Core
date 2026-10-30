@@ -8,6 +8,8 @@ import {
   InGameRestoreDto,
   ReplayRawLogDto,
   ReplayScenarioDto,
+  StartRoundReplayDto,
+  StepRoundReplayDto,
 } from '@app/match/sandbox/sandbox.dto';
 
 @Controller('sandbox')
@@ -145,6 +147,31 @@ export class SandboxController {
   async replayScenario(@Body() body: ReplayScenarioDto) {
     this.logger.log(`[Sandbox] POST /sandbox/replay/scenario fixture=${body.fixtureName} speed=${body.speed}`);
     return await this.sandboxService.replayScenario(body);
+  }
+
+  /**
+   * Replay round par round : charge la fixture / le contenu, découpe en rounds, réinitialise le match.
+   */
+  @Post('replay/rounds/start')
+  @HttpCode(200)
+  async startRoundByRound(@Body() body: StartRoundReplayDto) {
+    this.logger.log(`[Sandbox] POST /sandbox/replay/rounds/start fixture=${body.fixtureName}`);
+    return await this.sandboxService.startRoundByRound(body);
+  }
+
+  /**
+   * Replay round par round : round suivant / précédent / aller au round N.
+   */
+  @Post('replay/rounds/step')
+  @HttpCode(200)
+  async stepRoundByRound(@Body() body: StepRoundReplayDto) {
+    this.logger.log(`[Sandbox] POST /sandbox/replay/rounds/step ${body.action} ${body.round ?? ''}`);
+    return await this.sandboxService.stepRoundByRound(body);
+  }
+
+  @Get('replay/rounds/:matchId')
+  getRoundByRoundStatus(@Param('matchId') matchId: string) {
+    return this.sandboxService.getRoundByRoundStatus(matchId);
   }
 
   private renderSandboxHtml(adminToken = ''): string {
@@ -513,6 +540,7 @@ export class SandboxController {
               <option value="fast" selected>🚀 Accéléré (x10)</option>
               <option value="instant">⚡ Instantané (Stress Test)</option>
               <option value="realtime">⏱️ Temps Réel</option>
+              <option value="rounds">🎯 Round par round</option>
             </select>
           </div>
         </div>
@@ -525,6 +553,23 @@ export class SandboxController {
 
         <div class="action-group">
           <button class="btn" id="btnStartReplay" style="flex: 1; background: #6366f1; color: #fff;" onclick="startReplay()">▶️ Lancer la Simulation</button>
+        </div>
+
+        <!-- Barre de navigation du replay round par round -->
+        <div id="roundReplayBar" style="display: none; margin-top: 12px; padding: 10px 14px; background: var(--bg-input); border-radius: 6px; border: 1px solid #6366f1;">
+          <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+            <button class="btn" id="btnRoundPrev" onclick="stepRound('prev')">⏮ Round précédent</button>
+            <div style="flex: 1; min-width: 160px; text-align: center;">
+              <div id="roundReplayLabel" style="font-weight: 600;">Round 0 / 0</div>
+              <div id="roundReplayDetail" style="font-size: 0.8rem; color: var(--text-muted);">Aucun round joué</div>
+            </div>
+            <button class="btn" id="btnRoundNext" style="background: #6366f1; color: #fff;" onclick="stepRound('next')">Round suivant ⏭</button>
+          </div>
+          <div style="display: flex; align-items: center; gap: 8px; margin-top: 8px;">
+            <label style="font-size: 0.8rem; color: var(--text-muted);">Aller au round</label>
+            <select id="roundReplaySelect" style="flex: 1;"></select>
+            <button class="btn" onclick="stepRound('goto', Number(document.getElementById('roundReplaySelect').value))">Aller</button>
+          </div>
         </div>
       </div>
     </div>
@@ -1163,6 +1208,73 @@ export class SandboxController {
       updateScoreboardUI();
     }
 
+    // ---- Replay round par round ----
+    let roundReplay = null;
+    const ROUND_OUTCOMES = {
+      CTs_Win: 'Victoire CT (élimination)', Terrorists_Win: 'Victoire T (élimination)',
+      Target_Bombed: 'Bombe explosée', Bomb_Defused: 'Bombe désamorcée', Target_Saved: 'Temps écoulé (CT)',
+      Round_Draw: 'Nul (restauration de backup ?)',
+    };
+    function describeRoundEnd(end) {
+      if (!end) return 'Round inachevé (fin du log)';
+      const outcome = ROUND_OUTCOMES[end.outcome] || end.outcome;
+      return 'CT ' + end.ct + ' - ' + end.t + ' T · ' + outcome;
+    }
+    function renderRoundReplay(st) {
+      roundReplay = st;
+      document.getElementById('roundReplayBar').style.display = 'block';
+      document.getElementById('roundReplayLabel').textContent = 'Round ' + st.cursor + ' / ' + st.totalRounds;
+      document.getElementById('roundReplayDetail').textContent = st.cursor > 0
+        ? describeRoundEnd(st.rounds[st.cursor - 1].end)
+        : 'Aucun round joué — Round suivant pour commencer';
+      document.getElementById('btnRoundPrev').disabled = st.cursor === 0;
+      document.getElementById('btnRoundNext').disabled = st.cursor >= st.totalRounds;
+      const sel = document.getElementById('roundReplaySelect');
+      sel.innerHTML = '<option value="0">0 — avant le 1er round</option>' + st.rounds.map(function (r) {
+        return '<option value="' + r.index + '"' + (r.index === st.cursor ? ' selected' : '') + '>' + r.index + ' — ' + describeRoundEnd(r.end) + '</option>';
+      }).join('');
+    }
+    async function startRoundReplay(payload) {
+      const body = { matchId: payload.matchId, serverId: payload.serverId };
+      if (payload.fixtureName) body.fixtureName = payload.fixtureName;
+      if (payload.content) body.content = payload.content;
+      if (payload.events) body.events = payload.events;
+      try {
+        const res = await fetch('/sandbox/replay/rounds/start', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body),
+        });
+        const data = await res.json();
+        if (!data.ok) { log('error', 'Erreur replay round par round: ' + JSON.stringify(data)); return; }
+        renderRoundReplay(data);
+        log('success', '🎯 Replay round par round prêt : ' + data.totalRounds + ' rounds. Utilisez « Round suivant ».');
+        setTimeout(refreshState, 300);
+      } catch (err) {
+        log('error', 'Erreur réseau replay round par round: ' + err.message);
+      }
+    }
+    async function stepRound(action, round) {
+      if (!roundReplay) return;
+      const d = getFormData();
+      const prev = document.getElementById('btnRoundPrev'), next = document.getElementById('btnRoundNext');
+      prev.disabled = true; next.disabled = true;
+      try {
+        const res = await fetch('/sandbox/replay/rounds/step', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ matchId: d.matchId, action: action, round: round }),
+        });
+        const data = await res.json();
+        if (!data.ok) { log('error', 'Erreur round par round: ' + (data.message || JSON.stringify(data))); return; }
+        if (action !== 'next') clearScoreboard();
+        renderRoundReplay(data);
+        log('time', '🎯 Round ' + data.cursor + '/' + data.totalRounds + (data.cursor > 0 ? ' · ' + describeRoundEnd(data.rounds[data.cursor - 1].end) : ''));
+        setTimeout(refreshState, 200);
+      } catch (err) {
+        log('error', 'Erreur réseau round par round: ' + err.message);
+      } finally {
+        renderRoundReplay(roundReplay);
+      }
+    }
+
     async function startReplay() {
       clearScoreboard();
       const d = getFormData();
@@ -1201,6 +1313,11 @@ export class SandboxController {
         }
       } else {
         payload.fixtureName = fixtureName;
+      }
+
+      if (speed === 'rounds') {
+        await startRoundReplay(payload);
+        return;
       }
 
       const btn = document.getElementById('btnStartReplay');

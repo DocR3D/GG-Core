@@ -1,5 +1,7 @@
 // src/application/match/sandbox/sandbox.service.spec.ts
-import { SandboxService } from './sandbox.service';
+import * as fs from 'fs';
+import * as path from 'path';
+import { SandboxService, splitRawLogIntoRounds, parseCs2LineFallback } from './sandbox.service';
 import { InjectStateDto } from './sandbox.dto';
 import { MatchStateService } from '../state/match-state.service';
 import { SidesScoreService } from '../state/sides-score.service';
@@ -451,4 +453,58 @@ describe('SandboxService', () => {
     });
   });
 
+  describe('replay round par round', () => {
+    const FIXTURE = 'gglan19_match69_nuke_backup_restore_anonymized.log';
+    const realAgentUrl = process.env.AGENT_LOGS_URL;
+    let chunkEvents: number[];
+
+    beforeAll(() => {
+      // Jamais d'envoi vers un vrai Agent Go pendant les tests : URL injoignable => parser de secours
+      process.env.AGENT_LOGS_URL = 'http://127.0.0.1:1/logs';
+      const lines = fs.readFileSync(path.resolve(__dirname, '../../../../../test/fixtures/raw-logs', FIXTURE), 'utf8')
+        .split(/\r?\n/).map((l) => l.trim()).filter(Boolean);
+      // nombre d'événements publiés par tranche (même parser que le service)
+      chunkEvents = splitRawLogIntoRounds(lines).map(
+        (c) => c.items.filter((l) => parseCs2LineFallback(l, 'm-rbr', 'srv-a') !== null).length,
+      );
+    });
+    afterAll(() => {
+      if (realAgentUrl === undefined) delete process.env.AGENT_LOGS_URL;
+      else process.env.AGENT_LOGS_URL = realAgentUrl;
+    });
+
+    const sum = (a: number[]) => a.reduce((x, y) => x + y, 0);
+
+    it('prépare la session sans jouer de round, puis avance round par round', async () => {
+      const st = await service.startRoundByRound({ matchId: 'm-rbr', fixtureName: FIXTURE });
+      expect(st).toMatchObject({ ok: true, kind: 'raw-log', cursor: 0, totalRounds: chunkEvents.length });
+      expect(mockPub.publish).not.toHaveBeenCalled();
+
+      await service.stepRoundByRound({ matchId: 'm-rbr', action: 'next' });
+      const after2 = await service.stepRoundByRound({ matchId: 'm-rbr', action: 'next' });
+      expect(after2.cursor).toBe(2);
+      expect(mockPub.publish).toHaveBeenCalledTimes(sum(chunkEvents.slice(0, 2)));
+    });
+
+    it("recule en réinitialisant le match puis en rejouant jusqu'au round visé", async () => {
+      await service.startRoundByRound({ matchId: 'm-rbr', fixtureName: FIXTURE });
+      await service.stepRoundByRound({ matchId: 'm-rbr', action: 'goto', round: 3 });
+      mockPub.publish.mockClear();
+      mockState.resetPlayerStats.mockClear();
+
+      const st = await service.stepRoundByRound({ matchId: 'm-rbr', action: 'prev' });
+      expect(st.cursor).toBe(2);
+      expect(mockState.resetPlayerStats).toHaveBeenCalled(); // reset complet
+      expect(mockPub.publish).toHaveBeenCalledTimes(sum(chunkEvents.slice(0, 2)));
+    });
+
+    it('borne les déplacements et refuse un step sans session', async () => {
+      await service.startRoundByRound({ matchId: 'm-rbr', fixtureName: FIXTURE });
+      const end = await service.stepRoundByRound({ matchId: 'm-rbr', action: 'goto', round: 999 });
+      expect(end.cursor).toBe(chunkEvents.length);
+      const back = await service.stepRoundByRound({ matchId: 'm-rbr', action: 'goto', round: -5 });
+      expect(back.cursor).toBe(0);
+      await expect(service.stepRoundByRound({ matchId: 'm-inconnu', action: 'next' })).rejects.toThrow(/Aucun replay/);
+    });
+  });
 });
