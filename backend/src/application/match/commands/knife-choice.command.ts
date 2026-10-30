@@ -40,10 +40,8 @@ export class KnifeChoiceCommand extends BaseCommand {
       if (serverId && typeof ctx.orch.rcon === 'function') {
         await ctx.orch.rcon({ serverId, matchId: event.matchId, command: CS2_RCON_COMMANDS.SWAP_TEAMS });
       }
-      const swapped = await ctx.orch.swapSides(event.matchId);
-      if (swapped) {
-        await ctx.orch.push(event.matchId, 'sides:swapped' as any, {});
-      }
+      // swapSides publie déjà sides:swapped (avec les nouveaux côtés) : ne pas le ré-émettre.
+      await ctx.orch.swapSides(event.matchId);
     }
 
     const choice = isStay ? 'stay' : 'switch';

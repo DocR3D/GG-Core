@@ -245,6 +245,9 @@ export class SidesScoreService {
       warmupAtHalftime: raw.warmupAtHalftime === 'true',
       warmupAtOvertime: raw.warmupAtOvertime === 'true',
       postgameAction: (raw.postgameAction as any) || DEFAULT_MATCH_SETTINGS.postgameAction,
+      postgameResetDelaySec: raw.postgameResetDelaySec
+        ? Number(raw.postgameResetDelaySec)
+        : DEFAULT_MATCH_SETTINGS.postgameResetDelaySec,
       mrFormat: raw.mrFormat ? Number(raw.mrFormat) : DEFAULT_MATCH_SETTINGS.mrFormat,
       overtimeMrFormat: raw.overtimeMrFormat ? Number(raw.overtimeMrFormat) : DEFAULT_MATCH_SETTINGS.overtimeMrFormat,
       overtimeEnabled: raw.overtimeEnabled !== 'false',
@@ -258,6 +261,7 @@ export class SidesScoreService {
     if (settings.warmupAtHalftime !== undefined) fields.warmupAtHalftime = String(settings.warmupAtHalftime);
     if (settings.warmupAtOvertime !== undefined) fields.warmupAtOvertime = String(settings.warmupAtOvertime);
     if (settings.postgameAction !== undefined) fields.postgameAction = settings.postgameAction;
+    if (settings.postgameResetDelaySec !== undefined) fields.postgameResetDelaySec = String(settings.postgameResetDelaySec);
     if (settings.mrFormat !== undefined) fields.mrFormat = String(settings.mrFormat);
     if (settings.overtimeMrFormat !== undefined) fields.overtimeMrFormat = String(settings.overtimeMrFormat);
     if (settings.overtimeEnabled !== undefined) fields.overtimeEnabled = String(settings.overtimeEnabled);

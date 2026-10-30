@@ -34,6 +34,7 @@ function makeCtx(overrides: {
     orch: {
       rcon: jest.fn().mockResolvedValue(undefined),
       restartGame: jest.fn().mockResolvedValue(undefined),
+      execCfg: jest.fn().mockResolvedValue(undefined),
       push: jest.fn().mockResolvedValue(undefined),
       roundEnd: jest.fn().mockResolvedValue(undefined),
       setPhase: jest.fn().mockResolvedValue(undefined),
@@ -175,7 +176,7 @@ describe('Anti-eBot Protection — Duplicate Round Rejection', () => {
 // Halftime Management (MR12)
 // ---------------------------------------------------------------------------
 describe('Regulation Halftime (MR12)', () => {
-  it('déclenche le halftime à 12 rounds joués (mp_swapteams, swapSides, restart rapide 3s)', async () => {
+  it('suit la mi-temps native de CS2 à 12 rounds joués (swapSides interne, ni mp_swapteams ni restart)', async () => {
     const rule = new LiveRule(makePauseCmd());
     const ctx = makeCtx({
       lastScoredRound: 11,
@@ -189,16 +190,12 @@ describe('Regulation Halftime (MR12)', () => {
 
     await (rule as any).onTeamRoundWin(makeRoundWinEvent('CT', 'normal', 12), ctx);
 
-    // Swap sides in game and state
-    expect(ctx.orch.rcon).toHaveBeenCalledWith(
-      expect.objectContaining({ command: 'mp_swapteams' }),
-    );
+    // CS2 swaps the teams itself (mp_halftime): GG-Core only follows. Sending mp_swapteams + mp_restartgame
+    // reset the server score to 0-0 and swapped twice (bug seen on a real server).
     expect(ctx.orch.swapSides).toHaveBeenCalledWith(MATCH_ID);
     expect(ctx.state.setHalftimePlayed).toHaveBeenCalledWith(MATCH_ID, true);
-    // Fast LAN mode: restart in 3s without waiting for !ready
-    expect(ctx.orch.restartGame).toHaveBeenCalledWith(
-      expect.objectContaining({ delay: 3 }),
-    );
+    expect(ctx.orch.rcon).not.toHaveBeenCalledWith(expect.objectContaining({ command: 'mp_swapteams' }));
+    expect(ctx.orch.restartGame).not.toHaveBeenCalled();
   });
 
   it('ne redéclenche pas le halftime si déjà joué', async () => {
@@ -245,7 +242,7 @@ describe('Regulation Victory (MR12)', () => {
 // Overtime (MR3 at 12-12)
 // ---------------------------------------------------------------------------
 describe('Overtime (MR3)', () => {
-  it('déclenche les prolongations à 12-12 (exec overtime.cfg, phase OVERTIME, otCount=1)', async () => {
+  it('déclenche les prolongations à 12-12 (phase OVERTIME, otCount=1, OT natif CS2)', async () => {
     const rule = new LiveRule(makePauseCmd());
     const ctx = makeCtx({
       lastScoredRound: 23,
@@ -260,9 +257,9 @@ describe('Overtime (MR3)', () => {
     await (rule as any).onTeamRoundWin(makeRoundWinEvent('T', 'normal', 24), ctx);
 
     expect(ctx.orch.setPhase).toHaveBeenCalledWith(MATCH_ID, MatchPhase.OVERTIME);
-    expect(ctx.orch.rcon).toHaveBeenCalledWith(
-      expect.objectContaining({ command: 'exec overtime.cfg' }),
-    );
+    // overtime.cfg is applied at live start (CS2 runs the OT natively): nothing to send at 12-12.
+    expect(ctx.orch.rcon).not.toHaveBeenCalled();
+    expect(ctx.orch.restartGame).not.toHaveBeenCalled();
     expect(ctx.state.setOvertimeCount).toHaveBeenCalledWith(MATCH_ID, 1);
   });
 
@@ -301,9 +298,8 @@ describe('Overtime (MR3)', () => {
 
     expect(ctx.say).toHaveBeenCalledWith(expect.stringContaining('Prolongations : Mi-temps'));
     expect(ctx.orch.swapSides).toHaveBeenCalledWith(MATCH_ID);
-    expect(ctx.orch.rcon).toHaveBeenCalledWith(
-      expect.objectContaining({ command: 'mp_swapteams' }),
-    );
+    expect(ctx.orch.rcon).not.toHaveBeenCalledWith(expect.objectContaining({ command: 'mp_swapteams' }));
+    expect(ctx.orch.restartGame).not.toHaveBeenCalled();
   });
 
   it('avance vers OT2 sans inverser les côtés en cas d\'égalité à la fin de l\'OT1 (15-15)', async () => {
@@ -324,9 +320,7 @@ describe('Overtime (MR3)', () => {
     expect(ctx.state.setOvertimeCount).toHaveBeenCalledWith(MATCH_ID, 2);
     expect(ctx.orch.swapSides).not.toHaveBeenCalled();
     expect(ctx.say).toHaveBeenCalledWith(expect.stringContaining('Début OT2...'));
-    expect(ctx.orch.restartGame).toHaveBeenCalledWith(
-      expect.objectContaining({ delay: 3 }),
-    );
+    expect(ctx.orch.restartGame).not.toHaveBeenCalled();
   });
 });
 
@@ -344,6 +338,12 @@ describe('LiveRule.onEnter', () => {
 
     expect(ctx.orch.rcon).toHaveBeenCalledWith(
       expect.objectContaining({ serverId: SERVER_ID }),
+    );
+    // overtime.cfg is applied once here (CS2 then runs OT natively), before the only restart of the match
+    expect(ctx.orch.execCfg).toHaveBeenCalledWith(expect.objectContaining({ serverId: SERVER_ID }), 'overtime.cfg');
+    // server rounds aligned on GG-Core's MR settings (CS2 performs the halftime from mp_maxrounds)
+    expect(ctx.orch.rcon).toHaveBeenCalledWith(
+      expect.objectContaining({ command: 'mp_maxrounds 24; mp_overtime_maxrounds 6' }),
     );
     expect(ctx.orch.restartGame).toHaveBeenCalledWith(
       expect.objectContaining({ delay: 3 }),

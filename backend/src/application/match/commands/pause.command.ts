@@ -81,11 +81,12 @@ export class PauseCommand extends BaseCommand {
       }
 
       // Phase courante
-      const phase = await this.pauseService.getPhase(event.matchId); // 'live' | 'freeze' | 'end' | null
+      const phase = await this.pauseService.getPhase(event.matchId); // 'live' | 'bomb_planted' | 'freeze' | 'end' | null
       const durationSec = reason === 'tactical' ? 30 : 60;
 
-      // En LIVE → on ARME (pas de RCON, pas de timers)
-      if (phase === 'live') {
+      // Round en cours (y compris bombe posée et fin de round) → on ARME (pas de RCON, pas de timers) :
+      // la pause démarre au prochain freeze, comme mp_pause_match natif.
+      if (phase === 'live' || phase === 'bomb_planted' || phase === 'end') {
         await this.pauseService.pause(event.matchId, event.serverId, {
           reason,
           team,
@@ -126,8 +127,13 @@ export class PauseCommand extends BaseCommand {
         return true;
       }
 
-      // Match terminé → on refuse
-      await ctx.say('Impossible de mettre en pause : le match est terminé.');
+      // Hors round (warmup, knife, fin de match) → on refuse avec le bon motif
+      const matchPhase = (await ctx.state.getSnapshot(event.matchId))?.phase;
+      await ctx.say(
+        matchPhase === 'postgame'
+          ? 'Impossible de mettre en pause : le match est terminé.'
+          : "Impossible de mettre en pause : aucun round n'est en cours.",
+      );
       return false;
     }
 

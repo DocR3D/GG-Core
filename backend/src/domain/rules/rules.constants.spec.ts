@@ -31,8 +31,10 @@ describe('CS2_CFG & CS2_RULES — Standards Valve CS2', () => {
     expect(CS2_RCON_COMMANDS.UNPAUSE_MATCH).toBe('mp_unpause_match; unpause');
     expect(CS2_RCON_COMMANDS.UNPAUSE).toBe('mp_unpause_match');
     expect(CS2_RCON_COMMANDS.COMPETITIVE_START).toContain('gamemode_competitive.cfg');
-    expect(CS2_RCON_COMMANDS.KNIFE_START).toBe('exec knife.cfg');
-    expect(CS2_RCON_COMMANDS.OVERTIME_START).toBe('exec overtime.cfg');
+    // GG-Core's own cfgs (agent/cfg/ggbot) are never exec'd through raw RCON: they don't exist on the server
+    for (const cmd of [CS2_RCON_COMMANDS.WARMUP_INFINITE, CS2_RCON_COMMANDS.WARMUP_SANDBOX]) {
+      expect(cmd).not.toContain('exec ');
+    }
     expect(CS2_RCON_COMMANDS.CHANGELEVEL('de_mirage')).toBe('changelevel de_mirage');
     expect(CS2_RCON_COMMANDS.RESTORE_LOAD('round1.txt')).toBe('mp_backup_restore_load_file round1.txt');
   });

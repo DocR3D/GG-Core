@@ -135,8 +135,12 @@ services:
       CS2_RCONPW: "${GG_RCON_PASSWORD:-123456}"
       CS2_STARTMAP: "de_inferno"
       CS2_LAN: "1"
+      # The image writes server.cfg from these variables (executed after the launch args): setting
+      # +tv_enable / +mp_logdetail on the command line alone is overridden (tv_enable 0 → no demo).
+      TV_ENABLE: "1"
+      CS2_LOG_DETAIL: "3"
       # Zero Plugin : uniquement logaddress_add_http + RCON natif
-      CS2_ADDITIONAL_ARGS: "-allow_round_backup_files +log on +mp_logdetail 3 +logaddress_add_http \"http://172.30.0.10:8082/logs?token=${GG_LOGS_TOKEN:-tonSuperSecret}\""
+      CS2_ADDITIONAL_ARGS: "-allow_round_backup_files +log on +logaddress_add_http \"http://172.30.0.10:8082/logs?token=${GG_LOGS_TOKEN:-tonSuperSecret}\""
     volumes:
       - cs2data:/home/steam/cs2-dedicated
     ports:

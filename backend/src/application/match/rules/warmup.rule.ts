@@ -24,10 +24,11 @@ export class WarmupRule extends BaseRule implements PhaseRule {
   async onEnter(ctx: RuleContext) {
     const serverId = ctx.serverId ?? (await ctx.state.getServerIdFromMatchId(ctx.matchId));
     if (serverId) {
+      await ctx.orch.execCfg({ serverId, matchId: ctx.matchId }, CS2_CFG.WARMUP);
       await ctx.orch.rcon({
         serverId,
         matchId: ctx.matchId,
-        command: CS2_RCON_COMMANDS.WARMUP_INFINITE(CS2_CFG.WARMUP),
+        command: CS2_RCON_COMMANDS.WARMUP_INFINITE,
       });
     }
     if (typeof (ctx.orch as any).resetReady === 'function') {

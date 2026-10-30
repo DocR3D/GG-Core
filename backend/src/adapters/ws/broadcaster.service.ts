@@ -84,12 +84,19 @@ export class WsBroadcaster implements OnModuleInit {
         case 'sfui_target_bombed':  return 'SFUI_TARGET_BOMBED';
 
         //Changement de phase
-        case 'phase_countdown':  return 'PHASE_COUNTDOWN';
-        case 'phase_changed':    return 'PHASE_CHANGED';
-        case 'phase_cancelled':  return 'PHASE_CANCELLED';
+        // (MatchPhaseService publie avec ':' — sans ce mapping, le front n'avait pas de compte à rebours)
+        case 'phase_countdown':
+        case 'phase:countdown':  return 'PHASE_COUNTDOWN';
+        case 'phase_changed':
+        case 'phase:changed':    return 'PHASE_CHANGED';
+        case 'phase_cancelled':
+        case 'phase:cancelled':  return 'PHASE_CANCELLED';
         default:                    return undefined;
       }
     };
+
+    // Événements du bus consommés par le backend uniquement : pas d'équivalent WS, pas de warning.
+    const busOnlyTypes = new Set(['round_freeze_start', 'match_start']);
 
     // audience par défaut par type interne
     const defaultAudience = (name: InternalEvent['name']): Audience =>
@@ -137,6 +144,7 @@ export class WsBroadcaster implements OnModuleInit {
         ev.audience = ev.audience ?? defaultAudience(ev.name);
       } else {
         const name = mapTypeToName(base.type);
+        if (!name && base.type && busOnlyTypes.has(base.type)) return;
         if (!name) {
           this.logger.warn(`❓ Unmapped bus event type="${base.type ?? '∅'}"`);
           return;

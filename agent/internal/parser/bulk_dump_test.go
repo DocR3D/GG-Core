@@ -47,12 +47,10 @@ func TestBulkDump(t *testing.T) {
 			if strings.TrimSpace(line) == "" {
 				continue
 			}
-			typ, payload, ok := TryParse(line)
-			if !ok {
-				continue
+			for _, ev := range Parse(line) {
+				b, _ := json.Marshal(map[string]any{"line": i, "type": ev.Type, "payload": ev.Payload})
+				w.Write(append(b, '\n'))
 			}
-			b, _ := json.Marshal(map[string]any{"line": i, "type": typ, "payload": payload})
-			w.Write(append(b, '\n'))
 		}
 		w.Flush()
 		out.Close()

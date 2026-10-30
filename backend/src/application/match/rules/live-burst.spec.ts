@@ -122,11 +122,9 @@ describe('LiveRule — Burst & Rapid-Fire Replay Stress Tests', () => {
     expect(finalScore.t).toBe(13);  // Team 1 sur T (13 points gagnants !)
     expect(finalScore.round).toBe(20);
 
-    // Vérifier la détection de mi-temps au round 12
-    expect(ctx.orch.rcon).toHaveBeenCalledWith(
-      expect.objectContaining({ command: 'mp_swapteams' }),
-    );
+    // Vérifier la détection de mi-temps au round 12 (CS2 inverse lui-même : pas de mp_swapteams)
     expect(ctx.orch.swapSides).toHaveBeenCalledTimes(1);
+    expect(ctx.orch.rcon).not.toHaveBeenCalledWith(expect.objectContaining({ command: 'mp_swapteams' }));
 
     // Vérifier la fin de match au 13ème round gagné (pour T)
     expect(ctx.orch.endMatch).toHaveBeenCalledTimes(1);

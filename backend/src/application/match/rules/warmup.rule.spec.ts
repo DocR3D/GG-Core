@@ -21,6 +21,7 @@ describe('WarmupRule — Ready Checks & Target Phase Selection', () => {
       say: jest.fn().mockResolvedValue(undefined),
       orch: {
         rcon: jest.fn().mockResolvedValue(undefined),
+        execCfg: jest.fn().mockResolvedValue(undefined),
         resetReady: jest.fn().mockResolvedValue(undefined),
         push: jest.fn().mockResolvedValue(undefined),
         isBothReady: jest.fn().mockResolvedValue(false),
@@ -42,14 +43,12 @@ describe('WarmupRule — Ready Checks & Target Phase Selection', () => {
   });
 
   describe('onEnter', () => {
-    it('doit exécuter warmup.cfg sur CS2 et réinitialiser les flags ready', async () => {
+    it("doit appliquer warmup.cfg via l'agent, lancer le warmup infini et réinitialiser les flags ready", async () => {
       await rule.onEnter(mockCtx);
 
+      expect(mockCtx.orch.execCfg).toHaveBeenCalledWith(expect.objectContaining({ serverId: 'srv-a' }), CS2_CFG.WARMUP);
       expect(mockCtx.orch.rcon).toHaveBeenCalledWith(
-        expect.objectContaining({
-          serverId: 'srv-a',
-          command: expect.stringContaining(CS2_CFG.WARMUP),
-        }),
+        expect.objectContaining({ serverId: 'srv-a', command: expect.stringContaining('mp_warmup_start 1') }),
       );
       expect(mockCtx.orch.resetReady).toHaveBeenCalledWith('m-test');
       expect(mockCtx.say).toHaveBeenCalledWith(expect.stringContaining('!ready'));

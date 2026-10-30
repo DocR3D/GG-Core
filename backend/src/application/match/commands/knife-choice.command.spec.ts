@@ -121,7 +121,7 @@ describe('TC-02 — KnifeChoiceCommand.handle : !stay', () => {
 // TC-02 (suite) — handle !switch
 // ---------------------------------------------------------------------------
 describe('TC-02 — KnifeChoiceCommand.handle : !switch', () => {
-  it('swap les sides, publie sides:swapped et déclenche countdown LIVE_MAIN 5s', async () => {
+  it('swap les sides (swapSides publie sides:swapped) et déclenche countdown LIVE_MAIN 5s', async () => {
     const cmd = makeCmd();
     const ctx = makeCtx();
 
@@ -129,7 +129,8 @@ describe('TC-02 — KnifeChoiceCommand.handle : !switch', () => {
 
     expect(result).toBe(true);
     expect(ctx.orch.swapSides).toHaveBeenCalledWith(MATCH_ID);
-    expect(ctx.orch.push).toHaveBeenCalledWith(MATCH_ID, 'sides:swapped', {});
+    // sides:swapped est publié UNE fois, par orch.swapSides (il était ré-émis ici, vide, en double)
+    expect(ctx.orch.push).not.toHaveBeenCalledWith(MATCH_ID, 'sides:swapped', expect.anything());
     expect(ctx.say).toHaveBeenCalledWith(expect.stringContaining('SWITCH'));
     expect(ctx.orch.startPhaseCountdown).toHaveBeenCalledWith(
       MATCH_ID,
@@ -140,7 +141,7 @@ describe('TC-02 — KnifeChoiceCommand.handle : !switch', () => {
     expect(ctx.pubEvent).toHaveBeenCalledWith('knife_choice', expect.objectContaining({ choice: 'switch' }));
   });
 
-  it('ne publie pas sides:swapped si swapSides retourne false', async () => {
+  it('ne publie jamais sides:swapped lui-même (même si swapSides retourne false)', async () => {
     const cmd = makeCmd();
     const ctx = makeCtx('CT', false);
 

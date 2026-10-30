@@ -196,17 +196,16 @@ export class SandboxService {
     if (dto.phase) {
       await this.state.setPhase(mid, dto.phase as Phase);
       if ((dto.phase === MatchPhase.WARMUP_MAIN || dto.phase === MatchPhase.KNIFE_WARMUP) && dto.serverId) {
+        await this.cmds.exec({ serverId: dto.serverId, matchId: mid, cfgName: CS2_CFG.WARMUP })
+          .catch((e) => this.logger.warn(`Warmup cfg failed: ${e.message}`));
         await this.cmds.rcon({
           serverId: dto.serverId,
           matchId: mid,
-          command: CS2_RCON_COMMANDS.WARMUP_INFINITE(CS2_CFG.WARMUP),
+          command: CS2_RCON_COMMANDS.WARMUP_INFINITE,
         }).catch((e) => this.logger.warn(`Warmup RCON failed: ${e.message}`));
       } else if (dto.phase === MatchPhase.KNIFE_LIVE && dto.serverId) {
-        await this.cmds.rcon({
-          serverId: dto.serverId,
-          matchId: mid,
-          command: CS2_RCON_COMMANDS.KNIFE_START,
-        }).catch((e) => this.logger.warn(`Knife RCON failed: ${e.message}`));
+        await this.cmds.exec({ serverId: dto.serverId, matchId: mid, cfgName: CS2_CFG.KNIFE })
+          .catch((e) => this.logger.warn(`Knife cfg failed: ${e.message}`));
       }
     }
     if (dto.roundPhase) {
@@ -322,13 +321,13 @@ export class SandboxService {
 
     if (round === 0) {
       if (dto.phase === MatchPhase.KNIFE_LIVE) {
-        const knifeCmd = CS2_RCON_COMMANDS.KNIFE_START;
+        const knifeCmd = `exec_cfg ${CS2_CFG.KNIFE} (agent)`;
         if (dto.applyViaRcon !== false) {
           if (dto.reloadMap) {
             await this.cmds.rcon({ serverId, matchId, command: CS2_RCON_COMMANDS.CHANGELEVEL(map) });
             await new Promise((resolve) => setTimeout(resolve, 2000));
           }
-          await this.cmds.rcon({ serverId, matchId, command: knifeCmd });
+          await this.cmds.exec({ serverId, matchId, cfgName: CS2_CFG.KNIFE });
         }
         await this.injectState({
           matchId,
@@ -348,12 +347,13 @@ export class SandboxService {
           vdfSnippet: 'Knife round CS2 démarré avec succès (couteaux uniquement)',
         };
       }
-      const warmupCmd = CS2_RCON_COMMANDS.WARMUP_SANDBOX(CS2_CFG.WARMUP);
+      const warmupCmd = CS2_RCON_COMMANDS.WARMUP_SANDBOX;
       if (dto.applyViaRcon !== false) {
         if (dto.reloadMap) {
           await this.cmds.rcon({ serverId, matchId, command: CS2_RCON_COMMANDS.CHANGELEVEL(map) });
           await new Promise((resolve) => setTimeout(resolve, 2000));
         }
+        await this.cmds.exec({ serverId, matchId, cfgName: CS2_CFG.WARMUP });
         await this.cmds.rcon({ serverId, matchId, command: warmupCmd });
       }
       await this.injectState({
@@ -571,7 +571,8 @@ export class SandboxService {
         command,
         sender: {
           name: sender.name || 'SandboxTester',
-          steamId: sender.steamId || '76561198000000001',
+          // One default SteamID per side: with a single one, the 2nd captain's !ready was dropped by the spam filter.
+          steamId: sender.steamId || (team === 'T' ? '76561198000000002' : '76561198000000001'),
           team,
         },
       },

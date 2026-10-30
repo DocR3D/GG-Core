@@ -62,6 +62,7 @@ describe('SandboxService', () => {
     };
     mockCmds = {
       rcon: jest.fn().mockResolvedValue({ ok: true }),
+      exec: jest.fn().mockResolvedValue({ ok: true }),
     };
     mockWs = {
       push: jest.fn().mockResolvedValue(undefined),
@@ -146,18 +147,15 @@ describe('SandboxService', () => {
       expect(result.matchId).toBe('m-test-1');
     });
 
-    it('doit envoyer exec knife.cfg via RCON si la phase injectée est KNIFE_LIVE', async () => {
+    it("doit appliquer knife.cfg via l'agent (pas en RCON brut) si la phase injectée est KNIFE_LIVE", async () => {
       await service.injectState({
         matchId: 'm-test-1',
         serverId: 'srv-a',
         phase: MatchPhase.KNIFE_LIVE,
       });
 
-      expect(mockCmds.rcon).toHaveBeenCalledWith({
-        serverId: 'srv-a',
-        matchId: 'm-test-1',
-        command: CS2_RCON_COMMANDS.KNIFE_START,
-      });
+      expect(mockCmds.exec).toHaveBeenCalledWith({ serverId: 'srv-a', matchId: 'm-test-1', cfgName: 'knife.cfg' });
+      expect(mockCmds.rcon).not.toHaveBeenCalledWith(expect.objectContaining({ command: 'exec knife.cfg' }));
     });
 
     it('doit calculer automatiquement round, halftimePlayed et overtimeCount depuis le score si omis', async () => {
@@ -221,12 +219,8 @@ describe('SandboxService', () => {
 
       expect(result.ok).toBe(true);
       expect(mockBackupService.generateValveBackup).not.toHaveBeenCalled();
-      expect(mockCmds.rcon).toHaveBeenCalledWith({
-        serverId: 'srv-a',
-        matchId: 'm-test-1',
-        command: CS2_RCON_COMMANDS.KNIFE_START,
-      });
-      expect(result.rconCommand).toBe(CS2_RCON_COMMANDS.KNIFE_START);
+      expect(mockCmds.exec).toHaveBeenCalledWith({ serverId: 'srv-a', matchId: 'm-test-1', cfgName: 'knife.cfg' });
+      expect(result.rconCommand).toContain('knife.cfg');
       expect(mockState.setPhase).toHaveBeenCalledWith('m-test-1', MatchPhase.KNIFE_LIVE);
     });
 
@@ -240,11 +234,9 @@ describe('SandboxService', () => {
 
       expect(result.ok).toBe(true);
       expect(mockBackupService.generateValveBackup).not.toHaveBeenCalled();
+      expect(mockCmds.exec).toHaveBeenCalledWith(expect.objectContaining({ serverId: 'srv-a', cfgName: CS2_CFG.WARMUP }));
       expect(mockCmds.rcon).toHaveBeenCalledWith(
-        expect.objectContaining({
-          serverId: 'srv-a',
-          command: expect.stringContaining(CS2_CFG.WARMUP),
-        }),
+        expect.objectContaining({ serverId: 'srv-a', command: expect.stringContaining('mp_warmup_start 1') }),
       );
       expect(mockState.setPhase).toHaveBeenCalledWith('m-test-1', MatchPhase.WARMUP_MAIN);
     });

@@ -4,6 +4,7 @@ import { REDIS_CMD } from '@adapters/redis/redis.tokens';
 import { redisConst } from './redis.keys';
 import { SidesScoreService } from './sides-score.service';
 import { Phase, MatchPhase, RoundPhase } from '@domain/phase.types';
+import { DEFAULT_TAC_BANK_SEC } from '@domain/rules/rules.constants';
 
 export type PlayerScoreboardEntry = {
   steamId: string;
@@ -131,8 +132,8 @@ export class SnapshotQuery {
     const startedAtMs = toInt(pauseHash?.started_at) || 0;
 
     // Banques tactiques persistées
-    const tacHomeSec = toInt(pauseHash?.tac_bank_home) || 0;
-    const tacAwaySec = toInt(pauseHash?.tac_bank_away) || 0;
+    const tacHomeSec = pauseHash?.tac_bank_home !== undefined ? toInt(pauseHash.tac_bank_home) : DEFAULT_TAC_BANK_SEC;
+    const tacAwaySec = pauseHash?.tac_bank_away !== undefined ? toInt(pauseHash.tac_bank_away) : DEFAULT_TAC_BANK_SEC;
 
     // Vue effective pendant pause tactique
     const now = Date.now();

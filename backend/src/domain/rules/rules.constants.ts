@@ -32,6 +32,9 @@ export const CS2_RULES = {
   STEAMID64_BASE: 76561197960265728n,
 } as const;
 
+/** Banque de pause tactique par équipe (secondes), source unique : init du match, débit, affichage, snapshot. */
+export const DEFAULT_TAC_BANK_SEC = CS2_RULES.DEFAULT_TACTICAL_TIMEOUTS * CS2_RULES.DEFAULT_TACTICAL_TIMEOUT_SEC;
+
 /**
  * Noms standardisés des fichiers de configuration CS2 natifs.
  */
@@ -53,12 +56,11 @@ export const CS2_RCON_COMMANDS = {
   UNPAUSE: 'mp_unpause_match',
   WARMUP_START: 'mp_warmup_start 1',
   WARMUP_END: 'mp_warmup_end 1',
-  WARMUP_EXEC: (cfg = CS2_CFG.WARMUP) => `mp_warmup_start 1; exec ${cfg}`,
-  WARMUP_INFINITE: (cfg = CS2_CFG.WARMUP) => `exec ${cfg}; mp_warmup_start 1; mp_warmuptime 999999; mp_warmup_pausetimer 1`,
-  WARMUP_SANDBOX: (cfg = CS2_CFG.WARMUP) => `exec ${cfg}; mp_warmup_start 1; mp_warmuptime 999999; mp_warmup_pausetimer 1; bot_quota 2; bot_quota_mode fill; mp_unpause_match`,
+  // warmup.cfg / knife.cfg / overtime.cfg live in agent/cfg/ggbot, NOT on the server: a raw RCON
+  // "exec <cfg>" fails there. Apply them with orch.execCfg / cmds.exec (agent exec_cfg), never here.
+  WARMUP_INFINITE: 'mp_warmup_start 1; mp_warmuptime 999999; mp_warmup_pausetimer 1',
+  WARMUP_SANDBOX: 'mp_warmup_start 1; mp_warmuptime 999999; mp_warmup_pausetimer 1; bot_quota 2; bot_quota_mode fill; mp_unpause_match',
   COMPETITIVE_START: `exec ${CS2_CFG.COMPETITIVE}; exec ${CS2_CFG.COMPETITIVE_TMM}; mp_warmup_end 1`,
-  KNIFE_START: `exec ${CS2_CFG.KNIFE}`,
-  OVERTIME_START: `exec ${CS2_CFG.OVERTIME}`,
   RESTORE_PREPARE: 'mp_backup_restore_load_autopause 0; mp_overtime_enable 1; mp_overtime_maxrounds 6; mp_overtime_startmoney 10000; bot_quota 2; bot_quota_mode fill; bot_join_after_player 1; mp_warmup_end',
   RESTORE_LOAD: (file: string) => `mp_backup_restore_load_file ${file}`,
   BOT_BALANCE_CT: 'bot_kick ct; bot_add_t; mp_unpause_match',

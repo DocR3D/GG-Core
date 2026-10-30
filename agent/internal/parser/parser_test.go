@@ -9,7 +9,6 @@ import (
 	"testing"
 )
 
-
 func TestTryParse(t *testing.T) {
 	tests := []struct {
 		name         string
@@ -396,7 +395,13 @@ func TestTryParse(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			evType, raw, ok := TryParse(StripCs2Prefix(tc.logLine))
+			var evType string
+			var raw json.RawMessage
+			evs := Parse(StripCs2Prefix(tc.logLine))
+			ok := len(evs) > 0
+			if ok {
+				evType, raw = evs[0].Type, evs[0].Payload
+			}
 			if ok != tc.wantOk {
 				t.Fatalf("TryParse() ok = %v, wantOk = %v (event: %s)", ok, tc.wantOk, evType)
 			}
@@ -443,24 +448,23 @@ func TestTryParse_RealMatchLogsNoPhantomKills(t *testing.T) {
 		for scanner.Scan() {
 			lineCount++
 			line := scanner.Text()
-			evType, raw, ok := TryParse(StripCs2Prefix(line))
-			if !ok {
-				continue
-			}
-			parsedCount++
+			for _, ev := range Parse(StripCs2Prefix(line)) {
+				evType, raw := ev.Type, ev.Payload
+				parsedCount++
 
-			if evType == events.EvKill {
-				var p map[string]any
-				if err := json.Unmarshal(raw, &p); err == nil {
-					if p["kind"] == "world" {
-						file.Close()
-						t.Fatalf("File %s, line %d: world kill emitted! line: %s", logPath, lineCount, line)
-					}
-					if victim, ok := p["victim"].(map[string]any); ok {
-						vname, _ := victim["name"].(string)
-						if strings.HasPrefix(vname, "de_") || strings.HasPrefix(vname, "cs_") {
+				if evType == events.EvKill {
+					var p map[string]any
+					if err := json.Unmarshal(raw, &p); err == nil {
+						if p["kind"] == "world" {
 							file.Close()
-							t.Fatalf("File %s, line %d: Phantom map kill detected with victim '%s'! line: %s", logPath, lineCount, vname, line)
+							t.Fatalf("File %s, line %d: world kill emitted! line: %s", logPath, lineCount, line)
+						}
+						if victim, ok := p["victim"].(map[string]any); ok {
+							vname, _ := victim["name"].(string)
+							if strings.HasPrefix(vname, "de_") || strings.HasPrefix(vname, "cs_") {
+								file.Close()
+								t.Fatalf("File %s, line %d: Phantom map kill detected with victim '%s'! line: %s", logPath, lineCount, vname, line)
+							}
 						}
 					}
 				}
@@ -469,5 +473,24 @@ func TestTryParse_RealMatchLogsNoPhantomKills(t *testing.T) {
 		file.Close()
 
 		t.Logf("Tested %s: %d lines processed, %d events successfully extracted", logPath, lineCount, parsedCount)
+	}
+}
+
+// Bug: releasing a deferred grenade "landed" returned early and dropped the next line (here a kill).
+func TestParse_LineAfterGrenadeThrowIsNotDropped(t *testing.T) {
+	lines := []string{
+		`Molotov projectile spawned at 100.0 200.0 30.0, velocity 10.0 20.0 30.0`,
+		`"Alpha_Kilo<0><[U:1:1002]><CT>" threw molotov [100 200 30]`,
+		`"Alpha_Kilo<0><[U:1:1002]><CT>" [-1507 -341 105] killed "Bravo_Alfa<15><[U:1:2002]><TERRORIST>" [-470 -58 86] with "m4a1" (headshot)`,
+	}
+	var got []string
+	for _, l := range lines {
+		for _, ev := range Parse(l) {
+			got = append(got, ev.Type)
+		}
+	}
+	want := []string{events.EvGrenadeThrow, events.EvNadeLanded, events.EvKill}
+	if strings.Join(got, ",") != strings.Join(want, ",") {
+		t.Fatalf("events = %v, want %v", got, want)
 	}
 }

@@ -106,23 +106,39 @@ var ignoreNextWorldSuicide = map[string]time.Time{}
 
 const pendingTTL = 2 * time.Second // ajuste si besoin
 
-// TryParse retourne (type, payloadJSON, ok)
-func TryParse(line string) (string, json.RawMessage, bool) {
-	line = StripCs2Prefix(strings.TrimSpace(line))
+// Event is one game event parsed from a log line.
+type Event struct {
+	Type    string
+	Payload json.RawMessage
+}
 
-	// NEW: si on a un event différé à sortir, on le renvoie *avant* de parser la nouvelle ligne
-	if len(deferred) > 0 {
-		ev := deferred[0]
-		deferred = deferred[1:]
-		return ev.typ, ev.payload, true
-	}
-	// NEW: on émet un landed expiré si son "threw" n'est jamais venu
+// Parse returns every event produced by a log line, in order: grenade "landed" events whose
+// "threw" never came (expired), then the line's own event, then the events it released
+// (a "threw" releases its pending "spawned" as landed, right after the throw).
+//
+// It replaces TryParse's one-event-per-line contract: releasing a deferred event used to
+// return early and silently DROP the current line (e.g. the kill right after a molotov throw).
+func Parse(line string) []Event {
+	var out []Event
 	for nade, p := range pendingSpawnByType {
 		if time.Since(p.seenAt) > pendingTTL {
 			delete(pendingSpawnByType, nade)
-			return events.EvNadeLanded, p.payload, true
+			out = append(out, Event{Type: events.EvNadeLanded, Payload: p.payload})
 		}
 	}
+	if typ, payload, ok := parseLine(line); ok {
+		out = append(out, Event{Type: typ, Payload: payload})
+	}
+	for _, q := range deferred {
+		out = append(out, Event{Type: q.typ, Payload: q.payload})
+	}
+	deferred = deferred[:0]
+	return out
+}
+
+// parseLine parses a single line into at most one event (it may queue a deferred one).
+func parseLine(line string) (string, json.RawMessage, bool) {
+	line = StripCs2Prefix(strings.TrimSpace(line))
 
 	// CHAT (et éventuellement COMMAND)
 	if chatRe.MatchString(line) {
@@ -162,7 +178,6 @@ func TryParse(line string) (string, json.RawMessage, bool) {
 		raw, _ := json.Marshal(payload)
 		return events.EvChatMessage, raw, true
 	}
-
 
 	if killRe.MatchString(line) {
 		killer := grp(killRe, line, "killer")
@@ -476,7 +491,7 @@ func TryParse(line string) (string, json.RawMessage, bool) {
 			payload["entindex"] = ent
 		}
 
-		// NEW: si on a un spawned récent pour ce type, on le déferre pour la prochaine ligne
+		// Un spawned récent pour ce type est émis comme landed juste après le throw (cf. Parse)
 		if p, ok := pendingSpawnByType[strings.ToLower(nade)]; ok && time.Since(p.seenAt) <= pendingTTL {
 			deferred = append(deferred, queued{typ: events.EvNadeLanded, payload: p.payload})
 			delete(pendingSpawnByType, strings.ToLower(nade))

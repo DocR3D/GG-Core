@@ -28,6 +28,13 @@ export interface MatchSettings {
   postgameAction?: 'soft_reset' | 'restart';
 
   /**
+   * Seconds to wait after Game Over before applying postgameAction, so players keep the end screen
+   * and scoreboard during CS2's intermission (mp_match_restart_delay).
+   * Default: 30
+   */
+  postgameResetDelaySec?: number;
+
+  /**
    * Regulation MR format (e.g. 12 rounds per half, 13 to win in CS2).
    * Default: 12
    */
@@ -57,6 +64,7 @@ export const DEFAULT_MATCH_SETTINGS: Required<MatchSettings> = {
   warmupAtHalftime: false,
   warmupAtOvertime: false,
   postgameAction: 'soft_reset',
+  postgameResetDelaySec: 30,
   mrFormat: CS2_RULES.DEFAULT_MR_HALF,
   overtimeMrFormat: CS2_RULES.DEFAULT_OT_HALF,
   overtimeEnabled: true,

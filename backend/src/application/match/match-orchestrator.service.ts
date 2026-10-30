@@ -238,8 +238,8 @@ export class MatchOrchestrator {
     return this.cmds.rcon(opts);
   }
 
+  /** Applies one of GG-Core's .cfg (agent/cfg/ggbot) line by line through the agent (they do not exist on the server). */
   async execCfg(opts: { serverId: string; matchId: string }, cfg: string) {
-    await this.cmds.rcon({ serverId: opts.serverId, matchId: opts.matchId, command: 'exec ' + cfg }).catch(() => {});
     return this.cmds.exec({ serverId: opts.serverId, matchId: opts.matchId, cfgName: cfg });
   }
 
@@ -339,16 +339,21 @@ export class MatchOrchestrator {
 
     await this.state.setSettings(matchId, settings);
     await this.state.setServerIdToMatchId(serverId, matchId);
+    await this.pause.initTacBanks(matchId);
 
-    // 1) Change map if needed
+    // 1) GOTV must be enabled BEFORE the map loads, otherwise tv_record answers "GOTV not active"
+    //    and no demo is recorded (observed on a real server).
+    await this.cmds.rcon({ serverId, matchId, command: 'tv_enable 1' }).catch(() => {});
+
+    // 2) Change map if needed
     try {
       await this.cmds.changeLevel({ serverId, map: mapName });
     } catch (err: any) {
       this.log.debug(`changelevel: ${err?.message}`);
     }
 
-    // 2) Exec warmup config & start GOTV demo recording
-    await this.cmds.rcon({ serverId, matchId, command: `exec ${CS2_CFG.WARMUP}` }).catch(() => {});
+    // 3) Warmup config (applied by the agent) & start GOTV demo recording
+    await this.execCfg({ serverId, matchId }, CS2_CFG.WARMUP).catch(() => {});
     await this.cmds.rcon({ serverId, matchId, command: `tv_record "${matchId}_${mapName}"` }).catch(() => {});
 
     // 3) Initial phase
@@ -423,18 +428,33 @@ export class MatchOrchestrator {
       }
     }
 
-    // 6. Server cleanup action (soft_reset vs restart)
+    // 6. Server cleanup action (soft_reset vs restart), DELAYED: right after Game Over CS2 shows the end
+    //    screen / scoreboard during its intermission. Resetting at once cut it and left players frozen
+    //    (warmup started during the intermission) — observed on a real server.
     if (serverId) {
-      if (settings.postgameAction === 'restart') {
-        this.log.log(`[endMatch] Executing RCON quit to purge RAM and restart server ${serverId}`);
-        await this.cmds.rcon({ serverId, matchId, command: 'quit' }).catch((e) => this.log.warn(e.message));
-      } else {
-        await this.cmds.rcon({
-          serverId,
-          matchId,
-          command: `mp_warmup_start 1; exec ${CS2_CFG.WARMUP}`,
-        }).catch((e) => this.log.warn(e.message));
-      }
+      const delaySec = settings.postgameResetDelaySec ?? DEFAULT_MATCH_SETTINGS.postgameResetDelaySec;
+      this.log.log(`[endMatch] server ${serverId} reset (${settings.postgameAction}) in ${delaySec}s`);
+      setTimeout(() => {
+        this.resetServerAfterMatch(serverId, matchId, settings.postgameAction).catch((e) =>
+          this.log.warn(`[endMatch] server reset failed: ${e?.message}`),
+        );
+      }, delaySec * 1000);
     }
+  }
+
+  private async resetServerAfterMatch(serverId: string, matchId: string, action: MatchSettings['postgameAction']) {
+    // A new match may have been started on this server during the delay: never reset it.
+    const current = await this.state.getMatchIdFromServerId(serverId);
+    if (current && current !== matchId) {
+      this.log.log(`[endMatch] server ${serverId} now runs ${current}: postgame reset skipped`);
+      return;
+    }
+    if (action === 'restart') {
+      this.log.log(`[endMatch] Executing RCON quit to purge RAM and restart server ${serverId}`);
+      await this.cmds.rcon({ serverId, matchId, command: 'quit' });
+      return;
+    }
+    await this.cmds.rcon({ serverId, matchId, command: 'mp_warmup_start 1' });
+    await this.execCfg({ serverId, matchId }, CS2_CFG.WARMUP);
   }
 }

@@ -90,6 +90,23 @@ export class LiveRule extends BaseRule implements PhaseRule {
       matchId: ctx.matchId,
       command: CS2_RCON_COMMANDS.COMPETITIVE_START,
     });
+    // Overtime must be configured BEFORE the last regulation round: CS2 decides OT vs draw itself at 12-12.
+    const startSettings = await ctx.state.getSettings(ctx.matchId);
+    if (startSettings.overtimeEnabled) {
+      await ctx.orch.execCfg({ serverId, matchId: ctx.matchId }, CS2_CFG.OVERTIME);
+    } else {
+      await ctx.orch.rcon({ serverId, matchId: ctx.matchId, command: 'mp_overtime_enable 0' });
+    }
+    // CS2 runs halftime / OT halftime natively from these convars: they must match GG-Core's settings
+    // (the cfgs above set the MR12 / MR3 defaults), otherwise both sides swap at different rounds.
+    const mr = startSettings.mrFormat ?? CS2_RULES.DEFAULT_MR_HALF;
+    const otMr = startSettings.overtimeMrFormat ?? CS2_RULES.DEFAULT_OT_HALF;
+    await ctx.orch.rcon({
+      serverId,
+      matchId: ctx.matchId,
+      command: `mp_maxrounds ${mr * 2}; mp_overtime_maxrounds ${otMr * 2}`,
+    });
+    // The only restart of the match: right before the first live round.
     await ctx.orch.restartGame({ serverId, matchId: ctx.matchId, delay: CS2_RULES.FAST_RESTART_DELAY_SEC });
 
     await ctx.say('[live] Passage en phase LIVE.');
@@ -180,14 +197,14 @@ export class LiveRule extends BaseRule implements PhaseRule {
     const serverId = ctx.serverId ?? (await ctx.state.getServerIdFromMatchId(ev.matchId));
 
     // 3) Halftime Check (Regulation MR12 at round 12)
+    // CS2 performs the halftime itself (mp_maxrounds = 2 x MR): it swaps the teams and KEEPS the score.
+    // GG-Core only follows: no mp_swapteams (it would swap the teams back) and no mp_restartgame
+    // (it would reset the server score to 0-0) — both observed on a real server.
     const halftimePlayed = await ctx.state.isHalftimePlayed(ev.matchId);
     if (!halftimePlayed && totalRounds === mr) {
       await ctx.state.setHalftimePlayed(ev.matchId, true);
-      await ctx.say(`[GG-Core] MI-TEMPS ! Score: CT ${scoreCT} - ${scoreT} T. Inversion des côtés...`);
+      await ctx.say(`[GG-Core] MI-TEMPS ! Score: CT ${scoreCT} - ${scoreT} T. Changement de côtés.`);
 
-      if (serverId) {
-        await ctx.orch.rcon({ serverId, matchId: ev.matchId, command: 'mp_swapteams' });
-      }
       await ctx.orch.swapSides(ev.matchId);
       if (typeof (ctx.state as any).resetStreaks === 'function') {
         await (ctx.state as any).resetStreaks(ev.matchId);
@@ -196,11 +213,6 @@ export class LiveRule extends BaseRule implements PhaseRule {
       if (settings.warmupAtHalftime) {
         await ctx.orch.setPhase(ev.matchId, MatchPhase.HALFTIME);
         await ctx.say('[GG-Core] Mi-temps tactique : Tapez !ready quand vous êtes prêts.');
-      } else {
-        // Fast LAN mode: automatic quick restart
-        if (serverId) {
-          await ctx.orch.restartGame({ serverId, matchId: ev.matchId, delay: CS2_RULES.FAST_RESTART_DELAY_SEC });
-        }
       }
       return;
     }
@@ -220,10 +232,8 @@ export class LiveRule extends BaseRule implements PhaseRule {
       // Tie at 12-12 -> Overtime check
       if (scoreCT === mr && scoreT === mr) {
         if (settings.overtimeEnabled) {
-          await ctx.say(`[GG-Core] ÉGALITÉ ${scoreCT}-${scoreT} ! Début des prolongations (MR3)...`);
-          if (serverId) {
-            await ctx.orch.rcon({ serverId, matchId: ev.matchId, command: CS2_RCON_COMMANDS.OVERTIME_START });
-          }
+          // overtime.cfg was applied at live start: CS2 starts the overtime by itself
+          await ctx.say(`[GG-Core] ÉGALITÉ ${scoreCT}-${scoreT} ! Début des prolongations (MR${settings.overtimeMrFormat ?? CS2_RULES.DEFAULT_OT_HALF})...`);
           await ctx.state.setOvertimeCount(ev.matchId, 1);
           if (typeof (ctx.state as any).resetStreaks === 'function') {
             await (ctx.state as any).resetStreaks(ev.matchId);
@@ -252,19 +262,13 @@ export class LiveRule extends BaseRule implements PhaseRule {
         return;
       }
 
-      // Mid-overtime swap (every otMr rounds, e.g. 3 rounds)
+      // Mid-overtime swap (every otMr rounds, e.g. 3 rounds): done natively by CS2, GG-Core follows.
       const roundsInThisOt = (scoreCT + scoreT) - (mr * 2) - ((otCount - 1) * otMr * 2);
       if (roundsInThisOt === otMr) {
-        await ctx.say(`[GG-Core] Prolongations : Mi-temps (round ${otMr}/${otMr * 2}). Inversion des côtés...`);
-        if (serverId) {
-          await ctx.orch.rcon({ serverId, matchId: ev.matchId, command: CS2_RCON_COMMANDS.SWAP_TEAMS });
-        }
+        await ctx.say(`[GG-Core] Prolongations : Mi-temps (round ${otMr}/${otMr * 2}). Changement de côtés.`);
         await ctx.orch.swapSides(ev.matchId);
-      if (typeof (ctx.state as any).resetStreaks === 'function') {
-        await (ctx.state as any).resetStreaks(ev.matchId);
-      }
-        if (serverId) {
-          await ctx.orch.restartGame({ serverId, matchId: ev.matchId, delay: CS2_RULES.FAST_RESTART_DELAY_SEC });
+        if (typeof (ctx.state as any).resetStreaks === 'function') {
+          await (ctx.state as any).resetStreaks(ev.matchId);
         }
         return;
       }
@@ -277,9 +281,6 @@ export class LiveRule extends BaseRule implements PhaseRule {
         await ctx.say(`[GG-Core] Égalité en prolongations (${scoreCT}-${scoreT}) ! Début OT${nextOt}...`);
         if (typeof (ctx.state as any).resetStreaks === 'function') {
           await (ctx.state as any).resetStreaks(ev.matchId);
-        }
-        if (serverId) {
-          await ctx.orch.restartGame({ serverId, matchId: ev.matchId, delay: CS2_RULES.FAST_RESTART_DELAY_SEC });
         }
         return;
       }

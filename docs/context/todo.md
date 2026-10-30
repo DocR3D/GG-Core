@@ -103,6 +103,10 @@ Le cœur moteur de match, l'arbitrage automatisé, le calcul de scores/stats CS2
 ### 11. 📦 Dépôt d'outillage séparé (Log Anonymizer & Demo Parser)
 * **Besoin** : Isoler les scripts locaux d'anonymisation de logs (`scratch/` et `scripts/`) dans un package CLI dédié pour les futurs tournois.
 
+### 12. 💤 Joueurs AFK en LAN (partis du poste sans se déconnecter)
+* **Problème observé en LAN** : un joueur quitte son PC sans se déconnecter ; le serveur le compte toujours comme présent (pas de `disconnected`), son équipe joue en sous-nombre et rien n'alerte l'admin.
+* **Pistes à étudier (Zero Plugin)** : détecter l'inactivité depuis les logs (aucun achat / déplacement / tir / dégât sur N rounds — `mp_logdetail` et blocs `round_stats` donnent les dégâts), alerte console admin + message in-game, proposition de pause technique ; vérifier les convars natives d'AFK CS2 (`mp_autokick`, `mp_afterroundmoney`… à confirmer sur le dump convars SteamTracking avant usage).
+
 ---
 
 ## ✅ Chantiers Achevés

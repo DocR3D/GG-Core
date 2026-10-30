@@ -7,7 +7,7 @@ import { Logical } from '../state';
 
 import { PeriodicMessenger } from '@app/shared/periodic/periodic-messenger.service';
 import { buildTacPauseSpec, buildTecPauseSpec } from '@app/shared/periodic/messages-presets.types';
-import { CS2_RULES } from '@domain/rules/rules.constants';
+import { DEFAULT_TAC_BANK_SEC } from '@domain/rules/rules.constants';
 
 export type PauseReason = 'tactical' | 'technical' | 'admin';
 
@@ -74,9 +74,9 @@ export class PauseMatchService {
    * Phase courante ('live' | 'freeze' | 'end' | null)
    * Lit la clé de phase déjà présente dans ton state.
    */
-  async getPhase(matchId: string): Promise<'live' | 'freeze' | 'end' | null> {
+  async getPhase(matchId: string): Promise<'live' | 'bomb_planted' | 'freeze' | 'end' | null> {
     const v = await this.redis.get(redisConst.roundPhase(matchId));
-    return v === 'live' || v === 'freeze' || v === 'end' ? v : null;
+    return v === 'live' || v === 'bomb_planted' || v === 'freeze' || v === 'end' ? v : null;
   }
 
   // -----------------------------------------------------
@@ -271,7 +271,7 @@ export class PauseMatchService {
       const startedAt = parseInt(h.started_at, 10);
       const elapsedSec = Math.floor((Date.now() - startedAt) / 1000);
       const field = team === 'home' ? 'tac_bank_home' : 'tac_bank_away';
-      const defaultBank = CS2_RULES.DEFAULT_TACTICAL_TIMEOUTS * CS2_RULES.DEFAULT_TACTICAL_TIMEOUT_SEC;
+      const defaultBank = DEFAULT_TAC_BANK_SEC;
       const bank = h[field] !== undefined ? parseInt(h[field], 10) : defaultBank;
       const debit = Math.min(elapsedSec, bank);
       const newBank = Math.max(0, bank - debit);
@@ -289,7 +289,7 @@ export class PauseMatchService {
   // -----------------------------------------------------
   // Banks
   // -----------------------------------------------------
-  async initTacBanks(matchId: string, secondsPerTeam = 300): Promise<void> {
+  async initTacBanks(matchId: string, secondsPerTeam = DEFAULT_TAC_BANK_SEC): Promise<void> {
     await this.redis.hset(this.key(matchId), {
       tac_bank_home: String(secondsPerTeam),
       tac_bank_away: String(secondsPerTeam),
@@ -300,7 +300,7 @@ export class PauseMatchService {
     const field = team === 'home' ? 'tac_bank_home' : 'tac_bank_away';
     const v = await this.redis.hget(this.key(matchId), field);
     if (v === null || v === undefined) {
-      return CS2_RULES.DEFAULT_TACTICAL_TIMEOUTS * CS2_RULES.DEFAULT_TACTICAL_TIMEOUT_SEC;
+      return DEFAULT_TAC_BANK_SEC;
     }
     return parseInt(v, 10);
   }
@@ -322,7 +322,7 @@ export class PauseMatchService {
 
     if (reason === 'tactical' && team) {
       const field = team === 'home' ? 'tac_bank_home' : 'tac_bank_away';
-      const defaultBank = CS2_RULES.DEFAULT_TACTICAL_TIMEOUTS * CS2_RULES.DEFAULT_TACTICAL_TIMEOUT_SEC;
+      const defaultBank = DEFAULT_TAC_BANK_SEC;
       const bank = h[field] !== undefined ? parseInt(h[field], 10) : defaultBank;
       return { allowed: bank >= minSec, remainingSec: bank, why: bank >= minSec ? 'ok' : 'no_bank' };
     }

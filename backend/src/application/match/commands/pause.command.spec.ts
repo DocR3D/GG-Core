@@ -1,9 +1,9 @@
 /**
  * Tests unitaires — PauseCommand
  * TC-03 : Pause tactique en phase live_main
- *   - round actif (phase='live')  → pause armée
+ *   - round actif (phase='live' | 'bomb_planted' | 'end') → pause armée
  *   - freeze time (phase='freeze') → pause immédiate
- *   - match terminé (phase=null)   → refus
+ *   - hors round (phase=null) → refus, « terminé » seulement en postgame
  */
 import { PauseCommand } from './pause.command';
 
@@ -28,7 +28,7 @@ function makePauseEvent(command = 'pause', team: 'CT' | 'T' = 'CT') {
   } as any;
 }
 
-function makeCtx() {
+function makeCtx(matchPhase = 'live_main') {
   return {
     matchId: MATCH_ID,
     serverId: SERVER_ID,
@@ -37,14 +37,16 @@ function makeCtx() {
     orch: {
       sideToLogical: jest.fn().mockResolvedValue('home'),
     },
-    state: {},
+    state: {
+      getSnapshot: jest.fn().mockResolvedValue({ phase: matchPhase }),
+    },
   } as any;
 }
 
 function makePauseService(overrides?: {
   isPaused?: boolean;
   isAllowed?: boolean;
-  phase?: 'live' | 'freeze' | null;
+  phase?: 'live' | 'bomb_planted' | 'freeze' | 'end' | null;
 }) {
   return {
     isPaused: jest.fn().mockResolvedValue(overrides?.isPaused ?? false),
@@ -88,6 +90,19 @@ describe('TC-03 — PauseCommand : phase live_main', () => {
     expect(ctx.say).toHaveBeenCalledWith(expect.stringContaining('armée'));
   });
 
+  // Bug vu en jeu réel : après la pose de bombe / en fin de round, la pause était refusée (« match terminé »).
+  it.each(['bomb_planted', 'end'] as const)("arme la pause si roundPhase='%s'", async (phase) => {
+    const pauseService = makePauseService({ phase });
+    const rconService = makeRconService();
+    const ctx = makeCtx();
+
+    const result = await makeCmd(pauseService, rconService).handle(makePauseEvent('tech'), ctx);
+
+    expect(result).toBe(true);
+    expect(pauseService.pause).toHaveBeenCalledWith(MATCH_ID, SERVER_ID, expect.objectContaining({ armOnly: true }));
+    expect(rconService.pause).not.toHaveBeenCalled();
+  });
+
   // TC-03.B — Phase 'freeze' → pause immédiate + RCON
   it("active immédiatement la pause si roundPhase='freeze'", async () => {
     const pauseService = makePauseService({ phase: 'freeze' });
@@ -108,16 +123,23 @@ describe('TC-03 — PauseCommand : phase live_main', () => {
     );
   });
 
-  // TC-03.C — Phase null → refus "match terminé"
+  // TC-03.C — Phase null en postgame → refus "match terminé"
   it('refuse la pause si phase=null (match terminé)', async () => {
     const pauseService = makePauseService({ phase: null });
     const rconService = makeRconService();
     const cmd = makeCmd(pauseService, rconService);
-    const ctx = makeCtx();
+    const ctx = makeCtx('postgame');
     const result = await cmd.handle(makePauseEvent('pause'), ctx);
     expect(result).toBe(false);
     expect(ctx.say).toHaveBeenCalledWith(expect.stringContaining('terminé'));
     expect(rconService.pause).not.toHaveBeenCalled();
+  });
+
+  it('refuse la pause hors round sans parler de fin de match (warmup)', async () => {
+    const ctx = makeCtx('warmup_main');
+    const result = await makeCmd(makePauseService({ phase: null })).handle(makePauseEvent('pause'), ctx);
+    expect(result).toBe(false);
+    expect(ctx.say).toHaveBeenCalledWith(expect.stringContaining("aucun round n'est en cours"));
   });
 
   // TC-03.D — canHandle : refuse si match déjà en pause

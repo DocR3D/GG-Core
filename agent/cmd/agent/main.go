@@ -430,7 +430,7 @@ func execAction(ctx context.Context, cfg AgentConfig, act *AgentAction) error {
 			Resolver:         resolver,
 			Vars:             act.Payload.Vars, // peut être nil
 			Logger: func(format string, args ...any) {
-				log.Printf("[agent:%s] execCfg "+format, append([]any{}, args...)...)
+				log.Printf("[agent:%s] execCfg %s", cfg.ServerID, fmt.Sprintf(format, args...))
 			},
 		}
 
@@ -460,7 +460,7 @@ func withRcon(ctx context.Context, cfg AgentConfig, fn func(context.Context, *my
 			Port:      port,
 			Password:  cfg.CS2.RconPassword,
 			Timeout:   time.Duration(max(500, cfg.CS2.Rcon.CommandTimeoutMs)) * time.Millisecond,
-			RateLimit: time.Second / time.Duration(max(1, cfg.CS2.Rcon.RateLimitPerSec)),
+			RateLimit: rconInterval(cfg.CS2.Rcon.RateLimitPerSec),
 		})
 	}
 	if err := ensureRcon(ctx, rconCli); err != nil {
@@ -541,6 +541,17 @@ func splitHostPort(addr string) (string, int) {
 	var port int
 	fmt.Sscanf(p[1], "%d", &port)
 	return p[0], port
+}
+
+// maxRconPerSec is GG-Core's hard limit (AGENTS.md rule 3): more freezes the CS2 server.
+const maxRconPerSec = 6
+
+// rconInterval is the minimum spacing between two RCON commands, whatever the config asks for.
+func rconInterval(perSec int) time.Duration {
+	if perSec <= 0 || perSec > maxRconPerSec {
+		perSec = maxRconPerSec
+	}
+	return time.Second / time.Duration(perSec)
 }
 
 func max(a, b int) int {
@@ -651,7 +662,8 @@ func runEventsPusher(ctx context.Context, cfg AgentConfig, rdb *redis.Client) {
 				continue
 			}
 
-			if typ, payloadJSON, ok := parser.TryParse(line); ok {
+			for _, pe := range parser.Parse(line) {
+				typ, payloadJSON := pe.Type, pe.Payload
 				// ⬅️ récupère le matchId courant
 				matchID := resolveMatchID()
 
@@ -690,7 +702,6 @@ func runEventsPusher(ctx context.Context, cfg AgentConfig, rdb *redis.Client) {
 				if len(batch) >= maxBatch {
 					flush()
 				}
-				continue
 			}
 		}
 	}
