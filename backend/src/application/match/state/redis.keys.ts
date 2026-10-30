@@ -34,6 +34,7 @@ export const redisConst = {
 
   // Settings & Lifecycle
   settings:     (m: string) => `match:${m}:settings`,       // hash
+  review:       (m: string) => `match:${m}:review`,         // string JSON: result frozen, waiting for an admin
   lastScoredRound: (m: string) => `match:${m}:last_scored_round`,
   halftimePlayed: (m: string) => `match:${m}:halftime_played`,
   overtimeCount:  (m: string) => `match:${m}:overtime_count`,

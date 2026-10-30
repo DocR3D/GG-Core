@@ -1,5 +1,5 @@
 // src/application/match/sandbox/sandbox.service.ts
-import { Injectable, Logger, Inject, BadRequestException, Optional } from '@nestjs/common';
+import { Injectable, Logger, Inject, BadRequestException, ConflictException, Optional } from '@nestjs/common';
 import type Redis from 'ioredis';
 import * as path from 'path';
 import * as fs from 'fs';
@@ -832,8 +832,27 @@ export class SandboxService {
   // Briques communes du replay
   // ---------------------------------------------------------------------------
 
+  /**
+   * A replay drives the real server too (cfg, messages, end of match: reset + kick): that is what lets us
+   * reproduce a bug on it. It is therefore refused when the server runs ANOTHER match that is not over —
+   * replaying the same match again (cut log, round-by-round "previous") stays allowed.
+   */
+  private async assertServerFreeForReplay(serverId: string, matchId: string) {
+    const current = await this.state.getMatchIdFromServerId(serverId);
+    if (!current || current === matchId) return;
+    const phase = await this.state.getPhase(current);
+    if (phase && phase !== MatchPhase.POSTGAME) {
+      throw new ConflictException(
+        `Replay refusé : le serveur ${serverId} est utilisé par le match ${current} (phase ${phase}). ` +
+          `Termine ce match ou choisis un autre serveur.`,
+      );
+    }
+  }
+
   /** Remet le match dans un état vierge (roster, stats, séries, score, phase LIVE) avant un rejeu. */
   private async resetForReplay(matchId: string, serverId: string, settings: Partial<MatchSettings>) {
+    await this.assertServerFreeForReplay(serverId, matchId);
+
     // S'assurer de la liaison serveur ↔ matchId
     await this.state.setServerIdToMatchId(serverId, matchId);
     await this.redis.set(redisConst.matchServer(matchId), serverId);
@@ -1113,6 +1132,18 @@ export function parseCs2LineFallback(rawLine: string, matchId: string, serverId:
   if (line.includes('World triggered "Match_Start"')) {
     fallbackIgnoreNextWorldSuicide.clear();
     return { type: 'match_start', matchId, serverId, timestamp: Date.now(), payload: {} };
+  }
+
+  // Game Over: competitive mg_active de_inferno score 5:7 after 29 min   (score is CT:T, map group optional)
+  const gameOverMatch = line.match(/^Game Over:\s+(\S+)\s+(?:\S+\s+)?(\S+)\s+score\s+(\d+):(\d+)\s+after\s+(\d+)\s+min/);
+  if (gameOverMatch) {
+    return {
+      type: 'game_over', matchId, serverId, timestamp: Date.now(),
+      payload: {
+        mode: gameOverMatch[1], map: gameOverMatch[2],
+        scoreCT: Number(gameOverMatch[3]), scoreT: Number(gameOverMatch[4]), minutes: Number(gameOverMatch[5]),
+      },
+    };
   }
 
   if (line.includes('World triggered "Round_Start"')) {

@@ -10,6 +10,7 @@ const (
 	EvRoundStart       = "round_start"
 	EvRoundEnd         = "round_end"
 	EvMatchStart       = "match_start"
+	EvGameOver         = "game_over"
 	EvBombPlanted      = "bomb_planted"
 	EvTeamRoundWin     = "team_round_win"
 	EvSfuiTargetBombed = "sfui_notice_target_bombed"

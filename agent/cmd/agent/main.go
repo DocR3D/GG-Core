@@ -398,6 +398,9 @@ func execAction(ctx context.Context, cfg AgentConfig, act *AgentAction) error {
 		log.Printf("[agent:%s] RCON Say -> %q err=%v", cfg.ServerID, out, err)
 		return err
 
+	case "kick_all":
+		return kickAllPlayers(ctx, cfg, act.Payload.Message)
+
 	case "exec_cfg":
 		name := strings.TrimSpace(act.Payload.Name)
 		if name == "" {

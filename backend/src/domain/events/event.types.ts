@@ -1,5 +1,6 @@
 export const EventTypes = {
   MATCH_START:        'match_start',
+  GAME_OVER:          'game_over',
   ROUND_START:        'round_start',
   BOMB_PLANTED:       'bomb_planted',
   BEGIN_BOMB_PLANT:   'begin_bomb_plant',

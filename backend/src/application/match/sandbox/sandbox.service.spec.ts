@@ -36,6 +36,7 @@ describe('SandboxService', () => {
       publish: jest.fn().mockResolvedValue(1),
     };
     mockState = {
+      getMatchIdFromServerId: jest.fn().mockResolvedValue(null),
       setServerIdToMatchId: jest.fn().mockResolvedValue('OK'),
       setSides: jest.fn().mockResolvedValue('OK'),
       setTeams: jest.fn().mockResolvedValue('OK'),
@@ -335,6 +336,34 @@ describe('SandboxService', () => {
       const scenario = fixtures.find((f) => f.type === 'scenario');
       expect(scenario).toBeDefined();
       expect(scenario?.id).toContain('.json');
+    });
+  });
+
+  describe('replay : serveur occupé par un vrai match', () => {
+    const LOG = 'L 10/25/2025 - 10:00:00: World triggered "Round_Start"';
+
+    it('refuse le replay si le serveur fait tourner un autre match non terminé', async () => {
+      mockState.getMatchIdFromServerId = jest.fn().mockResolvedValue('m-real-match');
+      mockState.getPhase = jest.fn().mockResolvedValue(MatchPhase.LIVE_MAIN);
+      await expect(service.replayRawLog({ content: LOG, matchId: 'm-sandbox-1', serverId: 'srv-a' }))
+        .rejects.toThrow(/m-real-match.*live_main/);
+      expect(mockState.setServerIdToMatchId).not.toHaveBeenCalled();
+    });
+
+    it('autorise le replay si le match lié au serveur est terminé, ou si c’est le même match (log coupé rejoué)', async () => {
+      const originalFetch = global.fetch;
+      global.fetch = jest.fn().mockRejectedValue(new Error('Agent offline')) as any;
+      try {
+        mockState.getMatchIdFromServerId = jest.fn().mockResolvedValue('m-real-match');
+        mockState.getPhase = jest.fn().mockResolvedValue(MatchPhase.POSTGAME);
+        await expect(service.replayRawLog({ content: LOG, matchId: 'm-sandbox-1', serverId: 'srv-a' })).resolves.toEqual(expect.objectContaining({ ok: true }));
+
+        mockState.getMatchIdFromServerId = jest.fn().mockResolvedValue('m-sandbox-1');
+        mockState.getPhase = jest.fn().mockResolvedValue(MatchPhase.LIVE_MAIN);
+        await expect(service.replayRawLog({ content: LOG, matchId: 'm-sandbox-1', serverId: 'srv-a' })).resolves.toEqual(expect.objectContaining({ ok: true }));
+      } finally {
+        global.fetch = originalFetch;
+      }
     });
   });
 

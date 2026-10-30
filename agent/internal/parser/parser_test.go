@@ -386,6 +386,28 @@ func TestTryParse(t *testing.T) {
 			wantOk:   true,
 		},
 		{
+			name:     "Game Over with map group (CS2 dev server)",
+			logLine:  `L 10/30/2026 - 08:53:17: Game Over: competitive mg_active de_inferno score 5:7 after 29 min`,
+			wantType: events.EvGameOver,
+			wantOk:   true,
+			verifyAssert: func(t *testing.T, p map[string]any) {
+				if p["map"] != "de_inferno" || p["scoreCT"] != float64(5) || p["scoreT"] != float64(7) || p["minutes"] != float64(29) {
+					t.Fatalf("unexpected payload %v", p)
+				}
+			},
+		},
+		{
+			name:     "Game Over without map group (GGLan log)",
+			logLine:  `L 10/26/2025 - 13:12:19: Game Over: competitive  de_mirage score 11:13 after 36 min`,
+			wantType: events.EvGameOver,
+			wantOk:   true,
+			verifyAssert: func(t *testing.T, p map[string]any) {
+				if p["map"] != "de_mirage" || p["scoreCT"] != float64(11) || p["scoreT"] != float64(13) {
+					t.Fatalf("unexpected payload %v", p)
+				}
+			},
+		},
+		{
 			name:     "Match Unpaused",
 			logLine:  `Match Unpaused`,
 			wantType: events.EvMatchUnpaused,

@@ -26,6 +26,17 @@ describe('Fallback Parser & Suicide vs Player Kill Handling', () => {
       expect(event.type).not.toBe('kill');
     });
 
+    it.each([
+      ['L 10/30/2026 - 08:53:17: Game Over: competitive mg_active de_inferno score 5:7 after 29 min', 'de_inferno', 5, 7],
+      ['L 10/26/2025 - 13:12:19: Game Over: competitive  de_mirage score 11:13 after 36 min', 'de_mirage', 11, 13],
+    ])('parses Game Over like the Go parser (score CT:T, map group optional): %s', (line, map, ct, t) => {
+      const ev = parseCs2LineFallback(line, 'm1', 'srv-a');
+      expect(ev).toEqual(expect.objectContaining({
+        type: 'game_over',
+        payload: expect.objectContaining({ map, scoreCT: ct, scoreT: t }),
+      }));
+    });
+
     it('parses World Round_Draw (backup restore) like the Go parser: winner none, reason draw, restored score', () => {
       const line = 'L 10/25/2025 - 11:01:49: World triggered "SFUI_Notice_Round_Draw" (CT "5") (T "1")';
       const event = parseCs2LineFallback(line, 'm-1', 'srv-a');

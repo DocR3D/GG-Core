@@ -1,4 +1,4 @@
-import { CS2_RULES } from './rules/rules.constants';
+import { CS2_RULES, DEFAULT_TAC_BANK_SEC } from './rules/rules.constants';
 
 export interface MatchSettings {
   /**
@@ -35,6 +35,13 @@ export interface MatchSettings {
   postgameResetDelaySec?: number;
 
   /**
+   * Seconds after Game Over before every player still connected is kicked, so nobody stays on a
+   * server whose match is over (common at the LAN). 0 disables it.
+   * Default: 120
+   */
+  postgameKickDelaySec?: number;
+
+  /**
    * Regulation MR format (e.g. 12 rounds per half, 13 to win in CS2).
    * Default: 12
    */
@@ -53,10 +60,29 @@ export interface MatchSettings {
   overtimeEnabled?: boolean;
 
   /**
+   * Tactical pause bank per team, in seconds, for the whole match: each team uses it as it wants
+   * (several short pauses or one long one); a pause ends on !unpause or when the bank is empty.
+   * Default: DEFAULT_TAC_BANK_SEC
+   */
+  tacticalPauseBankSec?: number;
+
+  /**
    * Whether knife round is enabled before the match.
    * Default: true
    */
   knifeEnabled?: boolean;
+}
+
+/**
+ * Server and GG-Core disagree on the end of the match (e.g. CS2 declared a draw after OT1 while the
+ * rules require another overtime). The result is frozen until an admin decides.
+ */
+export interface MatchReview {
+  reason: 'server_ended_match' | 'final_score_mismatch';
+  serverScore: { ct: number; t: number };
+  ggScore: { ct: number; t: number };
+  ggPhase: string;
+  openedAt: number;
 }
 
 export const DEFAULT_MATCH_SETTINGS: Required<MatchSettings> = {
@@ -65,8 +91,10 @@ export const DEFAULT_MATCH_SETTINGS: Required<MatchSettings> = {
   warmupAtOvertime: false,
   postgameAction: 'soft_reset',
   postgameResetDelaySec: 30,
+  postgameKickDelaySec: 120,
   mrFormat: CS2_RULES.DEFAULT_MR_HALF,
   overtimeMrFormat: CS2_RULES.DEFAULT_OT_HALF,
   overtimeEnabled: true,
   knifeEnabled: true,
+  tacticalPauseBankSec: DEFAULT_TAC_BANK_SEC,
 };

@@ -3,7 +3,7 @@ import type Redis from 'ioredis';
 import { REDIS_CMD } from '@adapters/redis/redis.tokens';
 import { redisConst } from './redis.keys';
 import { Phase } from '@domain/phase.types';
-import { MatchSettings, DEFAULT_MATCH_SETTINGS } from '@domain/match-settings.types';
+import { MatchSettings, MatchReview, DEFAULT_MATCH_SETTINGS } from '@domain/match-settings.types';
 import { GameSide, normalizeSide, CS2_SIDE_TERRORIST } from '@domain/side.types';
 
 export type { GameSide };
@@ -248,11 +248,32 @@ export class SidesScoreService {
       postgameResetDelaySec: raw.postgameResetDelaySec
         ? Number(raw.postgameResetDelaySec)
         : DEFAULT_MATCH_SETTINGS.postgameResetDelaySec,
+      postgameKickDelaySec: raw.postgameKickDelaySec !== undefined
+        ? Number(raw.postgameKickDelaySec)
+        : DEFAULT_MATCH_SETTINGS.postgameKickDelaySec,
       mrFormat: raw.mrFormat ? Number(raw.mrFormat) : DEFAULT_MATCH_SETTINGS.mrFormat,
       overtimeMrFormat: raw.overtimeMrFormat ? Number(raw.overtimeMrFormat) : DEFAULT_MATCH_SETTINGS.overtimeMrFormat,
       overtimeEnabled: raw.overtimeEnabled !== 'false',
       knifeEnabled: raw.knifeEnabled !== 'false',
+      tacticalPauseBankSec: raw.tacticalPauseBankSec
+        ? Number(raw.tacticalPauseBankSec)
+        : DEFAULT_MATCH_SETTINGS.tacticalPauseBankSec,
     };
+  }
+
+  async getReview(matchId: string): Promise<MatchReview | null> {
+    const raw = await this.redis.get(redisConst.review(matchId));
+    if (!raw) return null;
+    try {
+      return JSON.parse(raw) as MatchReview;
+    } catch {
+      return null;
+    }
+  }
+
+  async setReview(matchId: string, review: MatchReview | null): Promise<void> {
+    if (review) await this.redis.set(redisConst.review(matchId), JSON.stringify(review));
+    else await this.redis.del(redisConst.review(matchId));
   }
 
   async setSettings(matchId: string, settings: Partial<MatchSettings>): Promise<void> {
@@ -262,10 +283,12 @@ export class SidesScoreService {
     if (settings.warmupAtOvertime !== undefined) fields.warmupAtOvertime = String(settings.warmupAtOvertime);
     if (settings.postgameAction !== undefined) fields.postgameAction = settings.postgameAction;
     if (settings.postgameResetDelaySec !== undefined) fields.postgameResetDelaySec = String(settings.postgameResetDelaySec);
+    if (settings.postgameKickDelaySec !== undefined) fields.postgameKickDelaySec = String(settings.postgameKickDelaySec);
     if (settings.mrFormat !== undefined) fields.mrFormat = String(settings.mrFormat);
     if (settings.overtimeMrFormat !== undefined) fields.overtimeMrFormat = String(settings.overtimeMrFormat);
     if (settings.overtimeEnabled !== undefined) fields.overtimeEnabled = String(settings.overtimeEnabled);
     if (settings.knifeEnabled !== undefined) fields.knifeEnabled = String(settings.knifeEnabled);
+    if (settings.tacticalPauseBankSec !== undefined) fields.tacticalPauseBankSec = String(settings.tacticalPauseBankSec);
 
     if (Object.keys(fields).length > 0) {
       await this.redis.hset(redisConst.settings(matchId), fields);

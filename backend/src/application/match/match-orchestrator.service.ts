@@ -14,7 +14,7 @@ import { MatchPhase, Phase, RoundPhase } from '@domain/phase.types';
 import { MatchPhaseService } from './phase/match-phase.service';
 import { RoundStartEvent, GenericMatchEvent, BombPlantedEvent, TeamRoundWinEvent, RoundFreezeStartEvent } from '@domain/events/match.event';
 import { RuleContextFactory } from '@app/rules/rule-context.factory';
-import { MatchSettings, DEFAULT_MATCH_SETTINGS } from '@domain/match-settings.types';
+import { MatchSettings, MatchReview, DEFAULT_MATCH_SETTINGS } from '@domain/match-settings.types';
 import { CS2_CFG } from '@domain/rules/rules.constants';
 import { REDIS_CHANNELS } from './state/redis.keys';
 import { RuleContext } from '@domain/rules';
@@ -206,6 +206,81 @@ export class MatchOrchestrator {
     await this.ws.push(matchId, wsEventType, payload, audience);
   }
 
+  // ---------------------------------------------------------------------------
+  // Server Game Over vs GG-Core: the server is the truth for what was PLAYED (score), GG-Core for what the
+  // RULES decide (MR, overtimes, no draw). When they disagree nothing is decided silently: the result is
+  // frozen (events ignored, see MatchEventsHandler) until an admin accepts the server result or dismisses.
+  // ---------------------------------------------------------------------------
+
+  /** The Game Over line arrives in the same second as the last round's events: let GG-Core process them first. */
+  static GAME_OVER_SETTLE_MS = 5000;
+
+  onServerGameOver(matchId: string, serverId: string | undefined, serverScore: { ct: number; t: number }) {
+    setTimeout(() => {
+      this.checkServerGameOver(matchId, serverId, serverScore).catch((e) =>
+        this.log.warn(`[gameOver] check failed for ${matchId}: ${e?.message}`),
+      );
+    }, MatchOrchestrator.GAME_OVER_SETTLE_MS);
+  }
+
+  async checkServerGameOver(matchId: string, serverId: string | undefined, serverScore: { ct: number; t: number }) {
+    if (await this.state.getReview(matchId)) return;
+    const phase = await this.state.getPhase(matchId);
+    const snapshot = await this.state.getSnapshot(matchId);
+    const ggScore = { ct: snapshot.score.ct, t: snapshot.score.t };
+
+    if (phase === MatchPhase.POSTGAME && ggScore.ct === serverScore.ct && ggScore.t === serverScore.t) {
+      this.log.log(`[gameOver] ${matchId}: server Game Over ${serverScore.ct}:${serverScore.t} confirms GG-Core`);
+      return;
+    }
+
+    const review: MatchReview = {
+      reason: phase === MatchPhase.POSTGAME ? 'final_score_mismatch' : 'server_ended_match',
+      serverScore,
+      ggScore,
+      ggPhase: String(phase),
+      openedAt: Date.now(),
+    };
+    await this.state.setReview(matchId, review);
+    this.log.warn(
+      `[gameOver] ${matchId}: REVIEW REQUIRED (${review.reason}) server ${serverScore.ct}:${serverScore.t} / GG-Core ${ggScore.ct}:${ggScore.t} phase=${phase}`,
+    );
+    await this.push(matchId, 'match:review_required', { matchId, ...review }, 'admin');
+    const sid = serverId ?? (await this.state.getServerIdFromMatchId(matchId));
+    if (sid) {
+      await this.cmds.say(sid, '[GG-Core] Fin de match du serveur non conforme au règlement : résultat gelé, un admin va arbitrer.');
+    }
+  }
+
+  getReview(matchId: string) {
+    return this.state.getReview(matchId);
+  }
+
+  /**
+   * accept_server: GG-Core takes the server score and ends the match with it (a draw stays a draw).
+   * dismiss: the freeze is lifted, GG-Core keeps its own state (e.g. the admin restored a backup to play on).
+   */
+  async resolveReview(matchId: string, decision: 'accept_server' | 'dismiss') {
+    const review = await this.state.getReview(matchId);
+    if (!review) return { ok: false as const, why: 'no_review' };
+    await this.state.setReview(matchId, null);
+
+    if (decision === 'accept_server') {
+      const { ct, t } = review.serverScore;
+      await this.state.reconcileScore(matchId, ct, t);
+      if ((await this.state.getPhase(matchId)) !== MatchPhase.POSTGAME) {
+        const winner: GameSide | null = ct > t ? 'CT' : t > ct ? 'T' : null;
+        const serverId = await this.state.getServerIdFromMatchId(matchId);
+        await this.endMatch(matchId, winner, this.ctxFactory.make({ matchId, serverId: serverId ?? undefined }));
+      } else {
+        await this.pushState(matchId);
+      }
+    }
+    this.log.log(`[gameOver] ${matchId}: review resolved (${decision})`);
+    await this.push(matchId, 'match:review_resolved', { matchId, decision, review }, 'admin');
+    return { ok: true as const, decision };
+  }
+
   async pushState(matchId: string) {
     const snapshot = await this.state.getSnapshot(matchId);
     await this.ws.push(matchId, 'match:state', snapshot);
@@ -339,7 +414,7 @@ export class MatchOrchestrator {
 
     await this.state.setSettings(matchId, settings);
     await this.state.setServerIdToMatchId(serverId, matchId);
-    await this.pause.initTacBanks(matchId);
+    await this.pause.initTacBanks(matchId, settings.tacticalPauseBankSec);
 
     // 1) GOTV must be enabled BEFORE the map loads, otherwise tv_record answers "GOTV not active"
     //    and no demo is recorded (observed on a real server).
@@ -439,16 +514,38 @@ export class MatchOrchestrator {
           this.log.warn(`[endMatch] server reset failed: ${e?.message}`),
         );
       }, delaySec * 1000);
+
+      // 7. Free the server: at the LAN people stay connected long after their match. 'restart' quits anyway.
+      const kickSec = settings.postgameKickDelaySec ?? DEFAULT_MATCH_SETTINGS.postgameKickDelaySec;
+      if (kickSec > 0 && settings.postgameAction !== 'restart') {
+        this.log.log(`[endMatch] players of server ${serverId} kicked in ${kickSec}s`);
+        setTimeout(() => {
+          this.kickPlayersAfterMatch(serverId, matchId).catch((e) =>
+            this.log.warn(`[endMatch] kick failed: ${e?.message}`),
+          );
+        }, kickSec * 1000);
+      }
     }
+  }
+
+  /** True when a new match was started on this server since `matchId` ended: postgame actions must not touch it. */
+  private async serverMovedOn(serverId: string, matchId: string): Promise<boolean> {
+    const current = await this.state.getMatchIdFromServerId(serverId);
+    if (current && current !== matchId) {
+      this.log.log(`[endMatch] server ${serverId} now runs ${current}: postgame action skipped`);
+      return true;
+    }
+    return false;
+  }
+
+  private async kickPlayersAfterMatch(serverId: string, matchId: string) {
+    if (await this.serverMovedOn(serverId, matchId)) return;
+    await this.cmds.kickAll({ serverId, message: "Match terminé, merci d'avoir joué ! Le serveur est libéré." });
   }
 
   private async resetServerAfterMatch(serverId: string, matchId: string, action: MatchSettings['postgameAction']) {
     // A new match may have been started on this server during the delay: never reset it.
-    const current = await this.state.getMatchIdFromServerId(serverId);
-    if (current && current !== matchId) {
-      this.log.log(`[endMatch] server ${serverId} now runs ${current}: postgame reset skipped`);
-      return;
-    }
+    if (await this.serverMovedOn(serverId, matchId)) return;
     if (action === 'restart') {
       this.log.log(`[endMatch] Executing RCON quit to purge RAM and restart server ${serverId}`);
       await this.cmds.rcon({ serverId, matchId, command: 'quit' });

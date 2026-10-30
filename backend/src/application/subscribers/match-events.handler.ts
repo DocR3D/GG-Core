@@ -1,6 +1,7 @@
 // src/application/subscribers/match-events.handler.ts
 import { Injectable, Logger } from '@nestjs/common';
 import type { AnyEvent } from '@domain/events/match.event';
+import { EventTypes } from '@domain/events/event.types';
 import { RuleRegistry } from '@app/match/rules/rule.registry';
 import { MatchPhaseService } from '@app/match/phase/match-phase.service';
 import { MatchStateService } from '@app/match/state/match-state.service';
@@ -38,6 +39,24 @@ export class MatchEventsHandler {
     if (!matchId) return;
 
     const evWithMatch = { ...ev, matchId };
+
+    // 0) Game Over du serveur : comparé à GG-Core (après un court délai), jamais traité par les règles
+    if ((ev.type as string) === EventTypes.GAME_OVER) {
+      const p = (ev as any).payload ?? {};
+      this.ctxFactory
+        .make({ matchId, serverId: ev.serverId })
+        .orch.onServerGameOver(matchId, ev.serverId, { ct: Number(p.scoreCT) || 0, t: Number(p.scoreT) || 0 });
+      return;
+    }
+
+    // 0bis) Résultat gelé (désaccord serveur / GG-Core) : en attendant l'admin, on ne fait qu'archiver les
+    // événements — le serveur a pu relancer une partie qui fausserait score et stats.
+    if (await this.mss.getReview(matchId)) {
+      this.dbHandler.handle(evWithMatch).catch((err) => {
+        this.logger.warn(`[MatchEventsHandler] async dbHandler error: ${err?.message}`);
+      });
+      return;
+    }
 
     // 1) Handlers transverses (état round, phase, bomb, persistance BDD) — indépendants des règles
     if (await this.phaseHandler.handle(evWithMatch)) return;

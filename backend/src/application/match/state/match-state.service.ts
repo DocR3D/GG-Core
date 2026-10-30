@@ -10,7 +10,7 @@ import { EconomyService, type TeamEconomyMeta } from './economy.service';
 import { PlayerStatsService, type PlayerCombatStats } from './player-stats.service';
 import { SnapshotQuery } from './snapshot.query';
 import { Phase } from '@domain/phase.types';
-import { MatchSettings } from '@domain/match-settings.types';
+import { MatchSettings, MatchReview } from '@domain/match-settings.types';
 import {
   GameSide,
   CS2_SIDE_TERRORIST,
@@ -134,6 +134,12 @@ export class MatchStateService {
   // ───────────────────────────────────────────────────────────────────────────
   // Settings (Warmup toggles, Overtime config, Postgame action)
   // ───────────────────────────────────────────────────────────────────────────
+  getReview(matchId: string) {
+    return this.sidesScore.getReview(matchId);
+  }
+  setReview(matchId: string, review: MatchReview | null) {
+    return this.sidesScore.setReview(matchId, review);
+  }
   getSettings(matchId: string) {
     return this.sidesScore.getSettings(matchId);
   }

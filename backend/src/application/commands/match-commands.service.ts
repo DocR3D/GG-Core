@@ -36,6 +36,7 @@ type AgentAction =
   | { id: string; ts: number; type: 'action'; serverId: string; action: 'restart';      payload: { matchId: string; delay?: number };                                       source?: any }
   | { id: string; ts: number; type: 'action'; serverId: string; action: 'exec_cfg';     payload: { matchId: string;name: string;vars?: Record<string, string>;  };   source?: any }
   | { id: string; ts: number; type: 'action'; serverId: string; action: 'rcon';         payload: { text: string };                                                             source?: any }
+  | { id: string; ts: number; type: 'action'; serverId: string; action: 'kick_all';     payload: { text: string };                                                             source?: any }
   | { id: string; ts: number; type: 'action'; serverId: string; action: 'changelevel';  payload: { map: string };                                                          source?: any };
 
 const agentActionsCh = (serverId: string) => REDIS_CHANNELS.agentActions(serverId);
@@ -186,6 +187,16 @@ export class MatchCommandsService {
     const msg: AgentAction = {
       id: uuid(), ts: Date.now(), type: 'action', serverId: opts.serverId,
       action: 'rcon', payload: { text: opts.command }, source: { via: 'admin' },
+    };
+    await this.publishToAgent(opts.serverId, msg);
+    return { ok: true };
+  }
+
+  /** Kicks every human player (the agent reads `status` then sends kickid: CS2 has no kickall). */
+  async kickAll(opts: { serverId: string; message: string }) {
+    const msg: AgentAction = {
+      id: uuid(), ts: Date.now(), type: 'action', serverId: opts.serverId,
+      action: 'kick_all', payload: { text: opts.message }, source: { via: 'system' },
     };
     await this.publishToAgent(opts.serverId, msg);
     return { ok: true };

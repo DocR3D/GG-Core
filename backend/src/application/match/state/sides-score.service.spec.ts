@@ -1,5 +1,6 @@
 import { SidesScoreService } from './sides-score.service';
 import { redisConst } from './redis.keys';
+import { DEFAULT_MATCH_SETTINGS } from '@domain/match-settings.types';
 
 describe('SidesScoreService', () => {
   let service: SidesScoreService;
@@ -53,6 +54,20 @@ describe('SidesScoreService', () => {
     };
 
     service = new SidesScoreService(mockRedis);
+  });
+
+  describe('settings', () => {
+    it('persiste et relit la banque de pause tactique configurée pour le match', async () => {
+      await service.setSettings(MATCH_ID, { tacticalPauseBankSec: 240, postgameResetDelaySec: 45 });
+      const settings = await service.getSettings(MATCH_ID);
+      expect(settings.tacticalPauseBankSec).toBe(240);
+      expect(settings.postgameResetDelaySec).toBe(45);
+    });
+
+    it("applique les valeurs par défaut quand rien n'est configuré", async () => {
+      const settings = await service.getSettings(MATCH_ID);
+      expect(settings.tacticalPauseBankSec).toBe(DEFAULT_MATCH_SETTINGS.tacticalPauseBankSec);
+    });
   });
 
   describe('swapSides', () => {

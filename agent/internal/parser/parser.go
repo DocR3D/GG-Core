@@ -20,6 +20,9 @@ func StripCs2Prefix(line string) string {
 var chatRe = regexp.MustCompile(`^"(?P<name>[^"<]+)<(?P<uid>\d+)><(?P<steam>[^>]*)><(?P<team>[^>]+)>"\s+(?P<channel>say|say_team)\s+"(?P<msg>.*)"$`)
 
 // --- Kills & players ---
+// Game Over: competitive mg_active de_inferno score 5:7 after 29 min   (score is CT:T, map group optional)
+var gameOverRe = regexp.MustCompile(`^Game Over:\s+(?P<mode>\S+)\s+(?:(?P<group>\S+)\s+)?(?P<map>\S+)\s+score\s+(?P<ct>\d+):(?P<t>\d+)\s+after\s+(?P<min>\d+)\s+min`)
+
 var matchStartRe = regexp.MustCompile(`^World triggered "Match_Start"(?:\s+on\s+"(?P<map>[^"]+)")?`)
 var mapLifecycleRe = regexp.MustCompile(`^World triggered "(?:Match_Reloaded|Game_Commencing|Warmup_Start|Restart_Round_\([^)]+\))"`)
 
@@ -289,6 +292,16 @@ func parseLine(line string) (string, json.RawMessage, bool) {
 			"victimPos": map[string]float64{"x": vx, "y": vy, "z": vz},
 		}
 		return events.EvKill, mustJSON(payload), true
+	}
+
+	if gameOverRe.MatchString(line) {
+		ct, _ := strconv.Atoi(grp(gameOverRe, line, "ct"))
+		t, _ := strconv.Atoi(grp(gameOverRe, line, "t"))
+		minutes, _ := strconv.Atoi(grp(gameOverRe, line, "min"))
+		return events.EvGameOver, mustJSON(map[string]any{
+			"mode": grp(gameOverRe, line, "mode"), "map": grp(gameOverRe, line, "map"),
+			"scoreCT": ct, "scoreT": t, "minutes": minutes,
+		}), true
 	}
 
 	if matchStartRe.MatchString(line) {
