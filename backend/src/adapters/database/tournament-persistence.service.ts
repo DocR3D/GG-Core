@@ -34,6 +34,16 @@ export interface EventRef {
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 /** Les colonnes relationnelles (MatchMap, Match, Team…) sont des UUID PostgreSQL. */
+/** Wins needed to take a series, per format. */
+const WINS_NEEDED: Record<'BO1' | 'BO3' | 'BO5', number> = { BO1: 1, BO3: 2, BO5: 3 };
+
+/** Refusal of a manual result entry, mapped to an HTTP status by the controller. */
+export class ManualResultError extends Error {
+  constructor(readonly code: 'not_found' | 'finished' | 'teams_missing' | 'invalid', message: string) {
+    super(message);
+  }
+}
+
 export function isUuid(value: string | null | undefined): value is string {
   return !!value && UUID_RE.test(value);
 }
@@ -344,6 +354,80 @@ export class TournamentPersistenceService {
       nextMatchId: match.nextMatchId,
       loserNextMatchId: match.loserNextMatchId,
     };
+  }
+
+  /**
+   * Recompute a series (Match) from its CONFIRMED games: series score, then — once a team reached the wins
+   * needed by the format (BO1: 1, BO3: 2, BO5: 3) — finish it and advance the bracket. Same path for every
+   * game, automatic (CS2) or manual (admin). A finished series is never re-advanced.
+   */
+  async updateSeries(matchId: string) {
+    const match = await this.prisma.match.findUnique({ where: { id: matchId }, include: { maps: true } });
+    if (!match) return null;
+
+    const confirmed = match.maps.filter((m) => m.resultStatus === 'CONFIRMED' && m.winnerId);
+    const scoreHome = confirmed.filter((m) => m.winnerId === match.teamHomeId).length;
+    const scoreAway = confirmed.filter((m) => m.winnerId === match.teamAwayId).length;
+    const needed = WINS_NEEDED[match.format];
+    const winnerId =
+      scoreHome >= needed ? match.teamHomeId : scoreAway >= needed ? match.teamAwayId : null;
+
+    await this.prisma.match.update({
+      where: { id: matchId },
+      data: { scoreHome, scoreAway, ...(match.status === 'PENDING' ? { status: 'LIVE' as const } : {}) },
+    });
+    if (winnerId && match.status !== 'FINISHED') {
+      await this.advanceBracketMatch(matchId, winnerId);
+    }
+    return { scoreHome, scoreAway, winnerId };
+  }
+
+  /**
+   * Admin entry of a game result (games that are not automated, or to override a missing one):
+   * creates / updates game n° mapOrder of the series, MANUAL / CONFIRMED, then updates the series.
+   * Refused once the series is finished (correcting a finished series would need a bracket rollback).
+   */
+  async recordManualGameResult(input: {
+    matchId: string;
+    mapOrder: number;
+    scoreHome: number;
+    scoreAway: number;
+    mapName?: string;
+    reportedBy: string;
+  }) {
+    if (!isUuid(input.matchId)) throw new ManualResultError('not_found', `match ${input.matchId} not found`);
+    const match = await this.prisma.match.findUnique({ where: { id: input.matchId } });
+    if (!match) throw new ManualResultError('not_found', `match ${input.matchId} not found`);
+    if (match.status === 'FINISHED') throw new ManualResultError('finished', 'series already finished');
+    if (!match.teamHomeId || !match.teamAwayId) throw new ManualResultError('teams_missing', 'both teams must be known');
+    const maxGames = WINS_NEEDED[match.format] * 2 - 1;
+    if (!Number.isInteger(input.mapOrder) || input.mapOrder < 1 || input.mapOrder > maxGames) {
+      throw new ManualResultError('invalid', `game number must be between 1 and ${maxGames} for a ${match.format}`);
+    }
+    if (![input.scoreHome, input.scoreAway].every((s) => Number.isInteger(s) && s >= 0)) {
+      throw new ManualResultError('invalid', 'scores must be non-negative integers');
+    }
+
+    const winnerId =
+      input.scoreHome > input.scoreAway ? match.teamHomeId : input.scoreAway > input.scoreHome ? match.teamAwayId : null;
+    const result = {
+      scoreHome: input.scoreHome,
+      scoreAway: input.scoreAway,
+      winnerId,
+      status: 'FINISHED' as const,
+      endedAt: new Date(),
+      resultSource: 'MANUAL' as const,
+      resultStatus: 'CONFIRMED' as const,
+      reportedBy: input.reportedBy,
+      reportedAt: new Date(),
+    };
+    const game = await this.prisma.matchMap.upsert({
+      where: { matchId_mapOrder: { matchId: match.id, mapOrder: input.mapOrder } },
+      create: { matchId: match.id, mapOrder: input.mapOrder, mapName: input.mapName ?? '-', ...result },
+      update: { ...(input.mapName ? { mapName: input.mapName } : {}), ...result },
+    });
+    const series = await this.updateSeries(match.id);
+    return { game, series };
   }
 
   /**

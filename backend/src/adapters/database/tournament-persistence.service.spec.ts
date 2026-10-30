@@ -26,6 +26,7 @@ describe('TournamentPersistenceService', () => {
     matchMap: {
       findUnique: jest.Mock;
       update: jest.Mock;
+      upsert: jest.Mock;
     };
     matchVeto: {
       upsert: jest.Mock;
@@ -55,6 +56,7 @@ describe('TournamentPersistenceService', () => {
       matchMap: {
         findUnique: jest.fn(),
         update: jest.fn(),
+        upsert: jest.fn(),
       },
       matchVeto: {
         upsert: jest.fn(),
@@ -250,6 +252,62 @@ describe('TournamentPersistenceService', () => {
         source: 'AUTOMATIC', status: 'CONFIRMED', reportedBy: 'cs2',
       })).toBeNull();
       expect(prisma.matchMap.update).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('séries et saisie admin', () => {
+    const MATCH = '33333333-3333-4333-8333-333333333333';
+    const HOME = '44444444-4444-4444-8444-444444444444';
+    const AWAY = '55555555-5555-4555-8555-555555555555';
+    const game = (winnerId: string | null, status = 'CONFIRMED') => ({ winnerId, resultStatus: status });
+    const series = (format: string, maps: any[], status = 'LIVE') =>
+      ({ id: MATCH, format, status, teamHomeId: HOME, teamAwayId: AWAY, maps });
+
+    it('BO3 à 1-0 : met à jour le score de la série sans terminer le match', async () => {
+      prisma.match.findUnique.mockResolvedValue(series('BO3', [game(HOME)]));
+      const advance = jest.spyOn(service, 'advanceBracketMatch');
+      await expect(service.updateSeries(MATCH)).resolves.toEqual({ scoreHome: 1, scoreAway: 0, winnerId: null });
+      expect(prisma.match.update).toHaveBeenCalledWith({ where: { id: MATCH }, data: { scoreHome: 1, scoreAway: 0 } });
+      expect(advance).not.toHaveBeenCalled();
+    });
+
+    it('BO3 à 2-1 : termine la série et fait avancer l’arbre (les games non confirmés ne comptent pas)', async () => {
+      prisma.match.findUnique.mockResolvedValue(
+        series('BO3', [game(HOME), game(AWAY), game(AWAY, 'DISPUTED'), game(HOME)]),
+      );
+      const advance = jest.spyOn(service, 'advanceBracketMatch').mockResolvedValue({} as any);
+      await expect(service.updateSeries(MATCH)).resolves.toEqual({ scoreHome: 2, scoreAway: 1, winnerId: HOME });
+      expect(advance).toHaveBeenCalledWith(MATCH, HOME);
+    });
+
+    it('ne refait jamais avancer une série déjà terminée', async () => {
+      prisma.match.findUnique.mockResolvedValue(series('BO1', [game(AWAY)], 'FINISHED'));
+      const advance = jest.spyOn(service, 'advanceBracketMatch');
+      await service.updateSeries(MATCH);
+      expect(advance).not.toHaveBeenCalled();
+    });
+
+    it('saisie admin : écrit le game en MANUAL / CONFIRMED avec le vainqueur déduit du score', async () => {
+      prisma.match.findUnique.mockResolvedValue(series('BO3', []));
+      jest.spyOn(service, 'updateSeries').mockResolvedValue({ scoreHome: 0, scoreAway: 1, winnerId: null });
+      await service.recordManualGameResult({ matchId: MATCH, mapOrder: 1, scoreHome: 9, scoreAway: 13, mapName: 'de_nuke', reportedBy: 'admin' });
+      expect(prisma.matchMap.upsert).toHaveBeenCalledWith(expect.objectContaining({
+        where: { matchId_mapOrder: { matchId: MATCH, mapOrder: 1 } },
+        create: expect.objectContaining({ mapName: 'de_nuke', winnerId: AWAY, resultSource: 'MANUAL', resultStatus: 'CONFIRMED', reportedBy: 'admin' }),
+      }));
+    });
+
+    it.each([
+      ['série terminée', series('BO1', [], 'FINISHED'), { mapOrder: 1 }, 'finished'],
+      ['game hors format (4ᵉ game d’un BO3)', series('BO3', []), { mapOrder: 4 }, 'invalid'],
+      ['score négatif', series('BO3', []), { mapOrder: 1, scoreHome: -1 }, 'invalid'],
+      ['équipes inconnues', { ...series('BO3', []), teamAwayId: null }, { mapOrder: 1 }, 'teams_missing'],
+    ])('refuse la saisie : %s', async (_label, match, override, code) => {
+      prisma.match.findUnique.mockResolvedValue(match);
+      await expect(service.recordManualGameResult({
+        matchId: MATCH, scoreHome: 13, scoreAway: 5, reportedBy: 'admin', mapOrder: 1, ...(override as any),
+      })).rejects.toMatchObject({ code });
+      expect(prisma.matchMap.upsert).not.toHaveBeenCalled();
     });
   });
 

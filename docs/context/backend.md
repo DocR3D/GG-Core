@@ -140,6 +140,7 @@ Redis ggbot:events
 | `PATCH /api/matches/:id/teams` | Set noms/IDs équipes |
 | `POST /api/matches/:id/init` | Initialise un match (sides, score, timeouts, équipes, settings, liaison `serverId`, liaison `matchMapId` PostgreSQL) |
 | `POST /api/matches/:id/start` | `init` + démarrage serveur (changelevel, warmup.cfg, `tv_record`, phase initiale). `settings` : `knifeEnabled`, `mrFormat`, `overtimeEnabled`, `overtimeMrFormat`, `warmupAfterKnife`, `warmupAtHalftime`, `warmupAtOvertime`, `postgameAction`, `postgameResetDelaySec`, `postgameKickDelaySec`, `tacticalPauseBankSec` |
+| `POST /api/tournament/matches/:id/games/:order/result` | **Saisie admin** du résultat du game n° `order` d'une série (Match en base, UUID) : `{ scoreHome, scoreAway, mapName?, reportedBy? }` → game `MANUAL` / `CONFIRMED`, puis mise à jour de la série (BO1/BO3/BO5) et de l'arbre. 404 match inconnu, 409 série terminée, 400 saisie invalide |
 | `GET /api/matches/:id/review` | Résultat gelé (désaccord `Game Over` serveur / GG-Core) ou `null` |
 | `POST /api/matches/:id/review/accept-server` \| `.../review/dismiss` | Décision admin : prendre le score du serveur et terminer le match (un nul reste un nul), ou lever le gel |
 | `POST /api/matches/init` | Compat smoke tests CI (`matchId` dans le body) |

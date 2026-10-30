@@ -120,4 +120,31 @@ describeDb('Event sourcing — real PostgreSQL', () => {
     const tournament = await prisma.tournament.findUniqueOrThrow({ where: { id: tournamentId } });
     expect(tournament.game).toBe('cs2');
   });
+
+  it('admin entry of a BO3: 2 games won finish the series and send the winner to the next bracket match', async () => {
+    const final = await prisma.match.create({ data: { tournamentId, format: 'BO3' } });
+    const semi = await prisma.match.create({
+      data: { tournamentId, teamHomeId: homeTeamId, teamAwayId: awayTeamId, format: 'BO3', nextMatchId: final.id },
+    });
+
+    const g1 = await persistence.recordManualGameResult({
+      matchId: semi.id, mapOrder: 1, scoreHome: 13, scoreAway: 7, mapName: 'de_nuke', reportedBy: 'admin-it',
+    });
+    expect(g1.series).toEqual({ scoreHome: 1, scoreAway: 0, winnerId: null });
+    expect((await prisma.match.findUniqueOrThrow({ where: { id: semi.id } })).status).toBe('LIVE');
+
+    const g2 = await persistence.recordManualGameResult({
+      matchId: semi.id, mapOrder: 2, scoreHome: 16, scoreAway: 14, reportedBy: 'admin-it',
+    });
+    expect(g2.series).toEqual({ scoreHome: 2, scoreAway: 0, winnerId: homeTeamId });
+    expect(g2.game).toEqual(expect.objectContaining({ mapName: '-', resultSource: 'MANUAL', resultStatus: 'CONFIRMED' }));
+
+    const done = await prisma.match.findUniqueOrThrow({ where: { id: semi.id } });
+    expect(done).toEqual(expect.objectContaining({ status: 'FINISHED', winnerId: homeTeamId, scoreHome: 2, scoreAway: 0 }));
+    expect((await prisma.match.findUniqueOrThrow({ where: { id: final.id } })).teamHomeId).toBe(homeTeamId);
+
+    await expect(persistence.recordManualGameResult({
+      matchId: semi.id, mapOrder: 3, scoreHome: 1, scoreAway: 13, reportedBy: 'admin-it',
+    })).rejects.toMatchObject({ code: 'finished' });
+  });
 });

@@ -17,6 +17,7 @@ import { Cs2LogsController } from './cs2-logs/cs2-logs.controller';
 import { Cs2LogsModule } from './cs2-logs/cs2-logs.module';
 import { HealthController } from './health/health.controller';
 import { SandboxController } from './sandbox/sandbox.controller';
+import { TournamentMatchesController } from './tournament/tournament-matches.controller';
 
 @Module({
   imports: [
@@ -35,6 +36,7 @@ import { SandboxController } from './sandbox/sandbox.controller';
     Cs2LogsController,
     HealthController,
     SandboxController,
+    TournamentMatchesController,
   ],
 })
 export class HttpModule {}

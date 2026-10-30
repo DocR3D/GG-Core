@@ -487,13 +487,15 @@ export class MatchOrchestrator {
       sides: snapshot.sides,
     });
 
-    // 5a. Game result in the tournament model (only when this map is linked to a MatchMap): automatic, confirmed
+    // 5. Tournament model (only for maps linked to the relational model): the game result (automatic, confirmed),
+    //    then the series — BO1 / BO3 / BO5 advance the bracket through the same path as an admin entry.
     if (this.tournamentPersistence) {
       try {
         const homeSide = snapshot.sides?.home === 'T' ? 't' : 'ct';
         const awaySide = homeSide === 'ct' ? 't' : 'ct';
-        await this.tournamentPersistence.recordGameResult({
-          matchMapId: await this.state.getDbMatchMapId(matchId),
+        const linkedMap = await this.state.getDbMatchMapId(matchId);
+        const game = await this.tournamentPersistence.recordGameResult({
+          matchMapId: linkedMap ?? (isUuid(matchId) ? matchId : null),
           scoreHome: snapshot.score[homeSide] ?? 0,
           scoreAway: snapshot.score[awaySide] ?? 0,
           winnerTeamId: winnerId ?? null,
@@ -501,24 +503,17 @@ export class MatchOrchestrator {
           status: 'CONFIRMED',
           reportedBy: 'cs2',
         });
-      } catch (err: any) {
-        this.log.warn(`[endMatch] game result not recorded: ${err?.message}`);
-      }
-    }
-
-    // 5b. Update Database persistence if winner identified (only for matches linked to the relational model)
-    if (winnerId && this.tournamentPersistence) {
-      try {
-        const dbMatchId = isUuid(winnerId)
-          ? await this.tournamentPersistence.resolveBracketMatchId(matchId, await this.state.getDbMatchMapId(matchId))
-          : null;
-        if (dbMatchId) {
-          await this.tournamentPersistence.advanceBracketMatch(dbMatchId, winnerId);
+        if (game) {
+          await this.tournamentPersistence.updateSeries(game.matchId);
+        } else if (winnerId && isUuid(winnerId)) {
+          // No game row: the real-time id may directly be the UUID of a Match
+          const dbMatchId = await this.tournamentPersistence.resolveBracketMatchId(matchId, null);
+          if (dbMatchId) await this.tournamentPersistence.advanceBracketMatch(dbMatchId, winnerId);
         } else {
-          this.log.debug(`[endMatch] match ${matchId} not linked to a database Match/Team: bracket progression skipped`);
+          this.log.debug(`[endMatch] match ${matchId} not linked to the tournament model: nothing recorded`);
         }
       } catch (err: any) {
-        this.log.warn(`[endMatch] Database bracket progression skipped: ${err?.message}`);
+        this.log.warn(`[endMatch] tournament result not recorded: ${err?.message}`);
       }
     }
 
