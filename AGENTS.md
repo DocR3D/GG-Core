@@ -114,6 +114,9 @@ cd agent
 go build ./cmd/agent
 go build ./cmd/manager
 go test ./...
+
+# Scénario tournoi de bout en bout (stack lancée : make up) — obligatoire si le tournoi / le lancement des matchs change
+make e2e-tournament
 ```
 
 - **Golden Master** (`fixtures-golden-master.spec.ts`) : ne régénérer `test/fixtures/expected-outcomes.json` (`UPDATE_GOLDEN=1`) qu'après un changement de comportement **voulu**, et relire le diff avant de commiter.

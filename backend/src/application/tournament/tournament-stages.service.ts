@@ -3,6 +3,7 @@ import { Injectable } from '@nestjs/common';
 import { MatchFormat, StageType } from '@prisma/client';
 import { PrismaService } from '@adapters/database/prisma.service';
 import { computeStandings, FinishedSeries, roundRobinPairings, snakeDistribute, StandingRow } from '@domain/tournament/round-robin';
+import type { TournamentView, ViewMatch, ViewStage } from './tournament-view';
 
 /** Refusal mapped to an HTTP status by the controller. */
 export class TournamentError extends Error {
@@ -213,6 +214,85 @@ export class TournamentStagesService {
       ]),
     );
     return targets.map(({ target, teamIds }) => ({ stageId: target.id, name: target.name, seeds: teamIds }));
+  }
+
+  listTournaments() {
+    return this.prisma.tournament.findMany({ orderBy: { createdAt: 'desc' }, select: { id: true, name: true, game: true, status: true } });
+  }
+
+  /** Everything the ASCII view shows: stages, groups with standings, matches with their games / servers, bonus matches. */
+  async getOverview(tournamentId: string): Promise<TournamentView> {
+    const tournament = await this.mustFind('tournament', () =>
+      this.prisma.tournament.findUnique({
+        where: { id: tournamentId },
+        include: {
+          stages: {
+            orderBy: { order: 'asc' },
+            include: { teams: { orderBy: { seed: 'asc' }, include: { team: true } } },
+          },
+          matches: {
+            include: {
+              teamHome: true,
+              teamAway: true,
+              winner: true,
+              maps: { orderBy: { mapOrder: 'asc' }, include: { server: true } },
+            },
+          },
+        },
+      }),
+    );
+    const toView = (m: (typeof tournament.matches)[number]): ViewMatch => ({
+      id: m.id,
+      round: m.roundNumber,
+      position: m.bracketPosition,
+      home: m.teamHome?.name ?? null,
+      away: m.teamAway?.name ?? null,
+      format: m.format,
+      status: m.status,
+      scoreHome: m.scoreHome,
+      scoreAway: m.scoreAway,
+      winner: m.winner?.name ?? null,
+      isForfeit: m.isForfeit,
+      countsInStats: m.countsInStats,
+      placement: m.placement,
+      games: m.maps.map((g) => ({
+        order: g.mapOrder,
+        mapName: g.mapName,
+        scoreHome: g.scoreHome,
+        scoreAway: g.scoreAway,
+        status: g.status,
+        source: g.resultSource,
+        server: g.server?.name ?? null,
+      })),
+    });
+
+    const stages: ViewStage[] = [];
+    for (const st of tournament.stages) {
+      const standings = st.type === 'ROUND_ROBIN' ? await this.getStandings(st.id) : null;
+      const stageMatches = tournament.matches.filter((m) => m.stageId === st.id);
+      stages.push({
+        name: st.name,
+        type: st.type,
+        order: st.order,
+        groups: (standings?.groups ?? []).map((g) => ({
+          name: g.name,
+          standings: g.standings.map((r) => ({
+            rank: r.rank, team: r.teamName ?? r.teamId, played: r.played, wins: r.wins, draws: r.draws,
+            losses: r.losses, points: r.points, scoreDiff: r.scoreDiff, tied: r.tied,
+          })),
+          matches: stageMatches.filter((m) => m.groupId === g.groupId).map(toView),
+        })),
+        seeds: st.teams.filter((t) => !t.groupId).map((t) => t.team.name),
+        matches: stageMatches.filter((m) => !m.groupId).map(toView),
+      });
+    }
+    return {
+      name: tournament.name,
+      game: tournament.game,
+      stages,
+      bonusMatches: tournament.matches.filter((m) => !m.stageId).map(toView),
+      generatedAt: new Date(),
+    };
   }
 
   private async mustFind<T>(what: string, find: () => Promise<T | null>): Promise<T> {

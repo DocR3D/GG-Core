@@ -46,12 +46,44 @@ export class MatchStateService {
     return this.sidesScore.getServerIdFromMatchId(matchId);
   }
 
+  unbindServer(serverId: string) {
+    return this.sidesScore.unbindServer(serverId);
+  }
+
   // Match temps réel ↔ MatchMap PostgreSQL
   setDbMatchMapId(matchId: string, matchMapId: string) {
     return this.sidesScore.setDbMatchMapId(matchId, matchMapId);
   }
   getDbMatchMapId(matchId: string) {
     return this.sidesScore.getDbMatchMapId(matchId);
+  }
+
+  /**
+   * Initial real-time state of a match (sides, score, timeouts, teams, settings, server binding, MatchMap link).
+   * Used by POST /api/matches/:id/init|start and by the launch of a tournament game.
+   */
+  async initMatchState(
+    matchId: string,
+    opts: {
+      home?: CoreSide['home'];
+      away?: CoreSide['away'];
+      homeTac?: number;
+      awayTac?: number;
+      homeTech?: number;
+      awayTech?: number;
+      teams?: { home_id?: string; away_id?: string; home_name?: string; away_name?: string };
+      settings?: Partial<MatchSettings>;
+      serverId?: string;
+      matchMapId?: string;
+    } = {},
+  ) {
+    await this.setSides(matchId, { home: opts.home ?? 'CT', away: opts.away ?? 'T' } as CoreSide);
+    await this.initScore(matchId);
+    await this.initTimeouts(matchId, opts.homeTac ?? 4, opts.awayTac ?? 4, opts.homeTech ?? 0, opts.awayTech ?? 0);
+    if (opts.teams) await this.setTeams(matchId, opts.teams);
+    if (opts.settings) await this.setSettings(matchId, opts.settings);
+    if (opts.serverId) await this.setServerIdToMatchId(opts.serverId, matchId);
+    if (opts.matchMapId) await this.setDbMatchMapId(matchId, opts.matchMapId);
   }
 
   // ───────────────────────────────────────────────────────────────────────────

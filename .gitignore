@@ -34,7 +34,7 @@ logs/
 test/fixtures/demos/*.dem
 
 # Tooling scripts (separate repo)
-scripts/
+/scripts/
 
 # Local personal memory bank
 memory-bank/

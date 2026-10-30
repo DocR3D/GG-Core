@@ -22,7 +22,7 @@ ifeq ($(CS2),local)
 endif
 
 .DEFAULT_GOAL := help
-.PHONY: help doctor _core up up-cs2 down restart ps logs status sandbox replay fixtures test test-backend test-db test-go shell-backend psql redis-cli reset
+.PHONY: help doctor _core up up-cs2 down restart ps logs status sandbox replay fixtures test test-backend test-db test-go e2e-tournament tournament shell-backend psql redis-cli reset
 
 help: ## Affiche cette aide
 	@echo "GG-Core — commandes disponibles :"
@@ -104,6 +104,13 @@ test-backend: ## Typecheck + suite Jest complète (dans le conteneur backend)
 test-db: ## Test d'intégration sur un vrai PostgreSQL
 	@$(COMPOSE) up -d --wait postgres
 	@$(COMPOSE) run --rm --no-deps backend sh -c "npx --no-install prisma generate >/dev/null && npx --no-install prisma db push --skip-generate >/dev/null && DB_IT=1 npx --no-install jest --config jest.config.ts db.spec"
+
+e2e-tournament: ## Scénario tournoi complet sur la stack lancée (poule, matchs auto rejoués + saisies admin, qualification, vue ASCII)
+	@$(COMPOSE) exec -T backend node scripts/e2e-tournament.mjs
+
+tournament: ## Joue un faux tournoi décrit en JSON (F=fake-gglan-32.json, dans test/fixtures/tournaments) et affiche la vue ASCII
+	@test -n "$(F)" || { echo "Usage : make tournament F=<fichier de test/fixtures/tournaments>"; exit 1; }
+	@$(COMPOSE) exec -T backend node scripts/tournament-scenario.mjs /test/fixtures/tournaments/$(F)
 
 test-go: ## Build + tests de l'agent Go
 	@docker run --rm -v "$(CURDIR)/agent:/src" -v ggcore-gocache:/root/.cache -v ggcore-gomod:/go/pkg/mod -w /src golang:1.23 \

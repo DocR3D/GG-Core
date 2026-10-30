@@ -36,6 +36,7 @@ make up         # Redis + PostgreSQL + backend + agent Go (schéma de base appli
 make up-cs2     # idem + serveur CS2 dédié vanilla en conteneur (~73 Go téléchargés au 1er lancement)
 make replay F=gglan19_mirage_13-11_anonymized.log   # rejoue un vrai match dans la Sandbox
 make test       # typecheck + Jest + intégration PostgreSQL + Go
+make e2e-tournament   # scénario tournoi complet sur la stack lancée (vue ASCII à relire)
 make down       # arrêt (données conservées)
 ```
 

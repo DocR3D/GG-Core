@@ -1,0 +1,23 @@
+{
+  "name": "Fake GGLan 32",
+  "game": "cs2",
+  "teams": 32,
+  "stages": [
+    { "key": "groups", "name": "Poules", "type": "ROUND_ROBIN", "order": 1, "groupCount": 8, "format": "BO1" },
+    { "key": "elite", "name": "Élite", "type": "DOUBLE_ELIM", "order": 2 },
+    { "key": "amateur", "name": "Amateur", "type": "DOUBLE_ELIM", "order": 3 }
+  ],
+  "qualify": {
+    "from": "groups",
+    "rules": [
+      { "ranks": [1, 2], "to": "elite" },
+      { "ranks": [3, 4], "to": "amateur" }
+    ]
+  },
+  "results": {
+    "mode": "seeded",
+    "upsetRate": 0.25,
+    "randomSeed": 2026,
+    "maps": ["de_mirage", "de_inferno", "de_nuke", "de_ancient", "de_anubis", "de_dust2", "de_train"]
+  }
+}

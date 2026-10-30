@@ -20,6 +20,7 @@ import { SandboxController } from './sandbox/sandbox.controller';
 import { TournamentMatchesController } from './tournament/tournament-matches.controller';
 import { TournamentController } from './tournament/tournament.controller';
 import { TournamentStagesService } from '@app/tournament/tournament-stages.service';
+import { TournamentLaunchService } from '@app/tournament/tournament-launch.service';
 
 @Module({
   imports: [
@@ -41,6 +42,6 @@ import { TournamentStagesService } from '@app/tournament/tournament-stages.servi
     TournamentMatchesController,
     TournamentController,
   ],
-  providers: [TournamentStagesService],
+  providers: [TournamentStagesService, TournamentLaunchService],
 })
 export class HttpModule {}

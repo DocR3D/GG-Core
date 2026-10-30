@@ -30,32 +30,7 @@ export class MatchInitController {
 
   @Post(':id/init')
   async init(@Param('id') matchId: string, @Body() dto: InitDto = {}) {
-    const home = dto.home ?? 'CT';
-    const away = dto.away ?? 'T';
-
-    await this.matchState.setSides(matchId, { home, away });
-    await this.matchState.initScore(matchId);
-    await this.matchState.initTimeouts(
-      matchId,
-      dto.homeTac ?? 4,
-      dto.awayTac ?? 4,
-      dto.homeTech ?? 0,
-      dto.awayTech ?? 0,
-    );
-    if (dto.teams) {
-      await this.matchState.setTeams(matchId, dto.teams);
-    }
-    if (dto.settings) {
-      await this.matchState.setSettings(matchId, dto.settings);
-    }
-    if (dto.serverId) {
-      await this.matchState.setServerIdToMatchId(dto.serverId, matchId);
-      this.logger.debug(`BOUND server "${dto.serverId}" -> match "${matchId}"`);
-    }
-    if (dto.matchMapId) {
-      await this.matchState.setDbMatchMapId(matchId, dto.matchMapId);
-      this.logger.debug(`LINKED match "${matchId}" -> MatchMap "${dto.matchMapId}"`);
-    }
+    await this.matchState.initMatchState(matchId, dto);
     return { ok: true, matchId };
   }
 

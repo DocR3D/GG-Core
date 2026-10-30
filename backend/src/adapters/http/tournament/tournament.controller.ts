@@ -1,11 +1,14 @@
 // src/adapters/http/tournament/tournament.controller.ts
-import { BadRequestException, Body, ConflictException, Controller, Get, NotFoundException, Param, Post } from '@nestjs/common';
+import { BadRequestException, Body, ConflictException, Controller, Get, Header, NotFoundException, Param, ParseIntPipe, Post } from '@nestjs/common';
 import { MatchFormat, StageType } from '@prisma/client';
 import {
   QualificationRule,
   TournamentError,
   TournamentStagesService,
 } from '@app/tournament/tournament-stages.service';
+import { TournamentLaunchService } from '@app/tournament/tournament-launch.service';
+import { asciiPage, renderTournamentAscii } from '@app/tournament/tournament-view';
+import { MatchSettings } from '@domain/match-settings.types';
 
 /**
  * Tournament structure (database, UUIDs): tournaments, teams, stages, group stage.
@@ -13,7 +16,83 @@ import {
  */
 @Controller('tournament')
 export class TournamentController {
-  constructor(private readonly stages: TournamentStagesService) {}
+  constructor(
+    private readonly stages: TournamentStagesService,
+    private readonly launch: TournamentLaunchService,
+  ) {}
+
+  // --- Plain-text views (no frontend yet): a bare <pre>, F5 to refresh -------------------------------
+
+  /** List of tournaments with a link to their view. */
+  @Get('view')
+  @Header('Content-Type', 'text/html; charset=utf-8')
+  async viewList() {
+    const list = await this.stages.listTournaments();
+    const esc = (v: string) => v.replace(/&/g, '&amp;').replace(/</g, '&lt;');
+    const items = list.map((t) => `<li><a href="tournaments/${t.id}/view">${esc(t.name)}</a> (${esc(t.game)}, ${t.status})</li>`);
+    return `<!doctype html>
+<html lang="fr"><head><meta charset="utf-8"><title>Tournois</title></head>
+<body><ul>${items.join('')}</ul></body></html>
+`;
+  }
+
+  @Get('tournaments/:id/view')
+  @Header('Content-Type', 'text/html; charset=utf-8')
+  async view(@Param('id') tournamentId: string) {
+    const overview = await this.run(() => this.stages.getOverview(tournamentId));
+    return asciiPage(overview.name, renderTournamentAscii(overview));
+  }
+
+  /** The data behind the views, as JSON. */
+  @Get('tournaments/:id/overview')
+  overview(@Param('id') tournamentId: string) {
+    return this.run(() => this.stages.getOverview(tournamentId));
+  }
+
+  /** Same view as plain text (e.g. `curl …/ascii` in a terminal). */
+  @Get('tournaments/:id/ascii')
+  @Header('Content-Type', 'text/plain; charset=utf-8')
+  async ascii(@Param('id') tournamentId: string) {
+    return renderTournamentAscii(await this.run(() => this.stages.getOverview(tournamentId)));
+  }
+
+  // --- Servers ------------------------------------------------------------------------------------------
+
+  /** Servers with availability: free / busy (running match) / disabled. */
+  @Get('servers')
+  servers() {
+    return this.run(() => this.launch.listServers());
+  }
+
+  /** Registers a game server; `name` = agent id (agents.d/<name>.yaml, e.g. "srv-a"). */
+  @Post('servers')
+  createServer(@Body() body: { name: string; ip: string; port?: number; game?: string }) {
+    return this.run(() => this.launch.createServer(body ?? ({} as any)));
+  }
+
+  /**
+   * disable: dead PC / server, never chosen for a game · enable: back in service ·
+   * release: frees a server stuck on a match that will never end (crash, cut replay).
+   */
+  @Post('servers/:id/:action')
+  setServer(@Param('id') idOrName: string, @Param('action') action: string) {
+    if (action === 'release') return this.run(() => this.launch.releaseServer(idOrName));
+    if (action !== 'disable' && action !== 'enable') throw new NotFoundException('action: disable | enable | release');
+    return this.run(() => this.launch.setServerEnabled(idOrName, action === 'enable'));
+  }
+
+  /**
+   * Starts game n° `order` of a series on a server chosen by the admin (real-time engine; the result flows back
+   * automatically). Relaunch on another server after a crash: same call with the other server.
+   */
+  @Post('matches/:id/games/:order/launch')
+  launchGame(
+    @Param('id') matchId: string,
+    @Param('order', ParseIntPipe) order: number,
+    @Body() body: { server: string; mapName: string; settings?: Partial<MatchSettings> },
+  ) {
+    return this.run(() => this.launch.launchGame({ matchId, order, server: body?.server, mapName: body?.mapName, settings: body?.settings }));
+  }
 
   @Post('tournaments')
   createTournament(@Body() body: { name: string; slug?: string; game?: string }) {

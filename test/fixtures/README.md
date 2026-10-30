@@ -95,3 +95,10 @@ cd backend && BULK_ORACLE_DIR=<bulk_dir> npx jest --config jest.config.ts fixtur
 
 Résultat GGLan #19 (2026-10-29) : 44 matchs propres × 2 parsers → scores 88/88, K/D/A identiques sur 43/44 ; le seul écart
 est 1 assist que CS2 compte sans qu'aucune ligne `assisted killing` n'apparaisse dans le log. Parser Go = parser de secours sur 44/44.
+
+## Tournois fictifs (`tournaments/`)
+
+Scénarios de tournoi joués par l'API (`make tournament F=fake-gglan-32.json`) : équipes, phases, qualification et règle de
+résultats **déterministe** (le meilleur seed gagne, avec des surprises tirées d'un générateur à graine fixe : même fichier =
+même tournoi). Données inventées, aucune donnée réelle. La double élimination n'étant pas encore jouable, le scénario
+s'arrête à la qualification.

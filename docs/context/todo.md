@@ -102,7 +102,6 @@ Le cœur moteur de match, l'arbitrage automatisé, le calcul de scores/stats CS2
 * **Besoin** : Isoler les scripts locaux d'anonymisation de logs (`scratch/` et `scripts/`) dans un package CLI dédié pour les futurs tournois.
 
 ### 12. 🧰 Petites suites identifiées
-* **Sandbox** : bouton « Terminer / libérer le serveur » (un replay coupé laisse son match en cours et bloque un replay d'un autre match sur ce serveur — 409).
 * **Restauration de backup** : restaurer aussi l'économie (argent) comme CS2 ; aujourd'hui score, stats et séries seulement.
 * **Parser de secours** : parser les commandes chat comme le parser Go.
 

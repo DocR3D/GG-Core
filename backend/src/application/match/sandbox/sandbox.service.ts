@@ -873,11 +873,17 @@ export class SandboxService {
       await (this.state as any).resetStreaks(matchId);
     }
 
+    // A tournament game launched on this match keeps its real teams (names are shown in announcements)
+    const current = await Promise.resolve().then(() => this.state.getSnapshot(matchId)).catch(() => null);
+    const teams = current?.teams?.home_id
+      ? { home_name: current.teams.home_name ?? '', away_name: current.teams.away_name ?? '' }
+      : { home_name: '', away_name: '' };
+
     await this.injectState({
       matchId,
       serverId,
       sides: { home: 'CT', away: 'T' },
-      teams: { home_name: '', away_name: '' },
+      teams,
       score: { ct: 0, t: 0, round: 0 },
       lastScoredRound: 0,
       halftimePlayed: false,

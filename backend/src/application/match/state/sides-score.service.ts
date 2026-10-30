@@ -38,6 +38,11 @@ export class SidesScoreService {
     }
   }
 
+  /** Removes the server → match binding (the match itself is left untouched). */
+  async unbindServer(serverId: string) {
+    await this.redis.del(this.serverMatchKey(serverId));
+  }
+
   async setDbMatchMapId(matchId: string, matchMapId: string) {
     await this.redis.set(redisConst.dbMatchMap(matchId), matchMapId);
   }
