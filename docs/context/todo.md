@@ -36,12 +36,24 @@ Le cœur moteur de match, l'arbitrage automatisé, le calcul de scores/stats CS2
   - **Liaison Match ➔ Tournoi** : avancement automatique du gagnant dans l'arbre lors du `postgame`.
 
 ### 3. 🗺️ Module de Vétos de Maps (Map Pick & Ban)
-* **Origine** : Workflow standard de compétition CS2 avant le chargement du serveur.
-* **Tâches à réaliser** :
-  - Machine à états pour les formats de match : **BO1**, **BO3** et **BO5**.
-  - Déroulement tour par tour : ban alterné des maps, sélection des maps jouées, choix de la carte décisive (*decider*) et choix du camp de départ (*side pick*).
-  - Événements WebSocket en temps réel pour synchroniser le véto entre capitaines et spectateurs.
-  - Initialisation automatique du match sur le serveur avec la première map issue du véto.
+* **Fait** : pierre-feuille-ciseaux puis véto BO1 / BO3 / BO5 sur la page `/veto/:matchId` (capitaines connectés avec
+  Steam, désignés par l'admin), mode de side knife ou pick par tournoi / phase, maps → games de la série, lancement sur
+  la map et les sides du véto (`docs/context/backend.md`).
+* **Reste** :
+  - Import des capitaines par CSV (avec l'import des équipes, format à voir avec le dev du site d'inscription).
+  - Minuteur par étape (ban aléatoire) : écarté pour l'instant, l'admin débloque à la main.
+  - Le backend pousse `veto:updated` (WebSocket) ; la page de test s'en sert déjà pour se recharger, le futur front
+    mettra l'écran à jour sans rechargement.
+  - **Camps des joueurs en mode de side « pick »** (pas de knife, et zéro plugin : CS2 ne force personne dans un camp) :
+    au passage en live, contrôle par les deux capitaines (SteamID connus grâce à la connexion Steam) : bon camp →
+    lancement ; les deux inversés → `mp_swapteams` (natif) puis lancement ; sinon lancement bloqué + message chat
+    (« Rouge doit jouer T ») + alerte admin ; joueurs nommés si leurs SteamID sont connus. Pas de kick. Noms d'équipe
+    en jeu (`mp_teamname_1` / `mp_teamname_2`, à vérifier dans le dump des convars) posés **après** l'éventuel swap :
+    on ne sait pas encore si `mp_swapteams` déplace les noms (RT-10). À faire avec les tests sur serveur (RT-09, RT-10).
+  - **Front voulu** (la page `/veto/:matchId` actuelle n'est qu'un outil de test) : d'abord un écran
+    pierre-feuille-ciseaux, puis un écran pick & ban où l'on clique sur l'image de chaque map. Images servies en local
+    (LAN-first), à fournir. Garder séparés l'écran capitaine et l'écran admin (comme les pages de test `/veto/:id` et `/veto/:id/admin`) : un admin qui est aussi capitaine
+    a cliqué pour l'adversaire pendant son tour (test du 2026-10-30, refus propre côté serveur).
 
 ### 4. 🔒 Sécurité des Accès Serveurs & Whitelist SteamID
 * **Origine** : Protection des matchs LAN contre les intrusions ou erreurs de connexion.

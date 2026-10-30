@@ -27,7 +27,7 @@ ifeq ($(CS2),local)
 endif
 
 .DEFAULT_GOAL := help
-.PHONY: help doctor admin _core up up-cs2 down restart ps logs status sandbox replay fixtures test test-backend test-db test-go e2e-tournament tournament shell-backend psql redis-cli reset
+.PHONY: help doctor admin _core up up-cs2 down restart ps logs status sandbox replay fixtures test test-backend test-db test-go e2e-tournament tournament veto-demo veto-bot shell-backend psql redis-cli reset
 
 help: ## Affiche cette aide
 	@echo "GG-Core - commandes disponibles :"
@@ -118,6 +118,12 @@ test-db: ## Test d'intégration sur un vrai PostgreSQL
 
 e2e-tournament: ## Scénario tournoi complet sur la stack lancée (poule, matchs auto rejoués + saisies admin, qualification, vue ASCII)
 	@$(COMPOSE) exec -T backend node scripts/e2e-tournament.mjs
+
+veto-demo: ## Véto à essayer à la main (F=BO1|BO3|BO5, BO3 par défaut ; sides au véto ; ton SteamID admin est capitaine)
+	@$(COMPOSE) exec -T -e VETO_FORMAT=$(or $(F),BO3) backend node scripts/veto-demo.mjs
+
+veto-bot: ## Adversaire automatique du véto de démo (capitaine de Démo Noir) : joue dès que c'est son tour, affiche le direct
+	@$(COMPOSE) exec -T backend node scripts/veto-bot.mjs
 
 tournament: ## Joue un faux tournoi décrit en JSON (F=fake-gglan-32.json, dans test/fixtures/tournaments) et affiche la vue ASCII
 	@test -n "$(F)" || { echo "Usage : make tournament F=<fichier de test/fixtures/tournaments>"; exit 1; }

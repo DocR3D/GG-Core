@@ -96,6 +96,8 @@ enum VetoAction {
   BAN
   PICK
   DECIDER
+  /// Choix du side de départ sur une map pickée (mode de side « pick »)
+  SIDE
 }
 
 enum TeamSide {
@@ -174,6 +176,8 @@ model TeamRoster {
   teamId       String     @map("team_id") @db.Uuid
   playerId     String     @map("player_id") @db.Uuid
   role         RosterRole @default(STARTER)
+  /// Capitaine de l'équipe pour ce tournoi (PFC et véto) - désigné par l'admin
+  isCaptain    Boolean    @default(false) @map("is_captain")
   createdAt    DateTime   @default(now()) @map("created_at")
   updatedAt    DateTime   @default(now()) @updatedAt @map("updated_at")
 
@@ -247,6 +251,8 @@ model Match {
   countsInStats     Boolean      @default(true) @map("counts_in_stats")
   /// Match de classement : le vainqueur termine à cette place, le perdant à la suivante (ex. 7 → 7e / 8e)
   placement         Int?
+  /// Équipe qui commence le véto (choisie par le gagnant du pierre-feuille-ciseaux, ou par l'admin)
+  vetoStartTeamId   String?      @map("veto_start_team_id") @db.Uuid
   createdAt         DateTime     @default(now()) @map("created_at")
   updatedAt         DateTime     @updatedAt @map("updated_at")
 
@@ -266,6 +272,7 @@ model Match {
 
   maps              MatchMap[]
   vetos             MatchVeto[]
+  rps               MatchRps[]
 
   @@index([tournamentId])
   @@index([teamHomeId])
@@ -347,6 +354,8 @@ model MatchVeto {
   mapName     String      @map("map_name") @db.VarChar(64)
   sidePick    TeamSide?   @map("side_pick")
   status      VetoStatus  @default(COMPLETED)
+  /// Auteur de l'étape : SteamID64 du capitaine, ou "admin:<nom>" quand l'admin a joué à sa place
+  actedBy     String?     @map("acted_by") @db.VarChar(64)
   createdAt   DateTime    @default(now()) @map("created_at")
 
   match       Match       @relation(fields: [matchId], references: [id], onDelete: Cascade)
@@ -355,6 +364,24 @@ model MatchVeto {
   @@unique([matchId, stepOrder])
   @@index([matchId])
   @@map("match_vetos")
+}
+
+/// Pierre-feuille-ciseaux avant le véto : un choix par équipe et par manche (nouvelle manche sur égalité).
+/// Une ligne par équipe : les deux capitaines peuvent jouer en même temps sans s'écraser.
+model MatchRps {
+  id        String   @id @default(uuid()) @db.Uuid
+  matchId   String   @map("match_id") @db.Uuid
+  round     Int
+  teamId    String   @map("team_id") @db.Uuid
+  /// rock | paper | scissors
+  choice    String   @db.VarChar(16)
+  actedBy   String?  @map("acted_by") @db.VarChar(64)
+  createdAt DateTime @default(now()) @map("created_at")
+
+  match     Match    @relation(fields: [matchId], references: [id], onDelete: Cascade)
+
+  @@unique([matchId, round, teamId])
+  @@map("match_rps")
 }
 
 // =============================================================================

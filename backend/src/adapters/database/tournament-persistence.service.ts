@@ -424,6 +424,10 @@ export class TournamentPersistenceService {
             : {}),
       },
     });
+    // Series decided before its last games (BO3 won 2-0): the games planned by the veto will not be played
+    if (winnerId || isDraw) {
+      await this.prisma.matchMap.updateMany({ where: { matchId, status: 'PENDING', resultStatus: null }, data: { status: 'CANCELLED' } });
+    }
     if (winnerId && match.status !== 'FINISHED') {
       await this.advanceBracketMatch(matchId, winnerId);
     }

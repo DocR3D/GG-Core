@@ -45,6 +45,11 @@
 - `knife:result`
 - `sponsor:rotate`
 
+### Véto des maps
+- `veto:updated` : état public du véto après chaque action (room du match de la série). Écrans prévus : pierre-feuille-
+  ciseaux, puis pick & ban en cliquant sur l'image des maps ; un capitaine trouve ses matchs par
+  `GET /api/tournament/vetos/mine` et relit son propre état (`viewer.canAct`) par `GET /api/tournament/matches/:id/veto`.
+
 ## Interfaces prévues
 
 ### Interface Admin

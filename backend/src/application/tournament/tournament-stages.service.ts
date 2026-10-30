@@ -16,7 +16,7 @@ export interface DoubleElimFormats {
 
 /** Refusal mapped to an HTTP status by the controller. */
 export class TournamentError extends Error {
-  constructor(readonly code: 'not_found' | 'conflict' | 'invalid', message: string) {
+  constructor(readonly code: 'not_found' | 'conflict' | 'invalid' | 'forbidden', message: string) {
     super(message);
   }
 }

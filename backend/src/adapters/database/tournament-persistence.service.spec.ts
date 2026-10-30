@@ -27,6 +27,7 @@ describe('TournamentPersistenceService', () => {
       findUnique: jest.Mock;
       update: jest.Mock;
       upsert: jest.Mock;
+      updateMany: jest.Mock;
     };
     matchVeto: {
       upsert: jest.Mock;
@@ -57,6 +58,7 @@ describe('TournamentPersistenceService', () => {
         findUnique: jest.fn(),
         update: jest.fn(),
         upsert: jest.fn(),
+        updateMany: jest.fn(),
       },
       matchVeto: {
         upsert: jest.fn(),

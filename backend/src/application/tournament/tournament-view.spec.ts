@@ -105,6 +105,7 @@ describe('pages HTML avec liens', () => {
     expect(html).toContain('<a href="/view/matches/b">B T2#4</a> (extérieur)');
     expect(html).toContain('auto (cs2)');
     expect(html).toContain('serveur srv-a');
+    expect(html).toMatch(/<a href="\/veto\/[^"]+">Véto des maps/);
     expect(html).toMatch(/Player_01\s+20\s+12\s+4\s+9\s+88\.4/);
     expect(html).not.toMatch(/<style|<script|style=/);
   });

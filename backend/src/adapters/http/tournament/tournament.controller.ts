@@ -1,5 +1,21 @@
 // src/adapters/http/tournament/tournament.controller.ts
-import { BadRequestException, Body, ConflictException, Controller, Delete, Get, NotFoundException, Param, ParseIntPipe, Post } from '@nestjs/common';
+import {
+  BadRequestException,
+  Body,
+  ConflictException,
+  Controller,
+  Delete,
+  ForbiddenException,
+  Get,
+  HttpException,
+  NotFoundException,
+  Param,
+  ParseIntPipe,
+  Post,
+  Put,
+  Req,
+} from '@nestjs/common';
+import type { Request } from 'express';
 import { MatchFormat, StageType } from '@prisma/client';
 import {
   DoubleElimFormats,
@@ -8,6 +24,10 @@ import {
   TournamentStagesService,
 } from '@app/tournament/tournament-stages.service';
 import { TournamentLaunchService } from '@app/tournament/tournament-launch.service';
+import { VetoService } from '@app/tournament/veto.service';
+import type { Session } from '@app/auth/auth.service';
+import type { VetoConfig } from '@domain/tournament/veto';
+import { actorOf } from '../veto/veto.controller';
 import { MatchSettings } from '@domain/match-settings.types';
 
 /**
@@ -19,6 +39,7 @@ export class TournamentController {
   constructor(
     private readonly stages: TournamentStagesService,
     private readonly launch: TournamentLaunchService,
+    private readonly veto: VetoService,
   ) {}
 
   /** The data behind the /view pages, as JSON. */
@@ -60,7 +81,7 @@ export class TournamentController {
   launchGame(
     @Param('id') matchId: string,
     @Param('order', ParseIntPipe) order: number,
-    @Body() body: { server: string; mapName: string; settings?: Partial<MatchSettings> },
+    @Body() body: { server: string; mapName?: string; settings?: Partial<MatchSettings> },
   ) {
     return this.run(() => this.launch.launchGame({ matchId, order, server: body?.server, mapName: body?.mapName, settings: body?.settings }));
   }
@@ -127,6 +148,55 @@ export class TournamentController {
     return this.run(() => this.stages.qualify(stageId, body ?? ({} as any)));
   }
 
+  // --- Veto (the page and the captains' actions: /veto/:matchId) --------------------------------------------
+
+  /** Map pool and side mode (knife | pick) of a tournament: { mapPool: [...], sideMode? }. */
+  @Put('tournaments/:id/veto')
+  setTournamentVeto(@Param('id') tournamentId: string, @Body() body: Partial<VetoConfig>) {
+    return this.run(() => this.veto.setTournamentConfig(tournamentId, body ?? {}));
+  }
+
+  /** Same for one stage (overrides the tournament's, e.g. another pool for the Élite bracket). */
+  @Put('stages/:id/veto')
+  setStageVeto(@Param('id') stageId: string, @Body() body: Partial<VetoConfig>) {
+    return this.run(() => this.veto.setStageConfig(stageId, body ?? {}));
+  }
+
+  /** Players of a team for a tournament: { players: [{ username, steamId?, captain? }] }. */
+  @Post('tournaments/:id/teams/:teamId/players')
+  addPlayers(@Param('id') tournamentId: string, @Param('teamId') teamId: string, @Body() body: { players: { username: string; steamId?: string; captain?: boolean }[] }) {
+    return this.run(() => this.veto.addPlayers(tournamentId, teamId, body?.players));
+  }
+
+  /** Captain of a team for a tournament (plays rock-paper-scissors and the veto): { playerId }. */
+  @Put('tournaments/:id/teams/:teamId/captain')
+  setCaptain(@Param('id') tournamentId: string, @Param('teamId') teamId: string, @Body() body: { playerId: string }) {
+    return this.run(() => this.veto.setCaptain(tournamentId, teamId, body?.playerId));
+  }
+
+  /**
+   * "My vetos": the unfinished matches of the logged-in captain's teams (Steam login), `myTurn` when it has to act.
+   * Live updates: WebSocket room of each match (`veto:updated`).
+   */
+  @Get('vetos/mine')
+  myVetos(@Req() req: Request & { ggSession?: Session | null }) {
+    const actor = actorOf(req.ggSession);
+    if (!actor) throw new HttpException({ statusCode: 401, message: 'authentication required (Sign in through Steam on /login)' }, 401);
+    return this.run(() => this.veto.listForCaptain(actor));
+  }
+
+  /** Vetos of a tournament: phase, team(s) expected and since when - spots a slow captain (no timer). */
+  @Get('tournaments/:id/vetos')
+  tournamentVetos(@Param('id') tournamentId: string) {
+    return this.run(() => this.veto.listForTournament(tournamentId));
+  }
+
+  /** Veto state of a match (RPS choices of the round being played stay hidden). */
+  @Get('matches/:id/veto')
+  vetoState(@Param('id') matchId: string, @Req() req: Request & { ggSession?: Session | null }) {
+    return this.run(() => this.veto.getState(matchId, actorOf(req.ggSession)));
+  }
+
   private async run<T>(fn: () => Promise<T>): Promise<T> {
     try {
       return await fn();
@@ -134,6 +204,7 @@ export class TournamentController {
       if (!(e instanceof TournamentError)) throw e;
       if (e.code === 'not_found') throw new NotFoundException(e.message);
       if (e.code === 'conflict') throw new ConflictException(e.message);
+      if (e.code === 'forbidden') throw new ForbiddenException(e.message);
       throw new BadRequestException(e.message);
     }
   }

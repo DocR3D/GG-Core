@@ -150,7 +150,7 @@ Redis ggbot:events
 | `POST /api/tournament/matches/:id/games/:order/result` | **Saisie admin** du résultat du game n° `order` d'une série (Match en base, UUID) : `{ scoreHome, scoreAway, mapName?, reportedBy? }` → game `MANUAL` / `CONFIRMED`, puis mise à jour de la série (BO1/BO3/BO5) et de l'arbre. 404 match inconnu, 409 série terminée, 400 saisie invalide |
 | `GET /api/tournament/servers` · `POST /api/tournament/servers` | Serveurs de jeu avec disponibilité (`free` / `busy` + match en cours / `disabled`) · enregistrer un serveur (`{ name: id de l'agent, ip, port?, game? }`) |
 | `POST /api/tournament/servers/:id/disable` \| `enable` \| `release` | Désactiver un PC mort (jamais choisi) / le remettre en service / **libérer** un serveur bloqué sur un match qui ne finira jamais |
-| `POST /api/tournament/matches/:id/games/:order/launch` | Lancer le game n° `order` d'une série sur un serveur choisi : `{ server, mapName, settings? }`. Le moteur temps réel utilise l'UUID du game comme matchId : le résultat remonte seul (game → série → arbre). Relancer sur un autre serveur après un crash = même appel. 409 si serveur désactivé / occupé / jeu différent |
+| `POST /api/tournament/matches/:id/games/:order/launch` | Lancer le game n° `order` d'une série sur un serveur choisi : `{ server, mapName?, settings? }` (après un véto : `mapName` facultatif = map du véto, et en mode de side « pick » les sides choisis au véto, sans knife). Le moteur temps réel utilise l'UUID du game comme matchId : le résultat remonte seul (game → série → arbre). Relancer sur un autre serveur après un crash = même appel. 409 si serveur désactivé / occupé / jeu différent |
 | `/sandbox/tournament` | **Tournois simulés** (outil de dev, page HTML sans JS) : un scénario JSON de `test/fixtures/tournaments` joué en accéléré - équipes, joueurs et stats CS2 factices, résultats déterministes, games « en cours » pendant `delayMs`, N séries en parallèle, pause / reprendre / game suivant / arrêter. API : `GET scenarios`, `GET\|POST runs`, `GET runs/:id`, `POST runs/:id/(pause\|resume\|step\|stop)`. Relancer un scénario remplace son tournoi. Suivi en direct : `/view/tournaments/:id?refresh=N` |
 | `GET /api/tournament/tournaments/:id/overview` | Données JSON des pages `/view` (phases, poules, classements, arbres, matchs, games, serveurs, classement final) |
 | `GET /api/matches/:id/review` | Résultat gelé (désaccord `Game Over` serveur / GG-Core) ou `null` |
@@ -170,8 +170,37 @@ Redis ggbot:events
 **Pages humaines (hors `/api`, réservé à l'API JSON)** - HTML simple sans JS (vues de tournoi en `<pre>`) :
 - `GET /view` : liste des tournois ;
 - `GET /view/tournaments/:id` : vue ASCII d'un tournoi (poules, classements, arbres en colonnes avec la progression, matchs, games, serveurs, qualifiés, matchs bonus, classement final) ; chaque libellé de match est un lien ; `?refresh=N` recharge toutes les N s ; `GET /view/tournaments/:id.txt` = même texte brut (pour `curl`) ;
-- `GET /view/matches/:id` : détail d'un match (série, games avec auteur / serveur, stats joueurs, provenance et suite dans l'arbre, cliquables) ;
+- `GET /view/matches/:id` : détail d'un match (série, games avec auteur / serveur, stats joueurs, provenance et suite dans l'arbre, cliquables, lien vers le véto) ;
+- `GET /veto/:matchId` : pierre-feuille-ciseaux puis véto des maps (voir ci-dessous) ;
 - `GET /sandbox`, `GET /sandbox/tournament` : outils de dev (Sandbox de match, tournois simulés).
+
+**Pierre-feuille-ciseaux et véto des maps** (`application/tournament/veto.service.ts`, domaine pur `domain/tournament/veto.ts`) :
+- configuration admin : `PUT /api/tournament/tournaments/:id/veto` (défaut du tournoi) ou `PUT /api/tournament/stages/:id/veto`
+  (prioritaire) `{ mapPool: [...], sideMode: 'knife' | 'pick' }` - knife : knife round sur chaque map ; pick : sur une map
+  pickée l'adversaire du pickeur choisit son side, knife sur le decider ;
+- capitaines désignés par l'admin : `POST /api/tournament/tournaments/:id/teams/:teamId/players`
+  `{ players: [{ username, steamId?, captain? }] }`, `PUT …/teams/:teamId/captain { playerId }` ; reconnus par leur
+  connexion Steam (SteamID64 ou format des logs `[U:1:x]`) ;
+- pages de test (se rechargent sur chaque `veto:updated` du WebSocket) : `/veto/:matchId` (capitaines et spectateurs :
+  seulement ses propres coups, même pour un admin) et `/veto/:matchId/admin` (admin : qui commence, étape jouée à la
+  place d'une équipe nommée, annuler, recommencer) ; actions
+  `POST /veto/:matchId/rps { choice }`, `start { first }` (gagnant du PFC) ou `{ teamId }` (admin : PFC joué
+  ailleurs), `step { map }` ou `{ side }`, `undo` / `reset` (admin) - JSON, ou formulaires de la page (`_form=1`, redirection) ;
+  état JSON : `GET /api/tournament/matches/:id/veto` (le choix PFC de la manche en cours n'est jamais révélé ;
+  `waitingFor` = équipe(s) attendue(s), `lastActionAt` = dernière action) ;
+- en direct : chaque action pousse `veto:updated` (état public) dans la room WebSocket du match de la série
+  (`io(API, { query: { matchId } })`) ; un capitaine relit alors son état avec sa session ;
+- listes : `GET /api/tournament/vetos/mine` (capitaine connecté avec Steam : ses matchs non terminés, `myTurn`) et
+  `GET /api/tournament/tournaments/:id/vetos` (vue admin : phase, équipe attendue et depuis quand, faute de minuteur) ;
+- séquences (pool de 7) : BO1 6 bans + decider ; BO3 ban ban pick pick ban ban + decider ; BO5 ban ban pick ×4 + decider ;
+- grande finale (finaliste du haut avec une map d'avance) : même véto, la map restante à la fin est la map d'avance,
+  non jouée (déjà comptée par `advantageHome` / `advantageAway`) : seules les maps pickées deviennent des games ;
+- pas de minuteur (décidé avec l'utilisateur) : un admin joue l'étape d'un capitaine absent ; chaque étape garde son auteur
+  (`acted_by`) et son heure ; à la fin, les maps deviennent les games de la série (`MatchMap`), le serveur est choisi au
+  lancement ; un game prévu mais non joué (BO3 gagné 2-0) passe en `CANCELLED` ;
+- démo à essayer : `make veto-demo` (BO3, ton SteamID admin capitaine de Démo Rouge), puis `make veto-bot` : adversaire
+  automatique capitaine de Démo Noir (vraies routes de capitaine, session joueur signée avec le `JWT_SECRET` de dév),
+  qui joue dès que c'est son tour et affiche chaque `veto:updated` reçu.
 
 **Design des pages** - le style vit uniquement dans le CSS, jamais dans les pages :
 - squelette commun `htmlPage({ title, body, theme })` (`application/shared/html-page.ts`) : barre du site, thème sombre ;

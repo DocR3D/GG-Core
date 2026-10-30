@@ -357,7 +357,7 @@ export interface MatchDetailView {
 
 const slotFr = (slot: 'HOME' | 'AWAY' | null) => (slot === 'HOME' ? 'domicile' : slot === 'AWAY' ? 'extérieur' : '');
 const statusFr = (s: string) =>
-  ({ PENDING: 'à jouer', LIVE: 'en cours', FINISHED: 'terminé', CANCELLED: 'annulé', VETO: 'véto', WARMUP: 'warmup', PAUSED: 'en pause' } as Record<string, string>)[s] ?? s;
+  ({ PENDING: 'à jouer', LIVE: 'en cours', FINISHED: 'terminé', CANCELLED: 'non joué', VETO: 'véto', WARMUP: 'warmup', PAUSED: 'en pause' } as Record<string, string>)[s] ?? s;
 
 /** Detail of one match, as HTML (links to the tournament and to the matches before / after it in the bracket). */
 export function renderMatchDetailHtml(d: MatchDetailView, tournamentHref: string, matchHref: (id: string) => string): string {
@@ -400,6 +400,8 @@ export function renderMatchDetailHtml(d: MatchDetailView, tournamentHref: string
     lines.push('', 'Fin de parcours dans l’arbre (finale, ou élimination du perdant).');
   }
 
+  lines.push('');
+  link('Véto des maps (pierre-feuille-ciseaux, bans et picks)', `/veto/${d.id}`);
   lines.push('', 'Games');
   if (!d.games.length) lines.push('  (aucun game joué)');
   for (const g of d.games) {

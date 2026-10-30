@@ -6,6 +6,7 @@ import { MatchStateModule } from '@app/match-state.module';
 import { BusModule } from '@app/bus/bus.module';
 import { MatchOrchestratorModule } from '@app/match/match-orchestrator.module';
 import { SandboxModule } from '@app/match/sandbox/sandbox.module';
+import { WsModule } from '@adapters/ws/ws.module';
 
 // Contrôleurs HTTP
 import { MatchesController } from './matches/matches.controller';
@@ -24,6 +25,8 @@ import { TournamentController } from './tournament/tournament.controller';
 import { ViewController } from './view/view.controller';
 import { TournamentStagesService } from '@app/tournament/tournament-stages.service';
 import { TournamentLaunchService } from '@app/tournament/tournament-launch.service';
+import { VetoService } from '@app/tournament/veto.service';
+import { VetoController } from './veto/veto.controller';
 
 @Module({
   imports: [
@@ -32,6 +35,7 @@ import { TournamentLaunchService } from '@app/tournament/tournament-launch.servi
     BusModule,
     Cs2LogsModule, // nouvelle intégration propre du module CS2 logs
     SandboxModule,
+    WsModule, // veto:updated pushed by the veto actions
   ],
   controllers: [
     MatchesController,
@@ -46,7 +50,8 @@ import { TournamentLaunchService } from '@app/tournament/tournament-launch.servi
     TournamentMatchesController,
     TournamentController,
     ViewController,
+    VetoController,
   ],
-  providers: [TournamentStagesService, TournamentLaunchService, TournamentSimulationService],
+  providers: [TournamentStagesService, TournamentLaunchService, TournamentSimulationService, VetoService],
 })
 export class HttpModule {}

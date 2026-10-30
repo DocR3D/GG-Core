@@ -226,3 +226,5 @@ Suivre les logs : `docker logs -f ggcore-cs2-dev` (serveur) et `docker logs -f g
 | RT-06 | Kick annulé par un nouveau match | démarrer un nouveau match sur le serveur avant les 120 s | aucun kick |
 | RT-07 | Fin de la démo GOTV | lire la démo d'un match terminé (`playdemo`) | le dernier round est présent malgré `tv_delay 105` et le `tv_stoprecord` envoyé au Game Over |
 | RT-08 | Navigation round par round (UI Sandbox) | `/sandbox`, vitesse « Round par round », suivant / précédent / aller au round N | score et scoreboard conformes au log à chaque étape |
+| RT-09 | Sides choisis au véto (mode « pick », sans knife) | véto avec choix de side (`make veto-demo`), lancer le game, les joueurs rejoignent le mauvais camp | à coder d'abord (todo §3) : swap des équipes si les deux capitaines sont inversés, lancement bloqué sinon ; noms d'équipe du bon côté **après** le swap |
+| RT-10 | `mp_swapteams` et noms d'équipe | `mp_teamname_1` / `mp_teamname_2` posés, puis `mp_swapteams` en warmup | observer si les noms suivent les équipes ou restent sur leur camp (décide si GG-Core doit les reposer après un swap) |

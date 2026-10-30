@@ -7,6 +7,7 @@ import { MatchOrchestrator } from '@app/match/match-orchestrator.service';
 import { MatchPhase } from '@domain/phase.types';
 import { MatchSettings } from '@domain/match-settings.types';
 import { TournamentError } from './tournament-stages.service';
+import { VetoService } from './veto.service';
 
 /**
  * Game servers of the LAN and the bridge "tournament game → real-time engine on a server".
@@ -24,6 +25,7 @@ export class TournamentLaunchService {
     private readonly prisma: PrismaService,
     private readonly state: MatchStateService,
     private readonly orch: MatchOrchestrator,
+    private readonly veto: VetoService,
   ) {}
 
   // ---------------------------------------------------------------------------
@@ -77,12 +79,14 @@ export class TournamentLaunchService {
    * The engine's match id is the game's UUID (MatchMap id), so its result flows back automatically
    * (game result → series → bracket). Relaunching a game that is not finished - e.g. on another server after
    * a server died - reuses the same game and restarts it from scratch.
+   * After a veto, the map is the one the veto gave this game (`mapName` optional) and, in side mode "pick",
+   * the starting sides are the ones chosen in the veto (no knife round).
    */
   async launchGame(input: {
     matchId: string;
     order: number;
     server: string;
-    mapName: string;
+    mapName?: string;
     settings?: Partial<MatchSettings>;
   }) {
     if (!isUuid(input.matchId)) throw new TournamentError('not_found', 'match not found');
@@ -94,8 +98,13 @@ export class TournamentLaunchService {
     if (match.status === 'FINISHED') throw new TournamentError('conflict', 'series already finished');
     if (!match.teamHome || !match.teamAway) throw new TournamentError('conflict', 'both teams must be known');
     if (!Number.isInteger(input.order) || input.order < 1) throw new TournamentError('invalid', 'game number must be >= 1');
-    const mapName = input.mapName?.trim();
-    if (!mapName) throw new TournamentError('invalid', 'mapName is required (e.g. de_inferno)');
+    const planned = await this.prisma.matchMap.findUnique({
+      where: { matchId_mapOrder: { matchId: match.id, mapOrder: input.order } },
+    });
+    const mapName = input.mapName?.trim() || (planned && planned.mapName !== '-' ? planned.mapName : '');
+    if (!mapName) throw new TournamentError('invalid', 'mapName is required (e.g. de_inferno): no veto gave this game a map');
+    const sides = await this.veto.startingSides(match.id, input.order);
+    const settings: Partial<MatchSettings> | undefined = sides ? { knifeEnabled: false, ...input.settings } : input.settings;
 
     const server = await this.findServer(input.server);
     if (server.status === 'OFFLINE') throw new TournamentError('conflict', `server ${server.name} is disabled`);
@@ -103,12 +112,9 @@ export class TournamentLaunchService {
       throw new TournamentError('conflict', `server ${server.name} serves ${server.game}, not ${match.tournament.game}`);
     }
 
-    const existing = await this.prisma.matchMap.findUnique({
-      where: { matchId_mapOrder: { matchId: match.id, mapOrder: input.order } },
-    });
-    if (existing?.status === 'FINISHED') throw new TournamentError('conflict', `game ${input.order} already finished`);
+    if (planned?.status === 'FINISHED') throw new TournamentError('conflict', `game ${input.order} already finished`);
     const busyWith = await this.runningMatch(server.name);
-    if (busyWith && busyWith.matchId !== existing?.id) {
+    if (busyWith && busyWith.matchId !== planned?.id) {
       throw new TournamentError('conflict', `server ${server.name} is running match ${busyWith.matchId} (${busyWith.phase})`);
     }
 
@@ -127,13 +133,14 @@ export class TournamentLaunchService {
         home_name: match.teamHome.name,
         away_name: match.teamAway.name,
       },
-      settings: input.settings,
+      ...(sides ? { home: sides.home, away: sides.away } : {}),
+      settings,
       serverId: server.name,
       matchMapId: game.id,
     });
-    const started = await this.orch.startMatch({ serverId: server.name, matchId: engineMatchId, mapName, settings: input.settings });
+    const started = await this.orch.startMatch({ serverId: server.name, matchId: engineMatchId, mapName, settings });
     this.log.log(`[launch] series ${match.id} game ${input.order} -> ${server.name} (${mapName}), engine match ${engineMatchId}`);
-    return { gameId: game.id, engineMatchId, server: server.name, mapName, started };
+    return { gameId: game.id, engineMatchId, server: server.name, mapName, sides: sides ?? 'knife', started };
   }
 
   /** The real-time match a server runs, if it is not over. */

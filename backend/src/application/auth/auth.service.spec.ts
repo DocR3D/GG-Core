@@ -64,6 +64,9 @@ describe('règles d’accès', () => {
     ['POST', '/api/tournament/matches/x/games/1/result', false],
     ['DELETE', '/api/tournament/tournaments/x', false],
     ['POST', '/api/matches/x/start', false],
+    ['GET', '/veto/x', true],
+    ['GET', '/veto/x/admin', false],
+    ['POST', '/veto/x/step', false],
   ])('%s %s public = %s', (method, path, expected) => {
     expect(isPublic(method, path)).toBe(expected);
   });
@@ -97,6 +100,14 @@ describe('règles d’accès', () => {
     const { res, next } = call('POST', '/api/tournament/teams', { cookie: `${SESSION_COOKIE}=${token}` });
     expect(next).not.toHaveBeenCalled();
     expect(res.status).toHaveBeenCalledWith(403);
+  });
+
+  it('véto : un joueur connecté atteint les actions de capitaine, pas undo / reset ; un anonyme → 401', () => {
+    process.env = { ...ENV, JWT_SECRET: 'test-secret' };
+    const cookie = `${SESSION_COOKIE}=${service().sign({ sub: PLAYER, role: 'player', name: 'p', via: 'steam' })}`;
+    for (const action of ['rps', 'start', 'step']) expect(call('POST', `/veto/m1/${action}`, { cookie }).next).toHaveBeenCalled();
+    expect(call('POST', '/veto/m1/undo', { cookie }).res.status).toHaveBeenCalledWith(403);
+    expect(call('POST', '/veto/m1/step').res.status).toHaveBeenCalledWith(401);
   });
 
   it('AUTH_DISABLED=1 laisse tout passer (dev jetable uniquement)', () => {

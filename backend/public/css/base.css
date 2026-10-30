@@ -7,6 +7,7 @@
  * Class vocabulary (the contract between pages and design - add a class here before using it in a page):
  *   body > header      site bar: .gg-brand (logo text) + nav
  *   .gg-brand          "GG-Core" mark; its <b> is the red part
+ *   .gg-actions        row of buttons, each in its own <form> (veto: maps, sides, rock-paper-scissors)
  */
 
 @font-face { font-family: Poppins; font-style: normal; font-weight: 400; font-display: swap; src: url(/assets/fonts/poppins-latin-400-normal.woff2) format('woff2'); }
@@ -94,3 +95,13 @@ pre {
   padding: 1rem 1.25rem;
   border-left: 3px solid var(--gg-red);
 }
+
+/* Row of one-button forms */
+.gg-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-bottom: var(--pico-spacing);
+}
+.gg-actions form { margin: 0; }
+.gg-actions button { margin: 0; }

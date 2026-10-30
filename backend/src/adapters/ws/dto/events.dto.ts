@@ -47,7 +47,9 @@ export type WsEventType =
   | 'player:connected'
   | 'player:disconnected'
   | 'player:name_change'
-  | 'item:purchase';
+  | 'item:purchase'
+  // Véto des maps d'une série (room du match de la série, pas d'un game)
+  | 'veto:updated';
 //  | 'grenade_landed'  // activer quand prêt
 
 export interface BaseWsEvent<TType extends WsEventType, TPayload> {
@@ -253,6 +255,14 @@ export interface PlayerBlindedPayload {
   entindex?: string;
 }
 export type PlayerBlindedEvent = BaseWsEvent<'player_blinded', PlayerBlindedPayload>;
+
+/**
+ * Véto mis à jour (choix PFC, équipe qui commence, ban / pick / side, annulation, remise à zéro). `payload` =
+ * l'état public du véto (`GET /api/tournament/matches/:id/veto` sans session : le choix PFC de la manche en cours
+ * n'y figure pas). Un client connecté relit l'état avec sa session pour savoir s'il peut jouer.
+ * `seq` = nombre d'actions enregistrées (choix PFC, équipe qui commence, étapes) : peut baisser après une annulation.
+ */
+export type VetoUpdatedWsEvent = BaseWsEvent<'veto:updated', import('@app/tournament/veto.service').VetoView>;
 
 export type PlayerConnectedWsEvent = BaseWsEvent<'player:connected', {
   player: PlayerRef;

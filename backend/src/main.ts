@@ -22,6 +22,8 @@ async function bootstrap() {
   app.use('/sandbox', json({ limit: '15mb' }));
   app.use('/sandbox', urlencoded({ extended: true, limit: '15mb' }));
   app.use('/auth', urlencoded({ extended: false })); // login form
+  app.use('/veto', json({ limit: '16kb' }));
+  app.use('/veto', urlencoded({ extended: false, limit: '16kb' })); // veto forms
 
   // Stylesheets and font of the server-rendered pages, served locally: no CDN (LAN-first). Our own CSS is
   // revalidated on every load (no maxAge) so a design change shows up on refresh.
@@ -47,6 +49,8 @@ async function bootstrap() {
       // human pages (plain-text views), /api stays the JSON API
       { path: 'view', method: RequestMethod.ALL },
       { path: 'view/(.*)', method: RequestMethod.ALL },
+      // map veto page and its forms
+      { path: 'veto/(.*)', method: RequestMethod.ALL },
     ],
   });
 
