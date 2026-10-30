@@ -1448,7 +1448,7 @@
 		}
 		"1001"
 		{
-			"name"		"Anon_07"
+			"name"		"Alpha_Echo"
 			"kills"		"23"
 			"assists"		"14"
 			"deaths"		"40"
@@ -2088,7 +2088,7 @@
 		}
 		"2005"
 		{
-			"name"		"Anon_03"
+			"name"		"Bravo_Echo"
 			"kills"		"58"
 			"assists"		"10"
 			"deaths"		"35"
