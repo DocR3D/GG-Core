@@ -3,8 +3,8 @@
 // File (test/fixtures/tournaments/*.json): teams (count or names), stages, qualification rules and a
 // DETERMINISTIC result rule — the better seed usually wins, with upsets drawn from a seeded random generator,
 // so the same file always produces the same tournament. Every result is an admin entry (no CS2 needed).
-// Prints the ASCII view at the end. Double elimination stages are not playable yet: the run stops after the
-// qualification into them.
+// Group stages and double-elimination stages are played to the end (the grand final winner). Prints the ASCII
+// view at the end.
 
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
@@ -55,7 +55,7 @@ const WINS = { BO1: 1, BO3: 2, BO5: 3 };
 async function playSeries(match, seedOf) {
   const homeBetter = seedOf(match.home) < seedOf(match.away);
   const needed = WINS[match.format] ?? 1;
-  let home = 0;
+  let home = match.advantageHome ?? 0; // grand final: the upper-bracket finalist starts one map up
   let away = 0;
   for (let order = 1; home < needed && away < needed; order++) {
     const upset = random() < (results.upsetRate ?? 0.25);
@@ -73,6 +73,13 @@ async function playSeries(match, seedOf) {
 
 async function main() {
   console.log(`API ${API} — scénario ${file}`);
+  // A run replaces the previous runs of the same scenario (and their teams) instead of piling up
+  for (const old of await api('GET', '/api/tournament/tournaments')) {
+    if (old.name.startsWith(`${scenario.name} `)) {
+      const res = await api('DELETE', `/api/tournament/tournaments/${old.id}`);
+      console.log(`ancienne exécution supprimée : ${res.deleted} (${res.teamsDeleted} équipes)`);
+    }
+  }
   const t = await api('POST', '/api/tournament/tournaments', {
     name: `${scenario.name} ${new Date().toISOString().slice(11, 19)}`,
     game: scenario.game,
@@ -87,8 +94,18 @@ async function main() {
   }
 
   for (const s of [...scenario.stages].sort((a, b) => a.order - b.order)) {
-    if (s.type !== 'ROUND_ROBIN') {
-      console.log(`phase ${s.name} (${s.type}) : pas encore jouable — arrêt après la qualification`);
+    if (s.type === 'DOUBLE_ELIM') {
+      const gen = await api('POST', `/api/tournament/stages/${stageId[s.key]}/bracket/generate`, s.formats ? { formats: s.formats } : {});
+      // play every match whose two teams are known, until the grand final is over
+      let played = 0;
+      for (let guard = 0; guard < 200; guard++) {
+        const overview = await api('GET', `/api/tournament/tournaments/${t.id}/overview`);
+        const ready = overview.stages.find((x) => x.name === s.name).matches.filter((m) => m.home && m.away && m.status !== 'FINISHED');
+        if (!ready.length) break;
+        for (const m of ready) await playSeries(m, seedOf);
+        played += ready.length;
+      }
+      console.log(`phase ${s.name} : arbre de ${gen.teams} équipes, ${played}/${gen.matches} matchs joués`);
       continue;
     }
     const isFirst = s.order === Math.min(...scenario.stages.map((x) => x.order));

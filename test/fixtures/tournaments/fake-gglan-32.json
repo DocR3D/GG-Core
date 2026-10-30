@@ -4,8 +4,8 @@
   "teams": 32,
   "stages": [
     { "key": "groups", "name": "Poules", "type": "ROUND_ROBIN", "order": 1, "groupCount": 8, "format": "BO1" },
-    { "key": "elite", "name": "Élite", "type": "DOUBLE_ELIM", "order": 2 },
-    { "key": "amateur", "name": "Amateur", "type": "DOUBLE_ELIM", "order": 3 }
+    { "key": "elite", "name": "Élite", "type": "DOUBLE_ELIM", "order": 2, "formats": { "upper": "BO3", "lower": "BO1", "grandFinal": "BO3" } },
+    { "key": "amateur", "name": "Amateur", "type": "DOUBLE_ELIM", "order": 3, "formats": { "upper": "BO1", "lower": "BO1", "grandFinal": "BO3" } }
   ],
   "qualify": {
     "from": "groups",

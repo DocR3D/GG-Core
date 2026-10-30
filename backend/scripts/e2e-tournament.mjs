@@ -40,6 +40,11 @@ const overview = (id) => must('GET', `/api/tournament/tournaments/${id}/overview
 async function main() {
   console.log(`API ${API}, server ${SERVER}`);
 
+  // A run replaces the previous E2E runs (and their teams) instead of piling up
+  for (const old of await must('GET', '/api/tournament/tournaments')) {
+    if (old.name.startsWith('E2E ')) await must('DELETE', `/api/tournament/tournaments/${old.id}`);
+  }
+
   console.log('\n1. Tournament, teams, stages, group');
   const t = await must('POST', '/api/tournament/tournaments', { name: `E2E ${new Date().toISOString().slice(0, 19)}` });
   const teams = await must('POST', '/api/tournament/teams', { names: ['E2E Alpha', 'E2E Bravo', 'E2E Charlie', 'E2E Delta'] });

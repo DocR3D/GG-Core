@@ -3,7 +3,16 @@ import { Injectable } from '@nestjs/common';
 import { MatchFormat, StageType } from '@prisma/client';
 import { PrismaService } from '@adapters/database/prisma.service';
 import { computeStandings, FinishedSeries, roundRobinPairings, snakeDistribute, StandingRow } from '@domain/tournament/round-robin';
-import type { TournamentView, ViewMatch, ViewStage } from './tournament-view';
+import { buildDoubleElimination, doubleElimPlacements, SlotSource } from '@domain/tournament/double-elimination';
+import { randomUUID } from 'crypto';
+import type { MatchDetailView, TournamentView, ViewMatch, ViewStage } from './tournament-view';
+
+export interface DoubleElimFormats {
+  upper?: MatchFormat;
+  lower?: MatchFormat;
+  /** must be BO3 or BO5: the upper-bracket finalist starts one map up */
+  grandFinal?: MatchFormat;
+}
 
 /** Refusal mapped to an HTTP status by the controller. */
 export class TournamentError extends Error {
@@ -216,6 +225,184 @@ export class TournamentStagesService {
     return targets.map(({ target, teamIds }) => ({ stageId: target.id, name: target.name, seeds: teamIds }));
   }
 
+  /**
+   * Double-elimination bracket of a stage, for its participants in seed order (set by a qualification, or given).
+   * Byes are resolved at generation (see buildDoubleElimination); every match knows the exact slot of its winner
+   * and loser; the grand final gives the upper-bracket finalist a one-map advantage. Regenerating is allowed as
+   * long as no match of the stage is finished.
+   */
+  async generateDoubleElimination(stageId: string, input: { teamIds?: string[]; formats?: DoubleElimFormats } = {}) {
+    const stage = await this.mustFind('stage', () =>
+      this.prisma.stage.findUnique({ where: { id: stageId }, include: { teams: { orderBy: { seed: 'asc' } } } }),
+    );
+    if (stage.type !== 'DOUBLE_ELIM') throw new TournamentError('invalid', 'not a DOUBLE_ELIM stage');
+    const teamIds = input.teamIds?.length ? input.teamIds : stage.teams.map((t) => t.teamId);
+    if (new Set(teamIds).size !== teamIds.length) throw new TournamentError('invalid', 'duplicate team');
+    if (teamIds.length < 3) throw new TournamentError('invalid', 'double elimination needs at least 3 teams');
+    const formats = { upper: 'BO1', lower: 'BO1', grandFinal: 'BO3', ...(input.formats ?? {}) } as Required<DoubleElimFormats>;
+    for (const f of Object.values(formats)) if (!FORMATS.includes(f)) throw new TournamentError('invalid', 'format: BO1 | BO3 | BO5');
+    if (formats.grandFinal === 'BO1') throw new TournamentError('invalid', 'grand final must be BO3 or BO5 (one-map advantage)');
+    if ((await this.prisma.team.count({ where: { id: { in: teamIds } } })) !== teamIds.length) {
+      throw new TournamentError('not_found', 'unknown team id');
+    }
+    if (await this.prisma.match.count({ where: { stageId, status: 'FINISHED' } })) {
+      throw new TournamentError('conflict', 'stage already has finished matches: the bracket cannot be regenerated');
+    }
+
+    const bracket = buildDoubleElimination(teamIds.length);
+    const ids = new Map(bracket.map((m) => [m.key, randomUUID()]));
+    const team = (src: SlotSource) => (src.kind === 'seed' ? teamIds[src.seed - 1] : null);
+    const formatOf = { UPPER: formats.upper, LOWER: formats.lower, FINAL: formats.grandFinal } as const;
+
+    await this.prisma.$transaction(async (tx) => {
+      await tx.match.deleteMany({ where: { stageId } });
+      if (input.teamIds?.length) {
+        // explicit seeds replace the participants (otherwise those set by the qualification are kept)
+        await tx.stageTeam.deleteMany({ where: { stageId } });
+        await tx.stageTeam.createMany({ data: teamIds.map((teamId, i) => ({ stageId, teamId, seed: i + 1 })) });
+      }
+      // One INSERT: the self references (next / loser-next match) are checked at the end of the statement
+      await tx.match.createMany({
+        data: bracket.map((m) => ({
+          id: ids.get(m.key)!,
+          tournamentId: stage.tournamentId,
+          stageId,
+          stage: 'PLAYOFFS' as const,
+          bracketType: m.bracket,
+          roundNumber: m.round,
+          bracketPosition: m.position,
+          format: formatOf[m.bracket],
+          teamHomeId: team(m.home),
+          teamAwayId: team(m.away),
+          nextMatchId: m.winnerTo ? ids.get(m.winnerTo.match)! : null,
+          nextMatchSlot: m.winnerTo?.slot ?? null,
+          loserNextMatchId: m.loserTo ? ids.get(m.loserTo.match)! : null,
+          loserNextMatchSlot: m.loserTo?.slot ?? null,
+          advantageHome: m.bracket === 'FINAL' ? 1 : 0,
+        })),
+      });
+      await tx.stage.update({ where: { id: stageId }, data: { settings: { ...(stage.settings as object), formats } } });
+    });
+    return { stageId, teams: teamIds.length, matches: bracket.length, formats };
+  }
+
+  /**
+   * Deletes a tournament (stages, matches, games and their stats cascade) and the teams that no longer take part
+   * in any tournament (no stage entry, match or roster left) — teams created for that tournament only.
+   */
+  async deleteTournament(tournamentId: string) {
+    const tournament = await this.mustFind('tournament', () =>
+      this.prisma.tournament.findUnique({
+        where: { id: tournamentId },
+        include: { stages: { include: { teams: { select: { teamId: true } } } }, matches: { select: { teamHomeId: true, teamAwayId: true } } },
+      }),
+    );
+    const teamIds = [
+      ...new Set([
+        ...tournament.stages.flatMap((s) => s.teams.map((t) => t.teamId)),
+        ...tournament.matches.flatMap((m) => [m.teamHomeId, m.teamAwayId]).filter((id): id is string => !!id),
+      ]),
+    ];
+    return this.prisma.$transaction(async (tx) => {
+      await tx.tournament.delete({ where: { id: tournament.id } });
+      const orphans = await tx.team.findMany({
+        where: {
+          id: { in: teamIds },
+          stageEntries: { none: {} },
+          matchesHome: { none: {} },
+          matchesAway: { none: {} },
+          rosters: { none: {} },
+        },
+        select: { id: true },
+      });
+      await tx.team.deleteMany({ where: { id: { in: orphans.map((t) => t.id) } } });
+      return { deleted: tournament.name, teamsDeleted: orphans.length };
+    });
+  }
+
+  /** Everything the match detail page shows: series, origin / destination in the bracket, games, player stats. */
+  async getMatchDetail(matchId: string): Promise<MatchDetailView> {
+    const include = { stageRef: true, group: true } as const;
+    const m = await this.mustFind('match', () =>
+      this.prisma.match.findUnique({
+        where: { id: matchId },
+        include: {
+          ...include,
+          tournament: { select: { id: true, name: true } },
+          teamHome: true,
+          teamAway: true,
+          winner: true,
+          nextMatch: { include },
+          loserNextMatch: { include },
+          previousMatchesWon: { include },
+          previousMatchesLost: { include },
+          maps: {
+            orderBy: { mapOrder: 'asc' },
+            include: { server: true, playerStats: { include: { player: true, team: true } } },
+          },
+        },
+      }),
+    );
+    type Labelled = { id: string; bracketType: string; roundNumber: number; bracketPosition: number | null; stageId: string | null; group: { name: string } | null };
+    const label = (x: Labelled) =>
+      !x.stageId
+        ? 'Match bonus'
+        : x.bracketType === 'FINAL'
+          ? 'GF'
+          : x.bracketType === 'UPPER' || x.bracketType === 'LOWER'
+            ? `${x.bracketType === 'LOWER' ? 'B' : 'H'} T${x.roundNumber}#${x.bracketPosition}`
+            : `Poule ${x.group?.name ?? '?'} R${x.roundNumber}#${x.bracketPosition}`;
+    const ref = (x: Labelled) => ({ id: x.id, label: label(x) });
+    const section = { UPPER: 'Bracket du haut', LOWER: 'Bracket du bas', FINAL: 'Grande finale' } as Record<string, string>;
+    const context = !m.stageRef
+      ? 'Match bonus'
+      : `${m.stageRef.name} — ${section[m.bracketType] ?? (m.group ? `Poule ${m.group.name}` : m.stageRef.type)}`;
+
+    return {
+      id: m.id,
+      tournament: m.tournament,
+      context,
+      label: label(m),
+      format: m.format,
+      status: m.status,
+      home: m.teamHome?.name ?? null,
+      away: m.teamAway?.name ?? null,
+      scoreHome: m.scoreHome,
+      scoreAway: m.scoreAway,
+      winner: m.winner?.name ?? null,
+      isForfeit: m.isForfeit,
+      advantageHome: m.advantageHome,
+      countsInStats: m.countsInStats,
+      placement: m.placement,
+      from: [
+        ...m.previousMatchesWon.map((p) => ({ slot: p.nextMatchSlot, what: 'Vainq.' as const, match: ref(p) })),
+        ...m.previousMatchesLost.map((p) => ({ slot: p.loserNextMatchSlot, what: 'Perd.' as const, match: ref(p) })),
+      ]
+        .filter((f): f is typeof f & { slot: 'HOME' | 'AWAY' } => !!f.slot)
+        .sort((a, b) => (a.slot === b.slot ? 0 : a.slot === 'HOME' ? -1 : 1)),
+      next: [
+        ...(m.nextMatch ? [{ what: 'vainqueur' as const, slot: m.nextMatchSlot, match: ref(m.nextMatch) }] : []),
+        ...(m.loserNextMatch ? [{ what: 'perdant' as const, slot: m.loserNextMatchSlot, match: ref(m.loserNextMatch) }] : []),
+      ],
+      games: m.maps.map((g) => ({
+        order: g.mapOrder,
+        mapName: g.mapName,
+        status: g.status,
+        scoreHome: g.scoreHome,
+        scoreAway: g.scoreAway,
+        source: g.resultSource,
+        resultStatus: g.resultStatus,
+        reportedBy: g.reportedBy,
+        reportedAt: g.reportedAt,
+        server: g.server?.name ?? null,
+        stats: g.playerStats.map((r) => ({
+          team: r.team.name, player: r.player.username, kills: r.kills, deaths: r.deaths,
+          assists: r.assists, headshots: r.headshots, adr: r.adr,
+        })),
+      })),
+    };
+  }
+
   listTournaments() {
     return this.prisma.tournament.findMany({ orderBy: { createdAt: 'desc' }, select: { id: true, name: true, game: true, status: true } });
   }
@@ -255,6 +442,8 @@ export class TournamentStagesService {
       isForfeit: m.isForfeit,
       countsInStats: m.countsInStats,
       placement: m.placement,
+      bracket: m.bracketType,
+      advantageHome: m.advantageHome,
       games: m.maps.map((g) => ({
         order: g.mapOrder,
         mapName: g.mapName,
@@ -270,7 +459,43 @@ export class TournamentStagesService {
     for (const st of tournament.stages) {
       const standings = st.type === 'ROUND_ROBIN' ? await this.getStandings(st.id) : null;
       const stageMatches = tournament.matches.filter((m) => m.stageId === st.id);
+      const views = new Map(stageMatches.map((m) => [m.id, toView(m)]));
+      // Brackets: where each still-unknown team comes from (winner / loser of which match)
+      const label = (m: (typeof stageMatches)[number]) =>
+        m.bracketType === 'FINAL' ? 'GF' : `${m.bracketType === 'LOWER' ? 'B' : 'H'} T${m.roundNumber}#${m.bracketPosition}`;
+      const byId = new Map(stageMatches.map((m) => [m.id, m]));
+      for (const m of stageMatches) {
+        const v = views.get(m.id)!;
+        v.label = label(m);
+        const next = m.nextMatchId ? byId.get(m.nextMatchId) : undefined;
+        v.winnerTo = next && m.nextMatchSlot ? { label: label(next), slot: m.nextMatchSlot } : null;
+        for (const [target, slot, what] of [
+          [m.nextMatchId, m.nextMatchSlot, 'Vainq.'],
+          [m.loserNextMatchId, m.loserNextMatchSlot, 'Perd.'],
+        ] as const) {
+          const v = target ? views.get(target) : undefined;
+          if (v && slot) v[slot === 'HOME' ? 'homeFrom' : 'awayFrom'] = `${what} ${label(m)}`;
+        }
+      }
+      const ranking =
+        st.type === 'DOUBLE_ELIM'
+          ? doubleElimPlacements(
+              stageMatches
+                .filter((m) => m.bracketType === 'UPPER' || m.bracketType === 'LOWER' || m.bracketType === 'FINAL')
+                .map((m) => {
+                  const loser = m.winnerId === m.teamHomeId ? m.teamAway : m.teamHome;
+                  return {
+                    bracket: m.bracketType as 'UPPER' | 'LOWER' | 'FINAL',
+                    round: m.roundNumber,
+                    finished: m.status === 'FINISHED' && !!m.winnerId,
+                    winner: m.winner?.name ?? null,
+                    loser: loser?.name ?? null,
+                  };
+                }),
+            ).map((r) => ({ place: r.place, team: r.team as string }))
+          : undefined;
       stages.push({
+        ranking,
         name: st.name,
         type: st.type,
         order: st.order,
@@ -280,10 +505,10 @@ export class TournamentStagesService {
             rank: r.rank, team: r.teamName ?? r.teamId, played: r.played, wins: r.wins, draws: r.draws,
             losses: r.losses, points: r.points, scoreDiff: r.scoreDiff, tied: r.tied,
           })),
-          matches: stageMatches.filter((m) => m.groupId === g.groupId).map(toView),
+          matches: stageMatches.filter((m) => m.groupId === g.groupId).map((m) => views.get(m.id)!),
         })),
         seeds: st.teams.filter((t) => !t.groupId).map((t) => t.team.name),
-        matches: stageMatches.filter((m) => !m.groupId).map(toView),
+        matches: stageMatches.filter((m) => !m.groupId).map((m) => views.get(m.id)!),
       });
     }
     return {

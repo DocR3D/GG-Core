@@ -37,6 +37,12 @@ const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/
 /** Wins needed to take a series, per format. */
 const WINS_NEEDED: Record<'BO1' | 'BO3' | 'BO5', number> = { BO1: 1, BO3: 2, BO5: 3 };
 
+/** Column of the next match receiving a team: the wired slot, or the first free one (legacy brackets). */
+function slotField(slot: 'HOME' | 'AWAY' | null, homeTaken: string | null): 'teamHomeId' | 'teamAwayId' {
+  if (slot) return slot === 'HOME' ? 'teamHomeId' : 'teamAwayId';
+  return homeTaken ? 'teamAwayId' : 'teamHomeId';
+}
+
 /** Refusal of a manual result entry, mapped to an HTTP status by the controller. */
 export class ManualResultError extends Error {
   constructor(readonly code: 'not_found' | 'finished' | 'teams_missing' | 'invalid', message: string) {
@@ -329,7 +335,7 @@ export class TournamentPersistenceService {
 
     // 2. Advance winner to next match if configured
     if (match.nextMatchId && match.nextMatch) {
-      const slot = match.nextMatch.teamHomeId ? 'teamAwayId' : 'teamHomeId';
+      const slot = slotField(match.nextMatchSlot, match.nextMatch.teamHomeId);
       await this.prisma.match.update({
         where: { id: match.nextMatchId },
         data: {
@@ -340,7 +346,7 @@ export class TournamentPersistenceService {
 
     // 3. Advance loser to lower bracket match if double elimination
     if (match.loserNextMatchId && match.loserNextMatch && loserTeamId) {
-      const slot = match.loserNextMatch.teamHomeId ? 'teamAwayId' : 'teamHomeId';
+      const slot = slotField(match.loserNextMatchSlot, match.loserNextMatch.teamHomeId);
       await this.prisma.match.update({
         where: { id: match.loserNextMatchId },
         data: {

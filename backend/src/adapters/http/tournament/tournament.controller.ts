@@ -1,13 +1,14 @@
 // src/adapters/http/tournament/tournament.controller.ts
-import { BadRequestException, Body, ConflictException, Controller, Get, Header, NotFoundException, Param, ParseIntPipe, Post } from '@nestjs/common';
+import { BadRequestException, Body, ConflictException, Controller, Delete, Get, Header, NotFoundException, Param, ParseIntPipe, Post } from '@nestjs/common';
 import { MatchFormat, StageType } from '@prisma/client';
 import {
+  DoubleElimFormats,
   QualificationRule,
   TournamentError,
   TournamentStagesService,
 } from '@app/tournament/tournament-stages.service';
 import { TournamentLaunchService } from '@app/tournament/tournament-launch.service';
-import { asciiPage, renderTournamentAscii } from '@app/tournament/tournament-view';
+import { asciiPage, renderMatchDetailHtml, renderTournamentAscii, renderTournamentHtml } from '@app/tournament/tournament-view';
 import { MatchSettings } from '@domain/match-settings.types';
 
 /**
@@ -40,7 +41,16 @@ export class TournamentController {
   @Header('Content-Type', 'text/html; charset=utf-8')
   async view(@Param('id') tournamentId: string) {
     const overview = await this.run(() => this.stages.getOverview(tournamentId));
-    return asciiPage(overview.name, renderTournamentAscii(overview));
+    // every match label links to its detail page (relative: works behind any host / prefix)
+    return asciiPage(overview.name, renderTournamentHtml(overview, (id) => `../../matches/${id}/view`), true);
+  }
+
+  /** Detail of a match: series, games, player stats, where its teams come from and where they go (links). */
+  @Get('matches/:id/view')
+  @Header('Content-Type', 'text/html; charset=utf-8')
+  async matchView(@Param('id') matchId: string) {
+    const detail = await this.run(() => this.stages.getMatchDetail(matchId));
+    return renderMatchDetailHtml(detail, `../../tournaments/${detail.tournament.id}/view`, (id) => `../${id}/view`);
   }
 
   /** The data behind the views, as JSON. */
@@ -94,9 +104,20 @@ export class TournamentController {
     return this.run(() => this.launch.launchGame({ matchId, order, server: body?.server, mapName: body?.mapName, settings: body?.settings }));
   }
 
+  @Get('tournaments')
+  listTournaments() {
+    return this.stages.listTournaments();
+  }
+
   @Post('tournaments')
   createTournament(@Body() body: { name: string; slug?: string; game?: string }) {
     return this.run(() => this.stages.createTournament(body ?? ({} as any)));
+  }
+
+  /** Deletes a tournament and the teams that took part in no other tournament. */
+  @Delete('tournaments/:id')
+  deleteTournament(@Param('id') tournamentId: string) {
+    return this.run(() => this.stages.deleteTournament(tournamentId));
   }
 
   /** Creates teams by name (until the import from the registration site exists). */
@@ -120,6 +141,15 @@ export class TournamentController {
     @Body() body: { teamIds?: string[]; groupCount: number; format?: MatchFormat },
   ) {
     return this.run(() => this.stages.generateGroups(stageId, body ?? ({} as any)));
+  }
+
+  /**
+   * Double-elimination bracket of a stage (participants from the qualification, or teamIds in seed order).
+   * formats: { upper, lower, grandFinal } — defaults BO1 / BO1 / BO3, grand final with a one-map advantage.
+   */
+  @Post('stages/:id/bracket/generate')
+  generateBracket(@Param('id') stageId: string, @Body() body: { teamIds?: string[]; formats?: DoubleElimFormats }) {
+    return this.run(() => this.stages.generateDoubleElimination(stageId, body ?? {}));
   }
 
   @Get('stages/:id/standings')

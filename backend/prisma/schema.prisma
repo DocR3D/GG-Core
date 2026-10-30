@@ -49,6 +49,12 @@ enum StageType {
   DOUBLE_ELIM
 }
 
+/// Place d'une équipe dans un match (domicile / extérieur). En grande finale, HOME = finaliste du bracket supérieur.
+enum BracketSlot {
+  HOME
+  AWAY
+}
+
 enum BracketType {
   UPPER
   LOWER
@@ -215,6 +221,9 @@ model Match {
   teamAwayId        String?      @map("team_away_id") @db.Uuid
   nextMatchId       String?      @map("next_match_id") @db.Uuid
   loserNextMatchId  String?      @map("loser_next_match_id") @db.Uuid
+  /// Place du vainqueur / du perdant dans le match suivant (null = première place libre, ancien comportement)
+  nextMatchSlot     BracketSlot? @map("next_match_slot")
+  loserNextMatchSlot BracketSlot? @map("loser_next_match_slot")
   stage             MatchStage   @default(PLAYOFFS)
   bracketType       BracketType  @default(UPPER) @map("bracket_type")
   roundNumber       Int          @default(1) @map("round_number")

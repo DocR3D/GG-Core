@@ -75,4 +75,80 @@ describeDb('Group stage — real PostgreSQL', () => {
     // Groups cannot be regenerated once matches are played
     await expect(stages.generateGroups(groupsStage.id, { groupCount: 2 })).rejects.toMatchObject({ code: 'conflict' });
   });
+
+  it('double elimination of 6 teams (byes): generated, played to the end by admin entries, final ranking', async () => {
+    const tournament = await prisma.tournament.findFirstOrThrow({ where: { id: created.tournamentId } });
+    const stage = await stages.createStage(tournament.id, { name: 'Élite IT', type: 'DOUBLE_ELIM', order: 10 });
+    const six = created.teamIds.slice(0, 6);
+    const seed = (id: string | null) => six.indexOf(id!) + 1;
+
+    const gen = await stages.generateDoubleElimination(stage.id, { teamIds: six });
+    expect(gen).toEqual(expect.objectContaining({ teams: 6, matches: 10, formats: { upper: 'BO1', lower: 'BO1', grandFinal: 'BO3' } }));
+    const gf = await prisma.match.findFirstOrThrow({ where: { stageId: stage.id, bracketType: 'FINAL' } });
+    expect(gf.advantageHome).toBe(1);
+    // seeds 1 and 2 are exempted from the first round: they already sit in round 2
+    const r2 = await prisma.match.findMany({ where: { stageId: stage.id, bracketType: 'UPPER', roundNumber: 2 } });
+    expect(r2.flatMap((m) => [m.teamHomeId, m.teamAwayId]).filter(Boolean).map(seed).sort()).toEqual([1, 2]);
+
+    // Play everything: the better seed always wins, one map per game
+    for (let guard = 0; guard < 20; guard++) {
+      const ready = await prisma.match.findMany({
+        where: { stageId: stage.id, status: { not: 'FINISHED' }, teamHomeId: { not: null }, teamAwayId: { not: null } },
+      });
+      if (!ready.length) break;
+      for (const m of ready) {
+        const homeWins = seed(m.teamHomeId) < seed(m.teamAwayId);
+        await persistence.recordManualGameResult({
+          matchId: m.id, mapOrder: 1, scoreHome: homeWins ? 13 : 4, scoreAway: homeWins ? 4 : 13, reportedBy: 'admin-it',
+        });
+      }
+    }
+    const all = await prisma.match.findMany({ where: { stageId: stage.id } });
+    expect(all.every((m) => m.status === 'FINISHED')).toBe(true);
+    const final = all.find((m) => m.bracketType === 'FINAL')!;
+    // Seed 1 won the upper bracket: in the grand final at HOME with its map advantage, one map was enough
+    expect(seed(final.teamHomeId)).toBe(1);
+    expect(seed(final.winnerId)).toBe(1);
+    expect([final.scoreHome, final.scoreAway]).toEqual([2, 0]);
+
+    const overview = await stages.getOverview(tournament.id);
+    const ranking = overview.stages.find((s) => s.name === 'Élite IT')!.ranking!;
+    const byPlace = (p: string) => ranking.filter((r) => r.place === p).map((r) => r.team).sort();
+    expect(byPlace('1')).toEqual(['IT Seed 1']);
+    expect(byPlace('2')).toEqual(['IT Seed 2']);
+    expect(byPlace('3')).toEqual(['IT Seed 3']);
+    expect(ranking).toHaveLength(6);
+
+    // Match detail: the grand final comes from the upper (home) and lower (away) finals and leads nowhere
+    const gfDetail = await stages.getMatchDetail(final.id);
+    expect(gfDetail.label).toBe('GF');
+    expect(gfDetail.from.map((f) => [f.slot, f.what, f.match.label[0]])).toEqual([['HOME', 'Vainq.', 'H'], ['AWAY', 'Vainq.', 'B']]);
+    expect(gfDetail.next).toEqual([]);
+    expect(gfDetail.games.every((g) => g.source === 'MANUAL' && g.reportedBy === 'admin-it')).toBe(true);
+    // an upper match sends its winner up and its loser down
+    const upper = all.find((m) => m.bracketType === 'UPPER' && m.roundNumber === 1)!;
+    const upperDetail = await stages.getMatchDetail(upper.id);
+    expect(upperDetail.next.map((n) => [n.what, n.match.label[0]])).toEqual([['vainqueur', 'H'], ['perdant', 'B']]);
+
+    await expect(stages.generateDoubleElimination(stage.id)).rejects.toMatchObject({ code: 'conflict' });
+  });
+
+  it('deleting a tournament removes its stages / matches and the teams that play nowhere else', async () => {
+    const other = await stages.createTournament({ name: `IT other ${Date.now()}` });
+    const doomed = await stages.createTournament({ name: `IT doomed ${Date.now()}` });
+    const [shared, own1, own2] = await stages.createTeams(['IT shared', 'IT own 1', 'IT own 2']);
+    const s1 = await stages.createStage(other.id, { name: 'P', type: 'ROUND_ROBIN', order: 1 });
+    await prisma.stageTeam.create({ data: { stageId: s1.id, teamId: shared.id, seed: 1 } });
+    const s2 = await stages.createStage(doomed.id, { name: 'P', type: 'ROUND_ROBIN', order: 1 });
+    await stages.generateGroups(s2.id, { teamIds: [shared.id, own1.id, own2.id], groupCount: 1 });
+
+    const res = await stages.deleteTournament(doomed.id);
+    expect(res).toEqual({ deleted: doomed.name, teamsDeleted: 2 });
+    expect(await prisma.team.count({ where: { id: { in: [own1.id, own2.id] } } })).toBe(0);
+    expect(await prisma.team.findUnique({ where: { id: shared.id } })).not.toBeNull(); // still in the other tournament
+    expect(await prisma.match.count({ where: { tournamentId: doomed.id } })).toBe(0);
+
+    await stages.deleteTournament(other.id);
+    expect(await prisma.team.findUnique({ where: { id: shared.id } })).toBeNull();
+  });
 });
