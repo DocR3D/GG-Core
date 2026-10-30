@@ -27,7 +27,7 @@ function setup(review: object | null) {
   return { handler, deps, orch, ruleHandler };
 }
 
-describe('MatchEventsHandler — Game Over & frozen result', () => {
+describe('MatchEventsHandler - Game Over & frozen result', () => {
   it('envoie game_over (score CT:T) à l’orchestrateur, sans passer par les règles', async () => {
     const t = setup(null);
     await t.handler.handle({ type: 'game_over', matchId: MATCH_ID, serverId: 'srv-a', payload: { scoreCT: 3, scoreT: 3 } } as any);

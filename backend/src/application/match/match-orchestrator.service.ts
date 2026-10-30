@@ -488,7 +488,7 @@ export class MatchOrchestrator {
     });
 
     // 5. Tournament model (only for maps linked to the relational model): the game result (automatic, confirmed),
-    //    then the series — BO1 / BO3 / BO5 advance the bracket through the same path as an admin entry.
+    //    then the series - BO1 / BO3 / BO5 advance the bracket through the same path as an admin entry.
     if (this.tournamentPersistence) {
       try {
         const homeSide = snapshot.sides?.home === 'T' ? 't' : 'ct';
@@ -519,7 +519,7 @@ export class MatchOrchestrator {
 
     // 6. Server cleanup action (soft_reset vs restart), DELAYED: right after Game Over CS2 shows the end
     //    screen / scoreboard during its intermission. Resetting at once cut it and left players frozen
-    //    (warmup started during the intermission) — observed on a real server.
+    //    (warmup started during the intermission) - observed on a real server.
     if (serverId) {
       const delaySec = settings.postgameResetDelaySec ?? DEFAULT_MATCH_SETTINGS.postgameResetDelaySec;
       this.log.log(`[endMatch] server ${serverId} reset (${settings.postgameAction}) in ${delaySec}s`);

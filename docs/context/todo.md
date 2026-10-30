@@ -1,4 +1,4 @@
-# Backlog & TODOs — GG-Core
+# Backlog & TODOs - GG-Core
 
 Ce fichier centralise les chantiers, fonctionnalités à venir, améliorations architecturales et tâches techniques identifiées pour atteindre le **MVP complet** de GG-Core (successeur moderne d'eBot pour CS2 en LAN).
 
@@ -120,7 +120,7 @@ Le cœur moteur de match, l'arbitrage automatisé, le calcul de scores/stats CS2
 - [x] **Stack plug & play** : `Makefile` unique, tout sous Docker (`make up`, `make up-cs2` avec CS2 vanilla en conteneur, `make test`, `make replay`).
 - [x] **Replay round par round dans la Sandbox** : suivant / précédent / aller au round N, barre de navigation avec le score CS2 de chaque round.
 - [x] **Mi-temps et prolongations natives CS2** : GG-Core suit le serveur (plus de `mp_swapteams` / `mp_restartgame` en cours de match), `mp_maxrounds` / `mp_overtime_maxrounds` alignés sur les réglages, prolongations illimitées (`mp_overtime_limit 0`).
-- [x] **Fin de match propre** : reset warmup différé (`postgameResetDelaySec`), démo GOTV (`tv_enable`), kick des joueurs restés connectés (`postgameKickDelaySec`, action agent `kick_all`) — besoin réel derrière l'ex-item « joueurs AFK en LAN ».
+- [x] **Fin de match propre** : reset warmup différé (`postgameResetDelaySec`), démo GOTV (`tv_enable`), kick des joueurs restés connectés (`postgameKickDelaySec`, action agent `kick_all`) - besoin réel derrière l'ex-item « joueurs AFK en LAN ».
 - [x] **Arbitrage du Game Over serveur** : score = serveur, verdict = règlement GG-Core ; en cas de désaccord résultat gelé + alerte admin, `POST /api/matches/:id/review/accept-server | dismiss`.
 - [x] **Pauses** : armement pendant tout le round (y compris bombe posée / fin de round), banque tactique réglable par match (`tacticalPauseBankSec`, 120 s par défaut).
 - [x] **Agent** : RCON ≤ 6 commandes/s sur une connexion réutilisée, plus aucune ligne de log perdue après un lancer de grenade (`Parse()` multi-événements).

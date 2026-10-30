@@ -5,11 +5,11 @@ import { TournamentStagesService } from './tournament-stages.service';
 
 /**
  * Group stage on a REAL PostgreSQL: generation, results entered by an admin, standings, qualification
- * to Elite / Amateur. Disabled by default — `make test-db` (DB_IT=1, schema pushed).
+ * to Elite / Amateur. Disabled by default - `make test-db` (DB_IT=1, schema pushed).
  */
 const describeDb = process.env.DB_IT === '1' ? describe : describe.skip;
 
-describeDb('Group stage — real PostgreSQL', () => {
+describeDb('Group stage - real PostgreSQL', () => {
   const prisma = new PrismaService();
   const persistence = new TournamentPersistenceService(prisma);
   const stages = new TournamentStagesService(prisma);

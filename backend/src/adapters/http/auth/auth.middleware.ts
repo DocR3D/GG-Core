@@ -5,7 +5,7 @@ import { AuthService, Session } from '@app/auth/auth.service';
 
 /**
  * Access rules (V1):
- * - public: reads (GET / HEAD) outside the Sandbox — /view pages, /api reads —, login pages, health;
+ * - public: reads (GET / HEAD) outside the Sandbox - /view pages, /api reads -, login pages, health;
  * - own authentication: agent log ingestion (/cs2/logs, log token) and WebSockets (/ws, JWT guard);
  * - admin only: everything that changes something (POST / PUT / PATCH / DELETE) and the Sandbox tools.
  * Browsers are sent to /login; API calls get 401 (not logged in) or 403 (logged in, not admin).

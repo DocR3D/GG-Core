@@ -34,7 +34,7 @@ function setup(phase: string, ggScore: { ct: number; t: number }) {
   return { orch, cmds, state, ws, endMatch, getReview: () => review };
 }
 
-describe('MatchOrchestrator — server Game Over review', () => {
+describe('MatchOrchestrator - server Game Over review', () => {
   it('confirme sans rien geler quand GG-Core est en postgame avec le même score', async () => {
     const t = setup(MatchPhase.POSTGAME, { ct: 5, t: 7 });
     await t.orch.checkServerGameOver(MATCH_ID, SERVER_ID, { ct: 5, t: 7 });

@@ -1,4 +1,4 @@
-# GG-Core — Agent Guidelines & Architecture Reference
+# GG-Core - Agent Guidelines & Architecture Reference
 
 Ce fichier sert de point d'entrée universel pour tout agent d'intelligence artificielle ou développeur intervenant sur **GG-Core** (successeur moderne d'eBot pour Counter-Strike 2).
 
@@ -21,7 +21,7 @@ Ce fichier sert de point d'entrée universel pour tout agent d'intelligence arti
 
 Pour toute tâche d'envergure, consulter les fiches techniques dans `docs/` et `docs/context/` :
 - `docs/cahier-des-charges.md` : Cahier des charges complet (version Markdown intégrale).
-- `docs/architecture-multi-jeux.md` : **Architecture cible** — MVP = tournoi CS2 complet sans Toornament ; tables d'arbre génériques, concepts CS dans des tables CS ; ce qu'on fait maintenant vs plus tard (multi-jeux, tunnel, export). À lire avant de toucher aux équipes / arbres / pages.
+- `docs/architecture-multi-jeux.md` : **Architecture cible** - MVP = tournoi CS2 complet sans Toornament ; tables d'arbre génériques, concepts CS dans des tables CS ; ce qu'on fait maintenant vs plus tard (multi-jeux, tunnel, export). À lire avant de toucher aux équipes / arbres / pages.
 - `docs/context/agent-go.md` : Structure Go, managers, parsing regex, protocoles RCON.
 - `docs/context/backend.md` : Découpage NestJS (Domain, Application, Adapters), subscribers, état Redis.
 - `docs/context/frontend.md` : Spécifications UI, abonnements WebSocket, rôles JWT.
@@ -52,7 +52,7 @@ Pour toute tâche d'envergure, consulter les fiches techniques dans `docs/` et `
 
 ### Clés Redis Essentielles
 - `match:{id}:phase` : Phase globale courante du match (`MatchPhase`).
-- `match:{id}:roundPhase` : Phase interne du round courant (`RoundPhase` — **attention : clé séparée !**).
+- `match:{id}:roundPhase` : Phase interne du round courant (`RoundPhase` - **attention : clé séparée !**).
 - `ggbot:events` : Canal Pub/Sub principal de distribution des événements de jeu.
 - `ggbot:agent:{serverId}:actions` : Canal de commande RCON vers l'agent spécifique.
 - `server:{serverId}:currentMatch` : Liaison d'identité serveur ➔ matchId.
@@ -106,7 +106,7 @@ npm run typecheck    # Vérification stricte des types TypeScript (tsc --noEmit)
 npm run build        # Compilation complète NestJS
 npm test             # Suite Jest complète (dont Golden Master sur fixtures réelles)
 
-# Intégration PostgreSQL réelle (base à jour via `npx prisma db push`) — obligatoire si la persistance change
+# Intégration PostgreSQL réelle (base à jour via `npx prisma db push`) - obligatoire si la persistance change
 DB_IT=1 npx jest --config jest.config.ts db.spec   # tous les *.db.spec.ts (ou : make test-db)
 
 # Agent Go
@@ -115,7 +115,7 @@ go build ./cmd/agent
 go build ./cmd/manager
 go test ./...
 
-# Scénario tournoi de bout en bout (stack lancée : make up) — obligatoire si le tournoi / le lancement des matchs change
+# Scénario tournoi de bout en bout (stack lancée : make up) - obligatoire si le tournoi / le lancement des matchs change
 make e2e-tournament
 ```
 

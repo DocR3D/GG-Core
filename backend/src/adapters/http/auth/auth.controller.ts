@@ -29,7 +29,7 @@ ${s.role === 'admin' ? '' : '<p>Ce compte n’a pas les droits d’administratio
     const err = error ? `<p><b>${esc(error)}</b></p>` : '';
     res.type('html').send(
       page(
-        'GG-Core — connexion',
+        'GG-Core - connexion',
         `${who}${err}
 <p><a href="/auth/steam?next=${encodeURIComponent(to)}" role="button">Se connecter avec Steam</a></p>
 <details>

@@ -1,5 +1,5 @@
 /**
- * Tests unitaires — KnifeChoiceCommand
+ * Tests unitaires - KnifeChoiceCommand
  * TC-02 (suite) : !stay → passage live_main avec countdown 5s
  *                 !switch → swap des sides + passage live_main
  * TC-08 : seul le vainqueur du knife peut choisir (canHandle)
@@ -55,9 +55,9 @@ function makeCtx(knifeWinnerSide: 'CT' | 'T' = 'CT', swapResult = true, warmupAf
 }
 
 // ---------------------------------------------------------------------------
-// TC-08 — canHandle : seul le vainqueur peut choisir
+// TC-08 - canHandle : seul le vainqueur peut choisir
 // ---------------------------------------------------------------------------
-describe('TC-08 — KnifeChoiceCommand.canHandle', () => {
+describe('TC-08 - KnifeChoiceCommand.canHandle', () => {
   it('retourne true si le sender est bien le vainqueur du knife (CT)', async () => {
     const cmd = makeCmd();
     const ctx = makeCtx('CT');
@@ -83,9 +83,9 @@ describe('TC-08 — KnifeChoiceCommand.canHandle', () => {
 });
 
 // ---------------------------------------------------------------------------
-// TC-02 (suite) — handle !stay
+// TC-02 (suite) - handle !stay
 // ---------------------------------------------------------------------------
-describe('TC-02 — KnifeChoiceCommand.handle : !stay', () => {
+describe('TC-02 - KnifeChoiceCommand.handle : !stay', () => {
   it('publie knife_choice:stay et déclenche countdown LIVE_MAIN 5s quand warmupAfterKnife=false (rapide LAN)', async () => {
     const cmd = makeCmd();
     const ctx = makeCtx();
@@ -118,9 +118,9 @@ describe('TC-02 — KnifeChoiceCommand.handle : !stay', () => {
 });
 
 // ---------------------------------------------------------------------------
-// TC-02 (suite) — handle !switch
+// TC-02 (suite) - handle !switch
 // ---------------------------------------------------------------------------
-describe('TC-02 — KnifeChoiceCommand.handle : !switch', () => {
+describe('TC-02 - KnifeChoiceCommand.handle : !switch', () => {
   it('swap les sides (swapSides publie sides:swapped) et déclenche countdown LIVE_MAIN 5s', async () => {
     const cmd = makeCmd();
     const ctx = makeCtx();

@@ -21,7 +21,7 @@ export type ManualGameResultDto = {
 };
 
 /**
- * Tournament series (database Match, UUID) — distinct from /api/matches/:id, which drives the real-time engine.
+ * Tournament series (database Match, UUID) - distinct from /api/matches/:id, which drives the real-time engine.
  */
 @Controller('tournament/matches')
 export class TournamentMatchesController {

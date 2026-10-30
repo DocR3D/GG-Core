@@ -34,7 +34,7 @@ describe('renderTournamentAscii', () => {
   const text = renderTournamentAscii(view);
 
   it('affiche le classement, les égalités à trancher et les matchs avec leurs games', () => {
-    expect(text).toContain('GGLan IT — cs2');
+    expect(text).toContain('GGLan IT - cs2');
     expect(text).toMatch(/1\. Alpha\s+1\s+1\s+0\s+0\s+3\s+\+2/);
     expect(text).toContain('⚠ égalité à trancher');
     expect(text).toMatch(/R1\s+Alpha\s+1-0\s+Bravo\s+BO1\s+terminé/);
@@ -88,7 +88,7 @@ describe('pages HTML avec liens', () => {
 
   it('page d’un match : retour au tournoi, provenance et suite cliquables, games avec auteur et serveur', () => {
     const detail: MatchDetailView = {
-      id: 'x', tournament: { id: 't', name: 'GGLan IT' }, context: 'Élite — Bracket du haut', label: 'H T2#1',
+      id: 'x', tournament: { id: 't', name: 'GGLan IT' }, context: 'Élite - Bracket du haut', label: 'H T2#1',
       format: 'BO3', status: 'FINISHED', home: 'Alpha', away: 'Bravo', scoreHome: 2, scoreAway: 1, winner: 'Alpha',
       isForfeit: false, advantageHome: 0, countsInStats: true, placement: null,
       from: [{ slot: 'HOME', what: 'Vainq.', match: { id: 'a', label: 'H T1#1' } }],

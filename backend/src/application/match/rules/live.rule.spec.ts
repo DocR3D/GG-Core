@@ -1,5 +1,5 @@
 /**
- * Tests unitaires — LiveRule
+ * Tests unitaires - LiveRule
  * TC-06 : Round gagné après déconnexion (winner=T)
  * TC-07 : Round gagné par désamorçage (winner=CT, reason=defused)
  * MR12 Lifecycle :
@@ -86,9 +86,9 @@ function makePauseCmd() {
 }
 
 // ---------------------------------------------------------------------------
-// TC-06 — Déconnexion joueur → round attribué à T
+// TC-06 - Déconnexion joueur → round attribué à T
 // ---------------------------------------------------------------------------
-describe('TC-06 — LiveRule : round gagné par élimination (déconnexion)', () => {
+describe('TC-06 - LiveRule : round gagné par élimination (déconnexion)', () => {
   it('appelle roundEnd avec winner=T et publie score:update', async () => {
     const rule = new LiveRule(makePauseCmd());
     const ctx = makeCtx();
@@ -122,9 +122,9 @@ describe('TC-06 — LiveRule : round gagné par élimination (déconnexion)', ()
 });
 
 // ---------------------------------------------------------------------------
-// TC-07 — Round gagné par désamorçage (defused)
+// TC-07 - Round gagné par désamorçage (defused)
 // ---------------------------------------------------------------------------
-describe('TC-07 — LiveRule : round gagné par désamorçage', () => {
+describe('TC-07 - LiveRule : round gagné par désamorçage', () => {
   it('appelle roundEnd avec winner=CT (reason=defused) et publie score:update', async () => {
     const rule = new LiveRule(makePauseCmd());
     const ctx = makeCtx();
@@ -147,7 +147,7 @@ describe('TC-07 — LiveRule : round gagné par désamorçage', () => {
 // ---------------------------------------------------------------------------
 // Anti-eBot Duplicate Round Protection
 // ---------------------------------------------------------------------------
-describe('Anti-eBot Protection — Duplicate Round Rejection', () => {
+describe('Anti-eBot Protection - Duplicate Round Rejection', () => {
   it('ignore un événement de fin de round déjà scoré (évite emballement des rounds eBot)', async () => {
     const rule = new LiveRule(makePauseCmd());
     // Le match a déjà scoré le round 5
@@ -325,7 +325,7 @@ describe('Overtime (MR3)', () => {
 });
 
 // ---------------------------------------------------------------------------
-// onEnter — vérification config RCON et restart
+// onEnter - vérification config RCON et restart
 // ---------------------------------------------------------------------------
 describe('LiveRule.onEnter', () => {
   it('envoie la config competitive et programme le restart à 3s lors du début de match (round 0)', async () => {

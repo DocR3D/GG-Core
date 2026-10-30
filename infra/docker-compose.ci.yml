@@ -1,5 +1,5 @@
 # =============================================================================
-# GG-Core — Docker Compose CI (smoke test uniquement)
+# GG-Core - Docker Compose CI (smoke test uniquement)
 # Les builds typecheck/Go sont faits dans le Dockerfile multi-stage.
 # Usage : docker compose -f infra/docker-compose.ci.yml up --build --abort-on-container-exit --exit-code-from smoke
 # =============================================================================

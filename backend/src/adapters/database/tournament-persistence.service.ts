@@ -209,7 +209,7 @@ export class TournamentPersistenceService {
     const matchMap = await this.findMatchMap(input.matchMapId);
     if (!matchMap) return null;
     // A match that needs a winner cannot end on a draw: an automatic draw (e.g. overtime disabled on the server)
-    // is recorded DISPUTED — it does not advance the bracket and the admin sees it — instead of blocking silently.
+    // is recorded DISPUTED - it does not advance the bracket and the admin sees it - instead of blocking silently.
     const disputedDraw = !isUuid(input.winnerTeamId) && needsWinner(matchMap.match);
     if (disputedDraw) {
       this.logger.warn(`[recordGameResult] draw ${input.scoreHome}-${input.scoreAway} on game ${matchMap.id} of a match that needs a winner: DISPUTED`);
@@ -391,8 +391,8 @@ export class TournamentPersistenceService {
 
   /**
    * Recompute a series (Match) from its CONFIRMED games (+ starting advantage): series score, a draw when every
-   * game was played without a winner (where draws are allowed), then — once a team reached the wins
-   * needed by the format (BO1: 1, BO3: 2, BO5: 3) — finish it and advance the bracket. Same path for every
+   * game was played without a winner (where draws are allowed), then - once a team reached the wins
+   * needed by the format (BO1: 1, BO3: 2, BO5: 3) - finish it and advance the bracket. Same path for every
    * game, automatic (CS2) or manual (admin). A finished series is never re-advanced.
    */
   async updateSeries(matchId: string) {
@@ -408,7 +408,7 @@ export class TournamentPersistenceService {
       scoreHome >= needed ? match.teamHomeId : scoreAway >= needed ? match.teamAwayId : null;
 
     // Every game of the series played without a winner (e.g. a BO1 group match ending 12-12): the series is a
-    // draw — only where a draw is allowed; a bracket / placement match never ends on a draw.
+    // draw - only where a draw is allowed; a bracket / placement match never ends on a draw.
     const gamesPlayed = match.maps.filter((m) => m.resultStatus === 'CONFIRMED').length;
     const isDraw = !winnerId && gamesPlayed >= needed * 2 - 1 && !needsWinner(match);
 

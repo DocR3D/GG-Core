@@ -25,7 +25,7 @@ class TestRule extends BaseRule {
   }
 }
 
-describe('BaseRule — Command Dispatch & Prefix Stripping', () => {
+describe('BaseRule - Command Dispatch & Prefix Stripping', () => {
   let rule: TestRule;
   let mockCtx: RuleContext;
 

@@ -288,7 +288,7 @@ export class TournamentStagesService {
 
   /**
    * Deletes a tournament (stages, matches, games and their stats cascade) and the teams / players that no longer
-   * take part in any tournament — those created for that tournament only.
+   * take part in any tournament - those created for that tournament only.
    */
   async deleteTournament(tournamentId: string) {
     const tournament = await this.mustFind('tournament', () =>
@@ -368,7 +368,7 @@ export class TournamentStagesService {
     const section = { UPPER: 'Bracket du haut', LOWER: 'Bracket du bas', FINAL: 'Grande finale' } as Record<string, string>;
     const context = !m.stageRef
       ? 'Match bonus'
-      : `${m.stageRef.name} — ${section[m.bracketType] ?? (m.group ? `Poule ${m.group.name}` : m.stageRef.type)}`;
+      : `${m.stageRef.name} - ${section[m.bracketType] ?? (m.group ? `Poule ${m.group.name}` : m.stageRef.type)}`;
 
     return {
       id: m.id,

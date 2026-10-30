@@ -56,7 +56,7 @@ SOoT = Source of Truth historique (vérité absolue).
 - Connexion RCON (`pause`, `unpause`, `say`, `restart`, etc.)
 - Réception des logs via `logaddress_add_http`
 - Publication d’événements dans Redis
-- **Prévu** : lecture du flux CSTV/GOTV (positions, grenades, stats avancées) — https://github.com/FlowingSPDG/gotv-plus-go
+- **Prévu** : lecture du flux CSTV/GOTV (positions, grenades, stats avancées) - https://github.com/FlowingSPDG/gotv-plus-go
 
 ### ⚙ Backend NestJS
 - Consomme les événements Redis
@@ -75,7 +75,7 @@ SOoT = Source of Truth historique (vérité absolue).
 - Sert de **bus temps réel** (Pub/Sub, éventuellement Streams)
 - Découple les services (Agent ↔ Backend ↔ Frontend)
 
-###  Frontend Next.js *(pas encore fait — console `/sandbox` servie par le backend en attendant)*
+###  Frontend Next.js *(pas encore fait - console `/sandbox` servie par le backend en attendant)*
 - Application web publique : live scoreboard, overlays, mini‑map
 - Console admin pour l’organisation (contrôle des matchs)
 

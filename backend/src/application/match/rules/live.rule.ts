@@ -199,7 +199,7 @@ export class LiveRule extends BaseRule implements PhaseRule {
     // 3) Halftime Check (Regulation MR12 at round 12)
     // CS2 performs the halftime itself (mp_maxrounds = 2 x MR): it swaps the teams and KEEPS the score.
     // GG-Core only follows: no mp_swapteams (it would swap the teams back) and no mp_restartgame
-    // (it would reset the server score to 0-0) — both observed on a real server.
+    // (it would reset the server score to 0-0) - both observed on a real server.
     const halftimePlayed = await ctx.state.isHalftimePlayed(ev.matchId);
     if (!halftimePlayed && totalRounds === mr) {
       await ctx.state.setHalftimePlayed(ev.matchId, true);

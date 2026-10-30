@@ -123,7 +123,7 @@ describe('PlayerStatsService', () => {
     await service.recordKill(matchId, { steamId: 'p1' }, { steamId: 'p2' }, true);
     await service.snapshotPlayerStats(matchId, 6); // start of round 7
 
-    // round 7 then the restore respawn (world suicides) — all voided by CS2
+    // round 7 then the restore respawn (world suicides) - all voided by CS2
     await service.recordKill(matchId, { steamId: 'p1' }, { steamId: 'p2' }, false);
     await service.recordKill(matchId, undefined as any, { steamId: 'p1' }, false);
 

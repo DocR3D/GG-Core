@@ -150,8 +150,8 @@ function buildTournamentLines(t: TournamentView): { lines: string[]; links: Line
     links.push({ line: out.length, col, len: label ? label.length : 5, matchId: m.id });
     out.push(...renderMatchLine(m, nameWidth, prefix));
   };
-  out.push(`${t.name} — ${t.game}`);
-  out.push(`(généré le ${t.generatedAt.toLocaleString('fr-FR')} — F5 pour rafraîchir)`);
+  out.push(`${t.name} - ${t.game}`);
+  out.push(`(généré le ${t.generatedAt.toLocaleString('fr-FR')} - F5 pour rafraîchir)`);
 
   for (const s of [...t.stages].sort((a, b) => a.order - b.order)) {
     out.push('', `=== ${s.order}. ${s.name} (${s.type}) ${'='.repeat(Math.max(3, 60 - s.name.length))}`);
@@ -325,7 +325,7 @@ export interface MatchRef {
 export interface MatchDetailView {
   id: string;
   tournament: { id: string; name: string };
-  context: string; // e.g. "Élite — Bracket du haut", "Poules — Poule A", "Match bonus"
+  context: string; // e.g. "Élite - Bracket du haut", "Poules - Poule A", "Match bonus"
   label: string;
   format: string;
   status: string;
@@ -371,7 +371,7 @@ export function renderMatchDetailHtml(d: MatchDetailView, tournamentHref: string
 
   link(`← ${d.tournament.name}`, tournamentHref);
   lines.push('');
-  lines.push(`${d.context} — ${d.label} — ${d.format} — ${d.isForfeit ? 'forfait' : statusFr(d.status)}`);
+  lines.push(`${d.context} - ${d.label} - ${d.format} - ${d.isForfeit ? 'forfait' : statusFr(d.status)}`);
   if (d.placement) lines.push(`Match de classement : ${d.placement}e / ${d.placement + 1}e place`);
   if (!d.countsInStats) lines.push('Match bonus : stats hors classements officiels');
   lines.push('');
@@ -427,5 +427,5 @@ export function renderMatchDetailHtml(d: MatchDetailView, tournamentHref: string
   const body = lines
     .map((text, i) => linkify(text, links.filter((l) => l.line === i).map((l) => ({ ...l, matchId: l.href })), (h) => h))
     .join('\n');
-  return asciiPage(`${d.label} — ${d.tournament.name}`, body + '\n', true);
+  return asciiPage(`${d.label} - ${d.tournament.name}`, body + '\n', true);
 }

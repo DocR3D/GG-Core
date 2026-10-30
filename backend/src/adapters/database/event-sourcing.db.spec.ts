@@ -16,7 +16,7 @@ import { EventTypes } from '@domain/events/event.types';
  */
 const describeDb = process.env.DB_IT === '1' ? describe : describe.skip;
 
-describeDb('Event sourcing — real PostgreSQL', () => {
+describeDb('Event sourcing - real PostgreSQL', () => {
   const prisma = new PrismaService();
   const persistence = new TournamentPersistenceService(prisma);
   const runId = randomUUID().slice(0, 8);

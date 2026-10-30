@@ -1,4 +1,4 @@
-# Agent Go — Contexte
+# Agent Go - Contexte
 
 ## Rôle
 Programme Go qui fait le lien entre un serveur CS2 et le backend.
@@ -62,12 +62,12 @@ redis:
 
 ## Actions Redis reçues par l'agent (`ggbot:agent:<serverId>:actions`)
 - `pause` / `unpause`
-- `say` — message ingame
-- `rcon` — commande RCON brute
-- `changelevel` — changer de map
-- `exec_cfg` — applique ligne par ligne un .cfg de `CFG_BASE` (`/app/cfg/ggbot` en Docker) — ces fichiers n'existent pas côté serveur
-- `restart` — mp_restartgame
-- `kick_all` — lit `status` puis `kickid <userid> "<message>"` pour chaque joueur humain (bots, GOTV et connexions `65535` épargnés) : CS2 n'a pas de `kickall`
+- `say` - message ingame
+- `rcon` - commande RCON brute
+- `changelevel` - changer de map
+- `exec_cfg` - applique ligne par ligne un .cfg de `CFG_BASE` (`/app/cfg/ggbot` en Docker) - ces fichiers n'existent pas côté serveur
+- `restart` - mp_restartgame
+- `kick_all` - lit `status` puis `kickid <userid> "<message>"` pour chaque joueur humain (bots, GOTV et connexions `65535` épargnés) : CS2 n'a pas de `kickall`
 
 ## RCON
 - Une seule connexion par serveur, réutilisée (`Client.Connect` ne re-dial que si la connexion est fermée).
@@ -78,10 +78,10 @@ redis:
 - `game_over` : `Game Over: competitive [mapgroup] <map> score CT:T after N min` → `{mode, map, scoreCT, scoreT, minutes}` (même payload dans `parseCs2LineFallback`).
 
 ## Fichiers .cfg disponibles
-- `agent/cfg/ggbot/knife.cfg` — 1 round, 5min, pas d'achat, couteau uniquement
-- `agent/cfg/ggbot/knife_undo.cfg` — annule knife
-- `agent/cfg/ggbot/warmup.cfg` — warmup
-- `agent/cfg/ggbot/overtime.cfg` — prolongations (appliqué au début du live) ; impose `mp_overtime_limit 0` car `gamemode_competitive_tmm.cfg` met 1 (nul après OT1)
+- `agent/cfg/ggbot/knife.cfg` - 1 round, 5min, pas d'achat, couteau uniquement
+- `agent/cfg/ggbot/knife_undo.cfg` - annule knife
+- `agent/cfg/ggbot/warmup.cfg` - warmup
+- `agent/cfg/ggbot/overtime.cfg` - prolongations (appliqué au début du live) ; impose `mp_overtime_limit 0` car `gamemode_competitive_tmm.cfg` met 1 (nul après OT1)
 
 ## Flow de données
 ```

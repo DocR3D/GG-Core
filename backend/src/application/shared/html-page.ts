@@ -1,6 +1,6 @@
 // src/application/shared/html-page.ts
 // Skeleton of the server-rendered pages (/login, /view, /sandbox/tournament): plain semantic HTML styled by
-// Pico.css (classless, served locally under /assets — no CDN, LAN-first). No script.
+// Pico.css (classless, served locally under /assets - no CDN, LAN-first). No script.
 
 export const PICO_CSS = '/assets/pico.classless.min.css';
 

@@ -1,4 +1,4 @@
-# GG-Core — point d'entrée unique du projet (Linux, macOS, Windows via WSL).
+# GG-Core - point d'entrée unique du projet (Linux, macOS, Windows via WSL).
 # Seul prérequis : Docker (+ Compose v2). Ni Node ni Go à installer : tout tourne en conteneurs.
 #
 #   make            → aide
@@ -8,7 +8,7 @@
 #   make test       → typecheck + Jest + Go + intégration PostgreSQL
 
 SHELL        := /bin/bash
-# Secrets: .env (git-ignored) created / completed with RANDOM values on the first make — nothing to configure,
+# Secrets: .env (git-ignored) created / completed with RANDOM values on the first make - nothing to configure,
 # no public default. Only the admin token is read here (loading the whole .env would override variables given
 # on the command line, e.g. GG_ADMIN_STEAMIDS=<id> make up).
 _SECRETS     := $(shell bash infra/gen-secrets.sh)
@@ -30,7 +30,7 @@ endif
 .PHONY: help doctor admin _core up up-cs2 down restart ps logs status sandbox replay fixtures test test-backend test-db test-go e2e-tournament tournament shell-backend psql redis-cli reset
 
 help: ## Affiche cette aide
-	@echo "GG-Core — commandes disponibles :"
+	@echo "GG-Core - commandes disponibles :"
 	@grep -hE '^[a-zA-Z0-9_-]+:.*?## ' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "  make %-14s %s\n", $$1, $$2}'
 	@echo ""
 	@echo "Options : CS2=local (CS2 hors Docker), F=<fixture> (replay), S=<service> (logs)"
@@ -49,7 +49,7 @@ doctor: ## Vérifie les prérequis (Docker, Compose, droits, disque)
 	  if [ -n "$$free" ] && [ "$$free" -lt 90 ]; then echo "⚠️  $${free} Go libres sous $$root : le serveur CS2 (make up-cs2) en demande ~75"; \
 	  else echo "✅ Espace disque Docker : $${free:-?} Go libres"; fi
 
-admin: ## Affiche la connexion admin (URL, mot de passe hors ligne, SteamID64 admins) — secrets dans .env
+admin: ## Affiche la connexion admin (URL, mot de passe hors ligne, SteamID64 admins) - secrets dans .env
 	@echo "Connexion : $(API)/login"
 	@echo "Mot de passe admin hors ligne : $$(grep '^GG_ADMIN_PASSWORD=' .env | cut -d= -f2-)"
 	@echo "Admins Steam (GG_ADMIN_STEAMIDS) : $${GG_ADMIN_STEAMIDS:-$$(grep '^GG_ADMIN_STEAMIDS=' .env | cut -d= -f2-)}"
@@ -90,7 +90,7 @@ status: ## Résumé de l'état et des URLs
 	@echo "   Logs agent     http://localhost:8082/logs (srv-a)"
 	@echo "   Postgres       postgresql://postgres:postgres@localhost:5432/ggcore"
 	@echo "   Redis          redis://localhost:6379"
-	@if [ "$(CS2)" = "local" ]; then echo "   CS2 (hors Docker) attendu sur $(GG_CS2_HOST):27015 — logaddress_add_http \"http://<IP de cette machine>:8082/logs?token=$$(grep '^GG_LOGS_TOKEN=' .env | cut -d= -f2-)\" (RCON : $$(grep '^GG_RCON_PASSWORD=' .env | cut -d= -f2-))"; \
+	@if [ "$(CS2)" = "local" ]; then echo "   CS2 (hors Docker) attendu sur $(GG_CS2_HOST):27015 - logaddress_add_http \"http://<IP de cette machine>:8082/logs?token=$$(grep '^GG_LOGS_TOKEN=' .env | cut -d= -f2-)\" (RCON : $$(grep '^GG_RCON_PASSWORD=' .env | cut -d= -f2-))"; \
 	 elif $(COMPOSE) --profile cs2 ps --services --status running 2>/dev/null | grep -qx cs2; then echo "   CS2            connect localhost:27015 (RCON $$(grep '^GG_RCON_PASSWORD=' .env | cut -d= -f2-))"; fi
 	@echo ""
 

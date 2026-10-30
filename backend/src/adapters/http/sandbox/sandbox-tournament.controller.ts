@@ -23,7 +23,7 @@ const PAGE = '/sandbox/tournament';
 const esc = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 
 /**
- * Sandbox — simulated tournaments (dev tool): fake teams / players / stats from the JSON scenarios of
+ * Sandbox - simulated tournaments (dev tool): fake teams / players / stats from the JSON scenarios of
  * test/fixtures/tournaments, played in accelerated time. Plain HTML page (forms, no CSS / JS) + JSON API.
  */
 @Controller('sandbox/tournament')
@@ -39,9 +39,9 @@ export class SandboxTournamentController {
     const rows = runs.map((r) => this.row(r)).join('\n');
     const active = runs.some((r) => r.status === 'running' || r.status === 'paused');
     return htmlPage({
-      title: 'Sandbox — tournois simulés',
+      title: 'Sandbox - tournois simulés',
       refreshSec: active ? 3 : undefined,
-      body: `<h1>Sandbox — tournois simulés</h1>
+      body: `<h1>Sandbox - tournois simulés</h1>
 <nav><ul><li><a href="/sandbox">← Sandbox</a></li><li><a href="/view">Tous les tournois</a></li></ul></nav>
 <form method="post" action="${PAGE}/runs">
 <input type="hidden" name="_form" value="1">
@@ -76,7 +76,7 @@ ${active ? '<p><small>Page rafraîchie toutes les 3 s pendant une simulation.</s
     return this.wrap(() => this.sim.getRun(id));
   }
 
-  /** JSON: { fixtureName | scenario, delayMs?, parallel?, withStats?, paused? } — or the page's form. */
+  /** JSON: { fixtureName | scenario, delayMs?, parallel?, withStats?, paused? } - or the page's form. */
   @Post('runs')
   async start(@Body() body: Record<string, any>, @Res({ passthrough: true }) res: Response) {
     const form = body?._form === '1';

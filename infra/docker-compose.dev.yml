@@ -1,4 +1,4 @@
-# GG-Core — stack de développement complète (plug & play).
+# GG-Core - stack de développement complète (plug & play).
 # Pilotée par le Makefile à la racine : `make up`, `make up-cs2`, `make test`, `make logs`…
 #
 # Services :
@@ -68,7 +68,7 @@ services:
       PORT: "8081"
       WS_PATH: "/ws"
       # Secrets come from .env, generated with random values by the Makefile (infra/gen-secrets.sh): no public
-      # default — the stack refuses to start without them.
+      # default - the stack refuses to start without them.
       JWT_SECRET: "${JWT_SECRET:?missing: run make up (generates .env)}"
       # Authentication (V1): Steam sign-in, admins = these SteamID64 (comma separated); offline admin password and
       # admin token for scripts / curl.

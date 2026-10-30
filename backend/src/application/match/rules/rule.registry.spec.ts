@@ -7,7 +7,7 @@ import { KnifeRule } from './knife.rule';
 import { KnifeChoiceRule } from './knife-choice.rule';
 import { LiveRule } from './live.rule';
 
-describe('RuleRegistry — Phase Rule Mapping & Lifecycle Safety', () => {
+describe('RuleRegistry - Phase Rule Mapping & Lifecycle Safety', () => {
   let registry: RuleRegistry;
   let mockReadyCmd: any;
   let mockKnifeCmd: any;

@@ -351,7 +351,7 @@ function cs2Deltas(truthPlayers: ReturnType<typeof readCs2Truth>['players'], pla
   return deltas;
 }
 
-describe('Fixtures Golden Master Suite — End-to-End Match Replays (Raw Logs & JSON Scenarios)', () => {
+describe('Fixtures Golden Master Suite - End-to-End Match Replays (Raw Logs & JSON Scenarios)', () => {
   const outcomes = JSON.parse(fs.readFileSync(outcomesPath, 'utf8')) as Record<string, any>;
   const fixtures = listFixtureFiles();
 
@@ -445,16 +445,16 @@ describe('Fixtures Golden Master Suite — End-to-End Match Replays (Raw Logs & 
 /**
  * Known divergences between GG-Core and CS2's round_stats (scores always match; only K/D/A differ).
  * Declared with `it.failing`: the suite stays green while the gap exists and FAILS as soon as GG-Core
- * matches CS2 for that fixture — then remove the entry.
+ * matches CS2 for that fixture - then remove the entry.
  * Rules already aligned on CS2 (do not regress): a bomb death is ONE death, the world suicide after a
  * disconnect is a death, a teamkill gives the killer nothing (no −1).
- * Remaining gap — backup restore (mp_backup_restore_load_file): CS2 rolls player stats back to the restored
+ * Remaining gap - backup restore (mp_backup_restore_load_file): CS2 rolls player stats back to the restored
  * round; GG-Core keeps the voided round's kills and counts the restore respawn as a death for everyone.
  */
 const KNOWN_ORACLE_GAPS: Record<string, string> = {
 };
 
-describe('CS2 Oracle — GG-Core scoreboard equals CS2 end-of-match round_stats', () => {
+describe('CS2 Oracle - GG-Core scoreboard equals CS2 end-of-match round_stats', () => {
   // Older fixtures had every round_stats accountid collapsed to one value by a former anonymizer:
   // they carry no usable truth (fewer than 2 distinct players) and are skipped.
   const withTruth = listFixtureFiles().filter(
@@ -488,7 +488,7 @@ describe('CS2 Oracle — GG-Core scoreboard equals CS2 end-of-match round_stats'
     it.each(matching)('$id: every player K/D/A matches CS2', ({ id, type }) => expectPlayersMatchCs2(id, type));
   }
   if (gaps.length) {
-    it.failing.each(gaps)('$id: K/D/A — KNOWN GAP (remove from KNOWN_ORACLE_GAPS once fixed)', ({ id, type }) =>
+    it.failing.each(gaps)('$id: K/D/A - KNOWN GAP (remove from KNOWN_ORACLE_GAPS once fixed)', ({ id, type }) =>
       expectPlayersMatchCs2(id, type),
     );
   }
@@ -499,7 +499,7 @@ describe('CS2 Oracle — GG-Core scoreboard equals CS2 end-of-match round_stats'
  * included. round_stats does not carry streaks, so this checks a property on the real restore fixtures:
  * right after the restore's `Round_Draw`, streaks equal those at the start of the restored round.
  */
-describe('Backup restore — team streaks are rolled back with the restored round', () => {
+describe('Backup restore - team streaks are rolled back with the restored round', () => {
   type Restore = { drawLine: number; roundStartLine: number; roundsPlayed: number };
 
   /** For each restore draw: line of the draw + line of the original Round_Start of the restored round. */

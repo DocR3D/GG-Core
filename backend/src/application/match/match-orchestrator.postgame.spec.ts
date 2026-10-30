@@ -1,5 +1,5 @@
 /**
- * MatchOrchestrator.endMatch — postgame server actions (seen on a real CS2 server):
+ * MatchOrchestrator.endMatch - postgame server actions (seen on a real CS2 server):
  *  - the warmup reset waits for the end-of-match intermission (postgameResetDelaySec);
  *  - players still connected are kicked after postgameKickDelaySec (people stay on the server at the LAN);
  *  - neither touches the server if a new match was started on it meanwhile.
@@ -39,7 +39,7 @@ const flush = async () => {
   for (let i = 0; i < 5; i++) await Promise.resolve();
 };
 
-describe('MatchOrchestrator.endMatch — résultat du game en base', () => {
+describe('MatchOrchestrator.endMatch - résultat du game en base', () => {
   it('écrit le score home/away (selon les côtés finaux) en automatique / confirmé', async () => {
     const persistence = {
       recordGameResult: jest.fn().mockResolvedValue(null),
@@ -58,7 +58,7 @@ describe('MatchOrchestrator.endMatch — résultat du game en base', () => {
   });
 });
 
-describe('MatchOrchestrator.endMatch — postgame', () => {
+describe('MatchOrchestrator.endMatch - postgame', () => {
   beforeEach(() => jest.useFakeTimers());
   afterEach(() => jest.useRealTimers());
 

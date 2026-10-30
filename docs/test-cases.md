@@ -1,11 +1,11 @@
-# Cas de test — GG-Core
+# Cas de test - GG-Core
 
 Cas de test dérivés des logs réels observés lors d'une session de jeu sur `srv-a` (match `m-7ef15f093f`), puis tests sur
 serveur CS2 réel (fin de fichier : validés et **en suspens**).
 
 ---
 
-## TC-01 — Résolution matchId depuis serverId
+## TC-01 - Résolution matchId depuis serverId
 
 **Contexte :** Tous les événements CS2 arrivent avec `matchId="unknown"`.
 Le backend doit résoudre le vrai matchId depuis le `serverId` via Redis (`server:{serverId}:currentMatch`).
@@ -31,7 +31,7 @@ if ((!ev.matchId || ev.matchId === 'unknown') && ev.serverId)
 
 ---
 
-## TC-02 — Flow complet knife → knife_choice → live_main
+## TC-02 - Flow complet knife → knife_choice → live_main
 
 **Contexte :** Flow le plus critique du lifecycle. Observé en entier dans les logs.
 
@@ -58,7 +58,7 @@ if ((!ev.matchId || ev.matchId === 'unknown') && ev.serverId)
 
 ---
 
-## TC-03 — Pause tactique en phase live_main
+## TC-03 - Pause tactique en phase live_main
 
 **Contexte :** Joueur tape `!pause` pendant `live_main`.
 
@@ -80,7 +80,7 @@ if ((!ev.matchId || ev.matchId === 'unknown') && ev.serverId)
 
 ---
 
-## TC-04 — Commande inconnue (!tec au lieu de !tech)
+## TC-04 - Commande inconnue (!tec au lieu de !tech)
 
 **Observé dans les logs :**
 ```json
@@ -88,13 +88,13 @@ if ((!ev.matchId || ev.matchId === 'unknown') && ev.serverId)
 ```
 → Aucune réponse (ignoré silencieusement)
 
-**Comportement attendu :** Le système ignore silencieusement les commandes non reconnues — c'est le comportement correct.
+**Comportement attendu :** Le système ignore silencieusement les commandes non reconnues - c'est le comportement correct.
 
 **À vérifier :** Pas d'erreur levée, pas de crash, log debug acceptable.
 
 ---
 
-## TC-05 — Kill world avec victime = nom de map (faux kill)
+## TC-05 - Kill world avec victime = nom de map (faux kill)
 
 **Observé dans les logs :**
 ```json
@@ -112,7 +112,7 @@ if ((!ev.matchId || ev.matchId === 'unknown') && ev.serverId)
 
 ---
 
-## TC-06 — Déconnexion joueur en cours de round
+## TC-06 - Déconnexion joueur en cours de round
 
 **Observé dans les logs :**
 ```json
@@ -130,7 +130,7 @@ if ((!ev.matchId || ev.matchId === 'unknown') && ev.serverId)
 
 ---
 
-## TC-07 — Round gagné par désamorçage (defused)
+## TC-07 - Round gagné par désamorçage (defused)
 
 **Observé dans les logs :**
 ```json
@@ -143,7 +143,7 @@ if ((!ev.matchId || ev.matchId === 'unknown') && ev.serverId)
 
 ---
 
-## TC-08 — Messages périodiques en knife_choice
+## TC-08 - Messages périodiques en knife_choice
 
 **Observé dans les logs :**
 ```
@@ -161,7 +161,7 @@ say: "Tapez !ready quand vous êtes prêts."
 
 ---
 
-## TC-09 — Init match et liaison serveur
+## TC-09 - Init match et liaison serveur
 
 **Prérequis pour tous les autres tests.**
 

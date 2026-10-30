@@ -14,7 +14,7 @@ const readLines = (id: string) =>
 const rawFixtures = fs.readdirSync(path.join(fixturesDir, 'raw-logs')).filter((f) => f.endsWith('.log'));
 const scenarios = fs.readdirSync(path.join(fixturesDir, 'scenarios')).filter((f) => f.endsWith('.json'));
 
-describe('splitRawLogIntoRounds — real CS2 logs', () => {
+describe('splitRawLogIntoRounds - real CS2 logs', () => {
   it.each(rawFixtures)('%s: lossless, one slice per round, each slice after the first starts at Round_Start', (id) => {
     const lines = readLines(id);
     const chunks = splitRawLogIntoRounds(lines);
@@ -48,7 +48,7 @@ describe('splitRawLogIntoRounds — real CS2 logs', () => {
   });
 });
 
-describe('splitScenarioIntoRounds — JSON scenarios', () => {
+describe('splitScenarioIntoRounds - JSON scenarios', () => {
   it.each(scenarios)('%s: lossless and one slice per round end', (id) => {
     const parsed = JSON.parse(fs.readFileSync(path.join(fixturesDir, 'scenarios', id), 'utf8'));
     const events: any[] = Array.isArray(parsed) ? parsed : parsed.events;

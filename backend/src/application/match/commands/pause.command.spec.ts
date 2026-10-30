@@ -1,5 +1,5 @@
 /**
- * Tests unitaires — PauseCommand
+ * Tests unitaires - PauseCommand
  * TC-03 : Pause tactique en phase live_main
  *   - round actif (phase='live' | 'bomb_planted' | 'end') → pause armée
  *   - freeze time (phase='freeze') → pause immédiate
@@ -69,9 +69,9 @@ function makeCmd(pauseService: ReturnType<typeof makePauseService>, rconService 
 }
 
 // ---------------------------------------------------------------------------
-// TC-03.A — Phase 'live' → pause armée (pas de RCON)
+// TC-03.A - Phase 'live' → pause armée (pas de RCON)
 // ---------------------------------------------------------------------------
-describe('TC-03 — PauseCommand : phase live_main', () => {
+describe('TC-03 - PauseCommand : phase live_main', () => {
   it("arme la pause si roundPhase='live'", async () => {
     const pauseService = makePauseService({ phase: 'live' });
     const rconService = makeRconService();
@@ -103,7 +103,7 @@ describe('TC-03 — PauseCommand : phase live_main', () => {
     expect(rconService.pause).not.toHaveBeenCalled();
   });
 
-  // TC-03.B — Phase 'freeze' → pause immédiate + RCON
+  // TC-03.B - Phase 'freeze' → pause immédiate + RCON
   it("active immédiatement la pause si roundPhase='freeze'", async () => {
     const pauseService = makePauseService({ phase: 'freeze' });
     const rconService = makeRconService();
@@ -123,7 +123,7 @@ describe('TC-03 — PauseCommand : phase live_main', () => {
     );
   });
 
-  // TC-03.C — Phase null en postgame → refus "match terminé"
+  // TC-03.C - Phase null en postgame → refus "match terminé"
   it('refuse la pause si phase=null (match terminé)', async () => {
     const pauseService = makePauseService({ phase: null });
     const rconService = makeRconService();
@@ -142,7 +142,7 @@ describe('TC-03 — PauseCommand : phase live_main', () => {
     expect(ctx.say).toHaveBeenCalledWith(expect.stringContaining("aucun round n'est en cours"));
   });
 
-  // TC-03.D — canHandle : refuse si match déjà en pause
+  // TC-03.D - canHandle : refuse si match déjà en pause
   it('canHandle retourne false si déjà en pause', async () => {
     const pauseService = makePauseService({ isPaused: true });
     const cmd = makeCmd(pauseService);
@@ -153,7 +153,7 @@ describe('TC-03 — PauseCommand : phase live_main', () => {
     expect(ctx.say).toHaveBeenCalledWith('Le match est déjà en pause.');
   });
 
-  // TC-03.E — canHandle : refuse si sender = SPECTATOR
+  // TC-03.E - canHandle : refuse si sender = SPECTATOR
   it('handle retourne false si sender=SPECTATOR', async () => {
     const pauseService = makePauseService({ phase: 'live' });
     const cmd = makeCmd(pauseService);
@@ -173,7 +173,7 @@ describe('TC-03 — PauseCommand : phase live_main', () => {
     expect(res).toBe(false);
   });
 
-  // TC-03.F — !tech → raison = 'technical', durée 60s
+  // TC-03.F - !tech → raison = 'technical', durée 60s
   it('!tech crée une pause technique de 60s', async () => {
     const pauseService = makePauseService({ phase: 'live' });
     const cmd = makeCmd(pauseService);
@@ -188,7 +188,7 @@ describe('TC-03 — PauseCommand : phase live_main', () => {
     );
   });
 
-  // TC-03.G — !pause → raison = 'tactical', durée 30s
+  // TC-03.G - !pause → raison = 'tactical', durée 30s
   it('!pause crée une pause tactique de 30s', async () => {
     const pauseService = makePauseService({ phase: 'live' });
     const cmd = makeCmd(pauseService);

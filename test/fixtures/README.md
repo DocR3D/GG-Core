@@ -1,4 +1,4 @@
-# Test Fixtures & Datasets — GG-Core
+# Test Fixtures & Datasets - GG-Core
 
 Ce dossier centralise les jeux de données réels et synthétiques servant à tester et valider l'ensemble du système GG-Core (Agent Go, Backend NestJS, Frontend).
 
@@ -9,7 +9,7 @@ Ce dossier centralise les jeux de données réels et synthétiques servant à te
 ```
 test/fixtures/
 ├── raw-logs/     # Fichiers de logs bruts (.log, .txt) issus des serveurs CS2
-├── demos/        # Fichiers de démos de match (.dem) — exclus de Git (lourds)
+├── demos/        # Fichiers de démos de match (.dem) - exclus de Git (lourds)
 └── scenarios/    # Événements JSON chronologiques normalisés (consommables par Jest)
 ```
 
@@ -84,7 +84,7 @@ Pour valider GG-Core sur **tous** les matchs d'une LAN (et pas seulement les fix
 # 1. extraire + anonymiser chaque match complet d'un dossier de logs (local)
 node scripts/bulk-extract.mjs "<Logs_Serveurs_CS2>" <bulk_dir> scripts/make-fixture.mjs
 # (le script écarte lui-même les extraits non fiables : match commencé en cours de route (rotation de log) ou plusieurs serveurs
-# entremêlés dans le même fichier (plusieurs Match_Start) — la vérité CS2 ne correspond plus au segment)
+# entremêlés dans le même fichier (plusieurs Match_Start) - la vérité CS2 ne correspond plus au segment)
 
 # 2. faire parser chaque log par le parser Go de l'agent (un appel TryParse par ligne, comme l'agent)
 cd agent && BULK_DUMP_DIR=<bulk_dir> go test ./internal/parser -run TestBulkDump -count=1
@@ -98,7 +98,7 @@ est 1 assist que CS2 compte sans qu'aucune ligne `assisted killing` n'apparaisse
 
 ## Tournois fictifs (`tournaments/`)
 
-Scénarios de tournoi joués par la simulation du Sandbox — page `/sandbox/tournament` (en accéléré, pause, pas à pas) ou
+Scénarios de tournoi joués par la simulation du Sandbox - page `/sandbox/tournament` (en accéléré, pause, pas à pas) ou
 `make tournament F=fake-gglan-32.json` (instantané) : équipes, phases, qualification et règle de
 résultats **déterministe** (le meilleur seed gagne, avec des surprises tirées d'un générateur à graine fixe : même fichier =
 même tournoi). Données inventées, aucune donnée réelle. Joué jusqu'au vainqueur : poules, qualification, puis arbres en

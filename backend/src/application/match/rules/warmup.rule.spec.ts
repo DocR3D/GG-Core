@@ -4,7 +4,7 @@ import { MatchPhase } from '@domain/phase.types';
 import { CS2_CFG, CS2_RULES } from '@domain/rules/rules.constants';
 import { CommandEvent } from '@domain/events/command.event';
 
-describe('WarmupRule — Ready Checks & Target Phase Selection', () => {
+describe('WarmupRule - Ready Checks & Target Phase Selection', () => {
   let rule: WarmupRule;
   let mockReadyCmd: any;
   let mockCtx: any;

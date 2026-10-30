@@ -1,6 +1,6 @@
 // src/domain/tournament/double-elimination.ts
 // Pure double-elimination bracket builder (no database). Works for any number of teams >= 3: the bracket is
-// built for the next power of two, seeds above the team count are BYEs, and byes are RESOLVED at generation —
+// built for the next power of two, seeds above the team count are BYEs, and byes are RESOLVED at generation -
 // a match against a bye is not created, its team goes straight to the next slot (also in the lower bracket,
 // where the "loser" of a bye match is itself a bye).
 

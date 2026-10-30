@@ -9,7 +9,7 @@ const esc = (v: string) => v.replace(/&/g, '&amp;').replace(/</g, '&lt;').replac
 
 /**
  * Human pages, outside /api (reserved for the JSON API used by services, scripts and the future frontend):
- * plain-text views of tournaments and matches — a bare <pre>, no CSS / JS. The data behind them is
+ * plain-text views of tournaments and matches - a bare <pre>, no CSS / JS. The data behind them is
  * GET /api/tournament/tournaments/:id/overview (JSON).
  */
 @Controller('view')
@@ -25,7 +25,7 @@ export class ViewController {
     return htmlPage({
       title: 'Tournois',
       body: `<h1>Tournois</h1>
-<nav><ul><li><a href="/sandbox/tournament">Sandbox — tournois simulés</a></li><li><a href="/login">Connexion</a></li></ul></nav>
+<nav><ul><li><a href="/sandbox/tournament">Sandbox - tournois simulés</a></li><li><a href="/login">Connexion</a></li></ul></nav>
 ${items.length ? `<ul>${items.join('')}</ul>` : '<p>Aucun tournoi.</p>'}`,
     });
   }

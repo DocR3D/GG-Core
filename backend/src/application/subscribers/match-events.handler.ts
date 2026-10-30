@@ -50,7 +50,7 @@ export class MatchEventsHandler {
     }
 
     // 0bis) Résultat gelé (désaccord serveur / GG-Core) : en attendant l'admin, on ne fait qu'archiver les
-    // événements — le serveur a pu relancer une partie qui fausserait score et stats.
+    // événements - le serveur a pu relancer une partie qui fausserait score et stats.
     if (await this.mss.getReview(matchId)) {
       this.dbHandler.handle(evWithMatch).catch((err) => {
         this.logger.warn(`[MatchEventsHandler] async dbHandler error: ${err?.message}`);
@@ -58,7 +58,7 @@ export class MatchEventsHandler {
       return;
     }
 
-    // 1) Handlers transverses (état round, phase, bomb, persistance BDD) — indépendants des règles
+    // 1) Handlers transverses (état round, phase, bomb, persistance BDD) - indépendants des règles
     if (await this.phaseHandler.handle(evWithMatch)) return;
     await this.roundHandler.handle(evWithMatch);
     await this.combatHandler.handle(evWithMatch);

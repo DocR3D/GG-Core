@@ -1,4 +1,4 @@
-# Frontend — Contexte
+# Frontend - Contexte
 
 ## État actuel
 **Non implémenté.** Aucun dossier `frontend/` n'existe dans le projet.
@@ -17,14 +17,14 @@
 ## Événements WebSocket disponibles (voir `backend/src/adapters/ws/dto/events.dto.ts`)
 
 ### Match
-- `match:state` — snapshot complet (score, sides, teams, pause, économie)
-- `score:update` — mise à jour score
+- `match:state` - snapshot complet (score, sides, teams, pause, économie)
+- `score:update` - mise à jour score
 - `round:start` / `round:end`
 - `phase:changed` / `phase:countdown` / `phase:cancelled`
 - `sides:swapped`
 
 ### Combat
-- `kill` — kill avec payload KillPayload (player/suicide/world)
+- `kill` - kill avec payload KillPayload (player/suicide/world)
 - `team_round_win`
 - `bomb:planted` / `bomb:begin` / `defuse:begin` / `defuse:abort`
 - `grenade_throw` / `player_blinded`

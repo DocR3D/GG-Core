@@ -1,7 +1,7 @@
 // src/domain/rules/rules.constants.spec.ts
 import { CS2_CFG, CS2_RULES, CS2_CHAT_COMMANDS, CS2_RCON_COMMANDS, normalizeChatCommand } from './rules.constants';
 
-describe('CS2_CFG & CS2_RULES — Standards Valve CS2', () => {
+describe('CS2_CFG & CS2_RULES - Standards Valve CS2', () => {
   it('doit pointer vers les fichiers cfg CS2 natifs à la racine de cfg/', () => {
     // Évite l'erreur "couldn't exec '{*}cfg/ggbot/knife.cfg', unable to read file"
     expect(CS2_CFG.KNIFE).toBe('knife.cfg');

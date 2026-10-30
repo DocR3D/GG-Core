@@ -106,7 +106,7 @@ export class TournamentController {
 
   /**
    * Double-elimination bracket of a stage (participants from the qualification, or teamIds in seed order).
-   * formats: { upper, lower, grandFinal } — defaults BO1 / BO1 / BO3, grand final with a one-map advantage.
+   * formats: { upper, lower, grandFinal } - defaults BO1 / BO1 / BO3, grand final with a one-map advantage.
    */
   @Post('stages/:id/bracket/generate')
   generateBracket(@Param('id') stageId: string, @Body() body: { teamIds?: string[]; formats?: DoubleElimFormats }) {

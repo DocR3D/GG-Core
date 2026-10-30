@@ -41,7 +41,7 @@ export class PlayerStatsService {
     if (killer?.steamId) {
       const killerStats = await this.getOrCreatePlayer(matchId, killer.steamId, killer.name);
       // Teamkill : aucun kill ni point pour le tueur (CS2 round_stats ne compte que les kills ennemis,
-      // sans pénalité — vérifié sur logs réels GGLan #19). La victime prend bien sa mort (étape 2).
+      // sans pénalité - vérifié sur logs réels GGLan #19). La victime prend bien sa mort (étape 2).
       if (!teamkill) {
         killerStats.kills = (killerStats.kills || 0) + 1;
         if (headshot) {
@@ -163,7 +163,7 @@ export class PlayerStatsService {
 
   /**
    * Photographie les stats de tous les joueurs pour `roundsPlayed` rounds joués (appelé au début de chaque round,
-   * donc après les frags de fin du round précédent — même instant que le backup de round CS2).
+   * donc après les frags de fin du round précédent - même instant que le backup de round CS2).
    */
   async snapshotPlayerStats(matchId: string, roundsPlayed: number): Promise<void> {
     const raw = await this.redis.hgetall(redisConst.playerStatsHash(matchId));

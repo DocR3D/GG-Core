@@ -4,10 +4,10 @@ import { TournamentPersistenceService } from '@adapters/database/tournament-pers
 import { TournamentStagesService } from '../tournament-stages.service';
 import { TournamentSimulationService, TournamentScenario } from './tournament-simulation.service';
 
-/** Simulated tournament on a REAL PostgreSQL — `make test-db` (DB_IT=1). */
+/** Simulated tournament on a REAL PostgreSQL - `make test-db` (DB_IT=1). */
 const describeDb = process.env.DB_IT === '1' ? describe : describe.skip;
 
-describeDb('Tournament simulation — real PostgreSQL', () => {
+describeDb('Tournament simulation - real PostgreSQL', () => {
   const prisma = new PrismaService();
   const stages = new TournamentStagesService(prisma);
   const sim = new TournamentSimulationService(prisma, stages, new TournamentPersistenceService(prisma));

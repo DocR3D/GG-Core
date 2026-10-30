@@ -84,7 +84,7 @@ export class WsBroadcaster implements OnModuleInit {
         case 'sfui_target_bombed':  return 'SFUI_TARGET_BOMBED';
 
         //Changement de phase
-        // (MatchPhaseService publie avec ':' — sans ce mapping, le front n'avait pas de compte à rebours)
+        // (MatchPhaseService publie avec ':' - sans ce mapping, le front n'avait pas de compte à rebours)
         case 'phase_countdown':
         case 'phase:countdown':  return 'PHASE_COUNTDOWN';
         case 'phase_changed':

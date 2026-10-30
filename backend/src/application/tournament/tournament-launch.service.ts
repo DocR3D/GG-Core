@@ -13,7 +13,7 @@ import { TournamentError } from './tournament-stages.service';
  *
  * A server's `name` is the agent id (agents.d/<name>.yaml, e.g. "srv-a"). Availability:
  * - OFFLINE = disabled by the admin (dead PC / server): never chosen;
- * - busy = bound (Redis) to a real-time match that is not over — derived live, no status to keep in sync.
+ * - busy = bound (Redis) to a real-time match that is not over - derived live, no status to keep in sync.
  * The admin picks the server of each game (no automatic allocation in the MVP).
  */
 @Injectable()
@@ -75,8 +75,8 @@ export class TournamentLaunchService {
   /**
    * Starts game n° `order` of series `matchId` on `server` (id or agent name) with the real-time engine.
    * The engine's match id is the game's UUID (MatchMap id), so its result flows back automatically
-   * (game result → series → bracket). Relaunching a game that is not finished — e.g. on another server after
-   * a server died — reuses the same game and restarts it from scratch.
+   * (game result → series → bracket). Relaunching a game that is not finished - e.g. on another server after
+   * a server died - reuses the same game and restarts it from scratch.
    */
   async launchGame(input: {
     matchId: string;

@@ -27,7 +27,7 @@ const secretEq = (a: string, b: string) => {
 
 /**
  * Who is calling and with which role. V1 (decided with the user): "Sign in through Steam", role from the
- * SteamID — admin if listed in GG_ADMIN_STEAMIDS, player if the SteamID is a known player, visitor otherwise.
+ * SteamID - admin if listed in GG_ADMIN_STEAMIDS, player if the SteamID is a known player, visitor otherwise.
  * LAN-first fallbacks without Internet: a local admin password (GG_ADMIN_PASSWORD) and, for scripts / curl,
  * an admin token (GG_ADMIN_TOKEN, "Authorization: Bearer …"). Sessions: signed JWT in an HttpOnly cookie.
  */
@@ -35,7 +35,7 @@ const secretEq = (a: string, b: string) => {
 export class AuthService {
   constructor(private readonly prisma: PrismaService) {}
 
-  /** Auth can be turned off for a throwaway dev setup (AUTH_DISABLED=1) — never at the LAN. */
+  /** Auth can be turned off for a throwaway dev setup (AUTH_DISABLED=1) - never at the LAN. */
   get disabled(): boolean {
     return process.env.AUTH_DISABLED === '1';
   }

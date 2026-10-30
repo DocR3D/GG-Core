@@ -1,5 +1,5 @@
 /**
- * Tests unitaires — Cs2LogsService
+ * Tests unitaires - Cs2LogsService
  * TC-01 : Résolution matchId depuis serverId
  * TC-09 : Init match et liaison serveur
  */
@@ -21,9 +21,9 @@ function makeService(overrides?: {
 }
 
 // ---------------------------------------------------------------------------
-// TC-01 — Résolution matchId="unknown" via serverId
+// TC-01 - Résolution matchId="unknown" via serverId
 // ---------------------------------------------------------------------------
-describe('TC-01 — Résolution matchId depuis serverId', () => {
+describe('TC-01 - Résolution matchId depuis serverId', () => {
   it('remplace matchId="unknown" par le vrai matchId depuis Redis', async () => {
     const { svc, publisher } = makeService();
     await svc.handleEvents([
@@ -76,9 +76,9 @@ describe('TC-01 — Résolution matchId depuis serverId', () => {
 });
 
 // ---------------------------------------------------------------------------
-// TC-09 — Init match : getMatchIdFromServerId retourne null si non lié
+// TC-09 - Init match : getMatchIdFromServerId retourne null si non lié
 // ---------------------------------------------------------------------------
-describe('TC-09 — Liaison serveur absente', () => {
+describe('TC-09 - Liaison serveur absente', () => {
   it("ne publie pas de matchId si le serveur n'est pas lié à un match", async () => {
     const { svc, publisher } = makeService({
       getMatchIdFromServerId: jest.fn().mockResolvedValue(null),

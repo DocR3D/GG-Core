@@ -4,7 +4,7 @@
 
 export type Random = () => number;
 
-/** mulberry32: small, fast, deterministic — the same seed always gives the same tournament. */
+/** mulberry32: small, fast, deterministic - the same seed always gives the same tournament. */
 export function seededRandom(seed: number): Random {
   let a = seed >>> 0;
   return () => {

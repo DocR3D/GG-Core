@@ -1227,12 +1227,12 @@ export class SandboxController {
       document.getElementById('roundReplayLabel').textContent = 'Round ' + st.cursor + ' / ' + st.totalRounds;
       document.getElementById('roundReplayDetail').textContent = st.cursor > 0
         ? describeRoundEnd(st.rounds[st.cursor - 1].end)
-        : 'Aucun round joué — Round suivant pour commencer';
+        : 'Aucun round joué - Round suivant pour commencer';
       document.getElementById('btnRoundPrev').disabled = st.cursor === 0;
       document.getElementById('btnRoundNext').disabled = st.cursor >= st.totalRounds;
       const sel = document.getElementById('roundReplaySelect');
-      sel.innerHTML = '<option value="0">0 — avant le 1er round</option>' + st.rounds.map(function (r) {
-        return '<option value="' + r.index + '"' + (r.index === st.cursor ? ' selected' : '') + '>' + r.index + ' — ' + describeRoundEnd(r.end) + '</option>';
+      sel.innerHTML = '<option value="0">0 - avant le 1er round</option>' + st.rounds.map(function (r) {
+        return '<option value="' + r.index + '"' + (r.index === st.cursor ? ' selected' : '') + '>' + r.index + ' - ' + describeRoundEnd(r.end) + '</option>';
       }).join('');
     }
     async function startRoundReplay(payload) {

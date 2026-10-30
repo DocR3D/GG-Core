@@ -1,4 +1,4 @@
-# Documentation — Index
+# Documentation - Index
 
 ## Fichiers existants
 

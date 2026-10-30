@@ -135,7 +135,7 @@ describe('Fallback Parser & Suicide vs Player Kill Handling', () => {
     });
   });
 
-  describe('DatabaseEventsHandler — Suicide vs Player Kill distinction', () => {
+  describe('DatabaseEventsHandler - Suicide vs Player Kill distinction', () => {
     const MAP_UUID = '11111111-1111-4111-8111-111111111111';
     const HOME_UUID = '22222222-2222-4222-8222-222222222222';
     let handler: DatabaseEventsHandler;

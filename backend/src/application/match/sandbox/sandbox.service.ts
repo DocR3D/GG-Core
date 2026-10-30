@@ -834,7 +834,7 @@ export class SandboxService {
 
   /**
    * A replay drives the real server too (cfg, messages, end of match: reset + kick): that is what lets us
-   * reproduce a bug on it. It is therefore refused when the server runs ANOTHER match that is not over —
+   * reproduce a bug on it. It is therefore refused when the server runs ANOTHER match that is not over -
    * replaying the same match again (cut log, round-by-round "previous") stays allowed.
    */
   private async assertServerFreeForReplay(serverId: string, matchId: string) {

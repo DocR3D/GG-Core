@@ -1,7 +1,7 @@
 // src/application/auth/steam-openid.ts
 // "Sign in through Steam" = OpenID 2.0 with steamcommunity.com as provider. No Steam Web API key needed: Steam
 // sends the browser back with a signed assertion, which is checked by posting it back to Steam
-// (check_authentication). Steam must be reachable (Internet) — the offline fallback is the local admin password.
+// (check_authentication). Steam must be reachable (Internet) - the offline fallback is the local admin password.
 
 export const STEAM_OPENID_ENDPOINT = 'https://steamcommunity.com/openid/login';
 const OPENID_NS = 'http://specs.openid.net/auth/2.0';

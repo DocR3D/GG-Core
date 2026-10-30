@@ -4,7 +4,7 @@ import { LiveRule } from './live.rule';
 import { EventTypes } from '@domain/events/event.types';
 import { MatchPhase } from '@domain/phase.types';
 
-describe('Scenario 03 Full Replay — 53-Round 5-Overtime Inferno Match through LiveRule', () => {
+describe('Scenario 03 Full Replay - 53-Round 5-Overtime Inferno Match through LiveRule', () => {
   it('replays all 53 rounds of scenario-03 without premature termination and concludes at 25-28 in OT5', async () => {
     const fixturePath = path.resolve(
       __dirname,

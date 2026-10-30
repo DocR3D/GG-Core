@@ -1,5 +1,5 @@
 /**
- * Tests unitaires — KnifeRule
+ * Tests unitaires - KnifeRule
  * TC-02 : Flow knife → knife_choice (kills + team_round_win)
  * TC-04 : Commande inconnue ignorée silencieusement
  * TC-05 : World kill avec victime = nom de map (faux kill filtré)
@@ -13,7 +13,7 @@ const MATCH_ID = 'm-test';
 const SERVER_ID = 'srv-a';
 
 // ---------------------------------------------------------------------------
-// Helpers — mocks
+// Helpers - mocks
 // ---------------------------------------------------------------------------
 function makeCtx(overrides?: Partial<ReturnType<typeof baseCtx>>) {
   return { ...baseCtx(), ...overrides };
@@ -75,9 +75,9 @@ function makeRoundWinEvent(winner: 'CT' | 'T', reason = 'elim') {
 }
 
 // ---------------------------------------------------------------------------
-// TC-02 — Flow knife : CT gagne avec 0 mort côté home, 1 mort côté away
+// TC-02 - Flow knife : CT gagne avec 0 mort côté home, 1 mort côté away
 // ---------------------------------------------------------------------------
-describe('TC-02 — KnifeRule : flow knife → knife_choice', () => {
+describe('TC-02 - KnifeRule : flow knife → knife_choice', () => {
   it('initialise le state lors du onEnter', async () => {
     const rule = new KnifeRule();
     const ctx = makeCtx();
@@ -140,15 +140,15 @@ describe('TC-02 — KnifeRule : flow knife → knife_choice', () => {
     // Le guard `if(!st)` route vers le fallback, pas vers un second appel identique
     const callsBefore = ctx.orch.startPhaseCountdown.mock.calls.length;
     await (rule as any).onTeamRoundWin(win, ctx);
-    // Le fallback déclenche aussi startPhaseCountdown — comportement documenté
+    // Le fallback déclenche aussi startPhaseCountdown - comportement documenté
     expect(ctx.orch.startPhaseCountdown.mock.calls.length).toBeGreaterThanOrEqual(callsBefore);
   });
 });
 
 // ---------------------------------------------------------------------------
-// TC-04 — Commande inconnue ignorée (ex: !tec)
+// TC-04 - Commande inconnue ignorée (ex: !tec)
 // ---------------------------------------------------------------------------
-describe('TC-04 — Commande inconnue ignorée', () => {
+describe('TC-04 - Commande inconnue ignorée', () => {
   it("KnifeRule n'écoute pas les commandes inconnues", () => {
     const rule = new KnifeRule();
     // La rule knife ne register aucune commande
@@ -157,9 +157,9 @@ describe('TC-04 — Commande inconnue ignorée', () => {
 });
 
 // ---------------------------------------------------------------------------
-// TC-05 — World kill avec victime = nom de map (faux kill filtré)
+// TC-05 - World kill avec victime = nom de map (faux kill filtré)
 // ---------------------------------------------------------------------------
-describe('TC-05 — World kill : victime avec steamId vide et team=Unassigned', () => {
+describe('TC-05 - World kill : victime avec steamId vide et team=Unassigned', () => {
   it('ne comptabilise pas le kill si la victim a un steamId vide (faux kill Match_Start)', async () => {
     const rule = new KnifeRule();
     const ctx = makeCtx();

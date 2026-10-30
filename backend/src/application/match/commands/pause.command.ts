@@ -99,7 +99,7 @@ export class PauseCommand extends BaseCommand {
           },
         });
         await ctx.say(
-          `[GG] Pause ${reason} de ${team.toUpperCase()} armée — elle débutera au prochain freeze.`,
+          `[GG] Pause ${reason} de ${team.toUpperCase()} armée - elle débutera au prochain freeze.`,
         );
         return true;
       }
@@ -122,7 +122,7 @@ export class PauseCommand extends BaseCommand {
           serverId: event.serverId,
         });
         await ctx.say(
-          `[GG] Pause ${reason} de ${team.toUpperCase()} — ${durationSec}s.`,
+          `[GG] Pause ${reason} de ${team.toUpperCase()} - ${durationSec}s.`,
         );
         return true;
       }

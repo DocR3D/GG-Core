@@ -18,7 +18,7 @@ const MAP_UUID = '11111111-1111-4111-8111-111111111111';
 const HOME_UUID = '22222222-2222-4222-8222-222222222222';
 const AWAY_UUID = '33333333-3333-4333-8333-333333333333';
 
-describe('Scenario Replay — Real LAN Matches via DatabaseEventsHandler', () => {
+describe('Scenario Replay - Real LAN Matches via DatabaseEventsHandler', () => {
   let handler: DatabaseEventsHandler;
   let persistenceService: TournamentPersistenceService;
 

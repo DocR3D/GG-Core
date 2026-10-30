@@ -1,6 +1,6 @@
-# Architecture cible — tournois (CS2 d'abord, multi-jeux plus tard)
+# Architecture cible - tournois (CS2 d'abord, multi-jeux plus tard)
 
-> Statut : **validé (2026-10-30)**. Règle d'or : **rester simple** — ne construire que ce dont le MVP a besoin, mais
+> Statut : **validé (2026-10-30)**. Règle d'or : **rester simple** - ne construire que ce dont le MVP a besoin, mais
 > ne fermer aucune porte qui coûterait une réécriture plus tard.
 
 ## 1. Objectif du MVP
@@ -21,14 +21,14 @@ Un **tournoi CS2 complet à la prochaine GGLan, sans Toornament** :
 | D2 | Un match oppose **deux équipes** (séries BOn, découpées en games). Le FFA / battle royale n'est pas prévu ; s'il arrive, ce sera un **nouveau type de match** à N participants ajouté à côté, sans réécriture. |
 | D3 | Les tables de l'arbre ne contiennent que du **générique** : équipes, scores, vainqueur, statut. Les concepts CS (kills, ADR, rounds, économie, démo) vivent dans des **tables CS rattachées au game**. |
 | D4 | Saisie manuelle des résultats par **l'admin** d'abord ; circuit capitaine (déclare / confirme / conteste) plus tard. |
-| D5 | Pendant la LAN : **une seule instance locale** ; publication en ligne via un **tunnel sortant** (port 443, aucun port entrant — les réseaux de LAN sont filtrés). Optionnel : s'il tombe, seul le site public est indisponible. |
+| D5 | Pendant la LAN : **une seule instance locale** ; publication en ligne via un **tunnel sortant** (port 443, aucun port entrant - les réseaux de LAN sont filtrés). Optionnel : s'il tombe, seul le site public est indisponible. |
 | D6 | Après la LAN : **copie ponctuelle** (base + démos) vers une instance hébergée en lecture seule. Pas de synchronisation continue. |
 
 ## 3. Ce qu'on fait maintenant (presque gratuit, pénible à rattraper plus tard)
 
 - Un champ `game` sur `Tournament` et `Server` (une seule valeur : `cs2`).
 - Le résultat d'un game porte sa **source** (`automatic` | `manual`), son **statut** (`reported` | `confirmed` |
-  `disputed`) et son **auteur** — nécessaire de toute façon pour la saisie admin, et prêt pour le circuit capitaine.
+  `disputed`) et son **auteur** - nécessaire de toute façon pour la saisie admin, et prêt pour le circuit capitaine.
 - Aucun concept CS dans les tables de l'arbre (D3). Les stats CS restent dans `PlayerMapStats` (+ journal
   `events_primary`, démo), rattachées au game.
 - Identifiants **UUID** partout (déjà le cas), `updatedAt` sur les données de tournoi, aucune donnée propre à une
@@ -45,7 +45,7 @@ Un **tournoi CS2 complet à la prochaine GGLan, sans Toornament** :
 L'arbre et les classements n'affichent que le générique (même code pour tous les jeux). La page d'un match ajoute un
 **bloc CS2** (scoreboard K/D/ADR, rounds, démo) ; le direct utilise les événements WebSocket CS existants.
 
-## 5. Plus tard — seulement quand le besoin arrive
+## 5. Plus tard - seulement quand le besoin arrive
 
 | Quand | Quoi |
 |---|---|
@@ -71,5 +71,5 @@ L'arbre et les classements n'affichent que le générique (même code pour tous 
 ## 7. Questions ouvertes
 
 1. Format d'import : le dev du site d'inscription peut fournir un **CSV sur mesure ou un endpoint** (a minima pseudo et
-   e-mail) — à définir au moment de l'import.
+   e-mail) - à définir au moment de l'import.
 2. Hébergeur de l'instance post-LAN et du stockage des démos.

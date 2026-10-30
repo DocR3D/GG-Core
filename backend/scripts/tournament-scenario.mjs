@@ -1,5 +1,5 @@
 // Plays a fake tournament described by a JSON file (`make tournament F=fake-gglan-32.json`), as fast as possible,
-// through the Sandbox simulation (/sandbox/tournament — same engine as the page, deterministic results, fake
+// through the Sandbox simulation (/sandbox/tournament - same engine as the page, deterministic results, fake
 // players and stats), then prints the ASCII view. A run replaces the previous tournament of the same scenario.
 
 import { basename } from 'node:path';

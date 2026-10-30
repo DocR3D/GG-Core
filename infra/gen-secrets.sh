@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Creates / completes .env (repo root, git-ignored) with RANDOM secrets — called by the Makefile before anything
+# Creates / completes .env (repo root, git-ignored) with RANDOM secrets - called by the Makefile before anything
 # else. Never overwrites an existing value: sessions, RCON and the agent keep working across runs. A key missing
 # after an update is added. Messages go to stderr (the Makefile captures stdout).
 set -eu

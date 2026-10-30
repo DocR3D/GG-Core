@@ -1,5 +1,5 @@
 /**
- * Tests de robustesse et résistance aux rafales (Burst / Rapid-Fire Replay) — LiveRule
+ * Tests de robustesse et résistance aux rafales (Burst / Rapid-Fire Replay) - LiveRule
  * Simule les cas réels observés lors des replays Sandbox accélérés ou des reconnexions
  */
 import { LiveRule } from './live.rule';
@@ -9,7 +9,7 @@ import { MatchPhase } from '@domain/phase.types';
 const MATCH_ID = 'm-burst-test';
 const SERVER_ID = 'srv-a';
 
-describe('LiveRule — Burst & Rapid-Fire Replay Stress Tests', () => {
+describe('LiveRule - Burst & Rapid-Fire Replay Stress Tests', () => {
   let rule: LiveRule;
 
   beforeEach(() => {

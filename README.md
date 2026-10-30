@@ -12,7 +12,7 @@ Contrôle des matchs (knife, swap, pauses, overtime), collecte des événements,
 - **Backend** : NestJS (TypeScript), Socket.IO
 - **Base de données** : PostgreSQL 16 + Prisma (event sourcing, tournois)
 - **Cache / Bus temps réel** : Redis 7
-- **Frontend** : Next.js *(à venir — en attendant, une console Sandbox est servie par le backend)*
+- **Frontend** : Next.js *(à venir - en attendant, une console Sandbox est servie par le backend)*
 - **Conteneurisation** : Docker + Docker Compose
 
 Prévu : analyse CSTV/GOTV (positions, grenades), replays mini-map.
@@ -22,7 +22,7 @@ Prévu : analyse CSTV/GOTV (positions, grenades), replays mini-map.
 ## Démarrage rapide
 
 ### Prérequis
-- **Docker + Docker Compose v2** — c'est tout (ni Node ni Go à installer : tout tourne en conteneurs).
+- **Docker + Docker Compose v2** - c'est tout (ni Node ni Go à installer : tout tourne en conteneurs).
 - Linux / macOS : `make`. Windows : WSL2 avec Docker dans WSL (ou Docker Desktop), et `make` dans WSL (`sudo apt install make`).
 - Si `docker` exige `sudo` : `sudo usermod -aG docker $USER` puis rouvrir le terminal.
 
@@ -44,7 +44,7 @@ Sous Windows : lancer ces commandes depuis un terminal WSL, dans le dépôt (ex.
 - WSL s'arrête quand plus aucun terminal WSL n'est ouvert (et Docker avec lui) : garder un terminal WSL ouvert pendant les tests. Les conteneurs redémarrent seuls à la réouverture.
 - Les données Docker (dont les ~73 Go de CS2) vivent dans le disque virtuel de WSL, **sur C: par défaut**. Si C: est petit, déplacer la distribution avant `make up-cs2` : `wsl --shutdown` puis `wsl --manage Debian --move D:\WSL\Debian`.
 
-**CS2 déjà installé via Steam (pas de téléchargement)** : lancer `scripts/start-cs2-dedicated.bat` côté Windows puis `make up CS2=local` — l'agent se connecte au CS2 de la machine hôte.
+**CS2 déjà installé via Steam (pas de téléchargement)** : lancer `scripts/start-cs2-dedicated.bat` côté Windows puis `make up CS2=local` - l'agent se connecte au CS2 de la machine hôte.
 
 - Backend (REST) : http://localhost:8081/api (health : `/api/health`)
 - WebSocket : ws://localhost:8081
