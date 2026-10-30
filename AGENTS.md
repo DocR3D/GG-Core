@@ -21,6 +21,7 @@ Ce fichier sert de point d'entrée universel pour tout agent d'intelligence arti
 
 Pour toute tâche d'envergure, consulter les fiches techniques dans `docs/` et `docs/context/` :
 - `docs/cahier-des-charges.md` : Cahier des charges complet (version Markdown intégrale).
+- `docs/architecture-multi-jeux.md` : **Architecture cible** — MVP = tournoi CS2 complet sans Toornament ; tables d'arbre génériques, concepts CS dans des tables CS ; ce qu'on fait maintenant vs plus tard (multi-jeux, tunnel, export). À lire avant de toucher aux équipes / arbres / pages.
 - `docs/context/agent-go.md` : Structure Go, managers, parsing regex, protocoles RCON.
 - `docs/context/backend.md` : Découpage NestJS (Domain, Application, Adapters), subscribers, état Redis.
 - `docs/context/frontend.md` : Spécifications UI, abonnements WebSocket, rôles JWT.

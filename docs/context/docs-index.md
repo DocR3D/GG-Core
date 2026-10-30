@@ -5,6 +5,7 @@
 | Fichier | Contenu |
 |---------|---------|
 | `docs/architecture.md` | Schéma global, rôles composants, flux de données, contraintes réseau |
+| `docs/architecture-multi-jeux.md` | Architecture cible : MVP tournoi CS2 sans Toornament, décisions, ce qu'on fait maintenant vs plus tard (multi-jeux, tunnel, export post-LAN) |
 | `docs/cahier-des-charges.md` | Cahier des charges complet (version Markdown) |
 | `docs/Cahier des Charges eBot.pdf` | Cahier des charges complet (version PDF originale) |
 | [Total CS2 Commands](https://totalcsgo.com/commands) | Base de données des commandes et convars CS2 à jour |
