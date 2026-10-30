@@ -1,6 +1,7 @@
 # Cas de test — GG-Core
 
-Cas de test dérivés des logs réels observés lors d'une session de jeu sur `srv-a` (match `m-7ef15f093f`).
+Cas de test dérivés des logs réels observés lors d'une session de jeu sur `srv-a` (match `m-7ef15f093f`), puis tests sur
+serveur CS2 réel (fin de fichier : validés et **en suspens**).
 
 ---
 
@@ -177,9 +178,51 @@ say: "Tapez !ready quand vous êtes prêts."
 
 ---
 
-## Bugs connus à corriger (tracés depuis les logs)
+## Bugs tracés depuis les logs (historique)
 
-| ID | Fichier | Bug | Impact |
+| ID | Fichier | Bug | Statut |
 |----|---------|-----|--------|
-| B-01 | `cs2-logs.service.ts:38` | `!ev.matchId` ne catch pas `"unknown"` | Tous les events ignorés par le router |
-| B-02 | `pause.command.ts:82` | Lit `MatchPhase` au lieu de `RoundPhase` | `!pause` répond "match terminé" en live |
+| B-01 | `cs2-logs.service.ts:38` | `!ev.matchId` ne catch pas `"unknown"` | ✅ corrigé (`8650cf3`) |
+| B-02 | `pause.command.ts:82` | Lit `MatchPhase` au lieu de `RoundPhase` | ✅ corrigé (`8650cf3`) ; armement étendu à `bomb_planted` / `end` (`44f0b0a`) |
+
+---
+
+## Tests sur serveur CS2 réel (`make up-cs2`)
+
+Les tests Jest et le Golden Master rejouent des logs : ils ne voient pas ce que GG-Core **envoie** au serveur. Ces
+tests-ci pilotent un vrai CS2 dédié (conteneur `ggcore-cs2-dev`) uniquement via les API de GG-Core.
+
+**Mise en place** : `make up-cs2`, puis `POST /api/matches/<id>/start` (`serverId: "srv-a"`, `settings`), bots via
+`POST /sandbox/rcon` (`bot_quota_mode fill; bot_quota 4`), `!ready` des deux capitaines via
+`POST /sandbox/simulate/command` (SteamID distinct par camp). Format court pour aller vite :
+`settings: { knifeEnabled: false, mrFormat: 2, overtimeMrFormat: 1 }` (mi-temps au round 2, victoire à 3, OT en MR1).
+Suivre les logs : `docker logs -f ggcore-cs2-dev` (serveur) et `docker logs -f ggbot-manager` (RCON envoyé).
+
+### ✅ Validés (2026-10-29 avec un joueur humain, 2026-10-30 avec bots)
+
+| Scénario | Attendu / observé |
+|---|---|
+| Connexion, `!ready` réels (say_team), knife + `!switch` | live lancé, côtés échangés une seule fois |
+| `!pause` en round → appliquée au freeze ; `!unpause` ; `!tech` au freeze | pause armée puis appliquée, banque débitée |
+| Restauration de backup native CS2 | score, K/D et séries ramenés au round restauré |
+| Déconnexion, mort par la C4, suicide molotov | K/D identiques au TAB / `round_stats` |
+| Mi-temps native | CS2 inverse seul, score serveur conservé (2:0 → 0:2), **aucun** `mp_swapteams` / `mp_restartgame` envoyé |
+| Prolongations natives | swap de mi-OT, OT1 → OT2 → OT3 sans nul (`mp_overtime_limit 0`) |
+| Fin de match | annonce du vainqueur = `Game Over` serveur, reset warmup à +30 s (`postgameResetDelaySec`) |
+| Game Over serveur vs GG-Core | replay d'une fixture : « server Game Over 11:13 confirms GG-Core » |
+| Démo GOTV | `.dem` écrite (`tv_enable 1` + `TV_ENABLE=1` du conteneur) |
+| Rate-limit RCON | 1 seule connexion RCON, ≤ 3 commandes/s reçues par le serveur (limite 6/s) |
+| Sandbox | 2 capitaines acceptés ; replay refusé (409) si le serveur fait tourner un autre match non terminé |
+
+### ⏳ En suspens (joueur humain connecté requis)
+
+| ID | Scénario | Procédure | Attendu |
+|---|---|---|---|
+| RT-01 | `!pause` après la pose de bombe | pendant un round, poser la C4 puis taper `!pause` | « Pause … armée », appliquée au freeze suivant (plus de « match terminé ») |
+| RT-02 | `!tech` en fin de round | taper `!tech` entre la fin du round et le freeze | pause technique armée puis appliquée au freeze |
+| RT-03 | Affichage de la banque de pause | `!pause` au freeze, lire le rappel périodique | « banque restante » part de `tacticalPauseBankSec` (120 s par défaut), jamais 0:00 |
+| RT-04 | TAB pendant l'entracte de fin | finir un match, tenir TAB | écran de fin et scoreboard visibles ~25 s, joueurs non figés, warmup seulement à +30 s |
+| RT-05 | Kick post-match | rester connecté après la fin du match | kick à +120 s (`postgameKickDelaySec`) avec « Match terminé, merci d'avoir joué ! » ; GOTV et bots non kickés |
+| RT-06 | Kick annulé par un nouveau match | démarrer un nouveau match sur le serveur avant les 120 s | aucun kick |
+| RT-07 | Fin de la démo GOTV | lire la démo d'un match terminé (`playdemo`) | le dernier round est présent malgré `tv_delay 105` et le `tv_stoprecord` envoyé au Game Over |
+| RT-08 | Navigation round par round (UI Sandbox) | `/sandbox`, vitesse « Round par round », suivant / précédent / aller au round N | score et scoreboard conformes au log à chaque étape |

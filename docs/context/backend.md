@@ -82,7 +82,10 @@ match:{id}:db_match_map         — UUID du MatchMap PostgreSQL lié (optionnel)
 - `requestPauseTactical()` — pause tactique (armée ou immédiate selon RoundPhase)
 - `resume()` — reprise manuelle ou auto-expire
 - `applyPauseIfArmed()` — consomme pause armée à la freeze time
-- `execCfg()` / `execCfgs()` — exécute fichiers .cfg RCON
+- `execCfg()` / `execCfgs()` — applique un .cfg GG-Core (`agent/cfg/ggbot`) **via l'agent** (`exec_cfg`) ; jamais en `exec` RCON brut (ces fichiers n'existent pas sur le serveur)
+- `startMatch()` — `tv_enable 1`, changelevel, warmup.cfg, `tv_record`, banques de pause (`tacticalPauseBankSec`), phase initiale
+- `endMatch()` — annonce, `tv_stoprecord`, progression bracket, puis **différé** : reset warmup à `postgameResetDelaySec` (30 s) et kick des joueurs à `postgameKickDelaySec` (120 s, 0 = off), ignorés si un autre match a démarré sur le serveur
+- `onServerGameOver()` / `checkServerGameOver()` / `resolveReview()` — arbitrage du `Game Over` serveur : score = serveur, verdict = règlement GG-Core ; désaccord → résultat gelé (`match:{id}:review`) en attendant l'admin
 - `onFreezeTimeStart()` / `onRoundStart()` / `onRoundEnd()` / `onBombPlanted()` — lifecycle round
 - `push()` — broadcast WS
 - `applyKnifeResult()` / `swapSides()` / `setPhase()` / `startPhaseCountdown()`
@@ -136,12 +139,14 @@ Redis ggbot:events
 | `GET /api/matches/:id/score-with-teams` | Score + équipes |
 | `PATCH /api/matches/:id/teams` | Set noms/IDs équipes |
 | `POST /api/matches/:id/init` | Initialise un match (sides, score, timeouts, équipes, settings, liaison `serverId`, liaison `matchMapId` PostgreSQL) |
-| `POST /api/matches/:id/start` | `init` + démarrage serveur (changelevel, warmup.cfg, `tv_record`, phase initiale) |
+| `POST /api/matches/:id/start` | `init` + démarrage serveur (changelevel, warmup.cfg, `tv_record`, phase initiale). `settings` : `knifeEnabled`, `mrFormat`, `overtimeEnabled`, `overtimeMrFormat`, `warmupAfterKnife`, `warmupAtHalftime`, `warmupAtOvertime`, `postgameAction`, `postgameResetDelaySec`, `postgameKickDelaySec`, `tacticalPauseBankSec` |
+| `GET /api/matches/:id/review` | Résultat gelé (désaccord `Game Over` serveur / GG-Core) ou `null` |
+| `POST /api/matches/:id/review/accept-server` \| `.../review/dismiss` | Décision admin : prendre le score du serveur et terminer le match (un nul reste un nul), ou lever le gel |
 | `POST /api/matches/init` | Compat smoke tests CI (`matchId` dans le body) |
 | `GET /api/matches/:id/players` | Joueurs du match |
 | `GET /api/matches/:id/economy` | Économie |
 | `GET/PATCH /api/matches/:id/sides`, `PATCH .../sides/swap` | Sides |
-| `/sandbox`, `/sandbox/*` | Console Sandbox / Round Doctor : `inject`, `simulate/round-win`, `simulate/command`, `rcon`, `restore-ingame`, `replay/raw-log`, `replay/scenario`, `fixtures`, `state/:matchId` |
+| `/sandbox`, `/sandbox/*` | Console Sandbox / Round Doctor : `inject`, `simulate/round-win`, `simulate/command`, `rcon`, `restore-ingame`, `replay/raw-log`, `replay/scenario`, `replay/rounds/start`, `replay/rounds/step`, `replay/rounds/:matchId`, `fixtures`, `state/:matchId`. Un replay pilote aussi le vrai serveur (voulu : reproduire un bug) ; il est refusé (409) si le serveur fait tourner **un autre** match non terminé |
 
 CORS REST : origines autorisées via `CORS_ORIGIN` (liste séparée par des virgules, défaut `http://localhost:3000`).
 
@@ -150,6 +155,7 @@ CORS REST : origines autorisées via `CORS_ORIGIN` (liste séparée par des virg
 - `broadcaster.service.ts` — Subscribe `ggbot:events`, mappe vers `InternalEvent`, broadcast WS
 - `socket.auth.guard.ts` — Guard JWT (role: admin/viewer)
 - `dto/events.dto.ts` — `WsEventType` + tous les types WS typés
+- Événements admin d'arbitrage : `match:review_required` (Game Over serveur ≠ GG-Core), `match:review_resolved`. Les comptes à rebours (`phase:countdown` / `phase:cancelled`) sont mappés dans les deux graphies (`:` et `_`)
 
 #### Redis (`adapters/redis/`)
 - Tokens d'injection : `REDIS_CMD`, `REDIS_PUB`, `REDIS_SUB`

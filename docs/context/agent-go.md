@@ -63,14 +63,25 @@ redis:
 ## Actions Redis reçues par l'agent (`ggbot:agent:<serverId>:actions`)
 - `pause` / `unpause`
 - `say` — message ingame
+- `rcon` — commande RCON brute
 - `changelevel` — changer de map
-- `exec_cfg` — exécuter un fichier .cfg
+- `exec_cfg` — applique ligne par ligne un .cfg de `CFG_BASE` (`/app/cfg/ggbot` en Docker) — ces fichiers n'existent pas côté serveur
 - `restart` — mp_restartgame
+- `kick_all` — lit `status` puis `kickid <userid> "<message>"` pour chaque joueur humain (bots, GOTV et connexions `65535` épargnés) : CS2 n'a pas de `kickall`
+
+## RCON
+- Une seule connexion par serveur, réutilisée (`Client.Connect` ne re-dial que si la connexion est fermée).
+- Limite **6 commandes/s** imposée quel que soit `rateLimitPerSec` (règle 3 d'`AGENTS.md`), espacement mesuré entre deux envois.
+
+## Parser
+- `parser.Parse(line)` renvoie **tous** les événements d'une ligne (landed expiré, événement de la ligne, landed libéré par un `threw`) ; l'ancien `TryParse` (1 événement / ligne) perdait la ligne qui suivait un lancer de grenade.
+- `game_over` : `Game Over: competitive [mapgroup] <map> score CT:T after N min` → `{mode, map, scoreCT, scoreT, minutes}` (même payload dans `parseCs2LineFallback`).
 
 ## Fichiers .cfg disponibles
 - `agent/cfg/ggbot/knife.cfg` — 1 round, 5min, pas d'achat, couteau uniquement
 - `agent/cfg/ggbot/knife_undo.cfg` — annule knife
 - `agent/cfg/ggbot/warmup.cfg` — warmup
+- `agent/cfg/ggbot/overtime.cfg` — prolongations (appliqué au début du live) ; impose `mp_overtime_limit 0` car `gamemode_competitive_tmm.cfg` met 1 (nul après OT1)
 
 ## Flow de données
 ```

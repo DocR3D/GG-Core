@@ -74,13 +74,10 @@ Le cœur moteur de match, l'arbitrage automatisé, le calcul de scores/stats CS2
 
 ## ⚙️ Améliorations & Outillage (Priorité Moyenne)
 
-### 8. ⏯️ Mode « round par round » dans la simulation (Sandbox)
-* **Origine** : La simulation actuelle ([`sandbox.service.ts`](file:///d:/DEV/GG-Core/backend/src/application/match/sandbox/sandbox.service.ts), replay de logs bruts ou scénarios JSON) rejoue tout le match d'un bloc.
-* **Besoin** : Pouvoir avancer le replay un round à la fois (bouton « Round suivant ») : rejouer les événements jusqu'au prochain `Round_End` / `team_round_win`, puis marquer une pause pour inspecter le snapshot (score, K/D/A, streaks, économie, phase).
-* **Pistes d'implémentation** :
-  - Option `mode: 'round-by-round'` avec curseur d'index par match.
-  - Endpoint `POST /sandbox/replay/next-round` (et retour arrière en réinitialisant puis rejouant jusqu'au round N-1).
-  - Test Jest validant l'égalité stricte entre replay round-par-round et replay complet.
+### 8. 🧪 Validation en jeu en suspens (joueur humain requis)
+* Liste et procédures : [`docs/test-cases.md`](../test-cases.md), section « Tests sur serveur CS2 réel » → **RT-01 à RT-08**
+  (`!pause` après la pose de bombe, `!tech` en fin de round, affichage de la banque de pause, TAB pendant l'entracte de fin,
+  kick post-match, fin de la démo GOTV avec `tv_delay 105`, navigation round par round dans l'UI Sandbox).
 
 ### 9. 🔄 Synchronisation amont des CFG (« Online Pre-Cache, Offline Fallback »)
 * **Origine** : Les CFG de tournoi de référence vivent sur [`DocR3D/GGLanCS2CFG`](https://github.com/DocR3D/GGLanCS2CFG).
@@ -103,9 +100,11 @@ Le cœur moteur de match, l'arbitrage automatisé, le calcul de scores/stats CS2
 ### 11. 📦 Dépôt d'outillage séparé (Log Anonymizer & Demo Parser)
 * **Besoin** : Isoler les scripts locaux d'anonymisation de logs (`scratch/` et `scripts/`) dans un package CLI dédié pour les futurs tournois.
 
-### 12. 💤 Joueurs AFK en LAN (partis du poste sans se déconnecter)
-* **Problème observé en LAN** : un joueur quitte son PC sans se déconnecter ; le serveur le compte toujours comme présent (pas de `disconnected`), son équipe joue en sous-nombre et rien n'alerte l'admin.
-* **Pistes à étudier (Zero Plugin)** : détecter l'inactivité depuis les logs (aucun achat / déplacement / tir / dégât sur N rounds — `mp_logdetail` et blocs `round_stats` donnent les dégâts), alerte console admin + message in-game, proposition de pause technique ; vérifier les convars natives d'AFK CS2 (`mp_autokick`, `mp_afterroundmoney`… à confirmer sur le dump convars SteamTracking avant usage).
+### 12. 🧰 Petites suites identifiées
+* **Sandbox** : bouton « Terminer / libérer le serveur » (un replay coupé laisse son match en cours et bloque un replay d'un autre match sur ce serveur — 409).
+* **Restauration de backup** : restaurer aussi l'économie (argent) comme CS2 ; aujourd'hui score, stats et séries seulement.
+* **Fin de map** : mettre à jour `MatchMap.status/scoreHome/scoreAway/winnerId` ; séries BO3/BO5 (aujourd'hui BO1).
+* **Parser de secours** : parser les commandes chat comme le parser Go.
 
 ---
 
@@ -115,7 +114,15 @@ Le cœur moteur de match, l'arbitrage automatisé, le calcul de scores/stats CS2
 - [x] **Cycle de vie compétitif complet (MR12, mi-temps, overtime MR3)** : testé et validé sur scénario de 5 overtimes (53 rounds).
 - [x] **Gestion des séries (Streaks) & Paliers économiques Valve** : calcul temps réel des séries de victoires/défaites et reset à la mi-temps et OT1.
 - [x] **Scoreboard live en temps réel** : frags, morts, assists, flash-assists, headshots, poses, defuses et scores individuels avec tri dynamique.
-- [x] **Règles CS2 K/D fidèles aux serveurs officiels** : exclusion des suicides de déconnexion et de souffle de bombe C4, pénalisation des teamkills (`-1 kill`, `-2 score`).
-- [x] **Suite de tests Golden Master sur 11 fixtures réelles** : rejeu end-to-end de logs réels de la GGLan #19 sans dépendance à un serveur CS2 physique.
+- [x] **K/D/A identiques à CS2** (oracle `round_stats`) : mort par la C4 = 1 mort, suicide après déconnexion = 1 mort, teamkill sans −1 kill ; rollback des stats et séries sur restauration de backup.
+- [x] **Golden Master sur 18 fixtures réelles + oracle CS2** : rejeu end-to-end de logs GGLan #18/#19 ; oracle en masse sur 44 matchs × 2 parsers (scores 88/88).
 - [x] **Service Round Doctor natif Valve VDF** : génération et parsing de sauvegardes de round KeyValues VDF (`RoundBackupService`).
 - [x] **Anonymisation stricte des fixtures** : suppression de toutes les données identifiantes réelles (pseudos, IP réelles, SteamID64, démos).
+- [x] **Stack plug & play** : `Makefile` unique, tout sous Docker (`make up`, `make up-cs2` avec CS2 vanilla en conteneur, `make test`, `make replay`).
+- [x] **Replay round par round dans la Sandbox** : suivant / précédent / aller au round N, barre de navigation avec le score CS2 de chaque round.
+- [x] **Mi-temps et prolongations natives CS2** : GG-Core suit le serveur (plus de `mp_swapteams` / `mp_restartgame` en cours de match), `mp_maxrounds` / `mp_overtime_maxrounds` alignés sur les réglages, prolongations illimitées (`mp_overtime_limit 0`).
+- [x] **Fin de match propre** : reset warmup différé (`postgameResetDelaySec`), démo GOTV (`tv_enable`), kick des joueurs restés connectés (`postgameKickDelaySec`, action agent `kick_all`) — besoin réel derrière l'ex-item « joueurs AFK en LAN ».
+- [x] **Arbitrage du Game Over serveur** : score = serveur, verdict = règlement GG-Core ; en cas de désaccord résultat gelé + alerte admin, `POST /api/matches/:id/review/accept-server | dismiss`.
+- [x] **Pauses** : armement pendant tout le round (y compris bombe posée / fin de round), banque tactique réglable par match (`tacticalPauseBankSec`, 120 s par défaut).
+- [x] **Agent** : RCON ≤ 6 commandes/s sur une connexion réutilisée, plus aucune ligne de log perdue après un lancer de grenade (`Parse()` multi-événements).
+- [x] **Historique git sans données réelles de joueurs** (réécriture `filter-repo` des fixtures, 2026-10-30).
