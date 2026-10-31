@@ -109,6 +109,10 @@ npm test             # Suite Jest complète (dont Golden Master sur fixtures ré
 # Intégration PostgreSQL réelle (base à jour via `npx prisma db push`) - obligatoire si la persistance change
 DB_IT=1 npx jest --config jest.config.ts db.spec   # tous les *.db.spec.ts (ou : make test-db)
 
+# Frontend React (si frontend/ change)
+cd frontend
+npm run build        # tsc --noEmit + vite build (ou `make front` sans Node installé)
+
 # Agent Go
 cd agent
 go build ./cmd/agent

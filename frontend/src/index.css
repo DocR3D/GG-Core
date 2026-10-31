@@ -1,0 +1,41 @@
+/*
+ * GG-Core front: Tailwind with the gglan.fr palette of backend/public/css/base.css as the ONLY palette (Tailwind's
+ * default colors are removed, so no generic blue / zinc can slip in). Same principles as the server pages:
+ * - red means "you can act now": action buttons, "à toi de jouer", focus. Never decoration;
+ * - CT / T in the game's colors; sentence case; numbers that are compared use the monospace face (aligned);
+ * - structure carries information (state of a server, a live match, an alert), it is not decoration.
+ */
+@import 'tailwindcss';
+
+@theme {
+  --color-*: initial;
+  --color-bg: #1d1f24;
+  --color-surface: #262930;
+  --color-line: #333840;
+  --color-line-strong: #434a54;
+  --color-muted: #8e99ab;
+  --color-text: #dde3ed;
+  --color-white: #f5f7fa;
+  --color-red: #de1b1b;
+  --color-red-light: #f55353;
+  --color-ct: #6f9fe6;
+  --color-t: #e3a23f;
+  --color-ok: #3ba164;
+  --color-transparent: transparent;
+  --color-current: currentColor;
+
+  --font-sans: Poppins, system-ui, 'Segoe UI', Roboto, sans-serif;
+  --font-mono: ui-monospace, 'Cascadia Mono', Consolas, Menlo, monospace;
+}
+
+@layer base {
+  html {
+    color-scheme: dark;
+  }
+  body {
+    @apply bg-bg font-sans text-text antialiased;
+  }
+  :focus-visible {
+    @apply outline-2 outline-offset-2 outline-red;
+  }
+}

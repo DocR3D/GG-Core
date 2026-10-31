@@ -1,9 +1,22 @@
 # Frontend - Contexte
 
 ## État actuel
-**Non implémenté.** Aucun dossier `frontend/` n'existe dans le projet.
+**Mis en place** (`frontend/`) : React + Vite, Tailwind avec la charte, React Router, client Socket.IO ; barre du site
+(session via `/auth/me`, état du lien en direct) et une première page (liste des tournois). Les écrans (console admin,
+scoreboard, véto, portail joueur) restent à faire.
 
-En attendant, le backend sert des pages HTML simples, sans JS (sauf rechargement sur `veto:updated`) : `/view`
+- **Développement** (Windows ou Linux, Node installé) : `cd frontend && npm install && npm run dev` → http://localhost:5173,
+  rechargement instantané ; les appels `/api`, `/auth`, `/login`, `/view`, `/veto`, `/sandbox`, `/assets`, `/socket.io`
+  partent vers le backend (`GG_BACKEND`, défaut http://localhost:8081, stack lancée par `make up`). Le cookie de
+  session de `localhost:8081` vaut aussi pour `localhost:5173` (les cookies ignorent le port).
+- **Servi par le backend** : `make front` compile dans un conteneur Node (aucune installation) vers `frontend/dist` ;
+  `make up` le refait seulement si une source a changé. Le backend (`FRONT_DIST`, `/front` en Docker) sert
+  `/static/*` (noms hachés, cache long) et renvoie `index.html` pour toute page qui n'est pas une route serveur
+  (`/api`, `/auth`, `/login`, `/view`, `/veto`, `/sandbox`, `/assets`, `/cs2`, `/socket.io`) : React Router affiche
+  l'écran. Sans build, le backend le signale au démarrage et ses pages continuent de marcher.
+- Fichiers de Vite sous `/static` (et non `/assets`, déjà pris par le CSS et les polices des pages serveur).
+
+Les pages serveur restent en attendant d'être remplacées : le backend sert des pages HTML simples, sans JS (sauf rechargement sur `veto:updated`) : `/view`
 (tournois, arbres, matchs), `/veto/:matchId` (+ `/admin`), `/login`, et les outils de dev `/sandbox` et
 `/sandbox/tournament`. Leur style vit dans `backend/public/css/` (voir « Design des pages » dans
 `docs/context/backend.md`). Toutes les données passent par l'API REST : un futur front pourra s'y brancher tel quel.

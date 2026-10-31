@@ -18,7 +18,7 @@ F            ?=
 S            ?=
 
 .DEFAULT_GOAL := help
-.PHONY: help doctor admin _core up up-cs2 down restart ps logs status server servers sandbox replay fixtures test test-backend test-db test-go e2e-tournament tournament veto-demo veto-bot shell-backend psql redis-cli reset
+.PHONY: help doctor admin _core front up up-cs2 down restart ps logs status server servers sandbox replay fixtures test test-backend test-db test-go e2e-tournament tournament veto-demo veto-bot shell-backend psql redis-cli reset
 
 help: ## Affiche cette aide
 	@echo "GG-Core - commandes disponibles :"
@@ -56,10 +56,21 @@ up-cs2: doctor ## Lance la stack + un serveur CS2 dédié (1er lancement : ~73 G
 	@echo "⏳ CS2 démarre (suivre : make logs S=cs2). Le 1er lancement télécharge le jeu, compter un long moment."
 	@$(MAKE) --no-print-directory status
 
-_core:
+_core: frontend/dist/index.html
 	@$(COMPOSE) up -d --build --wait redis postgres manager
 	@# node_modules du backend = volume anonyme : le renouveler depuis l'image (sinon un vieux volume masque les deps à jour)
 	@$(COMPOSE) up -d --build --no-deps --renew-anon-volumes --wait backend
+
+# Front React (frontend/): compiled in a Node container (nothing to install), into frontend/dist that the backend
+# serves. Rebuilt by make up only when a source changed; node_modules kept in a Docker volume (Linux binaries).
+FRONT_SRC := $(shell find frontend/src frontend/index.html frontend/package.json frontend/package-lock.json frontend/vite.config.ts frontend/tsconfig.json -type f 2>/dev/null)
+
+front: ## Compile le front React (frontend/ → frontend/dist, servi par le backend sur :8081)
+	@docker run --rm -v "$(CURDIR)/frontend:/app" -v ggcore-front-modules:/app/node_modules -w /app node:20-alpine \
+	  sh -c "npm ci --no-audit --no-fund --loglevel=error && npm run build"
+
+frontend/dist/index.html: $(FRONT_SRC)
+	@$(MAKE) --no-print-directory front
 
 down: ## Arrête tous les conteneurs (les données sont conservées)
 	@$(COMPOSE) --profile cs2 --profile debug down

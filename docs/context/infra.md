@@ -19,7 +19,7 @@
 Services (réseau `ggcore` 172.30.0.0/24) :
 - **redis** - `redis:7-alpine`, port 6379
 - **postgres** - `postgres:16-alpine`, port 5432, volume `infra_pgdata`
-- **backend** - NestJS dev (hot-reload), port 8081, volume `../backend:/app` + `../test:/test:ro` (fixtures) ; au démarrage : `prisma generate` + `prisma db push` (`npx --no-install` : aucun téléchargement au runtime). `node_modules` = volume anonyme renouvelé à chaque `make up`.
+- **backend** - NestJS dev (hot-reload), port 8081, volume `../backend:/app` + `../test:/test:ro` (fixtures) + `../frontend/dist:/front:ro` (front React compilé par `make front`, servi par le backend, `FRONT_DIST=/front`) ; au démarrage : `prisma generate` + `prisma db push` (`npx --no-install` : aucun téléchargement au runtime). `node_modules` = volume anonyme renouvelé à chaque `make up`.
 - **manager** - Go manager, IP fixe 172.30.0.10, volumes `../agents.d` + `../agent/cfg`, ports 8082-8113 (un port de logs par serveur, 32 serveurs). Nouveau / modifié / supprimé dans `agents.d/` : pris en compte seul (surveillance + nouvel examen du dossier toutes les 5 s, car sous WSL une suppression sur `/mnt/d` n'est pas notifiée). Les YAML `agents.d/*.yaml` acceptent `${VAR:-défaut}` : défauts natifs (127.0.0.1), surchargés par compose (`GG_REDIS_URL`, `GG_BACKEND_URL`, `GG_CS2_HOST`, `GG_RCON_PASSWORD`, `GG_LOGS_TOKEN`).
 - **cs2** *(profil `cs2`)* - `cm2network/cs2` vanilla, ports 27015 tcp/udp + 27020 udp, volume `infra_cs2data` (~73 Go au 1er lancement), `logaddress_add_http` → `http://172.30.0.10:8082/logs`.
 - **log-drain** *(profil `debug`)* - copie le bus Redis dans `infra/logs/`.

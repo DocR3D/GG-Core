@@ -4,6 +4,7 @@ import { AppModule } from './app.module';
 import * as bodyParser from 'body-parser';
 import { json, urlencoded, static as serveStatic } from 'express';
 import * as path from 'path';
+import * as fs from 'fs';
 import { RequestMethod } from '@nestjs/common';
 import { AuthMiddleware } from './adapters/http/auth/auth.middleware';
 
@@ -36,6 +37,8 @@ async function bootstrap() {
   const access = app.get(AuthMiddleware);
   app.use((req: any, res: any, next: any) => access.use(req, res, next));
 
+  serveFront(app.getHttpAdapter().getInstance());
+
   // 3) Prefix global /api en excluant /cs2/logs et /sandbox
   app.setGlobalPrefix('api', {
     exclude: [
@@ -54,10 +57,35 @@ async function bootstrap() {
     ],
   });
 
-  // CORS REST : origines autorisées via CORS_ORIGIN (liste séparée par des virgules), ex. le frontend Next.js
+  // CORS REST : origines autorisées via CORS_ORIGIN (liste séparée par des virgules). Le front React est servi par
+  // ce même serveur (même origine) : utile seulement pour un client externe.
   const corsOrigins = (process.env.CORS_ORIGIN || 'http://localhost:3000')
     .split(',').map((o) => o.trim()).filter(Boolean);
   app.enableCors({ origin: corsOrigins, credentials: true });
   await app.listen(8081);
 }
+/** Paths answered by the server itself; every other GET of a page goes to the React front. */
+const SERVER_PATHS = /^\/(api|auth|login|view|veto|sandbox|assets|cs2|socket\.io|static)(\/|$)/;
+
+/**
+ * The React front (frontend/, built by Vite) served from this server: same origin as the API, so the session
+ * cookie and Socket.IO work without CORS. Its files are under /static (hashed names, cached for good); any other
+ * page address gets index.html, React Router shows the right screen. FRONT_DIST = the built folder (Docker:
+ * /front); no build → no front, the server pages still work.
+ */
+function serveFront(express: any) {
+  const dist = process.env.FRONT_DIST || path.join(process.cwd(), '../frontend/dist');
+  const index = path.join(dist, 'index.html');
+  if (!fs.existsSync(index)) {
+    console.warn(`[front] ${index} not found: React front not served (make front)`);
+    return;
+  }
+  express.use('/static', serveStatic(path.join(dist, 'static'), { index: false, maxAge: '1y', immutable: true }));
+  express.use((req: any, res: any, next: any) => {
+    if (req.method !== 'GET' || SERVER_PATHS.test(req.path) || !req.accepts('html')) return next();
+    res.setHeader('Cache-Control', 'no-cache'); // a new build shows up on the next load
+    res.sendFile(index);
+  });
+}
+
 bootstrap();

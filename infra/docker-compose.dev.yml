@@ -64,8 +64,10 @@ services:
       - ../backend:/app
       - /app/node_modules # deps Linux du conteneur, jamais celles de l'hôte
       - ../test:/test:ro # fixtures pour la Sandbox et les tests Golden Master
+      - ../frontend/dist:/front:ro # front React compilé (make front), servi par le backend
     environment:
       PORT: "8081"
+      FRONT_DIST: "/front"
       WS_PATH: "/ws"
       # Secrets come from .env, generated with random values by the Makefile (infra/gen-secrets.sh): no public
       # default - the stack refuses to start without them.
