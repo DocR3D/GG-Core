@@ -82,6 +82,18 @@ export function useAction(after?: () => void) {
   return { busy, notice, run, clear: () => setNotice(null) };
 }
 
+export type Action = ReturnType<typeof useAction>;
+
+/** A label above its field (forms of the admin screens). */
+export function Field({ label, children }: { label: string; children: ReactNode }) {
+  return (
+    <label className="flex flex-col gap-1 text-sm text-muted">
+      {label}
+      {children}
+    </label>
+  );
+}
+
 export function NoticeLine({ notice }: { notice: Notice | null }) {
   if (!notice) return null;
   return <p className={notice.ok ? 'text-sm text-ok' : 'text-sm text-red-light'}>{notice.text}</p>;

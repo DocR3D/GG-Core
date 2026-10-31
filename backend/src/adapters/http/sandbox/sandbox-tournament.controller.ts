@@ -14,6 +14,7 @@ import {
 import type { Response } from 'express';
 import { TournamentError } from '@app/tournament/tournament-stages.service';
 import { htmlPage } from '@app/shared/html-page';
+import type { PrepareOptions } from '@app/tournament/simulation/tournament-simulation.service';
 import {
   SimulationRun,
   TournamentSimulationService,
@@ -92,6 +93,15 @@ ${active ? '<p><small>Page rafraîchie toutes les 3 s pendant une simulation.</s
     const run = await this.wrap(() => this.sim.start(opts));
     if (form) return res.redirect(303, PAGE);
     return run;
+  }
+
+  /**
+   * Prepares a tournament to test by hand (page /admin/sandbox): { teams, groupCount, groupFormat?, after?: two | one |
+   * none, topPerGroup?, bracketFormats?, stopAt: teams | groups | groups_played | qualified | done, withPlayers? }.
+   */
+  @Post('prepare')
+  prepare(@Body() body: PrepareOptions) {
+    return this.wrap(() => this.sim.prepare(body ?? ({} as PrepareOptions)));
   }
 
   /** pause | resume | step | stop */

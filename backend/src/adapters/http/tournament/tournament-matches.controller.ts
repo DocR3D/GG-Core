@@ -55,4 +55,32 @@ export class TournamentMatchesController {
       throw new BadRequestException(e.message);
     }
   }
+
+  /**
+   * Correction of game n° `order` of a FINISHED series: { scoreHome, scoreAway }. Same winner: only the scores
+   * change; another winner: the teams sent to the next matches are taken back (refused once one of them started)
+   * and sent again. Refused for a group match once the groups are qualified.
+   */
+  @Post(':id/games/:order/correct')
+  async correctGameResult(
+    @Param('id') matchId: string,
+    @Param('order', ParseIntPipe) mapOrder: number,
+    @Body() dto: ManualGameResultDto,
+    @Req() req: Request & { ggSession?: Session | null },
+  ) {
+    try {
+      return await this.persistence.correctGameResult({
+        matchId,
+        mapOrder,
+        scoreHome: Number(dto?.scoreHome),
+        scoreAway: Number(dto?.scoreAway),
+        reportedBy: authorOf(req.ggSession),
+      });
+    } catch (e) {
+      if (!(e instanceof ManualResultError)) throw e;
+      if (e.code === 'not_found') throw new NotFoundException(e.message);
+      if (e.code === 'started') throw new ConflictException(e.message);
+      throw new BadRequestException(e.message);
+    }
+  }
 }

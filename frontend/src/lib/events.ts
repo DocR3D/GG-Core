@@ -24,7 +24,7 @@ const REASON: Record<string, string> = {
   time: 'temps écoulé',
   draw: 'nul',
 };
-const side = (t?: string) => (t === 'TERRORIST' || t === 'T' ? 'T' : t === 'CT' ? 'CT' : t ?? '?');
+const side = (t?: string) => (t === 'TERRORIST' || t === 'T' ? 'T' : t === 'CT' ? 'CT' : (t ?? '?'));
 const who = (p: any) => p?.name ?? '?';
 
 /** null = not worth a line (raw logs, purchases, grenades, agent traffic…). */
@@ -57,7 +57,10 @@ export function describe(type: string, p: any): Omit<LogLine, 'key' | 'at'> | nu
     case 'phase_changed':
       return { text: `Phase : ${p?.to ?? p?.phase ?? p?.next ?? '?'}`, tone: 'normal' };
     case 'admin_action':
-      return { text: `Admin ${p?.by ?? '?'} : ${ACTION[p?.action] ?? p?.action}${p?.round ? ` ${p.round}` : ''}${p?.message ? ` « ${p.message} »` : ''}`, tone: 'admin' };
+      return {
+        text: `Admin ${p?.by ?? '?'} : ${ACTION[p?.action] ?? p?.action}${p?.round ? ` ${p.round}` : ''}${p?.message ? ` « ${p.message} »` : ''}`,
+        tone: 'admin',
+      };
     case 'player_connected':
       return { text: `${who(p?.player)} se connecte`, tone: 'muted' };
     case 'player_disconnected':

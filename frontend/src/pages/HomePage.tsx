@@ -30,9 +30,7 @@ export function HomePage() {
                   {t.name}
                 </a>
                 <span className="text-sm text-muted">{t.game}</span>
-                <span className={`ml-auto text-sm ${t.status === 'ACTIVE' ? 'text-ok' : 'text-muted'}`}>
-                  {TOURNAMENT_STATUS[t.status] ?? t.status}
-                </span>
+                <span className={`ml-auto text-sm ${t.status === 'ACTIVE' ? 'text-ok' : 'text-muted'}`}>{TOURNAMENT_STATUS[t.status] ?? t.status}</span>
               </li>
             ))}
           </ul>

@@ -17,7 +17,8 @@ export function usePolling<T>(path: string, everyMs = 5000): Polled<T> {
   useEffect(() => {
     let alive = true;
     const load = () =>
-      api<T>(path)
+      // quiet: a failed poll is shown next to the data (no popup every few seconds while the server restarts)
+      api<T>(path, { quiet: true })
         .then((data) => alive && setState({ data, error: null, at: Date.now() }))
         .catch((e: Error) => alive && setState((s) => ({ ...s, error: e.message })));
     load();

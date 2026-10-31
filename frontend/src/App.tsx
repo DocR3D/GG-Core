@@ -5,6 +5,8 @@ import { HomePage } from './pages/HomePage';
 import { DashboardPage } from './pages/DashboardPage';
 import { MatchConsolePage } from './pages/MatchConsolePage';
 import { TournamentAdminPage } from './pages/TournamentAdminPage';
+import { ErrorPopups } from './components/errors';
+import { SandboxPage } from './pages/SandboxPage';
 
 export function App() {
   return (
@@ -16,10 +18,12 @@ export function App() {
             <Route path="/" element={<HomePage />} />
             <Route path="/admin" element={<DashboardPage />} />
             <Route path="/admin/games/:gameId" element={<MatchConsolePage />} />
-            <Route path="/admin/tournaments/:tournamentId" element={<TournamentAdminPage />} />
+            <Route path="/admin/sandbox" element={<SandboxPage />} />
+            <Route path="/admin/tournaments/:tournamentId/*" element={<TournamentAdminPage />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </main>
+        <ErrorPopups />
       </div>
     </SessionProvider>
   );

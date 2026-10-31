@@ -8,6 +8,45 @@ scoreboard, véto, portail joueur) restent à faire.
 **Tableau de bord admin** (`/admin`, admins seulement) : games en cours (serveur, équipes avec leur camp et leur score
 en chiffres alignés, map, tournoi, phase, pause en ambre, « Résultat à arbitrer » en rouge), serveurs (disponibilité,
 agent, RCON, logs reçus, mauvais jeton), tournois. Rafraîchi toutes les 5 s (`usePolling`), jamais rechargé.
+**Gestion d'un tournoi** (`/admin/tournaments/:id/<étape>`), en étapes qui ont chacune leur adresse (décidé avec
+l'utilisateur : une seule page ne disait pas quoi faire quand). Une barre d'étapes indique ce qui est fait ou ce qui
+manque ; ouvrir un tournoi mène à la première étape pas faite ; chaque étape finit par « Étape suivante ».
+1. **Tournoi** : nom, statut.
+2. **Équipes** : équipes et joueurs (SteamID, capitaine) ; faite à partir de 2 équipes, signale les joueurs sans SteamID.
+3. **Véto** : pool de maps et mode de side ; faite une fois le pool enregistré.
+4. **Phases** : créer les phases une par une dans leur ordre (« Créer les arbres Élite et Amateur » en un clic après
+   des poules ; un formulaire « tout en une fois » a été essayé puis retiré, jugé trop complexe par l'utilisateur),
+   les générer (équipes qualifiées, ou choisies dans l'ordre des seeds), les renommer, changer leur type (sans match),
+   les réinitialiser ou les supprimer (confirmation qui dit combien de résultats sont perdus). Une phase qui suit des
+   poules se génère toute seule à leur qualification (« Générer quand même » reste possible) ; faite dès qu'une phase est générée.
+5. **Matchs** (`matchs/<phase>`) : en haut, **« À faire maintenant »** (poules en cours, poules finies → « Qualifier les
+   équipes », arbre qualifié pas généré, arbre d'une seule équipe ou sans équipe avec la raison, arbres en cours, « Tournoi
+   terminé » seulement quand tout est joué, avec les vainqueurs) ; un onglet par phase, un onglet **Qualification** juste après une phase de poules
+   (`matchs/qualification-<phase>` : classements, matchs encore à jouer, « Clore les poules », règles pré-remplies : la
+   moitié haute vers la 1re phase suivante, le reste vers la 2e ; « Qualifier » génère les arbres et ouvre le premier), et un pour les matchs bonus, ouvert sur la première phase qui a
+   un match à jouer. Poules : classements avec les égalités à trancher, matchs **tour par tour** (tour en cours
+   déplié, les autres repliés, « Ouvrir les vétos du tour N »), « Clore les poules maintenant » (les matchs pas
+   joués sont annulés) ; classement avec les rounds gagnés-perdus et l'ordre de départage (points, confrontations
+   directes, différence de rounds, rounds gagnés ; l'ordre affiché d'une poule à égalité est celui retenu) ; arbre **dessiné en arbre** (une colonne par tour, bracket du haut, du bas, grande finale ; matchs numérotés M1, M2…,
+   « Vainqueur M3 » / « Perdant M1 » tant qu'une équipe n'est pas connue ; un match se place entre ceux qui
+   l'alimentent, exempts compris ; clic sur un match = sa ligne d'actions sous l'arbre ; 2 équipes = une finale), classement ; format de
+   toute une phase ou d'un bracket ; une phase pas encore générée se génère aussi depuis son onglet. Chaque match :
+   état de son véto (lien vers la page du véto), lancer le game suivant (vers sa console), et derrière ses boutons
+   forfait, format, remplacer une équipe, saisir un résultat, **corriger le résultat** d'un match fini (le game et ses
+   scores pré-remplis) ; la grande finale dit « X part avec 1 map d'avance (compté dans le score) ». Générer des poules
+   avec trop de poules pour les équipes est signalé avant l'envoi.
+
+**Sandbox** (`/admin/sandbox`, lien sur le tableau de bord) : préparer un tournoi de test - nombre d'équipes, de poules,
+format des poules, après les poules (Élite et Amateur / un seul arbre / rien), qualifiés en Élite par poule, formats des
+arbres, « s'arrêter à » (équipes et phases créées, poules générées, poules jouées, qualifiés avec arbres générés, tout
+joué), joueurs et stats factices, résultats logiques (la meilleure tête de série gagne 3 fois sur 4) ou aléatoires
+(50/50), rythme instantané ou **au fur et à mesure** (secondes par game, matchs en même temps). Scores variés : 13-x,
+parfois des prolongations (16-14, 19-17). Équipes et joueurs factices (le 1er joueur est capitaine), pool de 7 maps ;
+l'écran de gestion du tournoi s'ouvre ensuite. Au fur et à mesure : une barre « Simulation en cours » en haut de l'écran
+du tournoi (phase, séries et games joués, Pause / Reprendre / Game suivant / Arrêter) le rafraîchit toutes les 2,5 s ;
+un match réglé à la main pendant ce temps (résultat, forfait) est laissé par la simulation. C'est un tournoi normal (à
+supprimer depuis son écran).
+
 Couleurs d'état du cahier des charges : vert = en jeu, ambre `pause` = en pause (distinct de l'orange T), rouge = à
 faire maintenant ; les erreurs sont en `red-light`.
 
@@ -20,6 +59,10 @@ faire maintenant ; les erreurs sont en `red-light`.
   `/static/*` (noms hachés, cache long) et renvoie `index.html` pour toute page qui n'est pas une route serveur
   (`/api`, `/auth`, `/login`, `/view`, `/veto`, `/sandbox`, `/assets`, `/cs2`, `/socket.io`) : React Router affiche
   l'écran. Sans build, le backend le signale au démarrage et ses pages continuent de marcher.
+- Style du code : `frontend/.prettierrc` (guillemets simples, virgules finales, 160 colonnes), appliqué par l'éditeur ou
+  `../backend/node_modules/.bin/prettier --end-of-line auto --write "src/**/*.{ts,tsx}"` depuis `frontend/`. Les petites
+  règles partagées des écrans de tournoi (match réglé, matchs restants, adresse d'un écran, ligne de véto, tailles des
+  poules) vivent dans `pages/tournament/model.ts`, une seule fois.
 - Fichiers de Vite sous `/static` (et non `/assets`, déjà pris par le CSS et les polices des pages serveur).
 
 Les pages serveur restent en attendant d'être remplacées : le backend sert des pages HTML simples, sans JS (sauf rechargement sur `veto:updated`) : `/view`
@@ -59,6 +102,11 @@ NestJS, le front a la même adresse que l'API : la connexion (Steam, mot de pass
   reconnaît aussi un admin par ce cookie
 - Une seule connexion Socket.IO pour toute l'app (`lib/live.ts`) ; un écran suit un match par `match:subscribe`
 - Rooms : `match:{id}:public` (tous) et `match:{id}:admin` (admins)
+- **Erreurs** (`lib/api.ts`, `components/errors.tsx`) : tout refus de l'API (et toute erreur JS non attrapée) s'affiche dans
+  une **popup** en bas à droite (statut, raison de l'API, « Détails pour le diagnostic » : méthode, adresse, ce qui a été
+  envoyé, bouton Copier) et dans la **console** du navigateur (`[API] 409 POST … : raison`). Les relevés périodiques
+  (`usePolling`, console de match) passent `quiet` : leur erreur reste affichée à côté des données. Côté backend, chaque
+  refus est journalisé (`[HTTP] 409 POST /api/… - raison (admin)` dans `docker logs ggcore-backend-dev`).
 
 ## Événements WebSocket disponibles (voir `backend/src/adapters/ws/dto/events.dto.ts`)
 

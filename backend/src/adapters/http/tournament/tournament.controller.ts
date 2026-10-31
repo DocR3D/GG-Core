@@ -14,6 +14,7 @@ import {
   Patch,
   Post,
   Put,
+  Query,
   Req,
 } from '@nestjs/common';
 import type { Request } from 'express';
@@ -186,6 +187,30 @@ export class TournamentController {
     return this.run(() => this.stages.createStage(tournamentId, body ?? ({} as any)));
   }
 
+  /** { name?, type? } of a stage (the type only while it has no match). */
+  @Patch('stages/:id')
+  updateStage(@Param('id') stageId: string, @Body() body: { name?: string; type?: string }) {
+    return this.run(() => this.edit.updateStage(stageId, body ?? {}));
+  }
+
+  /** Undoes the generation (matches, groups); { force: true } when finished results would be lost. */
+  @Post('stages/:id/reset')
+  resetStage(@Param('id') stageId: string, @Body() body: { force?: boolean }) {
+    return this.run(() => this.edit.resetStage(stageId, !!body?.force));
+  }
+
+  /** Removes a stage ({ force: true } when finished results would be lost). */
+  @Delete('stages/:id')
+  deleteStage(@Param('id') stageId: string, @Query('force') force?: string) {
+    return this.run(() => this.edit.deleteStage(stageId, force === 'true'));
+  }
+
+  /** Ends the groups early: the group matches not played yet are cancelled. */
+  @Post('stages/:id/close-groups')
+  closeGroups(@Param('id') stageId: string) {
+    return this.run(() => this.edit.closeGroups(stageId));
+  }
+
   /** Spreads the seeded teams into groups (snake) and creates the round-robin matches. */
   @Post('stages/:id/groups/generate')
   generateGroups(
@@ -257,6 +282,21 @@ export class TournamentController {
   }
 
   // --- Veto (the page and the captains' actions: /veto/:matchId) --------------------------------------------
+
+  /** Map pool and side mode of a tournament (null: none yet, the vetos cannot start). */
+  @Get('tournaments/:id/veto')
+  tournamentVeto(@Param('id') tournamentId: string) {
+    return this.run(() => this.veto.getTournamentConfig(tournamentId));
+  }
+
+  /**
+   * Opens the veto of one round of a stage's groups before its turn (otherwise it opens when the previous
+   * rounds are finished).
+   */
+  @Post('stages/:id/rounds/:round/open-veto')
+  openVetoRound(@Param('id') stageId: string, @Param('round', ParseIntPipe) round: number) {
+    return this.run(() => this.veto.openRound(stageId, round));
+  }
 
   /** Map pool and side mode (knife | pick) of a tournament: { mapPool: [...], sideMode? }. */
   @Put('tournaments/:id/veto')

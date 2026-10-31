@@ -72,4 +72,46 @@ describeDb('Tournament edit - real PostgreSQL', () => {
     await admin.createBonusMatch(t.id, { homeTeamId: a.id, awayTeamId: b.id });
     await expect(edit.removeTeam(t.id, b.id)).rejects.toMatchObject({ code: 'conflict' });
   });
+
+  it('closes the groups early, resets a stage (results lost only with force), renames and deletes stages', async () => {
+    const persistence = new TournamentPersistenceService(prisma);
+    const t = await stages.createTournament({ name: `IT stages edit ${stamp}` });
+    const teams = await stages.createTeams(['P1', 'P2', 'P3', 'P4'].map((x) => `IT StageEdit ${x} ${stamp}`));
+    created.teamIds.push(...teams.map((x) => x.id));
+    try {
+      const groups = await stages.createStage(t.id, { name: 'Poules', type: 'ROUND_ROBIN', order: 1 });
+      const bracket = await stages.createStage(t.id, { name: 'Arbre', type: 'DOUBLE_ELIM', order: 2 });
+      await stages.generateGroups(groups.id, { teamIds: teams.map((x) => x.id), groupCount: 1, format: 'BO1' });
+
+      // only round 1 played: the qualification waits for the other rounds
+      const round1 = await prisma.match.findMany({ where: { stageId: groups.id, roundNumber: 1 } });
+      for (const m of round1) await persistence.recordManualGameResult({ matchId: m.id, mapOrder: 1, scoreHome: 13, scoreAway: 8, reportedBy: 'it' });
+      const rule = [{ ranks: [1, 2, 3, 4], targetStageId: bracket.id }];
+      await expect(stages.qualify(groups.id, { rules: rule })).rejects.toMatchObject({ code: 'conflict' });
+
+      // groups closed: the 4 matches not played are cancelled, the qualification goes on the played ones
+      expect(await edit.closeGroups(groups.id)).toMatchObject({ matchesCancelled: 4 });
+      const standings = await stages.getStandings(groups.id);
+      expect(standings.groups[0]).toMatchObject({ matchesPlayed: 2, matchesTotal: 2 });
+      await stages.qualify(groups.id, { rules: rule, manualOrder: { [standings.groups[0].groupId]: standings.groups[0].standings.map((r) => r.teamId) } });
+
+      // the bracket is generated and one match played: reset refused without force, then done, the qualified teams stay
+      await stages.generateDoubleElimination(bracket.id, {});
+      const first = await prisma.match.findFirstOrThrow({ where: { stageId: bracket.id, teamHomeId: { not: null }, teamAwayId: { not: null } } });
+      await persistence.recordManualGameResult({ matchId: first.id, mapOrder: 1, scoreHome: 13, scoreAway: 4, reportedBy: 'it' });
+      await expect(edit.resetStage(bracket.id)).rejects.toMatchObject({ code: 'conflict', message: expect.stringContaining('force') });
+      expect(await edit.resetStage(bracket.id, true)).toMatchObject({ resultsLost: 1 });
+      expect(await prisma.match.count({ where: { stageId: bracket.id } })).toBe(0);
+      expect(await prisma.stageTeam.count({ where: { stageId: bracket.id } })).toBe(4);
+      await stages.generateDoubleElimination(bracket.id, {}); // again, from the qualified teams
+
+      // rename; the type only without matches; delete
+      expect(await edit.updateStage(bracket.id, { name: 'Élite' })).toMatchObject({ name: 'Élite' });
+      await expect(edit.updateStage(bracket.id, { type: 'ROUND_ROBIN' })).rejects.toMatchObject({ code: 'conflict' });
+      expect(await edit.deleteStage(bracket.id)).toMatchObject({ deleted: 'Élite', resultsLost: 0 });
+      expect(await prisma.stage.findUnique({ where: { id: bracket.id } })).toBeNull();
+    } finally {
+      await prisma.tournament.deleteMany({ where: { id: t.id } });
+    }
+  });
 });

@@ -1,5 +1,6 @@
 // src/domain/tournament/double-elimination.ts
-// Pure double-elimination bracket builder (no database). Works for any number of teams >= 3: the bracket is
+// Pure double-elimination bracket builder (no database). Works for any number of teams >= 2 (2 teams: a single
+// final, no upper / lower bracket - a bracket of two qualified teams still plays its match). From 3 teams the bracket is
 // built for the next power of two, seeds above the team count are BYEs, and byes are RESOLVED at generation -
 // a match against a bye is not created, its team goes straight to the next slot (also in the lower bracket,
 // where the "loser" of a bye match is itself a bye).
@@ -44,7 +45,10 @@ interface RawMatch {
 }
 
 export function buildDoubleElimination(teamCount: number): BracketMatch[] {
-  if (!Number.isInteger(teamCount) || teamCount < 3) throw new Error('double elimination needs at least 3 teams');
+  if (!Number.isInteger(teamCount) || teamCount < 2) throw new Error('a bracket needs at least 2 teams');
+  if (teamCount === 2) {
+    return [{ key: 'GF', bracket: 'FINAL', round: 1, position: 1, home: { kind: 'seed', seed: 1 }, away: { kind: 'seed', seed: 2 } }];
+  }
   const p = 2 ** Math.ceil(Math.log2(teamCount));
   const upperRounds = Math.log2(p);
   const raw: RawMatch[] = [];

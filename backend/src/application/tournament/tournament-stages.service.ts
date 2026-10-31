@@ -1,6 +1,6 @@
 // src/application/tournament/tournament-stages.service.ts
 import { Injectable } from '@nestjs/common';
-import { MatchFormat, StageType } from '@prisma/client';
+import { MatchFormat, Stage, StageType } from '@prisma/client';
 import { PrismaService } from '@adapters/database/prisma.service';
 import { computeStandings, FinishedSeries, roundRobinPairings, snakeDistribute, StandingRow } from '@domain/tournament/round-robin';
 import { applyPlacementMatches, buildDoubleElimination, doubleElimPlacements, SlotSource } from '@domain/tournament/double-elimination';
@@ -154,7 +154,8 @@ export class TournamentStagesService {
           groupId: g.id,
           name: g.name,
           matchesPlayed: finished.length,
-          matchesTotal: g.matches.length,
+          // a cancelled match (groups closed early) is not to be played
+          matchesTotal: g.matches.filter((m) => m.status !== 'CANCELLED').length,
           standings: standings.map((r) => ({ ...r, teamName: names.get(r.teamId) })),
         };
       }),
@@ -165,7 +166,8 @@ export class TournamentStagesService {
    * Sends teams to the next stages by group rank (e.g. ranks 1-2 → Elite, 3-4 → Amateur). Target seeds are
    * crossed: all 1st places (group A, B, …), then all 2nd places, and so on. Requires every group match to be
    * finished, and refuses when an unresolved tie straddles a qualification boundary unless the admin gives the
-   * order of that group (`manualOrder: { [groupId]: teamId[] }`).
+   * order of that group (`manualOrder: { [groupId]: teamId[] }`). Then every bracket of 2 teams or more is
+   * generated; one generated too early is replaced, unless something was played in it.
    */
   async qualify(stageId: string, input: { rules: QualificationRule[]; manualOrder?: Record<string, string[]> }) {
     const rules = input.rules ?? [];
@@ -201,14 +203,15 @@ export class TournamentStagesService {
     const orders = standings.groups.map(orderOf);
 
     const stage = await this.prisma.stage.findUniqueOrThrow({ where: { id: stageId } });
-    const targets: { target: { id: string; name: string }; teamIds: string[] }[] = [];
+    const targets: { target: Stage; teamIds: string[] }[] = [];
     for (const rule of rules) {
       const target = await this.mustFind('target stage', () => this.prisma.stage.findUnique({ where: { id: rule.targetStageId } }));
       if (target.tournamentId !== stage.tournamentId || target.order <= stage.order) {
         throw new TournamentError('invalid', `target stage ${target.name} must be a later stage of the same tournament`);
       }
-      if (await this.prisma.match.count({ where: { stageId: target.id } })) {
-        throw new TournamentError('conflict', `target stage ${target.name} already has matches`);
+      // generated too early (before the qualification) but nothing played: its matches are replaced below
+      if (await this.prisma.match.count({ where: { stageId: target.id, status: 'FINISHED' } })) {
+        throw new TournamentError('conflict', `target stage ${target.name} already has played matches: reset it first`);
       }
       const ranks = [...rule.ranks].sort((a, b) => a - b);
       const teamIds = ranks.flatMap((rank) => orders.map((o) => o[rank - 1]).filter(Boolean));
@@ -216,13 +219,22 @@ export class TournamentStagesService {
     }
     await this.prisma.$transaction(
       targets.flatMap(({ target, teamIds }) => [
+        this.prisma.match.deleteMany({ where: { stageId: target.id } }),
+        this.prisma.stageGroup.deleteMany({ where: { stageId: target.id } }),
         this.prisma.stageTeam.deleteMany({ where: { stageId: target.id } }),
         this.prisma.stageTeam.createMany({
           data: teamIds.map((teamId, i) => ({ stageId: target.id, teamId, seed: i + 1 })),
         }),
       ]),
     );
-    return targets.map(({ target, teamIds }) => ({ stageId: target.id, name: target.name, seeds: teamIds }));
+    // a bracket is generated as soon as its teams are known (2 teams: a single final; formats kept in the stage)
+    const result: { stageId: string; name: string; seeds: string[]; generated: boolean }[] = [];
+    for (const { target, teamIds } of targets) {
+      const generated = target.type === 'DOUBLE_ELIM' && teamIds.length >= 2;
+      if (generated) await this.generateDoubleElimination(target.id);
+      result.push({ stageId: target.id, name: target.name, seeds: teamIds, generated });
+    }
+    return result;
   }
 
   /**
@@ -238,10 +250,14 @@ export class TournamentStagesService {
     if (stage.type !== 'DOUBLE_ELIM') throw new TournamentError('invalid', 'not a DOUBLE_ELIM stage');
     const teamIds = input.teamIds?.length ? input.teamIds : stage.teams.map((t) => t.teamId);
     if (new Set(teamIds).size !== teamIds.length) throw new TournamentError('invalid', 'duplicate team');
-    if (teamIds.length < 3) throw new TournamentError('invalid', 'double elimination needs at least 3 teams');
-    const formats = { upper: 'BO1', lower: 'BO1', grandFinal: 'BO3', ...(input.formats ?? {}) } as Required<DoubleElimFormats>;
+    if (teamIds.length < 2) throw new TournamentError('invalid', 'a bracket needs at least 2 teams');
+    // formats: given, else those kept in the stage (set at its creation or its previous generation), else BO1 / BO1 / BO3
+    const kept = (stage.settings as { formats?: DoubleElimFormats })?.formats ?? {};
+    const formats = { upper: 'BO1', lower: 'BO1', grandFinal: 'BO3', ...kept, ...(input.formats ?? {}) } as Required<DoubleElimFormats>;
     for (const f of Object.values(formats)) if (!FORMATS.includes(f)) throw new TournamentError('invalid', 'format: BO1 | BO3 | BO5');
-    if (formats.grandFinal === 'BO1') throw new TournamentError('invalid', 'grand final must be BO3 or BO5 (one-map advantage)');
+    // the one-map advantage needs at least a BO3; a 2-team bracket is a plain final, without advantage
+    const duel = teamIds.length === 2;
+    if (formats.grandFinal === 'BO1' && !duel) throw new TournamentError('invalid', 'grand final must be BO3 or BO5 (one-map advantage)');
     if ((await this.prisma.team.count({ where: { id: { in: teamIds } } })) !== teamIds.length) {
       throw new TournamentError('not_found', 'unknown team id');
     }
@@ -278,7 +294,7 @@ export class TournamentStagesService {
           nextMatchSlot: m.winnerTo?.slot ?? null,
           loserNextMatchId: m.loserTo ? ids.get(m.loserTo.match)! : null,
           loserNextMatchSlot: m.loserTo?.slot ?? null,
-          advantageHome: m.bracket === 'FINAL' ? 1 : 0,
+          advantageHome: m.bracket === 'FINAL' && !duel ? 1 : 0,
         })),
       });
       await tx.stage.update({ where: { id: stageId }, data: { settings: { ...(stage.settings as object), formats } } });
@@ -486,6 +502,8 @@ export class TournamentStagesService {
       position: m.bracketPosition,
       home: m.teamHome?.name ?? null,
       away: m.teamAway?.name ?? null,
+      homeId: m.teamHomeId,
+      awayId: m.teamAwayId,
       format: m.format,
       status: m.status,
       scoreHome: m.scoreHome,
@@ -520,7 +538,8 @@ export class TournamentStagesService {
       const byId = new Map(stageMatches.map((m) => [m.id, m]));
       for (const m of stageMatches) {
         const v = views.get(m.id)!;
-        v.label = label(m);
+        // bracket matches only: a group match is named by its group ("H T1#1" there meant nothing)
+        if (st.type !== 'ROUND_ROBIN') v.label = label(m);
         const next = m.nextMatchId ? byId.get(m.nextMatchId) : undefined;
         v.winnerTo = next && m.nextMatchSlot ? { label: label(next), slot: m.nextMatchSlot } : null;
         for (const [target, slot, what] of [
@@ -558,18 +577,21 @@ export class TournamentStagesService {
         }));
       stages.push({
         ranking: ranking && applyPlacementMatches(ranking, placementResults),
+        id: st.id,
         name: st.name,
         type: st.type,
         order: st.order,
         groups: (standings?.groups ?? []).map((g) => ({
+          id: g.groupId,
           name: g.name,
           standings: g.standings.map((r) => ({
-            rank: r.rank, team: r.teamName ?? r.teamId, played: r.played, wins: r.wins, draws: r.draws,
-            losses: r.losses, points: r.points, scoreDiff: r.scoreDiff, tied: r.tied,
+            rank: r.rank, team: r.teamName ?? r.teamId, teamId: r.teamId, played: r.played, wins: r.wins, draws: r.draws,
+            losses: r.losses, points: r.points, scoreFor: r.scoreFor, scoreAgainst: r.scoreAgainst, scoreDiff: r.scoreDiff, tied: r.tied,
           })),
           matches: stageMatches.filter((m) => m.groupId === g.groupId).map((m) => views.get(m.id)!),
         })),
         seeds: st.teams.filter((t) => !t.groupId).map((t) => t.team.name),
+        participants: st.teams.map((t) => ({ id: t.team.id, name: t.team.name, seed: t.seed })),
         matches: stageMatches.filter((m) => !m.groupId).map((m) => views.get(m.id)!),
       });
     }

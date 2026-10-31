@@ -76,6 +76,98 @@ describeDb('Group stage - real PostgreSQL', () => {
     await expect(stages.generateGroups(groupsStage.id, { groupCount: 2 })).rejects.toMatchObject({ code: 'conflict' });
   });
 
+  it('Élite and Amateur of 2 teams each: the qualification generates both, each plays its final', async () => {
+    const t = await stages.createTournament({ name: `IT duel ${Date.now()}` });
+    const teams = await stages.createTeams(Array.from({ length: 4 }, (_, i) => `IT Duel ${i + 1}`));
+    const ids = teams.map((x) => x.id);
+    const seed = (id: string | null) => ids.indexOf(id!) + 1;
+    try {
+      const groups = await stages.createStage(t.id, { name: 'Poules', type: 'ROUND_ROBIN', order: 1 });
+      const elite = await stages.createStage(t.id, { name: 'Élite', type: 'DOUBLE_ELIM', order: 2 });
+      const amateur = await stages.createStage(t.id, { name: 'Amateur', type: 'DOUBLE_ELIM', order: 3 });
+      await stages.generateGroups(groups.id, { teamIds: ids, groupCount: 2 });
+      // Élite generated too early (nothing played in it): the qualification replaces it
+      await stages.generateDoubleElimination(elite.id, { teamIds: ids.slice(0, 3) });
+      for (const m of await prisma.match.findMany({ where: { stageId: groups.id } })) {
+        const homeBetter = seed(m.teamHomeId) < seed(m.teamAwayId);
+        await persistence.recordManualGameResult({
+          matchId: m.id, mapOrder: 1, scoreHome: homeBetter ? 13 : 7, scoreAway: homeBetter ? 7 : 13, reportedBy: 'admin-it',
+        });
+      }
+      const qualified = await stages.qualify(groups.id, {
+        rules: [{ ranks: [1], targetStageId: elite.id }, { ranks: [2], targetStageId: amateur.id }],
+      });
+      expect(qualified.map((q) => [q.name, q.seeds.map(seed), q.generated])).toEqual([
+        ['Élite', [1, 2], true],
+        ['Amateur', [4, 3], true],
+      ]);
+      // one final, no advantage: it is played, then the bracket has its winner
+      const [final] = await prisma.match.findMany({ where: { stageId: elite.id } });
+      expect(final).toMatchObject({ bracketType: 'FINAL', advantageHome: 0, teamHomeId: ids[0], teamAwayId: ids[1] });
+      for (let order = 1; order <= 2; order++) {
+        await persistence.recordManualGameResult({ matchId: final.id, mapOrder: order, scoreHome: 13, scoreAway: 9, reportedBy: 'admin-it' });
+      }
+      const overview = await stages.getOverview(t.id);
+      expect(overview.stages.find((x) => x.name === 'Élite')!.ranking).toEqual([
+        { place: '1', team: 'IT Duel 1' }, { place: '2', team: 'IT Duel 2' },
+      ]);
+    } finally {
+      await prisma.tournament.deleteMany({ where: { id: t.id } });
+      await prisma.team.deleteMany({ where: { id: { in: ids } } });
+    }
+  });
+
+  it('corrects a finished game: same winner = scores only, other winner = teams moved again, refused once the next match started', async () => {
+    const t = await stages.createTournament({ name: `IT correct ${Date.now()}` });
+    const teams = await stages.createTeams(Array.from({ length: 4 }, (_, i) => `IT Fix ${i + 1}`));
+    const ids = teams.map((x) => x.id);
+    try {
+      const bracket = await stages.createStage(t.id, { name: 'Arbre', type: 'DOUBLE_ELIM', order: 1 });
+      await stages.generateDoubleElimination(bracket.id, { teamIds: ids });
+      const first = await prisma.match.findFirstOrThrow({ where: { stageId: bracket.id, bracketType: 'UPPER', roundNumber: 1, teamHomeId: ids[0] } });
+      const other = ids.find((id) => id === first.teamAwayId)!;
+      await persistence.recordManualGameResult({ matchId: first.id, mapOrder: 1, scoreHome: 13, scoreAway: 5, reportedBy: 'it' });
+      await expect(
+        persistence.recordManualGameResult({ matchId: first.id, mapOrder: 1, scoreHome: 5, scoreAway: 13, reportedBy: 'it' }),
+      ).rejects.toMatchObject({ code: 'finished' });
+
+      // same winner: only the score changes
+      expect(await persistence.correctGameResult({ matchId: first.id, mapOrder: 1, scoreHome: 13, scoreAway: 11, reportedBy: 'it' }))
+        .toMatchObject({ outcomeChanged: false });
+      expect((await prisma.matchMap.findFirstOrThrow({ where: { matchId: first.id } })).scoreAway).toBe(11);
+
+      // other winner: the winner slot of the next match and the loser slot of the lower match are swapped
+      const where = async () => {
+        const m = await prisma.match.findUniqueOrThrow({ where: { id: first.id } });
+        const next = await prisma.match.findUniqueOrThrow({ where: { id: m.nextMatchId! } });
+        const low = await prisma.match.findUniqueOrThrow({ where: { id: m.loserNextMatchId! } });
+        return { winner: m.winnerId, next: [next.teamHomeId, next.teamAwayId], low: [low.teamHomeId, low.teamAwayId] };
+      };
+      expect((await where()).next).toContain(ids[0]);
+      expect(await persistence.correctGameResult({ matchId: first.id, mapOrder: 1, scoreHome: 9, scoreAway: 13, reportedBy: 'it' }))
+        .toMatchObject({ outcomeChanged: true, series: { winnerId: other } });
+      const after = await where();
+      expect(after.winner).toBe(other);
+      expect(after.next).toContain(other);
+      expect(after.next).not.toContain(ids[0]);
+      expect(after.low).toContain(ids[0]);
+      expect(after.low).not.toContain(other);
+
+      // the lower match is played: changing the winner again is refused, the same winner is still fine
+      const second = await prisma.match.findFirstOrThrow({ where: { stageId: bracket.id, bracketType: 'UPPER', roundNumber: 1, id: { not: first.id } } });
+      await persistence.recordManualGameResult({ matchId: second.id, mapOrder: 1, scoreHome: 13, scoreAway: 2, reportedBy: 'it' });
+      const low = await prisma.match.findFirstOrThrow({ where: { stageId: bracket.id, bracketType: 'LOWER', roundNumber: 1 } });
+      await persistence.recordManualGameResult({ matchId: low.id, mapOrder: 1, scoreHome: 13, scoreAway: 3, reportedBy: 'it' });
+      await expect(
+        persistence.correctGameResult({ matchId: first.id, mapOrder: 1, scoreHome: 13, scoreAway: 9, reportedBy: 'it' }),
+      ).rejects.toMatchObject({ code: 'started' });
+      await persistence.correctGameResult({ matchId: first.id, mapOrder: 1, scoreHome: 10, scoreAway: 13, reportedBy: 'it' });
+    } finally {
+      await prisma.tournament.deleteMany({ where: { id: t.id } });
+      await prisma.team.deleteMany({ where: { id: { in: ids } } });
+    }
+  });
+
   it('double elimination of 6 teams (byes): generated, played to the end by admin entries, final ranking', async () => {
     const tournament = await prisma.tournament.findFirstOrThrow({ where: { id: created.tournamentId } });
     const stage = await stages.createStage(tournament.id, { name: 'Élite IT', type: 'DOUBLE_ELIM', order: 10 });

@@ -87,6 +87,9 @@ interface VetoViewTeam {
   captain: string | null;
 }
 
+/** Start of the reason of a group veto whose round has not come yet ("... round N"). */
+export const VETO_CLOSED = 'veto opens after round';
+
 const KIND_TO_ACTION: Record<VetoKind, VetoAction> = { ban: 'BAN', pick: 'PICK', side: 'SIDE' };
 const ACTION_TO_KIND: Partial<Record<VetoAction, VetoKind>> = { BAN: 'ban', PICK: 'pick', SIDE: 'side' };
 
@@ -120,6 +123,19 @@ export class VetoService {
     if (!t) throw new TournamentError('not_found', 'tournament not found');
     await this.prisma.tournament.update({ where: { id: t.id }, data: { settings: { ...((t.settings as object) ?? {}), veto: { ...config } } } });
     return config;
+  }
+
+  /** Map pool and side mode of a tournament, or null when none is set. */
+  async getTournamentConfig(tournamentId: string): Promise<VetoConfig | null> {
+    const t = await this.prisma.tournament.findUnique({ where: { id: this.uuid(tournamentId, 'tournament') } });
+    if (!t) throw new TournamentError('not_found', 'tournament not found');
+    const raw = (t.settings as any)?.veto;
+    if (!raw) return null;
+    try {
+      return validateVetoConfig(raw);
+    } catch {
+      return null;
+    }
   }
 
   /** Map pool and side mode of one stage (overrides the tournament's). */
@@ -172,7 +188,7 @@ export class VetoService {
 
   async getState(matchId: string, actor?: VetoActor): Promise<VetoView> {
     const match = await this.load(matchId);
-    return this.view(match, actor ? await this.captainTeam(match, actor) : null, actor);
+    return this.viewOf(match, actor ? await this.captainTeam(match, actor) : null, actor);
   }
 
   // --- Actions --------------------------------------------------------------------------------------------
@@ -183,7 +199,8 @@ export class VetoService {
     const teamId = await this.captainTeam(match, actor);
     if (!teamId) throw new TournamentError('forbidden', 'only a captain of this match plays rock-paper-scissors (admin: set who starts)');
     if (!RPS_CHOICES.includes(choice as RpsChoice)) throw new TournamentError('invalid', 'choice: rock | paper | scissors');
-    const view = this.view(match, teamId, actor);
+    const view = await this.viewOf(match, teamId, actor);
+    if (view.phase === 'unavailable') throw new TournamentError('conflict', view.reason!);
     if (view.phase !== 'rps') throw new TournamentError('conflict', `not the time for rock-paper-scissors (${view.phase})`);
     if (view.rps.current!.mine) throw new TournamentError('conflict', 'already played this round');
     await this.insert(() =>
@@ -198,7 +215,7 @@ export class VetoService {
    */
   async chooseStart(matchId: string, actor: VetoActor, input: { first?: boolean; teamId?: string }) {
     const match = await this.load(matchId);
-    const view = this.view(match, await this.captainTeam(match, actor), actor);
+    const view = await this.viewOf(match, await this.captainTeam(match, actor), actor);
     if (view.phase === 'unavailable') throw new TournamentError('conflict', view.reason!);
     if (view.startTeamId) throw new TournamentError('conflict', 'the starting team is already set');
     let startTeamId: string;
@@ -220,7 +237,7 @@ export class VetoService {
   async playStep(matchId: string, actor: VetoActor, input: { map?: string; side?: string }) {
     const match = await this.load(matchId);
     const captainOf = await this.captainTeam(match, actor);
-    const view = this.view(match, captainOf, actor);
+    const view = await this.viewOf(match, captainOf, actor);
     if (view.phase !== 'veto') throw new TournamentError('conflict', view.phase === 'unavailable' ? view.reason! : `no veto step to play (${view.phase})`);
     const next = view.next!;
     if (captainOf !== next.teamId && !actor.admin) throw new TournamentError('forbidden', 'not your turn');
@@ -335,10 +352,12 @@ export class VetoService {
       include: matchInclude,
       orderBy: [{ roundNumber: 'asc' }, { createdAt: 'asc' }],
     });
+    const firstRound = await this.firstRoundToPlay(matches.map((m) => m.stageId));
     return matches.flatMap((m) => {
       const teamId = rosters.find((r) => r.tournamentId === m.tournamentId && (r.teamId === m.teamHomeId || r.teamId === m.teamAwayId))!.teamId;
-      const view = this.view(m, teamId, { ...actor, admin: false });
-      if (view.phase === 'unavailable' && view.reason === 'both teams must be known') return [];
+      const view = this.view(m, teamId, { ...actor, admin: false }, this.closedReason(m, firstRound));
+      // only what the captain has to play now: not a match whose teams are unknown, nor a later round
+      if (view.phase === 'unavailable' && (view.reason === 'both teams must be known' || view.reason?.startsWith(VETO_CLOSED))) return [];
       return [{ ...this.item(view), myTurn: view.viewer.canAct }];
     });
   }
@@ -355,7 +374,8 @@ export class VetoService {
       include: matchInclude,
       orderBy: [{ roundNumber: 'asc' }, { createdAt: 'asc' }],
     });
-    return matches.map((m) => this.item(this.view(m, null)));
+    const firstRound = await this.firstRoundToPlay(matches.map((m) => m.stageId));
+    return matches.map((m) => this.item(this.view(m, null, undefined, this.closedReason(m, firstRound))));
   }
 
   private item(v: VetoView): VetoListItem {
@@ -372,9 +392,50 @@ export class VetoService {
     };
   }
 
+  /**
+   * Admin: opens the veto of one round of a stage's groups before its turn (the previous round runs late, a
+   * server is free). Returns how many matches it opened.
+   */
+  async openRound(stageId: string, round: number) {
+    const stage = await this.prisma.stage.findUnique({ where: { id: this.uuid(stageId, 'stage') } });
+    if (!stage) throw new TournamentError('not_found', 'stage not found');
+    if (!Number.isInteger(round) || round < 1) throw new TournamentError('invalid', 'round: 1 or more');
+    const r = await this.prisma.match.updateMany({
+      where: { stageId: stage.id, groupId: { not: null }, roundNumber: round, vetoOpenedAt: null },
+      data: { vetoOpenedAt: new Date() },
+    });
+    return { stageId: stage.id, round, opened: r.count };
+  }
+
   // --- Internals ------------------------------------------------------------------------------------------
 
-  private view(match: VetoMatch, captainOf: string | null, actor?: VetoActor): VetoView {
+  /**
+   * Group rounds, one at a time (decided with the user): the veto of a group match opens once every match of
+   * the previous rounds of its stage is finished, or when an admin opened its round (vetoOpenedAt). Bracket
+   * matches open when both teams are known, bonus matches always. Per stage: the first round still to play.
+   */
+  private async firstRoundToPlay(stageIds: (string | null)[]): Promise<Map<string, number>> {
+    const ids = [...new Set(stageIds.filter((id): id is string => !!id))];
+    if (!ids.length) return new Map();
+    const rows = await this.prisma.match.groupBy({
+      by: ['stageId'],
+      where: { stageId: { in: ids }, groupId: { not: null }, status: { not: 'FINISHED' } },
+      _min: { roundNumber: true },
+    });
+    return new Map(rows.map((r) => [r.stageId!, r._min.roundNumber ?? Number.POSITIVE_INFINITY]));
+  }
+
+  private closedReason(match: VetoMatch, firstRound: Map<string, number>): string | null {
+    if (!match.groupId || !match.stageId || match.vetoOpenedAt) return null;
+    const first = firstRound.get(match.stageId) ?? Number.POSITIVE_INFINITY;
+    return match.roundNumber > first ? `${VETO_CLOSED} ${match.roundNumber - 1} (an admin can open it earlier)` : null;
+  }
+
+  private async viewOf(match: VetoMatch, captainOf: string | null, actor?: VetoActor): Promise<VetoView> {
+    return this.view(match, captainOf, actor, this.closedReason(match, await this.firstRoundToPlay([match.stageId])));
+  }
+
+  private view(match: VetoMatch, captainOf: string | null, actor?: VetoActor, closed: string | null = null): VetoView {
     const home = match.teamHome;
     const away = match.teamAway;
     const config = this.config(match);
@@ -406,6 +467,7 @@ export class VetoService {
     if (!config) return { ...base, reason: 'no map pool configured for this tournament / stage' };
     // A veto already started stays visible (even once the match is over)
     const started = match.vetos.length > 0 || !!match.vetoStartTeamId;
+    if (closed && !started) return { ...base, reason: closed };
     if (!started && match.maps.length > 0) return { ...base, reason: 'the games of this match were set without a veto' };
     if (!started && match.status === 'FINISHED') return { ...base, reason: 'match finished' };
 

@@ -94,4 +94,50 @@ describeDb('Tournament simulation - real PostgreSQL', () => {
     const parallel = await signature(8);
     expect(parallel).toEqual(sequential);
   });
+
+  it('prepares a tournament to test: stops at the chosen step (qualified = brackets generated, nothing played in them)', async () => {
+    const qualified = await sim.prepare({ teams: 10, groupCount: 2, after: 'two', stopAt: 'qualified' });
+    const done = await sim.prepare({ teams: 4, groupCount: 2, after: 'two', topPerGroup: 1, stopAt: 'done', withPlayers: false });
+    try {
+      expect(qualified.reached).toBe('qualified');
+      const stagesOf = await prisma.stage.findMany({ where: { tournamentId: qualified.tournamentId }, orderBy: { order: 'asc' }, include: { teams: true, matches: true } });
+      expect(stagesOf.map((x) => [x.name, x.teams.length])).toEqual([['Poules', 10], ['Élite', 6], ['Amateur', 4]]);
+      expect(stagesOf[0].matches.every((m) => m.status === 'FINISHED')).toBe(true);
+      expect(stagesOf.slice(1).every((x) => x.matches.length > 0 && x.matches.every((m) => m.status !== 'FINISHED'))).toBe(true);
+      // fake players, the first of each team is its captain; the map pool is set
+      const captains = await prisma.teamRoster.count({ where: { tournamentId: qualified.tournamentId, isCaptain: true } });
+      expect(captains).toBe(10);
+      const t = await prisma.tournament.findUniqueOrThrow({ where: { id: qualified.tournamentId } });
+      expect((t.settings as any).veto.mapPool).toHaveLength(7);
+
+      // 4 teams, 1 per group to the Élite: two finals of 2 teams, played to the end
+      expect(done.reached).toBe('done');
+      const finals = await prisma.match.findMany({ where: { tournamentId: done.tournamentId, bracketType: 'FINAL' } });
+      expect(finals).toHaveLength(2);
+      expect(finals.every((m) => m.status === 'FINISHED')).toBe(true);
+      expect((await prisma.tournament.findUniqueOrThrow({ where: { id: done.tournamentId } })).status).toBe('COMPLETED');
+    } finally {
+      await stages.deleteTournament(qualified.tournamentId);
+      await stages.deleteTournament(done.tournamentId);
+    }
+  });
+
+  it('prepares a tournament played live: answers at once, then plays game by game in the background', async () => {
+    const prepared = await sim.prepare({ teams: 4, groupCount: 1, after: 'none', stopAt: 'groups_played', pace: 'live', delayMs: 200, parallel: 2, results: 'random', withPlayers: false });
+    try {
+      expect(prepared.reached).toBe('running');
+      let run = sim.getRun(prepared.runId!);
+      expect(run.status).toBe('running');
+      for (let i = 0; i < 100 && run.status === 'running'; i++) {
+        await new Promise((r) => setTimeout(r, 100));
+        run = sim.getRun(prepared.runId!);
+      }
+      expect(run.status).toBe('done');
+      expect(run.seriesPlayed).toBe(6);
+      const matches = await prisma.match.findMany({ where: { tournamentId: prepared.tournamentId } });
+      expect(matches.every((m) => m.status === 'FINISHED')).toBe(true);
+    } finally {
+      await stages.deleteTournament(prepared.tournamentId);
+    }
+  });
 });

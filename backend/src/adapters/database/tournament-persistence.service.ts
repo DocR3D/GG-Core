@@ -62,7 +62,7 @@ function slotField(slot: 'HOME' | 'AWAY' | null, homeTaken: string | null): 'tea
 
 /** Refusal of a manual result entry, mapped to an HTTP status by the controller. */
 export class ManualResultError extends Error {
-  constructor(readonly code: 'not_found' | 'finished' | 'teams_missing' | 'invalid', message: string) {
+  constructor(readonly code: 'not_found' | 'finished' | 'teams_missing' | 'invalid' | 'started', message: string) {
     super(message);
   }
 }
@@ -437,7 +437,7 @@ export class TournamentPersistenceService {
   /**
    * Admin entry of a game result (games that are not automated, or to override a missing one):
    * creates / updates game n° mapOrder of the series, MANUAL / CONFIRMED, then updates the series.
-   * Refused once the series is finished (correcting a finished series would need a bracket rollback).
+   * Refused once the series is finished: correctGameResult corrects a game of a finished series.
    */
   async recordManualGameResult(input: {
     matchId: string;
@@ -483,6 +483,83 @@ export class TournamentPersistenceService {
     });
     const series = await this.updateSeries(match.id);
     return { game, series };
+  }
+
+  /**
+   * Correction of a game of a FINISHED series (wrong score entered, or a server result to fix): the game becomes
+   * MANUAL / CONFIRMED with the new score, then the series is recomputed. When the outcome changes (other winner,
+   * draw, or not decided any more), the teams it sent to the next matches are taken back - refused if one of those
+   * matches has started (correct that one first) - and the series is decided again, which moves the right teams.
+   * A group match is refused once its stage is qualified (the standings already sent teams on).
+   */
+  async correctGameResult(input: { matchId: string; mapOrder: number; scoreHome: number; scoreAway: number; reportedBy: string }) {
+    if (!isUuid(input.matchId)) throw new ManualResultError('not_found', `match ${input.matchId} not found`);
+    const match = await this.prisma.match.findUnique({
+      where: { id: input.matchId },
+      include: { maps: true, nextMatch: { include: { maps: true } }, loserNextMatch: { include: { maps: true } }, stageRef: true },
+    });
+    if (!match) throw new ManualResultError('not_found', `match ${input.matchId} not found`);
+    if (match.status !== 'FINISHED') throw new ManualResultError('invalid', 'series not finished: enter the result of the game instead');
+    const game = match.maps.find((g) => g.mapOrder === input.mapOrder && g.resultStatus === 'CONFIRMED');
+    if (!game) throw new ManualResultError('not_found', `game ${input.mapOrder} has no result to correct`);
+    if (![input.scoreHome, input.scoreAway].every((s) => Number.isInteger(s) && s >= 0)) {
+      throw new ManualResultError('invalid', 'scores must be non-negative integers');
+    }
+    const winnerId =
+      input.scoreHome > input.scoreAway ? match.teamHomeId : input.scoreAway > input.scoreHome ? match.teamAwayId : null;
+    if (!winnerId && needsWinner(match)) throw new ManualResultError('invalid', 'a bracket or placement match must have a winner: no draw');
+
+    if (match.stageRef?.type === 'ROUND_ROBIN') {
+      const qualified = await this.prisma.stageTeam.count({
+        where: { stage: { tournamentId: match.tournamentId, order: { gt: match.stageRef.order } } },
+      });
+      if (qualified) throw new ManualResultError('started', 'the groups are already qualified: reset the next stages first');
+    }
+
+    // outcome after the correction (same count as updateSeries)
+    const games = match.maps.map((g) => (g.id === game.id ? { ...g, winnerId, resultStatus: 'CONFIRMED' as const } : g));
+    const won = (team: string | null) => games.filter((g) => g.resultStatus === 'CONFIRMED' && g.winnerId && g.winnerId === team).length;
+    const needed = WINS_NEEDED[match.format];
+    const home = match.advantageHome + won(match.teamHomeId);
+    const away = match.advantageAway + won(match.teamAwayId);
+    const newWinner = home >= needed ? match.teamHomeId : away >= needed ? match.teamAwayId : null;
+    const changed = newWinner !== match.winnerId;
+
+    const placed = changed
+      ? [
+          match.nextMatch && { target: match.nextMatch, team: match.winnerId },
+          match.loserNextMatch && {
+            target: match.loserNextMatch,
+            team: match.winnerId === match.teamHomeId ? match.teamAwayId : match.teamHomeId,
+          },
+        ].filter((p): p is { target: NonNullable<typeof match.nextMatch>; team: string | null } => !!p)
+      : [];
+    for (const { target } of placed) {
+      if (target.status !== 'PENDING' || target.maps.some((g) => g.resultStatus || g.status !== 'PENDING')) {
+        throw new ManualResultError('started', 'the next match has already started: correct or reset it first');
+      }
+    }
+
+    await this.prisma.$transaction(async (tx) => {
+      await tx.matchMap.update({
+        where: { id: game.id },
+        data: {
+          scoreHome: input.scoreHome, scoreAway: input.scoreAway, winnerId,
+          resultSource: 'MANUAL', resultStatus: 'CONFIRMED', reportedBy: input.reportedBy, reportedAt: new Date(),
+        },
+      });
+      if (!changed) return;
+      // take the teams back from the next matches, and decide the series again
+      for (const { target, team } of placed) {
+        const field = target.teamHomeId === team ? 'teamHomeId' : target.teamAwayId === team ? 'teamAwayId' : null;
+        if (team && field) await tx.match.update({ where: { id: target.id }, data: { [field]: null } });
+      }
+      await tx.match.update({ where: { id: match.id }, data: { status: 'LIVE', winnerId: null, isForfeit: false } });
+      // games cancelled because the series looked decided can be played again
+      await tx.matchMap.updateMany({ where: { matchId: match.id, status: 'CANCELLED', resultStatus: null }, data: { status: 'PENDING' } });
+    });
+    const series = await this.updateSeries(match.id);
+    return { series, outcomeChanged: changed };
   }
 
   /**

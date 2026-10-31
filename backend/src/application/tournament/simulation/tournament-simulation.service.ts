@@ -5,8 +5,8 @@ import * as fs from 'fs';
 import * as path from 'path';
 import { MatchFormat, StageType } from '@prisma/client';
 import { PrismaService } from '@adapters/database/prisma.service';
-import { TournamentPersistenceService } from '@adapters/database/tournament-persistence.service';
-import { DoubleElimFormats, TournamentError, TournamentStagesService } from '../tournament-stages.service';
+import { ManualResultError, TournamentPersistenceService } from '@adapters/database/tournament-persistence.service';
+import { DoubleElimFormats, QualificationRule, TournamentError, TournamentStagesService } from '../tournament-stages.service';
 import { fakeGameStats, fakePlayerNames, fakeTeamNames, hashSeed, Random, seededRandom } from './fake-data';
 
 /** A fake tournament, as in test/fixtures/tournaments/*.json */
@@ -50,7 +50,45 @@ export interface SimulationRun {
   phase: string;
 }
 
+/** Where "prepare a tournament" stops: teams and stages created, groups generated, groups played, qualified, all played. */
+export type PrepareStep = 'teams' | 'groups' | 'groups_played' | 'qualified' | 'done';
+const PREPARE_STEPS: PrepareStep[] = ['teams', 'groups', 'groups_played', 'qualified', 'done'];
+
+export interface PrepareOptions {
+  teams: number;
+  groupCount: number;
+  groupFormat?: MatchFormat;
+  /** after the groups: Élite + Amateur, one bracket, nothing */
+  after?: 'two' | 'one' | 'none';
+  /** group ranks sent to the Élite (or the single bracket): 1..topPerGroup; default the top half */
+  topPerGroup?: number;
+  bracketFormats?: DoubleElimFormats;
+  stopAt: PrepareStep;
+  /** fake players (5 per team, the first one captain) and their fake stats; default true */
+  withPlayers?: boolean;
+  /** seeded: the better seed usually wins (1 upset in 4); random: any team, 50/50 */
+  results?: 'seeded' | 'random';
+  /** instant: everything played before answering; live: played in the background, game by game */
+  pace?: 'instant' | 'live';
+  /** live: how long a game lasts (ms), shown "en cours" meanwhile */
+  delayMs?: number;
+  /** live: series played at the same time (like servers) */
+  parallel?: number;
+}
+
 class Stopped extends Error {}
+
+/**
+ * A CS2 game score (MR12): mostly 13-x in regulation, sometimes overtime (MR3: 16-12 to 16-14, then 19-15 to 19-17).
+ */
+export function gameScore(rnd: Random): [number, number] {
+  const r = rnd();
+  if (r < 0.12) return [16, 12 + Math.floor(rnd() * 3)];
+  if (r < 0.15) return [19, 15 + Math.floor(rnd() * 3)];
+  // regulation: close games more often than stomps
+  const lose = Math.min(11, Math.floor(Math.sqrt(rnd()) * 12));
+  return [13, lose];
+}
 
 const WINS: Record<string, number> = { BO1: 1, BO3: 2, BO5: 3 };
 const SIM_AUTHOR = 'simulation';
@@ -154,6 +192,115 @@ export class TournamentSimulationService {
     return this.getRun(id);
   }
 
+  /**
+   * Sandbox "prepare a tournament to test" (asked by the user): fake teams with fake players (the first one is the
+   * captain), the map pool, groups then Élite + Amateur (or one bracket, or none), played with fake results up to
+   * the chosen step - then the tournament is tested by hand on the management screen. Synchronous (no delay).
+   */
+  async prepare(opts: PrepareOptions): Promise<{ tournamentId: string; name: string; reached: PrepareStep | 'running'; runId?: string }> {
+    const teamCount = Number(opts.teams);
+    const groupCount = Number(opts.groupCount);
+    if (!Number.isInteger(teamCount) || teamCount < 2 || teamCount > 64) throw new TournamentError('invalid', 'teams: 2 to 64');
+    if (!Number.isInteger(groupCount) || groupCount < 1 || teamCount < groupCount * 2) {
+      throw new TournamentError('invalid', `${teamCount} teams for ${groupCount} groups: at least 2 teams per group`);
+    }
+    const stopAt: PrepareStep = PREPARE_STEPS.includes(opts.stopAt) ? opts.stopAt : 'groups';
+    const after = opts.after ?? 'two';
+    const sizes = Array.from({ length: groupCount }, (_, i) => Math.floor(teamCount / groupCount) + (i < teamCount % groupCount ? 1 : 0));
+    const top = Math.max(1, Number(opts.topPerGroup) || Math.ceil(Math.min(...sizes) / 2));
+    const largest = Math.max(...sizes);
+    const range = (a: number, b: number) => Array.from({ length: Math.max(0, b - a + 1) }, (_, i) => a + i);
+    const brackets =
+      after === 'none'
+        ? []
+        : after === 'one'
+          ? [{ key: 'arbre', name: 'Arbre', ranks: range(1, Math.min(top, largest)) }]
+          : [
+              { key: 'elite', name: 'Élite', ranks: range(1, Math.min(top, largest)) },
+              { key: 'amateur', name: 'Amateur', ranks: range(top + 1, largest) },
+            ].filter((b) => b.ranks.length);
+    const maps = ['de_ancient', 'de_anubis', 'de_dust2', 'de_inferno', 'de_mirage', 'de_nuke', 'de_train'];
+    const scenario: TournamentScenario = {
+      name: 'Sandbox',
+      teams: teamCount,
+      stages: [
+        { key: 'groups', name: 'Poules', type: 'ROUND_ROBIN', order: 1, groupCount, format: opts.groupFormat ?? 'BO1' },
+        ...brackets.map((b, i) => ({ key: b.key, name: b.name, type: 'DOUBLE_ELIM' as StageType, order: i + 2, formats: opts.bracketFormats })),
+      ],
+      qualify: brackets.length ? { from: 'groups', rules: brackets.map((b) => ({ ranks: b.ranks, to: b.key })) } : undefined,
+      // random: 50/50 whatever the seeds
+      results: { mode: 'seeded', upsetRate: opts.results === 'random' ? 0.5 : 0.25, randomSeed: Date.now() % 100000, maps },
+    };
+
+    const tournament = await this.stages.createTournament({
+      name: `Sandbox ${teamCount} équipes ${new Date().toLocaleTimeString('fr-FR')}`,
+    });
+    await this.prisma.tournament.update({
+      where: { id: tournament.id },
+      data: { status: 'ACTIVE', settings: { veto: { mapPool: maps, sideMode: 'knife' } } },
+    });
+    const live = opts.pace === 'live';
+    const run: SimulationRun & { steps: number } = {
+      id: randomUUID(), tournamentId: tournament.id, name: tournament.name, status: 'running', gamesPlayed: 0, seriesPlayed: 0,
+      delayMs: live ? Math.min(60_000, Math.max(200, Number(opts.delayMs) || 3000)) : 0,
+      parallel: Math.min(16, Math.max(1, Number(opts.parallel) || (live ? 4 : 8))),
+      withStats: opts.withPlayers !== false, startedAt: new Date(), phase: 'préparation', steps: 0,
+    };
+
+    const teams = await this.stages.createTeams(fakeTeamNames(teamCount));
+    const seedOf = new Map(teams.map((t, i) => [t.id, i + 1]));
+    const players = run.withStats ? await this.createRosters(tournament.id, teams, 5) : new Map<string, string[]>();
+    const ids: Record<string, string> = {};
+    for (const s of scenario.stages) {
+      ids[s.key] = (await this.stages.createStage(tournament.id, { name: s.name, type: s.type, order: s.order, settings: s.formats ? { formats: s.formats } : {} })).id;
+    }
+
+    /** the steps after the setup, up to stopAt; returns the step reached */
+    const progress = async (): Promise<PrepareStep> => {
+      if (stopAt === 'teams') return 'teams';
+      run.phase = 'Poules : génération';
+      await this.stages.generateGroups(ids.groups, { teamIds: teams.map((t) => t.id), groupCount, format: opts.groupFormat });
+      if (stopAt === 'groups') return 'groups';
+
+      run.phase = 'Poules : matchs';
+      await this.playStage(run, scenario, ids.groups, seedOf, players);
+      if (stopAt === 'groups_played' || !scenario.qualify) return scenario.qualify ? 'groups_played' : 'done';
+
+      run.phase = 'Qualification';
+      // the qualification generates the brackets (2 teams or more)
+      await this.qualifyAsAdmin(ids.groups, scenario.qualify.rules.map((r) => ({ ranks: r.ranks, targetStageId: ids[r.to] })));
+      if (stopAt === 'qualified') return 'qualified';
+
+      // the brackets are played side by side (several servers)
+      run.phase = brackets.map((b) => b.name).join(' et ');
+      await Promise.all(brackets.map((b) => this.playStage(run, scenario, ids[b.key], seedOf, players)));
+      await this.prisma.tournament.update({ where: { id: tournament.id }, data: { status: 'COMPLETED' } });
+      return 'done';
+    };
+    const finish = (reached: PrepareStep) => {
+      run.status = 'done';
+      run.phase = `arrêté à : ${reached}`;
+      run.finishedAt = new Date();
+      return reached;
+    };
+
+    if (!live) return { tournamentId: tournament.id, name: tournament.name, reached: finish(await progress()) };
+    // live: played in the background, game by game (pause / resume / step / stop like the other simulations)
+    this.runs.set(run.id, run);
+    progress()
+      .then(finish)
+      .catch((e) => {
+        if (e instanceof Stopped) run.status = 'stopped';
+        else {
+          run.status = 'error';
+          run.error = e?.message ?? String(e);
+          this.log.error(`[sandbox] ${run.name}: ${run.error}`);
+        }
+        run.finishedAt = new Date();
+      });
+    return { tournamentId: tournament.id, name: tournament.name, reached: 'running', runId: run.id };
+  }
+
   // ---------------------------------------------------------------------------------------------------------
 
   private async play(run: SimulationRun & { steps: number }, scenario: TournamentScenario) {
@@ -166,7 +313,7 @@ export class TournamentSimulationService {
 
     const stageIds: Record<string, string> = {};
     for (const s of scenario.stages) {
-      stageIds[s.key] = (await this.stages.createStage(run.tournamentId, { name: s.name, type: s.type, order: s.order })).id;
+      stageIds[s.key] = (await this.stages.createStage(run.tournamentId, { name: s.name, type: s.type, order: s.order, settings: s.formats ? { formats: s.formats } : {} })).id;
     }
     const first = Math.min(...scenario.stages.map((s) => s.order));
 
@@ -180,22 +327,17 @@ export class TournamentSimulationService {
         });
       } else {
         run.phase = `${s.name} : arbre`;
-        await this.stages.generateDoubleElimination(stageIds[s.key], s.formats ? { formats: s.formats } : {});
+        // a bracket after groups was already generated by their qualification (with the formats of its stage)
+        if (!(await this.prisma.match.count({ where: { stageId: stageIds[s.key] } }))) {
+          await this.stages.generateDoubleElimination(stageIds[s.key], s.order === first ? { teamIds: teams.map((t) => t.id) } : {});
+        }
       }
       await this.playStage(run, scenario, stageIds[s.key], seedOf, players);
 
       const q = scenario.qualify;
       if (q?.from === s.key) {
         run.phase = `${s.name} : qualification`;
-        const standings = await this.stages.getStandings(stageIds[s.key]);
-        // unresolved ties: the displayed order (seed order) is kept, as an admin would
-        const manualOrder = Object.fromEntries(
-          standings.groups.filter((g) => g.standings.some((r) => r.tied)).map((g) => [g.groupId, g.standings.map((r) => r.teamId)]),
-        );
-        await this.stages.qualify(stageIds[s.key], {
-          rules: q.rules.map((r) => ({ ranks: r.ranks, targetStageId: stageIds[r.to] })),
-          manualOrder,
-        });
+        await this.qualifyAsAdmin(stageIds[s.key], q.rules.map((r) => ({ ranks: r.ranks, targetStageId: stageIds[r.to] })));
       }
     }
     await this.prisma.tournament.update({ where: { id: run.tournamentId }, data: { status: 'COMPLETED' } });
@@ -203,6 +345,15 @@ export class TournamentSimulationService {
     run.status = 'done';
     run.finishedAt = new Date();
     this.log.log(`[simulation] ${run.name}: done (${run.seriesPlayed} series, ${run.gamesPlayed} games)`);
+  }
+
+  /** Qualifies as an admin would: a tie still unresolved keeps the displayed order (the seeds). */
+  private async qualifyAsAdmin(stageId: string, rules: QualificationRule[]) {
+    const standings = await this.stages.getStandings(stageId);
+    const manualOrder = Object.fromEntries(
+      standings.groups.filter((g) => g.standings.some((r) => r.tied)).map((g) => [g.groupId, g.standings.map((r) => r.teamId)]),
+    );
+    return this.stages.qualify(stageId, { rules, manualOrder });
   }
 
   /** Plays every series of a stage whose two teams are known, `parallel` at a time, until none is left. */
@@ -256,8 +407,8 @@ export class TournamentSimulationService {
     for (let order = 1; home < needed && away < needed; order++) {
       const mapName = (res.maps ?? ['de_mirage'])[Math.floor(rnd() * (res.maps?.length ?? 1))];
       const homeWins = homeBetter !== rnd() < (res.upsetRate ?? 0.25);
-      const loserRounds = Math.floor(rnd() * 12);
-      const [scoreHome, scoreAway] = homeWins ? [13, loserRounds] : [loserRounds, 13];
+      const [win, lose] = gameScore(rnd);
+      const [scoreHome, scoreAway] = homeWins ? [win, lose] : [lose, win];
 
       // the game is shown LIVE during the delay
       await this.prisma.matchMap.upsert({
@@ -268,9 +419,16 @@ export class TournamentSimulationService {
       await this.prisma.match.updateMany({ where: { id: match.id, status: 'PENDING' }, data: { status: 'LIVE' } });
       await this.wait(run);
 
-      const { game } = await this.persistence.recordManualGameResult({
-        matchId: match.id, mapOrder: order, scoreHome, scoreAway, mapName, reportedBy: SIM_AUTHOR,
-      });
+      let game;
+      try {
+        ({ game } = await this.persistence.recordManualGameResult({
+          matchId: match.id, mapOrder: order, scoreHome, scoreAway, mapName, reportedBy: SIM_AUTHOR,
+        }));
+      } catch (e) {
+        // the admin settled this series by hand meanwhile (result, forfeit): the simulation leaves it
+        if (e instanceof ManualResultError && e.code === 'finished') return;
+        throw e;
+      }
       if (players.size) await this.recordFakeStats(rnd, game.id, match, scoreHome, scoreAway, players);
       run.gamesPlayed++;
       homeWins ? home++ : away++;
@@ -303,7 +461,7 @@ export class TournamentSimulationService {
     });
   }
 
-  /** Fake players (no SteamID) and the tournament rosters. */
+  /** Fake players (no SteamID) and the tournament rosters; the first player of a team is its captain. */
   private async createRosters(tournamentId: string, teams: { id: string }[], perTeam: number) {
     const out = new Map<string, string[]>();
     for (const [i, team] of teams.entries()) {
@@ -311,7 +469,7 @@ export class TournamentSimulationService {
         fakePlayerNames(i, perTeam).map((username) => this.prisma.player.create({ data: { username } })),
       );
       await this.prisma.teamRoster.createMany({
-        data: created.map((p) => ({ tournamentId, teamId: team.id, playerId: p.id, role: 'STARTER' as const })),
+        data: created.map((p, k) => ({ tournamentId, teamId: team.id, playerId: p.id, role: 'STARTER' as const, isCaptain: k === 0 })),
       });
       out.set(team.id, created.map((p) => p.id));
     }

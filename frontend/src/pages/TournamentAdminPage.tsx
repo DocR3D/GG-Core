@@ -1,13 +1,24 @@
-import { useCallback, useEffect, useState, type FormEvent } from 'react';
-import { Link, useNavigate, useParams } from 'react-router';
-import { api, type Overview, type OverviewMatch, type ServerRow, type TournamentSummary, type TournamentTeam } from '../lib/api';
+import { useCallback, useEffect, useState, type FormEvent, type ReactNode } from 'react';
+import { Link, Navigate, NavLink, Route, Routes, useParams } from 'react-router';
+import { api, type Overview, type ServerRow, type TournamentSummary, type TournamentTeam, type VetoConfig, type VetoItem } from '../lib/api';
 import { isAdmin, useSession } from '../lib/session';
 import { Empty, Section, TOURNAMENT_STATUS } from '../components/live';
 import { Button, Input, NoticeLine, Select, useAction } from '../components/ui';
+import { NextAction, QualifyStep, StagePlay, StagesSetup } from './tournament/Stages';
+import { BonusMatches } from './tournament/BonusMatches';
+import { TeamsStep } from './tournament/TeamsStep';
+import { VetoSettings, vetoLine } from './tournament/VetoSettings';
+import { SimulationBar } from './tournament/SimulationBar';
+import { isSettled, stageMatches, tournamentPath } from './tournament/model';
+
+/** Base address of the tournament shown (every link of this screen is absolute, see tournamentPath). */
+const useBase = () => tournamentPath(useParams().tournamentId ?? '');
 
 /**
- * Managing one tournament (admins): its name and status, its teams and their players (SteamID, captain), its
- * matches (bonus match, game launch → match console). Stages (groups, bracket, qualification) come next.
+ * Managing one tournament (admins), in steps with their own address (decided with the user: one long page did not
+ * say what to do when): Tournoi, Équipes, Véto, Phases (preparation), then Matchs (the LAN day, one tab per stage
+ * and one for the bonus matches). The bar says which steps are done; opening a tournament goes to the first one
+ * that is not.
  */
 export function TournamentAdminPage() {
   const session = useSession();
@@ -26,453 +37,297 @@ export function TournamentAdminPage() {
   return <TournamentAdmin id={tournamentId} />;
 }
 
+interface Data {
+  summary: TournamentSummary;
+  overview: Overview | null;
+  teams: TournamentTeam[] | null;
+  veto: VetoConfig | null | undefined;
+  vetoItems: VetoItem[];
+  servers: ServerRow[];
+}
+
+interface Step {
+  path: string;
+  label: string;
+  /** done: the step is complete enough to go on (the next ones can still be reopened) */
+  done: boolean;
+  hint: string;
+}
+
+function steps(d: Data): Step[] {
+  const teams = d.teams ?? [];
+  const stages = d.overview?.stages ?? [];
+  const generated = stages.some((s) => s.groups.length > 0 || s.matches.length > 0);
+  const noSteam = teams.flatMap((t) => t.players).filter((p) => !p.steamId).length;
+  return [
+    { path: 'tournoi', label: 'Tournoi', done: true, hint: 'nom et statut' },
+    {
+      path: 'equipes',
+      label: 'Équipes',
+      done: teams.length >= 2,
+      hint: teams.length < 2 ? 'au moins 2 équipes' : noSteam ? `${noSteam} joueur${noSteam > 1 ? 's' : ''} sans SteamID` : `${teams.length} équipes`,
+    },
+    { path: 'veto', label: 'Véto', done: !!d.veto, hint: d.veto ? `${d.veto.mapPool.length} maps` : 'pool de maps à choisir' },
+    { path: 'phases', label: 'Phases', done: generated, hint: generated ? `${stages.length} phase${stages.length > 1 ? 's' : ''}` : 'créer et générer' },
+    { path: 'matchs', label: 'Matchs', done: false, hint: 'le déroulé' },
+  ];
+}
+
 function TournamentAdmin({ id }: { id: string }) {
-  const [summary, setSummary] = useState<TournamentSummary | null>(null);
-  const [overview, setOverview] = useState<Overview | null>(null);
-  const [teams, setTeams] = useState<TournamentTeam[] | null>(null);
+  const [data, setData] = useState<Data | null>(null);
   const [missing, setMissing] = useState(false);
 
-  const reload = useCallback(() => {
-    api<TournamentSummary[]>('/api/tournament/tournaments').then((l) => {
-      const t = l.find((x) => x.id === id) ?? null;
-      setSummary(t);
-      setMissing(!t);
-    });
-    api<Overview>(`/api/tournament/tournaments/${id}/overview`).then(setOverview).catch(() => undefined);
-    api<TournamentTeam[]>(`/api/tournament/tournaments/${id}/teams`).then(setTeams).catch(() => undefined);
-  }, [id]);
-  useEffect(reload, [reload]);
+  // quiet: an automatic refresh (simulation running) makes no error popup
+  const reload = useCallback(
+    async (quiet = false) => {
+      const list = await api<TournamentSummary[]>('/api/tournament/tournaments', { quiet });
+      const summary = list.find((x) => x.id === id);
+      if (!summary) return setMissing(true);
+      const [overview, teams, veto, vetoItems, servers] = await Promise.all([
+        api<Overview>(`/api/tournament/tournaments/${id}/overview`, { quiet }).catch(() => null),
+        api<TournamentTeam[]>(`/api/tournament/tournaments/${id}/teams`, { quiet }).catch(() => null),
+        // empty answer = no pool yet
+        api<VetoConfig | ''>(`/api/tournament/tournaments/${id}/veto`, { quiet })
+          .then((c) => c || null)
+          .catch(() => null),
+        api<VetoItem[]>(`/api/tournament/tournaments/${id}/vetos`, { quiet }).catch(() => []),
+        api<ServerRow[]>('/api/tournament/servers', { quiet }).catch(() => []),
+      ]);
+      setData({ summary, overview, teams, veto, vetoItems, servers });
+    },
+    [id],
+  );
+  useEffect(() => {
+    reload();
+  }, [reload]);
 
+  const base = tournamentPath(id);
   if (missing) return <Empty>Tournoi introuvable.</Empty>;
-  if (!summary) return null;
+  if (!data) return null;
+  const list = steps(data);
+  const first = list.find((s) => !s.done) ?? list[list.length - 1];
+
   return (
-    <div className="space-y-12">
-      <Header summary={summary} onChange={reload} />
-      <Teams tournamentId={id} teams={teams} onChange={reload} />
-      <Matches tournamentId={id} overview={overview} teams={teams ?? []} onChange={reload} />
+    <div className="space-y-8">
+      <header className="space-y-1">
+        <Link to="/admin" className="text-sm text-muted hover:text-white">
+          Tableau de bord
+        </Link>
+        <div className="flex flex-wrap items-baseline gap-x-4 gap-y-1">
+          <h1 className="text-3xl font-semibold text-white">{data.summary.name}</h1>
+          <span className="text-sm text-muted">{TOURNAMENT_STATUS[data.summary.status] ?? data.summary.status}</span>
+          <a href={`/view/tournaments/${id}`} className="text-sm text-muted hover:text-white">
+            Page publique
+          </a>
+        </div>
+      </header>
+
+      <SimulationBar tournamentId={id} onTick={() => reload(true).catch(() => undefined)} />
+
+      <StepBar steps={list} />
+
+      <Routes>
+        <Route index element={<Navigate to={`${base}/${first.path}`} replace />} />
+        <Route path="tournoi" element={<InfoStep summary={data.summary} onChange={() => reload()} next={list[1]} />} />
+        <Route
+          path="equipes"
+          element={
+            <>
+              <TeamsStep tournamentId={id} teams={data.teams} onChange={() => reload()} />
+              <NextStep step={list[2]} />
+            </>
+          }
+        />
+        <Route path="veto" element={<VetoStep id={id} onChange={() => reload()} next={list[3]} />} />
+        <Route path="phases" element={<PhasesStep id={id} data={data} onChange={() => reload()} next={list[4]} />} />
+        <Route path="matchs/*" element={<MatchesStep id={id} data={data} onChange={() => reload()} />} />
+        <Route path="*" element={<Navigate to={`${base}/${first.path}`} replace />} />
+      </Routes>
     </div>
   );
 }
 
-// --- Name and status ------------------------------------------------------------------------------------------
+/** The steps, in order: number, name, done or what is missing. The current one is underlined in red. */
+function StepBar({ steps: list }: { steps: Step[] }) {
+  const base = useBase();
+  return (
+    <nav aria-label="Étapes du tournoi" className="overflow-x-auto border-b border-line">
+      <ol className="flex min-w-max">
+        {list.map((s, i) => (
+          <li key={s.path}>
+            <NavLink
+              to={`${base}/${s.path}`}
+              className={({ isActive }) =>
+                `-mb-px flex flex-col border-b-2 px-4 py-2 ${isActive ? 'border-red text-white' : 'border-transparent text-muted hover:text-white'}`
+              }
+            >
+              <span className="text-sm font-semibold">
+                <span className="mr-2 font-mono">{i + 1}</span>
+                {s.label}
+              </span>
+              <span className={`text-xs ${s.done ? 'text-ok' : s.path === 'matchs' ? 'text-muted' : 'text-pause'}`}>{s.done ? `fait, ${s.hint}` : s.hint}</span>
+            </NavLink>
+          </li>
+        ))}
+      </ol>
+    </nav>
+  );
+}
 
-function Header({ summary, onChange }: { summary: TournamentSummary; onChange: () => void }) {
-  const [renaming, setRenaming] = useState(false);
+function NextStep({ step }: { step?: Step }) {
+  const base = useBase();
+  if (!step) return null;
+  return (
+    <div className="border-t border-line pt-6">
+      <Link to={`${base}/${step.path}`} className="inline-block bg-red px-4 py-2 text-sm font-semibold text-white hover:bg-red-light">
+        Étape suivante : {step.label}
+      </Link>
+    </div>
+  );
+}
+
+// --- 1. Tournoi -------------------------------------------------------------------------------------------------
+
+function InfoStep({ summary, onChange, next }: { summary: TournamentSummary; onChange: () => void; next: Step }) {
   const [name, setName] = useState(summary.name);
   const { busy, notice, run } = useAction(onChange);
-  const patch = (label: string, body: object) => run(label, () => api(`/api/tournament/tournaments/${summary.id}`, { method: 'PATCH', body: JSON.stringify(body) }));
+  const patch = (label: string, body: object) =>
+    run(label, () => api(`/api/tournament/tournaments/${summary.id}`, { method: 'PATCH', body: JSON.stringify(body) }));
   return (
-    <header className="space-y-3">
-      <Link to="/admin" className="text-sm text-muted hover:text-white">
-        Tableau de bord
-      </Link>
-      {renaming ? (
-        <form
-          className="flex flex-wrap items-center gap-2"
-          onSubmit={async (e: FormEvent) => {
-            e.preventDefault();
-            if (await patch('Tournoi renommé', { name })) setRenaming(false);
-          }}
-        >
-          <Input value={name} onChange={(e) => setName(e.target.value)} className="text-2xl font-semibold sm:w-96" autoFocus />
-          <Button primary type="submit" disabled={busy || !name.trim()}>
-            Renommer
-          </Button>
-          <Button onClick={() => setRenaming(false)}>Annuler</Button>
-        </form>
-      ) : (
-        <div className="flex flex-wrap items-baseline gap-3">
-          <h1 className="text-3xl font-semibold text-white">{summary.name}</h1>
-          <Button small onClick={() => setRenaming(true)}>
-            Renommer
-          </Button>
-        </div>
-      )}
-      <div className="flex flex-wrap items-center gap-3 text-sm">
-        <label htmlFor="status" className="text-muted">
-          Statut
-        </label>
-        <Select id="status" value={summary.status} disabled={busy} onChange={(e) => patch('Statut changé', { status: e.target.value })}>
-          {Object.entries(TOURNAMENT_STATUS).map(([value, label]) => (
-            <option key={value} value={value}>
-              {label}
-            </option>
-          ))}
-        </Select>
-        <span className="text-muted">{summary.game}</span>
-        <a href={`/view/tournaments/${summary.id}`} className="text-muted hover:text-white">
-          Page publique
-        </a>
-      </div>
-      <NoticeLine notice={notice} />
-    </header>
-  );
-}
-
-// --- Teams and players ----------------------------------------------------------------------------------------
-
-function Teams({ tournamentId, teams, onChange }: { tournamentId: string; teams: TournamentTeam[] | null; onChange: () => void }) {
-  const action = useAction(onChange);
-  return (
-    <Section title="Équipes" count={teams?.length}>
-      <div className="space-y-6">
-        <NewTeam tournamentId={tournamentId} action={action} />
-        <NoticeLine notice={action.notice} />
-        {teams && teams.length === 0 && <Empty>Aucune équipe : ajoutez-en une avec son premier joueur.</Empty>}
-        {teams?.map((t) => <TeamBlock key={t.id} tournamentId={tournamentId} team={t} action={action} />)}
-      </div>
-    </Section>
-  );
-}
-
-type Action = ReturnType<typeof useAction>;
-
-/** A team only belongs to a tournament through its players (or its matches): created with its first player. */
-function NewTeam({ tournamentId, action }: { tournamentId: string; action: Action }) {
-  const [name, setName] = useState('');
-  const [player, setPlayer] = useState('');
-  const [steamId, setSteamId] = useState('');
-  return (
-    <form
-      className="flex flex-wrap items-end gap-2"
-      onSubmit={async (e: FormEvent) => {
-        e.preventDefault();
-        const done = await action.run(`Équipe ${name.trim()} ajoutée`, async () => {
-          const [team] = await api<{ id: string }[]>('/api/tournament/teams', { method: 'POST', body: JSON.stringify({ names: [name.trim()] }) });
-          await api(`/api/tournament/tournaments/${tournamentId}/teams/${team.id}/players`, {
-            method: 'POST',
-            body: JSON.stringify({ players: [{ username: player.trim(), steamId: steamId.trim() || undefined, captain: true }] }),
-          });
-          return true;
-        });
-        if (done) {
-          setName('');
-          setPlayer('');
-          setSteamId('');
-        }
-      }}
-    >
-      <Field label="Nouvelle équipe">
-        <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="Nom de l'équipe" />
-      </Field>
-      <Field label="Capitaine">
-        <Input value={player} onChange={(e) => setPlayer(e.target.value)} placeholder="Pseudo" />
-      </Field>
-      <Field label="SteamID du capitaine">
-        <Input value={steamId} onChange={(e) => setSteamId(e.target.value)} placeholder="7656… ou [U:1:…]" className="font-mono" />
-      </Field>
-      <Button primary type="submit" disabled={action.busy || !name.trim() || !player.trim()}>
-        Ajouter l'équipe
-      </Button>
-    </form>
-  );
-}
-
-function TeamBlock({ tournamentId, team, action }: { tournamentId: string; team: TournamentTeam; action: Action }) {
-  const [renaming, setRenaming] = useState(false);
-  const [name, setName] = useState(team.name);
-  const [confirmRemove, setConfirmRemove] = useState(false);
-  return (
-    <div className="border-t border-line pt-4">
-      <div className="flex flex-wrap items-center gap-3">
-        {renaming ? (
+    <>
+      <Section title="Tournoi">
+        <div className="space-y-4">
           <form
-            className="flex flex-wrap gap-2"
-            onSubmit={async (e: FormEvent) => {
+            className="flex flex-wrap items-end gap-2"
+            onSubmit={(e: FormEvent) => {
               e.preventDefault();
-              if (await action.run('Équipe renommée', () => api(`/api/tournament/teams/${team.id}`, { method: 'PATCH', body: JSON.stringify({ name }) }))) setRenaming(false);
+              patch('Tournoi renommé', { name });
             }}
           >
-            <Input value={name} onChange={(e) => setName(e.target.value)} autoFocus />
-            <Button small primary type="submit" disabled={action.busy || !name.trim()}>
+            <label className="flex flex-col gap-1 text-sm text-muted">
+              Nom
+              <Input value={name} onChange={(e) => setName(e.target.value)} className="sm:w-96" />
+            </label>
+            <Button type="submit" disabled={busy || !name.trim() || name === summary.name}>
               Renommer
-            </Button>
-            <Button small onClick={() => setRenaming(false)}>
-              Annuler
             </Button>
           </form>
-        ) : (
-          <>
-            <h3 className="text-lg font-semibold text-white">{team.name}</h3>
-            <Button small onClick={() => setRenaming(true)}>
-              Renommer
-            </Button>
-          </>
-        )}
-        {confirmRemove ? (
-          <span className="flex items-center gap-2 text-sm">
-            Retirer {team.name} du tournoi ?
-            <Button
-              small
-              danger
-              disabled={action.busy}
-              onClick={() => action.run(`${team.name} retirée`, () => api(`/api/tournament/tournaments/${tournamentId}/teams/${team.id}`, { method: 'DELETE' }))}
-            >
-              Retirer
-            </Button>
-            <Button small onClick={() => setConfirmRemove(false)}>
-              Annuler
-            </Button>
-          </span>
-        ) : (
-          <Button small danger onClick={() => setConfirmRemove(true)}>
-            Retirer l'équipe
-          </Button>
-        )}
-      </div>
-      <ul className="mt-2 divide-y divide-line">
-        {team.players.map((p) => (
-          <PlayerLine key={p.id} tournamentId={tournamentId} teamId={team.id} player={p} action={action} />
-        ))}
-      </ul>
-      <AddPlayer tournamentId={tournamentId} teamId={team.id} action={action} />
-    </div>
-  );
-}
-
-function PlayerLine({ tournamentId, teamId, player, action }: { tournamentId: string; teamId: string; player: TournamentTeam['players'][number]; action: Action }) {
-  const [editing, setEditing] = useState(false);
-  const [username, setUsername] = useState(player.username);
-  const [steamId, setSteamId] = useState(player.steamId ?? '');
-  if (editing) {
-    return (
-      <li className="py-2">
-        <form
-          className="flex flex-wrap items-center gap-2"
-          onSubmit={async (e: FormEvent) => {
-            e.preventDefault();
-            const ok = await action.run(`${username} modifié`, () =>
-              api(`/api/tournament/players/${player.id}`, { method: 'PATCH', body: JSON.stringify({ username, steamId }) }),
-            );
-            if (ok) setEditing(false);
-          }}
-        >
-          <Input value={username} onChange={(e) => setUsername(e.target.value)} placeholder="Pseudo" autoFocus />
-          <Input value={steamId} onChange={(e) => setSteamId(e.target.value)} placeholder="SteamID (vide = aucun)" className="font-mono" />
-          <Button small primary type="submit" disabled={action.busy || !username.trim()}>
-            Enregistrer
-          </Button>
-          <Button small onClick={() => setEditing(false)}>
-            Annuler
-          </Button>
-        </form>
-      </li>
-    );
-  }
-  return (
-    <li className="flex flex-wrap items-center gap-x-4 gap-y-1 py-2">
-      <span className="min-w-32 text-white">{player.username}</span>
-      <span className={`min-w-44 font-mono text-sm ${player.steamId ? 'text-muted' : 'text-pause'}`}>{player.steamId ?? 'pas de SteamID'}</span>
-      {player.captain ? <span className="text-sm text-text">capitaine</span> : null}
-      <span className="ml-auto flex gap-2">
-        {!player.captain && (
-          <Button
-            small
-            disabled={action.busy}
-            onClick={() =>
-              action.run(`${player.username} capitaine`, () =>
-                api(`/api/tournament/tournaments/${tournamentId}/teams/${teamId}/captain`, { method: 'PUT', body: JSON.stringify({ playerId: player.id }) }),
-              )
-            }
-          >
-            Nommer capitaine
-          </Button>
-        )}
-        <Button small onClick={() => setEditing(true)}>
-          Modifier
-        </Button>
-        <Button
-          small
-          danger
-          disabled={action.busy}
-          onClick={() => action.run(`${player.username} retiré`, () => api(`/api/tournament/tournaments/${tournamentId}/teams/${teamId}/players/${player.id}`, { method: 'DELETE' }))}
-        >
-          Retirer
-        </Button>
-      </span>
-    </li>
-  );
-}
-
-function AddPlayer({ tournamentId, teamId, action }: { tournamentId: string; teamId: string; action: Action }) {
-  const [username, setUsername] = useState('');
-  const [steamId, setSteamId] = useState('');
-  return (
-    <form
-      className="mt-2 flex flex-wrap items-center gap-2"
-      onSubmit={async (e: FormEvent) => {
-        e.preventDefault();
-        const ok = await action.run(`${username.trim()} ajouté`, () =>
-          api(`/api/tournament/tournaments/${tournamentId}/teams/${teamId}/players`, {
-            method: 'POST',
-            body: JSON.stringify({ players: [{ username: username.trim(), steamId: steamId.trim() || undefined }] }),
-          }),
-        );
-        if (ok) {
-          setUsername('');
-          setSteamId('');
-        }
-      }}
-    >
-      <Input value={username} onChange={(e) => setUsername(e.target.value)} placeholder="Pseudo" />
-      <Input value={steamId} onChange={(e) => setSteamId(e.target.value)} placeholder="SteamID" className="font-mono" />
-      <Button small type="submit" disabled={action.busy || !username.trim()}>
-        Ajouter un joueur
-      </Button>
-    </form>
-  );
-}
-
-// --- Matches --------------------------------------------------------------------------------------------------
-
-const MATCH_STATUS: Record<string, string> = { PENDING: 'à jouer', LIVE: 'en cours', FINISHED: 'terminé' };
-
-function Matches({ tournamentId, overview, teams, onChange }: { tournamentId: string; overview: Overview | null; teams: TournamentTeam[]; onChange: () => void }) {
-  const action = useAction(onChange);
-  const [servers, setServers] = useState<ServerRow[]>([]);
-  useEffect(() => {
-    api<ServerRow[]>('/api/tournament/servers').then(setServers).catch(() => undefined);
-  }, [overview]);
-  const groups = (overview?.stages ?? []).flatMap((s) => [
-    ...s.groups.map((g) => ({ title: `${s.name} - poule ${g.name}`, matches: g.matches })),
-    ...(s.matches.length ? [{ title: s.name, matches: s.matches }] : []),
-  ]);
-  if (overview?.bonusMatches.length) groups.push({ title: 'Matchs bonus', matches: overview.bonusMatches });
-  const count = groups.reduce((n, g) => n + g.matches.length, 0);
-  return (
-    <Section title="Matchs" count={overview ? count : undefined}>
-      <div className="space-y-6">
-        <BonusMatch tournamentId={tournamentId} teams={teams} action={action} />
-        <NoticeLine notice={action.notice} />
-        {overview && count === 0 && <Empty>Aucun match : ajoutez un match bonus, ou créez les phases (poules, arbre) - écran à venir.</Empty>}
-        {groups.map((g) => (
-          <div key={g.title}>
-            <h3 className="text-sm text-muted">{g.title}</h3>
-            <ul className="mt-1 divide-y divide-line border-y border-line">
-              {g.matches.map((m) => (
-                <MatchLine key={m.id} match={m} servers={servers} action={action} />
-              ))}
-            </ul>
-          </div>
-        ))}
-      </div>
-    </Section>
-  );
-}
-
-function BonusMatch({ tournamentId, teams, action }: { tournamentId: string; teams: TournamentTeam[]; action: Action }) {
-  const [home, setHome] = useState('');
-  const [away, setAway] = useState('');
-  const [format, setFormat] = useState('BO1');
-  if (teams.length < 2) return null;
-  return (
-    <form
-      className="flex flex-wrap items-end gap-2"
-      onSubmit={(e: FormEvent) => {
-        e.preventDefault();
-        action.run('Match bonus ajouté', () =>
-          api(`/api/tournament/tournaments/${tournamentId}/bonus-matches`, { method: 'POST', body: JSON.stringify({ homeTeamId: home, awayTeamId: away, format }) }),
-        );
-      }}
-    >
-      <Field label="Match bonus">
-        <Select value={home} onChange={(e) => setHome(e.target.value)}>
-          <option value="">Équipe 1</option>
-          {teams.map((t) => (
-            <option key={t.id} value={t.id}>
-              {t.name}
-            </option>
-          ))}
-        </Select>
-      </Field>
-      <Field label="contre">
-        <Select value={away} onChange={(e) => setAway(e.target.value)}>
-          <option value="">Équipe 2</option>
-          {teams.map((t) => (
-            <option key={t.id} value={t.id}>
-              {t.name}
-            </option>
-          ))}
-        </Select>
-      </Field>
-      <Field label="Format">
-        <Select value={format} onChange={(e) => setFormat(e.target.value)}>
-          <option>BO1</option>
-          <option>BO3</option>
-          <option>BO5</option>
-        </Select>
-      </Field>
-      <Button type="submit" disabled={action.busy || !home || !away || home === away}>
-        Ajouter le match
-      </Button>
-    </form>
-  );
-}
-
-/** A match: teams, score, games; the next game launched from here (map, server or the first free one). */
-function MatchLine({ match: m, servers, action }: { match: OverviewMatch; servers: ServerRow[]; action: Action }) {
-  const navigate = useNavigate();
-  const live = m.games.find((g) => g.status === 'LIVE');
-  const next = m.games.find((g) => g.status === 'PENDING') ?? null;
-  const order = next?.order ?? m.games.filter((g) => g.status !== 'CANCELLED').length + 1;
-  const [map, setMap] = useState(next && next.mapName !== '-' ? next.mapName : '');
-  const [server, setServer] = useState('');
-  const playable = m.status !== 'FINISHED' && !!m.home && !!m.away && !live;
-  return (
-    <li className="flex flex-wrap items-center gap-x-6 gap-y-2 py-3">
-      <span className="min-w-64">
-        <span className="text-white">{m.home ?? 'à déterminer'}</span>
-        <span className="text-muted"> contre </span>
-        <span className="text-white">{m.away ?? 'à déterminer'}</span>
-      </span>
-      <span className="font-mono text-sm text-muted">
-        {m.format} {m.status !== 'PENDING' && `${m.scoreHome}-${m.scoreAway}`}
-      </span>
-      <span className={`text-sm ${m.status === 'LIVE' ? 'text-ok' : 'text-muted'}`}>{m.isForfeit ? 'forfait' : (MATCH_STATUS[m.status] ?? m.status)}</span>
-      {live?.id && (
-        <Link to={`/admin/games/${live.id}`} className="ml-auto text-sm font-semibold text-white underline">
-          Console du game {live.order}
-        </Link>
-      )}
-      {playable && (
-        <form
-          className="ml-auto flex flex-wrap items-center gap-2"
-          onSubmit={async (e: FormEvent) => {
-            e.preventDefault();
-            const r = await action.run(`Game ${order} lancé`, () =>
-              api<{ gameId: string }>(`/api/tournament/matches/${m.id}/games/${order}/launch`, {
-                method: 'POST',
-                body: JSON.stringify({ mapName: map.trim() || undefined, server: server || undefined }),
-              }),
-            );
-            if (r?.gameId) navigate(`/admin/games/${r.gameId}`);
-          }}
-        >
-          <Input value={map} onChange={(e) => setMap(e.target.value)} placeholder="de_mirage" className="w-32 font-mono text-sm" aria-label="Map" />
-          <Select value={server} onChange={(e) => setServer(e.target.value)} aria-label="Serveur" className="text-sm">
-            <option value="">serveur libre</option>
-            {servers
-              .filter((s) => s.availability === 'free')
-              .map((s) => (
-                <option key={s.id} value={s.name}>
-                  {s.name}
+          <label className="flex flex-col gap-1 text-sm text-muted">
+            Statut (archivé : caché de l'accueil)
+            <Select value={summary.status} disabled={busy} onChange={(e) => patch('Statut changé', { status: e.target.value })} className="w-48">
+              {Object.entries(TOURNAMENT_STATUS).map(([value, label]) => (
+                <option key={value} value={value}>
+                  {label}
                 </option>
               ))}
-          </Select>
-          <Button small primary type="submit" disabled={action.busy || (!map.trim() && !next)}>
-            Lancer le game {order}
-          </Button>
-        </form>
-      )}
-    </li>
+            </Select>
+          </label>
+          <NoticeLine notice={notice} />
+        </div>
+      </Section>
+      <NextStep step={next} />
+    </>
   );
 }
 
-function Field({ label, children }: { label: string; children: React.ReactNode }) {
+// --- 3. Véto ----------------------------------------------------------------------------------------------------
+
+function VetoStep({ id, onChange, next }: { id: string; onChange: () => void; next: Step }) {
+  const action = useAction(onChange);
   return (
-    <label className="flex flex-col gap-1 text-sm text-muted">
-      {label}
-      {children}
-    </label>
+    <>
+      <Section title="Véto">
+        <div className="space-y-3">
+          <p className="max-w-prose text-sm text-text">
+            Les maps entre lesquelles les capitaines bannissent et choisissent, et la façon de décider des camps. Sans pool de maps, aucun véto ne peut
+            commencer.
+          </p>
+          <VetoSettings tournamentId={id} action={action} />
+          <NoticeLine notice={action.notice} />
+        </div>
+      </Section>
+      <NextStep step={next} />
+    </>
+  );
+}
+
+// --- 4. Phases --------------------------------------------------------------------------------------------------
+
+function PhasesStep({ id, data, onChange, next }: { id: string; data: Data; onChange: () => void; next: Step }) {
+  const action = useAction(onChange);
+  return (
+    <>
+      <Section title="Phases">
+        <div className="space-y-4">
+          <p className="max-w-prose text-sm text-text">
+            Créez les phases dans leur ordre (par exemple Poules, puis Élite et Amateur en double élimination), puis générez les poules. Après les poules, la
+            qualification (onglet Qualification des matchs) envoie les équipes dans les arbres et les génère (2 équipes : une finale).
+          </p>
+          <NoticeLine notice={action.notice} />
+          {data.overview && <StagesSetup tournamentId={id} stages={data.overview.stages} teams={data.teams ?? []} action={action} />}
+        </div>
+      </Section>
+      <NextStep step={next} />
+    </>
+  );
+}
+
+// --- 5. Matchs --------------------------------------------------------------------------------------------------
+
+/** One tab per stage, plus the bonus matches; opens on the first stage with a match still to play. */
+function MatchesStep({ id, data, onChange }: { id: string; data: Data; onChange: () => void }) {
+  const action = useAction(onChange);
+  const stages = data.overview?.stages ?? [];
+  const teams = data.teams ?? [];
+  const names = Object.fromEntries(teams.map((t) => [t.id, t.name]));
+  const vetos = Object.fromEntries(data.vetoItems.map((v) => [v.matchId, vetoLine(v, names)]));
+  const start = stages.find((s) => stageMatches(s).some((m) => !isSettled(m))) ?? stages[0];
+  // a group stage followed by other stages gets its "Qualification" tab right after it (its own screen)
+  const tabs: { key: string; label: string }[] = [
+    ...stages.flatMap((s) => [
+      { key: s.id, label: s.name },
+      ...(s.type === 'ROUND_ROBIN' && s.groups.length > 0 && stages.some((x) => x.order > s.order)
+        ? [{ key: `qualification-${s.id}`, label: 'Qualification' }]
+        : []),
+    ]),
+    { key: 'bonus', label: 'Matchs bonus' },
+  ];
+
+  const body = (key: string): ReactNode => {
+    if (key === 'bonus') {
+      return <BonusMatches tournamentId={id} matches={data.overview?.bonusMatches ?? []} teams={teams} servers={data.servers} action={action} vetos={vetos} />;
+    }
+    if (key.startsWith('qualification-')) {
+      const groups = stages.find((s) => s.id === key.slice('qualification-'.length));
+      return groups ? <QualifyStep stage={groups} stages={stages} action={action} /> : <Empty>Phase introuvable.</Empty>;
+    }
+    const stage = stages.find((s) => s.id === key);
+    if (!stage) return <Empty>Phase introuvable.</Empty>;
+    return <StagePlay stage={stage} stages={stages} teams={teams} servers={data.servers} action={action} vetos={vetos} />;
+  };
+
+  return (
+    <div className="space-y-6">
+      <NextAction tournamentId={id} stages={stages} />
+      <nav aria-label="Phases" className="flex flex-wrap gap-2">
+        {tabs.map((t) => (
+          <NavLink
+            key={t.key}
+            to={tournamentPath(id, `matchs/${t.key}`)}
+            className={({ isActive }) => `border px-3 py-1.5 text-sm ${isActive ? 'border-text text-white' : 'border-line-strong text-muted hover:text-white'}`}
+          >
+            {t.label}
+          </NavLink>
+        ))}
+      </nav>
+      <NoticeLine notice={action.notice} />
+      <Routes>
+        <Route index element={<Navigate to={tournamentPath(id, `matchs/${start ? start.id : 'bonus'}`)} replace />} />
+        {tabs.map((t) => (
+          <Route key={t.key} path={t.key} element={body(t.key)} />
+        ))}
+        <Route path="*" element={<Empty>Phase introuvable.</Empty>} />
+      </Routes>
+    </div>
   );
 }

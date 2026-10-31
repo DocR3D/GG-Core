@@ -17,6 +17,8 @@ Le cœur moteur de match, l'arbitrage automatisé, le calcul de scores/stats CS2
   - **API de la console admin faite** (2026-10-31) : games en cours, équipes et joueurs d'un tournoi, détail d'une
     série en JSON, commandes de match (pause, reprise, départ forcé, échange des camps, rejouer un round, message),
     journal du match, modification / retrait des tournois, équipes, joueurs et serveurs (`docs/context/backend.md`).
+  - **Écran de gestion d'un tournoi fait** (2026-10-31) : équipes et joueurs, phases (poules, arbre, qualification,
+    égalités), opérations du jour J sur chaque match, matchs bonus (`docs/context/frontend.md`).
   - **Interface Administrateur** :
     - Dashboard de gestion des tournois, poules, matchs et affectations de serveurs.
     - Console de match en direct avec commandes d'arbitrage 1-clic (pause, reprise, swap de camp, redémarrage, changement de map, restauration de backup).
@@ -38,7 +40,8 @@ Le cœur moteur de match, l'arbitrage automatisé, le calcul de scores/stats CS2
   intégrés au classement final) - `docs/context/backend.md`.
 * **Reste** :
   - Import des équipes / joueurs par CSV (format à voir avec le dev du site d'inscription).
-  - Annuler un forfait / corriger une série terminée : demanderait un retour en arrière de l'arbre (pas fait).
+  - Annuler un forfait (pas fait). Corriger le résultat d'un match fini : fait le 2026-11-01
+    (`POST matches/:id/games/:order/correct`, les équipes envoyées aux matchs suivants sont reprises).
 
 ### 3. 🗺️ Module de Vétos de Maps (Map Pick & Ban)
 * **Fait** : pierre-feuille-ciseaux puis véto BO1 / BO3 / BO5 sur la page `/veto/:matchId` (capitaines connectés avec
@@ -51,6 +54,7 @@ Le cœur moteur de match, l'arbitrage automatisé, le calcul de scores/stats CS2
   déplace les joueurs mais pas les noms (RT-10).
 * **Reste** :
   - Import des capitaines par CSV (avec l'import des équipes, format à voir avec le dev du site d'inscription).
+  - Vétos des poules ouverts tour par tour (l'admin peut ouvrir un tour en avance) : fait le 2026-10-31.
   - Minuteur par étape (ban aléatoire) : écarté pour l'instant, l'admin débloque à la main.
   - Le backend pousse `veto:updated` (WebSocket) ; la page de test s'en sert déjà pour se recharger, le futur front
     mettra l'écran à jour sans rechargement.

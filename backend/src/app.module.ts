@@ -1,5 +1,7 @@
 // src/app.module.ts
 import { Module } from '@nestjs/common';
+import { APP_INTERCEPTOR } from '@nestjs/core';
+import { RequestErrorsInterceptor } from './adapters/http/request-errors.interceptor';
 
 import { RedisModule } from '@adapters/redis/redis.module';
 import { DatabaseModule } from '@adapters/database/database.module';
@@ -38,5 +40,7 @@ import { AuthModule } from './adapters/http/auth/auth.module';
     AdminModule,
   ],
   controllers: [HealthController],
+  // every refused request is logged (method, address, reason)
+  providers: [{ provide: APP_INTERCEPTOR, useClass: RequestErrorsInterceptor }],
 })
 export class AppModule {}

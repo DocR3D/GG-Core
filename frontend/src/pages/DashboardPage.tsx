@@ -40,6 +40,9 @@ function Dashboard() {
       <header className="flex flex-wrap items-baseline gap-x-4 gap-y-1">
         <h1 className="text-3xl font-semibold text-white">Tableau de bord</h1>
         {live.at && <p className="text-sm text-muted">mis à jour {ago(live.at, now)}</p>}
+        <Link to="/admin/sandbox" className="ml-auto text-sm text-muted underline hover:text-white">
+          Sandbox : préparer un tournoi de test
+        </Link>
       </header>
 
       <Section title="En cours" count={live.data?.length} error={live.error}>
@@ -123,7 +126,9 @@ function NewTournament() {
         className="flex flex-wrap gap-2"
         onSubmit={async (e: FormEvent) => {
           e.preventDefault();
-          const t = await run('Tournoi créé', () => api<{ id: string }>('/api/tournament/tournaments', { method: 'POST', body: JSON.stringify({ name: name.trim() }) }));
+          const t = await run('Tournoi créé', () =>
+            api<{ id: string }>('/api/tournament/tournaments', { method: 'POST', body: JSON.stringify({ name: name.trim() }) }),
+          );
           if (t?.id) navigate(`/admin/tournaments/${t.id}`);
         }}
       >

@@ -255,6 +255,8 @@ model Match {
   placement         Int?
   /// Équipe qui commence le véto (choisie par le gagnant du pierre-feuille-ciseaux, ou par l'admin)
   vetoStartTeamId   String?      @map("veto_start_team_id") @db.Uuid
+  /// Véto ouvert par l'admin avant son tour (sinon : ouvert quand les tours précédents des poules sont finis)
+  vetoOpenedAt      DateTime?    @map("veto_opened_at")
   createdAt         DateTime     @default(now()) @map("created_at")
   updatedAt         DateTime     @updatedAt @map("updated_at")
 

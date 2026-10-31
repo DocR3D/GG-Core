@@ -61,9 +61,11 @@ function Console({ gameId }: { gameId: string }) {
   const info = live.data?.find((g) => g.gameId === gameId);
 
   const refresh = useCallback(() => {
-    api<Snapshot>(`/api/matches/${gameId}/snapshot`).then(setSnap).catch(() => undefined);
+    api<Snapshot>(`/api/matches/${gameId}/snapshot`, { quiet: true })
+      .then(setSnap)
+      .catch(() => undefined);
     // the route answers { matchId, review: null | { … } }
-    api<{ review: typeof review }>(`/api/matches/${gameId}/review`)
+    api<{ review: typeof review }>(`/api/matches/${gameId}/review`, { quiet: true })
       .then((r) => setReview(r?.review ?? null))
       .catch(() => undefined);
   }, [gameId]);
@@ -174,8 +176,7 @@ function Console({ gameId }: { gameId: string }) {
       {review && (
         <div className="border-l-2 border-red bg-surface px-4 py-3">
           <p className="text-white">
-            Résultat gelé : le serveur a fini le match sur {review.serverScore.ct}-{review.serverScore.t} (CT-T), ce qui
-            contredit GG-Core.
+            Résultat gelé : le serveur a fini le match sur {review.serverScore.ct}-{review.serverScore.t} (CT-T), ce qui contredit GG-Core.
           </p>
           <div className="mt-3 flex flex-wrap gap-2">
             <Button primary disabled={busy} onClick={() => run('Score du serveur accepté', 'review/accept-server')}>
@@ -212,7 +213,11 @@ function Console({ gameId }: { gameId: string }) {
             Échanger les camps
           </Button>
         </div>
-        <RestoreRound disabled={busy || !phase || !PLAYING.has(phase)} current={snap?.score.round ?? 0} onRestore={(round) => run(`Round ${round} rejoué`, 'restore', { round })} />
+        <RestoreRound
+          disabled={busy || !phase || !PLAYING.has(phase)}
+          current={snap?.score.round ?? 0}
+          onRestore={(round) => run(`Round ${round} rejoué`, 'restore', { round })}
+        />
         <SayForm disabled={busy} onSay={(message) => run('Message envoyé', 'say', { message })} />
         {notice && <p className={notice.ok ? 'text-sm text-ok' : 'text-sm text-red-light'}>{notice.text}</p>}
       </section>

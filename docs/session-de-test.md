@@ -35,6 +35,10 @@ préparation et ce qu'il faut noter. Cocher au fur et à mesure, noter tout éca
 | S-4 | Accueil `/` : « En direct » vide puis le game apparaît au lancement (sans recharger), tournois listés | [ ] | |
 | S-5 | Tableau de bord : game lancé (équipes, camps en couleur, score, map, phase), `srv-a` occupé, « mis à jour » qui avance | [ ] | |
 | S-6 | Rendu sur tablette ou fenêtre étroite : rien ne déborde, tableaux lisibles | [ ] | |
+| S-7 | Poules puis Élite et Amateur créées une par une ; après les poules, « À faire maintenant » → « Qualifier les équipes » → « Qualifier » génère les arbres (2 équipes : une finale) et ouvre l'Élite, dessinée en arbre ; un clic sur un match montre ses actions | [ ] | |
+| S-8 | Match d'arbre fini : « Corriger le résultat » avec l'autre vainqueur, avant que le match suivant commence : les équipes changent de place dans l'arbre ; grande finale : « part avec 1 map d'avance » affiché | [ ] | |
+| S-9 | `/admin/sandbox` : « Préparer le tournoi » (12 équipes, arrêt « poules jouées ») ouvre son écran ; un refus (ex. « Qualifier » avant la fin des poules) s'affiche en popup avec ses détails, et dans `docker logs` (`[HTTP]`) | [ ] | |
+| S-10 | `/admin/sandbox` au fur et à mesure (2 s par game) : l'écran du tournoi se remplit seul, « Simulation en cours » en haut ; Pause fige le tournoi (les games lancés restent en cours), Reprendre repart, Arrêter stoppe | [ ] | |
 
 ## 2. Accès au serveur (RT-11)
 

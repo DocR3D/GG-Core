@@ -102,6 +102,78 @@ export class TournamentEditService {
     return { tournamentId, teamId, playerId, removed: true };
   }
 
+  // --- Stages -----------------------------------------------------------------------------------------------
+
+  /** { name?, type? } - the type only while the stage has no match (groups and bracket are generated differently). */
+  async updateStage(stageId: string, input: { name?: string; type?: string }) {
+    await this.mustFind('stage', stageId, (id) => this.prisma.stage.findUnique({ where: { id } }));
+    const data: { name?: string; type?: 'ROUND_ROBIN' | 'DOUBLE_ELIM' } = {};
+    if (input.name !== undefined) {
+      if (!input.name.trim()) throw new TournamentError('invalid', 'name cannot be empty');
+      data.name = input.name.trim().slice(0, 128);
+    }
+    if (input.type !== undefined) {
+      if (input.type !== 'ROUND_ROBIN' && input.type !== 'DOUBLE_ELIM') throw new TournamentError('invalid', 'type: ROUND_ROBIN | DOUBLE_ELIM');
+      if (await this.prisma.match.count({ where: { stageId } })) throw new TournamentError('conflict', 'the stage has matches: reset it before changing its type');
+      data.type = input.type;
+    }
+    return this.prisma.stage.update({ where: { id: stageId }, data, select: { id: true, name: true, type: true, order: true } });
+  }
+
+  /**
+   * Undoes the generation of a stage: its matches (games, vetos) and groups go, its teams stay as its participants
+   * (the qualified teams of a bracket, the teams of the groups) so it can be generated again. Refused while a game
+   * of the stage is being played; with finished matches only when `force` (their results are lost - the screen
+   * asks first). A stage fed by a qualification keeps its qualified teams.
+   */
+  async resetStage(stageId: string, force = false) {
+    await this.mustFind('stage', stageId, (id) => this.prisma.stage.findUnique({ where: { id } }));
+    const finished = await this.guardStage(stageId, force);
+    const removed = await this.prisma.$transaction(async (tx) => {
+      const matches = await tx.match.deleteMany({ where: { stageId } });
+      await tx.stageTeam.updateMany({ where: { stageId }, data: { groupId: null } });
+      await tx.stageGroup.deleteMany({ where: { stageId } });
+      return matches.count;
+    });
+    return { stageId, matchesRemoved: removed, resultsLost: finished };
+  }
+
+  /** Removes a stage (same rules as a reset: never while a game is played, results lost only with `force`). */
+  async deleteStage(stageId: string, force = false) {
+    const stage = await this.mustFind('stage', stageId, (id) => this.prisma.stage.findUnique({ where: { id } }));
+    const finished = await this.guardStage(stageId, force);
+    await this.prisma.$transaction([this.prisma.match.deleteMany({ where: { stageId } }), this.prisma.stage.delete({ where: { id: stageId } })]);
+    return { deleted: stage.name, resultsLost: finished };
+  }
+
+  /**
+   * Ends the groups early (the LAN runs late): every group match not played yet is cancelled; standings and the
+   * qualification then count the matches played only. Refused while a group game is being played.
+   */
+  async closeGroups(stageId: string) {
+    const stage = await this.mustFind('stage', stageId, (id) => this.prisma.stage.findUnique({ where: { id } }));
+    if (stage.type !== 'ROUND_ROBIN') throw new TournamentError('invalid', 'not a group stage');
+    const live = await this.prisma.matchMap.count({ where: { match: { stageId, groupId: { not: null } }, status: { in: ['LIVE', 'WARMUP', 'PAUSED'] } } });
+    if (live) throw new TournamentError('conflict', 'a group game is being played: finish it or release its server first');
+    const open = { stageId, groupId: { not: null }, status: { in: ['PENDING' as const, 'VETO' as const] } };
+    const [maps, matches] = await this.prisma.$transaction([
+      this.prisma.matchMap.updateMany({ where: { match: open, status: 'PENDING' }, data: { status: 'CANCELLED' } }),
+      this.prisma.match.updateMany({ where: open, data: { status: 'CANCELLED' } }),
+    ]);
+    return { stageId, matchesCancelled: matches.count, gamesCancelled: maps.count };
+  }
+
+  /** Number of finished matches of a stage; refuses while a game is played, and finished results without `force`. */
+  private async guardStage(stageId: string, force: boolean): Promise<number> {
+    const live = await this.prisma.matchMap.count({ where: { match: { stageId }, status: { in: ['LIVE', 'WARMUP', 'PAUSED'] } } });
+    if (live) throw new TournamentError('conflict', 'a game of this stage is being played: finish it or release its server first');
+    const finished = await this.prisma.match.count({ where: { stageId, status: 'FINISHED' } });
+    if (finished && !force) {
+      throw new TournamentError('conflict', `${finished} match(es) of this stage are finished: their results would be lost (force)`);
+    }
+    return finished;
+  }
+
   private async mustFind<T>(what: string, id: string, find: (id: string) => Promise<T | null>): Promise<T> {
     const found = isUuid(id) ? await find(id) : null;
     if (!found) throw new TournamentError('not_found', `${what} not found`);

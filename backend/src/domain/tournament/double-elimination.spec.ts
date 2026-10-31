@@ -83,8 +83,14 @@ describe('buildDoubleElimination', () => {
     expect(r2Seeds).toEqual([1, 2, 3, 4]);
   });
 
-  it('refuse moins de 3 équipes', () => {
-    expect(() => buildDoubleElimination(2)).toThrow();
+  it('2 équipes : une seule finale, seed 1 contre seed 2', () => {
+    expect(buildDoubleElimination(2)).toEqual([
+      { key: 'GF', bracket: 'FINAL', round: 1, position: 1, home: { kind: 'seed', seed: 1 }, away: { kind: 'seed', seed: 2 } },
+    ]);
+  });
+
+  it('refuse moins de 2 équipes', () => {
+    expect(() => buildDoubleElimination(1)).toThrow();
   });
 });
 

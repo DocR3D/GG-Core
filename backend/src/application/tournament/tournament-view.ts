@@ -24,6 +24,9 @@ export interface ViewMatch {
   position: number | null;
   home: string | null;
   away: string | null;
+  /** team ids, for the admin actions (forfeit, replace, launch) */
+  homeId?: string | null;
+  awayId?: string | null;
   format: string;
   status: string; // MatchStatus
   scoreHome: number;
@@ -48,22 +51,30 @@ export interface ViewMatch {
 export interface ViewStandingRow {
   rank: number;
   team: string;
+  teamId?: string;
   played: number;
   wins: number;
   draws: number;
   losses: number;
   points: number;
+  /** rounds won / lost over the group (tiebreakers) */
+  scoreFor?: number;
+  scoreAgainst?: number;
   scoreDiff: number;
   tied: boolean;
 }
 
 export interface ViewStage {
+  /** stage id (admin screen: generate, qualify) */
+  id?: string;
   name: string;
   type: string;
   order: number;
-  groups: { name: string; standings: ViewStandingRow[]; matches: ViewMatch[] }[];
+  groups: { id?: string; name: string; standings: ViewStandingRow[]; matches: ViewMatch[] }[];
   /** participants without group (qualified teams waiting for a bracket), in seed order */
   seeds: string[];
+  /** every team placed in the stage (groups included), with its id and seed */
+  participants?: { id: string; name: string; seed: number }[];
   /** matches outside any group (brackets) */
   matches: ViewMatch[];
   /** final placements of a bracket stage (teams placed so far) */

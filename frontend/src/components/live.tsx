@@ -67,10 +67,7 @@ export function LiveGamesTable({ games, admin = false }: { games: LiveGame[]; ad
 export function TeamLine({ name, side, score }: { name: string | null; side?: 'CT' | 'T'; score: number }) {
   return (
     <div className="flex items-center gap-2">
-      <span
-        className={`h-4 w-1 shrink-0 ${side === 'CT' ? 'bg-ct' : side === 'T' ? 'bg-t' : 'bg-line-strong'}`}
-        title={side ? `côté ${side}` : undefined}
-      />
+      <span className={`h-4 w-1 shrink-0 ${side === 'CT' ? 'bg-ct' : side === 'T' ? 'bg-t' : 'bg-line-strong'}`} title={side ? `côté ${side}` : undefined} />
       <span className="flex-1 truncate text-white">{name ?? 'à déterminer'}</span>
       <span className="font-mono text-xl tabular-nums text-white">{score}</span>
     </div>
@@ -94,9 +91,7 @@ function GameState({ g, admin }: { g: LiveGame; admin: boolean }) {
         {playing && <span className="text-muted">, round {g.score.round}</span>}
       </div>
       {g.pause && (
-        <div className="text-sm text-pause">
-          En pause {g.pause.reason === 'technical' ? 'technique' : g.pause.reason === 'tactical' ? 'tactique' : ''}
-        </div>
+        <div className="text-sm text-pause">En pause {g.pause.reason === 'technical' ? 'technique' : g.pause.reason === 'tactical' ? 'tactique' : ''}</div>
       )}
     </div>
   );
