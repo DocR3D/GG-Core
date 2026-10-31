@@ -21,6 +21,8 @@
   --color-ct: #6f9fe6;
   --color-t: #e3a23f;
   --color-ok: #3ba164;
+  /* "en pause" (the spec: green = active, orange = paused, red = error): a yellow amber, kept away from the T orange */
+  --color-pause: #e8c547;
   --color-transparent: transparent;
   --color-current: currentColor;
 

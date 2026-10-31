@@ -18,6 +18,8 @@
 | `README.md` | README racine |
 | `backend/README.md` | README backend NestJS |
 | `docs/context/todo.md` | Backlog, roadmap MVP et tâches techniques restantes |
+| `docs/test-cases.md` | Fiches de test (TC, RT : contexte, procédure, attendu) |
+| `docs/session-de-test.md` | Liste à dérouler pendant une session de test avec de vrais joueurs (préparation, ordre, cases à cocher) |
 
 ## Résumé du cahier des charges
 

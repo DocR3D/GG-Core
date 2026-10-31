@@ -5,6 +5,12 @@
 (session via `/auth/me`, état du lien en direct) et une première page (liste des tournois). Les écrans (console admin,
 scoreboard, véto, portail joueur) restent à faire.
 
+**Tableau de bord admin** (`/admin`, admins seulement) : games en cours (serveur, équipes avec leur camp et leur score
+en chiffres alignés, map, tournoi, phase, pause en ambre, « Résultat à arbitrer » en rouge), serveurs (disponibilité,
+agent, RCON, logs reçus, mauvais jeton), tournois. Rafraîchi toutes les 5 s (`usePolling`), jamais rechargé.
+Couleurs d'état du cahier des charges : vert = en jeu, ambre `pause` = en pause (distinct de l'orange T), rouge = à
+faire maintenant ; les erreurs sont en `red-light`.
+
 - **Développement** (Windows ou Linux, Node installé) : `cd frontend && npm install && npm run dev` → http://localhost:5173,
   rechargement instantané ; les appels `/api`, `/auth`, `/login`, `/view`, `/veto`, `/sandbox`, `/assets`, `/socket.io`
   partent vers le backend (`GG_BACKEND`, défaut http://localhost:8081, stack lancée par `make up`). Le cookie de
@@ -49,7 +55,9 @@ NestJS, le front a la même adresse que l'API : la connexion (Steam, mot de pass
 
 ## Connexion au backend
 - Même origine que le backend (le front est servi par NestJS) : REST `/api/...`, Socket.IO `/ws`
-- Auth : la session existante (cookie `gg_session` posé par `/login`), aucun jeton à gérer côté front
+- Auth : la session existante (cookie `gg_session` posé par `/login`), aucun jeton à gérer côté front ; le WebSocket
+  reconnaît aussi un admin par ce cookie
+- Une seule connexion Socket.IO pour toute l'app (`lib/live.ts`) ; un écran suit un match par `match:subscribe`
 - Rooms : `match:{id}:public` (tous) et `match:{id}:admin` (admins)
 
 ## Événements WebSocket disponibles (voir `backend/src/adapters/ws/dto/events.dto.ts`)

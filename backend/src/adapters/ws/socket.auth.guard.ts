@@ -12,8 +12,8 @@ export class SocketAuthGuard implements CanActivate {
       (socket.handshake.auth?.token ||
         socket.handshake.query?.token) as string | undefined;
 
-    // autoriser le public
-    if (!token) { socket.data.role = 'viewer'; return true; }
+    // autoriser le public ; sans jeton, garder le rôle lu à la connexion (cookie de session, voir MatchGateway)
+    if (!token) { socket.data.role ??= 'viewer'; return true; }
 
     try {
       // Utilise un secret HS256 simple en dev

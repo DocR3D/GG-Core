@@ -34,7 +34,7 @@ export function htmlPage(opts: { title: string; body: string; refreshSec?: numbe
 <link rel="stylesheet" href="/assets/css/${theme}.css">
 </head>
 <body>
-<header><nav><ul><li><a class="gg-brand" href="/view"><b>GG</b>-Core</a></li></ul><ul>${links}</ul></nav></header>
+<header><nav><ul><li><a class="gg-brand" href="/"><b>GG</b>-Core</a></li></ul><ul>${links}</ul></nav></header>
 <main>
 ${opts.body}
 </main></body></html>

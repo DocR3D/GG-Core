@@ -8,7 +8,7 @@ import { htmlPage } from '@app/shared/html-page';
 
 const esc = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 /** Only local paths: never redirect to another site after login (open redirect). */
-const safeNext = (next: unknown) => (typeof next === 'string' && /^\/(?!\/)/.test(next) ? next : '/view');
+const safeNext = (next: unknown) => (typeof next === 'string' && /^\/(?!\/)/.test(next) ? next : '/'); // the React front's home
 const page = (title: string, body: string) => htmlPage({ title, body: `<h1>${esc(title)}</h1>\n${body}` });
 
 /**

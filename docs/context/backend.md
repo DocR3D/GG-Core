@@ -233,7 +233,7 @@ Redis ggbot:events
 CORS REST : origines autorisées via `CORS_ORIGIN` (liste séparée par des virgules, défaut `http://localhost:3000`).
 
 #### WebSocket (`adapters/ws/`)
-- `match.gateway.ts` - Socket.IO `/ws`, rooms `match:{id}:public` et `match:{id}:admin`
+- `match.gateway.ts` - Socket.IO (`/socket.io`), rooms `match:{id}:public` et `match:{id}:admin`. Rôle : jeton JWT du handshake (scripts) ou, à défaut, **cookie de session** (le front React, même origine). Match : `?matchId=` à la connexion (pages de véto) et/ou `match:subscribe { matchId }` / `match:unsubscribe` ensuite ; une connexion sans match est acceptée et ne reçoit rien tant qu'elle ne s'abonne pas
 - `broadcaster.service.ts` - Subscribe `ggbot:events`, mappe vers `InternalEvent`, broadcast WS
 - `socket.auth.guard.ts` - Guard JWT (role: admin/viewer)
 - `dto/events.dto.ts` - `WsEventType` + tous les types WS typés

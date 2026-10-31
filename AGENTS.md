@@ -27,7 +27,8 @@ Pour toute tâche d'envergure, consulter les fiches techniques dans `docs/` et `
 - `docs/context/frontend.md` : Spécifications UI, abonnements WebSocket, rôles JWT.
 - `docs/context/infra.md` : Configuration Docker Compose, variables d'environnement, réseau LAN.
 - `docs/context/docs-index.md` : Résumé du cahier des charges et index documentaire.
-- `docs/test-cases.md` : Scénarios de tests (TC-01 à TC-09) et tests sur serveur CS2 réel (validés + **en suspens RT-01 à RT-08**).
+- `docs/test-cases.md` : Scénarios de tests (TC-01 à TC-09) et tests sur serveur CS2 réel (validés + **en suspens RT-01 à RT-11**).
+- `docs/session-de-test.md` : Liste à dérouler pendant une session de test avec de vrais joueurs (site, accès, console, véto, moteur).
 
 ---
 
