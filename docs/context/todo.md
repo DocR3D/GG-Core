@@ -8,11 +8,12 @@ Ce fichier centralise les chantiers, fonctionnalités à venir, améliorations a
 
 Le cœur moteur de match, l'arbitrage automatisé, le calcul de scores/stats CS2 et le replay de logs sont opérationnels. Les chantiers ci-dessous constituent ce qui manque pour un tournoi LAN opérationnel de bout en bout :
 
-### 1. 🖥️ Frontend Next.js (Admin, Spectateur, Joueur)
+### 1. 🖥️ Frontend React + Vite servi par NestJS (Admin, Spectateur, Joueur)
 * **Origine & Spécifications** : [`docs/cahier-des-charges.md`](file:///d:/DEV/GG-Core/docs/cahier-des-charges.md) et [`docs/context/frontend.md`](file:///d:/DEV/GG-Core/docs/context/frontend.md).
 * **État actuel** : Non implémenté. Seule l'interface temporaire de test Sandbox HTML est servie par NestJS.
 * **Tâches à réaliser** :
-  - **Initialisation** : Setup du projet Next.js (App Router, Tailwind CSS, shadcn/ui, client Socket.IO).
+  - **Initialisation** : projet React + Vite (TypeScript, React Router, Tailwind CSS avec la charte de `base.css`,
+    shadcn/ui restylé, client Socket.IO), compilé et servi par NestJS (choix et raisons : `docs/context/frontend.md`).
   - **Interface Administrateur** :
     - Dashboard de gestion des tournois, poules, matchs et affectations de serveurs.
     - Console de match en direct avec commandes d'arbitrage 1-clic (pause, reprise, swap de camp, redémarrage, changement de map, restauration de backup).

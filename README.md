@@ -12,7 +12,7 @@ Contrôle des matchs (knife, swap, pauses, overtime), collecte des événements,
 - **Backend** : NestJS (TypeScript), Socket.IO
 - **Base de données** : PostgreSQL 16 + Prisma (event sourcing, tournois)
 - **Cache / Bus temps réel** : Redis 7
-- **Frontend** : Next.js *(à venir - en attendant, une console Sandbox est servie par le backend)*
+- **Frontend** : React + Vite, servi par le backend *(à venir - en attendant, pages `/view`, `/veto` et console Sandbox servies par le backend)*
 - **Conteneurisation** : Docker + Docker Compose
 
 Prévu : analyse CSTV/GOTV (positions, grenades), replays mini-map.

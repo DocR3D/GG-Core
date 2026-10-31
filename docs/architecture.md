@@ -40,7 +40,7 @@ Chaque service a une responsabilité claire : collecte, orchestration, stockage 
             ┌──────────────┴─────────────────────────┐
             │                                        │
     ┌───────▼────────────┐                  ┌────────▼────────┐ 
-    │    PostgreSQL      │                  │ Frontend Next.js│
+    │    PostgreSQL      │                  │ Frontend React  │
     │ (historique, SOoT) │                  │   (live + admin)│
     │ events_primary/    │                  └─────────────────┘
     │ events_secondary   │
@@ -75,7 +75,7 @@ SOoT = Source of Truth historique (vérité absolue).
 - Sert de **bus temps réel** (Pub/Sub, éventuellement Streams)
 - Découple les services (Agent ↔ Backend ↔ Frontend)
 
-###  Frontend Next.js *(pas encore fait - console `/sandbox` servie par le backend en attendant)*
+###  Frontend React + Vite *(pas encore fait ; compilé et servi par le backend, voir `docs/context/frontend.md` - pages `/view`, `/veto` et console `/sandbox` en attendant)*
 - Application web publique : live scoreboard, overlays, mini‑map
 - Console admin pour l’organisation (contrôle des matchs)
 

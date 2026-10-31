@@ -333,7 +333,7 @@ Les organisateurs doivent pouvoir gérer la totalité du cycle de tournoi, depui
 
 * Prévoir une intégration CSTV future (position, grenades, replays).  
 * Prévoir la possibilité de proposer dans le futur un overlay pour afficher sur les streams  
-* Maintenir un socle technologique moderne : Go, NestJS, Redis, PostgreSQL, Next.js.  
+* Maintenir un socle technologique moderne : Go, NestJS, Redis, PostgreSQL, React. (décision du 2026-10-31 : React + Vite servi par NestJS au lieu de Next.js, voir `docs/context/frontend.md`)  
 * Respect des normes de sécurité réseau (auth, JWT, isolation des services).
 
 3. # Fonctionnalités attendues {#fonctionnalités-attendues}
@@ -757,7 +757,7 @@ Ce chapitre détaille les fondations techniques du projet, incluant les composan
 * **Backend NestJS** : Logique métier, API REST, WebSocket, synchronisation.  
 * **Redis** : Bus de messages temps réel (Pub/Sub) et cache.  
 * **PostgreSQL** : Persistance longue durée (vérité historique).  
-* **Frontend Next.js** : Interface d'administration et interface publique.
+* **Frontend React** : Interface d'administration et interface publique. (décision du 2026-10-31 : React + Vite servi par NestJS au lieu de Next.js, voir `docs/context/frontend.md`).
 
 **Flux de données**
 
@@ -841,7 +841,7 @@ Ce chapitre détaille les fondations techniques du projet, incluant les composan
 
 6. ## Déploiement et conteneurisation {#déploiement-et-conteneurisation}
 
-**Docker Compose** : Exécution des services (agent, backend, frontend, redis, postgres).
+**Docker Compose** : Exécution des services (agent, backend, redis, postgres ; le frontend est compilé et servi par le backend).
 
 **Volumes persistants** pour Redis et PostgreSQL.
 
@@ -889,7 +889,7 @@ GG-Core est conçu pour offrir des interfaces utilisateur claires, réactives et
 
 **Exigences UX :**
 
-* **Navigation fluide** : Pas de rechargement de page grâce à l'utilisation de Next.js et de WebSockets.  
+* **Navigation fluide** : Pas de rechargement de page grâce à une application React (routage côté navigateur) et aux WebSockets.  
 * **État visuel clair** : Un code couleur intuitif pour indiquer les statuts (vert \= actif, orange \= en pause, rouge \= erreur).  
 * **Reconnexion automatique** : Gestion robuste des pertes de connexion réseau avec reconnexion automatique aux sockets.
 
@@ -971,7 +971,7 @@ Les tables `events_*` sont partitionnées par `tournament_id` pour faciliter la 
 
    1. ## Maintenabilité et extensibilité {#maintenabilité-et-extensibilité}
 
-**Code modulaire** (agents Go, backend NestJS, front Next.js).
+**Code modulaire** (agents Go, backend NestJS, front React + Vite).
 
 **Contrats stables** (DTO/Events versionnés).
 

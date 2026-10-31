@@ -8,16 +8,36 @@ En attendant, le backend sert des pages HTML simples, sans JS (sauf rechargement
 `/sandbox/tournament`. Leur style vit dans `backend/public/css/` (voir « Design des pages » dans
 `docs/context/backend.md`). Toutes les données passent par l'API REST : un futur front pourra s'y brancher tel quel.
 
-## Stack prévue (selon cahier des charges)
-- **Next.js** (React)
-- **Socket.IO client** pour WebSocket temps réel
-- Responsive : PC, tablette, TV
+## Stack retenue (décidée avec l'utilisateur le 2026-10-31)
+- **React + Vite** (TypeScript), routage côté navigateur (React Router) : aucun rechargement de page (exigence du
+  cahier des charges, maintenue).
+- **Servi par NestJS** : `npm run build` produit des fichiers statiques que le backend distribue sur son port (8081).
+  En développement, le serveur Vite recharge l'écran instantanément et renvoie `/api`, `/auth` et `/ws` au backend.
+- **Socket.IO client** pour le temps réel ; **Tailwind CSS** ; **shadcn/ui** restylé (voir Design).
+- Responsive : PC, tablette, TV.
+
+### Pourquoi pas Next.js (prévu par le cahier des charges)
+Next.js apporte surtout le rendu côté serveur (référencement, premier affichage d'un site public) et ses propres
+routes serveur : rien dont une LAN a besoin. Il coûterait un deuxième serveur Node à lancer, surveiller et publier par
+le tunnel, et deux origines (ports 3000 / 8081), donc du CORS et des cookies de session à faire passer. Servi par
+NestJS, le front a la même adresse que l'API : la connexion (Steam, mot de passe admin) marche telle quelle.
+
+### Design
+- **Tailwind** avec la charte de `backend/public/css/base.css` comme seule palette (les couleurs par défaut de
+  Tailwind sont retirées) : fond `#1d1f24`, surface `#262930`, texte `#dde3ed`, rouge `#de1b1b` réservé aux actions,
+  CT `#6f9fe6`, T `#e3a23f` ; Poppins, police à chasse fixe pour les scores et tableaux (chiffres alignés).
+- **shadcn/ui** pour ses fondations Radix (boîtes de dialogue, menus, notifications, onglets : clavier, focus,
+  accessibilité), en copiant seulement les composants utiles et en **réécrivant leur style** : jamais l'apparence par
+  défaut (palette zinc, cartes arrondies identiques, ombres douces), qui donnerait un tableau de bord générique.
+- Règles reprises des pages actuelles : le rouge signale seulement ce qu'on peut faire maintenant ; CT / T aux couleurs
+  du jeu ; casse normale ; la structure (bordures, couleurs d'état) porte une information (serveur occupé, match en
+  direct, alerte), pas une décoration ; un seul élément marquant : l'arbre du tournoi et le scoreboard aux chiffres
+  alignés, dans l'esprit des vues ASCII actuelles.
 
 ## Connexion au backend
-- WebSocket sur `ws://backend:8081/ws` (namespace Socket.IO)
-- Auth : JWT token en query param à la connexion
+- Même origine que le backend (le front est servi par NestJS) : REST `/api/...`, Socket.IO `/ws`
+- Auth : la session existante (cookie `gg_session` posé par `/login`), aucun jeton à gérer côté front
 - Rooms : `match:{id}:public` (tous) et `match:{id}:admin` (admins)
-- REST API : `http://backend:8081/api/`
 
 ## Événements WebSocket disponibles (voir `backend/src/adapters/ws/dto/events.dto.ts`)
 
