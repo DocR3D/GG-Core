@@ -96,7 +96,8 @@ export class TournamentLaunchService {
   async launchGame(input: {
     matchId: string;
     order: number;
-    server: string;
+    /** Server id or agent name; none = the first free server (pickFreeServer) */
+    server?: string;
     mapName?: string;
     settings?: Partial<MatchSettings>;
     /** Server password and whitelist of the two rosters, both on by default (off: training, tests) */
@@ -120,13 +121,15 @@ export class TournamentLaunchService {
     // sides chosen in the veto: no knife, and the players must be on their side before the live
     const settings: Partial<MatchSettings> | undefined = sides ? { knifeEnabled: false, fixedSides: true, ...input.settings } : input.settings;
 
-    const server = await this.findServer(input.server);
+    if (planned?.status === 'FINISHED') throw new TournamentError('conflict', `game ${input.order} already finished`);
+    const server = input.server?.trim()
+      ? await this.findServer(input.server)
+      : await this.pickFreeServer(match.tournament.game, planned?.id);
     if (server.status === 'OFFLINE') throw new TournamentError('conflict', `server ${server.name} is disabled`);
     if (server.game !== match.tournament.game) {
       throw new TournamentError('conflict', `server ${server.name} serves ${server.game}, not ${match.tournament.game}`);
     }
 
-    if (planned?.status === 'FINISHED') throw new TournamentError('conflict', `game ${input.order} already finished`);
     const busyWith = await this.runningMatch(server.name);
     if (busyWith && busyWith.matchId !== planned?.id) {
       throw new TournamentError('conflict', `server ${server.name} is running match ${busyWith.matchId} (${busyWith.phase})`);
@@ -243,6 +246,22 @@ export class TournamentLaunchService {
       select: { player: { select: { steamId: true } } },
     });
     return rosters.some((r) => toLogSteamId(r.player.steamId) === steamId);
+  }
+
+  /**
+   * No server given at launch: the first one (by name) that is enabled, serves this game, runs no match (or this
+   * very game, for a relaunch) and whose agent reaches CS2 in RCON - a PC switched off or a server without the right
+   * RCON password is never chosen. 409 when none is free.
+   */
+  private async pickFreeServer(game: string, gameId?: string) {
+    const servers = await this.prisma.server.findMany({ where: { status: { not: 'OFFLINE' }, game }, orderBy: { name: 'asc' } });
+    for (const s of servers) {
+      const [busyWith, agent] = await Promise.all([this.runningMatch(s.name), this.state.getAgentState(s.name)]);
+      if (busyWith && busyWith.matchId !== gameId) continue;
+      if (!agent.online || !agent.rconConnected) continue;
+      return s;
+    }
+    throw new TournamentError('conflict', `no free ${game} server (enabled, no match running, agent connected in RCON): see make servers`);
   }
 
   /** The real-time match a server runs, if it is not over. */

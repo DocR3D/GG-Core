@@ -78,9 +78,7 @@ Le cœur moteur de match, l'arbitrage automatisé, le calcul de scores/stats CS2
   à la main ; en fin de match, reset warmup différé et kick des joueurs restés connectés. Ajout d'un serveur en une
   commande (`make server` : agent, enregistrement, lignes de config CS2, contrôle RCON) et état de chaque serveur
   (`make servers` : RCON, logs reçus, mauvais jeton).
-* **Reste** :
-  - Aiguilleur d'allocation : proposer ou prendre automatiquement le premier serveur libre au lancement (aujourd'hui
-    l'admin choisit).
+  Lancement d'un game sans serveur : le premier serveur libre dont l'agent est connecté en RCON.
 
 ### 6. 🔑 Authentification & Gestion des Rôles (JWT)
 * **Fait (V1)** : connexion Steam (admin si SteamID dans `GG_ADMIN_STEAMIDS`, joueur si SteamID connu) ou mot de

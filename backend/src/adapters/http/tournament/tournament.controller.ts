@@ -77,15 +77,16 @@ export class TournamentController {
   }
 
   /**
-   * Starts game n° `order` of a series on a server chosen by the admin (real-time engine; the result flows back
-   * automatically). Relaunch on another server after a crash: same call with the other server. A new server
+   * Starts game n° `order` of a series on a server chosen by the admin, or without `server` on the first free one
+   * (real-time engine; the result flows back automatically). Relaunch on another server after a crash: same call
+   * with the other server (or none: a free server whose agent answers). A new server
    * password and the whitelist of the two rosters are set unless `access: { password: false, whitelist: false }`.
    */
   @Post('matches/:id/games/:order/launch')
   launchGame(
     @Param('id') matchId: string,
     @Param('order', ParseIntPipe) order: number,
-    @Body() body: { server: string; mapName?: string; settings?: Partial<MatchSettings>; access?: { password?: boolean; whitelist?: boolean } },
+    @Body() body: { server?: string; mapName?: string; settings?: Partial<MatchSettings>; access?: { password?: boolean; whitelist?: boolean } },
   ) {
     return this.run(() =>
       this.launch.launchGame({ matchId, order, server: body?.server, mapName: body?.mapName, settings: body?.settings, access: body?.access }),
