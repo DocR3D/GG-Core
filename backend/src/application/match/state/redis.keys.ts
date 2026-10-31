@@ -14,6 +14,8 @@ export const redisConst = {
   // Accès au serveur du match : mot de passe (sv_password) et SteamID autorisés (set, [U:1:x] ; absent = pas de whitelist)
   matchPassword: (matchId: string) => `match:${matchId}:password`,
   matchAllowed: (matchId: string) => `match:${matchId}:allowed`,
+  // Camp de chaque joueur sur un serveur (hash steamId → JSON { side, name }), suivi des lignes "switched from team"
+  serverPlayerSides: (serverId: string) => `server:${serverId}:playerSides`,
   // Heartbeat de l'agent d'un serveur (JSON, TTL 10 s : absent = agent arrêté)
   agentState: (serverId: string) => `ggbot:agent:${serverId}:state`,
   // Liaison match temps réel ↔ MatchMap PostgreSQL (UUID)

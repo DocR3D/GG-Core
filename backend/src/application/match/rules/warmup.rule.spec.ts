@@ -28,6 +28,7 @@ describe('WarmupRule - Ready Checks & Target Phase Selection', () => {
         isCountdownActive: jest.fn().mockResolvedValue(false),
         getPhase: jest.fn().mockResolvedValue(MatchPhase.KNIFE_WARMUP),
         startPhaseCountdown: jest.fn().mockResolvedValue(undefined),
+        checkTeamPlacement: jest.fn().mockResolvedValue(true),
       },
       state: {
         getServerIdFromMatchId: jest.fn().mockResolvedValue('srv-a'),
@@ -119,6 +120,28 @@ describe('WarmupRule - Ready Checks & Target Phase Selection', () => {
         CS2_RULES.COUNTDOWN_DELAY_SEC,
         'srv-a',
       );
+    });
+
+    it('sides du véto : joueurs mal placés → pas de décompte, ready remis à zéro', async () => {
+      mockCtx.orch.isBothReady.mockResolvedValue(true);
+      mockCtx.orch.getPhase.mockResolvedValue(MatchPhase.WARMUP_MAIN);
+      mockCtx.orch.checkTeamPlacement.mockResolvedValue(false);
+
+      await (rule as any).onReadyCommand(makeCmd('T'), mockCtx);
+
+      expect(mockCtx.orch.checkTeamPlacement).toHaveBeenCalledWith('m-test', 'srv-a');
+      expect(mockCtx.orch.resetReady).toHaveBeenCalledWith('m-test');
+      expect(mockCtx.orch.startPhaseCountdown).not.toHaveBeenCalled();
+    });
+
+    it("pas de contrôle des camps à la mi-temps (CS2 a déjà déplacé les joueurs)", async () => {
+      mockCtx.orch.isBothReady.mockResolvedValue(true);
+      mockCtx.orch.getPhase.mockResolvedValue(MatchPhase.HALFTIME);
+
+      await (rule as any).onReadyCommand(makeCmd('T'), mockCtx);
+
+      expect(mockCtx.orch.checkTeamPlacement).not.toHaveBeenCalled();
+      expect(mockCtx.orch.startPhaseCountdown).toHaveBeenCalled();
     });
 
     it('ne redéclenche PAS le décompte ni l\'annonce si un décompte est déjà en cours', async () => {

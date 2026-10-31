@@ -11,6 +11,7 @@ import { RoundEventsHandler } from './round-events.handler';
 import { KillAndBombEventsHandler } from './kill-bomb-events.handler';
 import { DatabaseEventsHandler } from './database-events.handler';
 import { MatchAccessService } from '@app/match/access/match-access.service';
+import { TeamPlacementService } from '@app/match/access/team-placement.service';
 
 @Injectable()
 export class MatchEventsHandler {
@@ -25,6 +26,7 @@ export class MatchEventsHandler {
     private readonly mss: MatchStateService,
     private readonly ctxFactory: RuleContextFactory,
     private readonly access: MatchAccessService,
+    private readonly placement: TeamPlacementService,
   ) {}
 
   async handle(ev: AnyEvent & { serverId?: string }): Promise<void> {
@@ -56,6 +58,14 @@ export class MatchEventsHandler {
       await this.access
         .onPlayerConnected(matchId, ev.serverId, (ev as any).payload?.player ?? {})
         .catch((err) => this.logger.warn(`[MatchEventsHandler] access check error: ${err?.message}`));
+    }
+
+    // 0) Camp de chaque joueur (sides choisis au véto : contrôle avant le live)
+    if ((ev.type as string) === EventTypes.PLAYER_SWITCHED_TEAM) {
+      const p = (ev as any).payload ?? {};
+      await this.placement.track(ev.serverId, p.player ?? {}, p.to ?? null).catch(() => {});
+    } else if ((ev.type as string) === EventTypes.PLAYER_DISCONNECTED) {
+      await this.placement.track(ev.serverId, (ev as any).payload?.player ?? {}, null).catch(() => {});
     }
 
     // 0bis) Résultat gelé (désaccord serveur / GG-Core) : en attendant l'admin, on ne fait qu'archiver les

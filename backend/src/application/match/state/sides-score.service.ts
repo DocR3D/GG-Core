@@ -291,6 +291,7 @@ export class SidesScoreService {
       tacticalPauseBankSec: raw.tacticalPauseBankSec
         ? Number(raw.tacticalPauseBankSec)
         : DEFAULT_MATCH_SETTINGS.tacticalPauseBankSec,
+      fixedSides: raw.fixedSides === 'true',
     };
   }
 
@@ -322,6 +323,7 @@ export class SidesScoreService {
     if (settings.overtimeEnabled !== undefined) fields.overtimeEnabled = String(settings.overtimeEnabled);
     if (settings.knifeEnabled !== undefined) fields.knifeEnabled = String(settings.knifeEnabled);
     if (settings.tacticalPauseBankSec !== undefined) fields.tacticalPauseBankSec = String(settings.tacticalPauseBankSec);
+    if (settings.fixedSides !== undefined) fields.fixedSides = String(settings.fixedSides);
 
     if (Object.keys(fields).length > 0) {
       await this.redis.hset(redisConst.settings(matchId), fields);

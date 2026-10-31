@@ -20,6 +20,7 @@ import { REDIS_CHANNELS } from './state/redis.keys';
 import { RuleContext } from '@domain/rules';
 import { TournamentPersistenceService, isUuid } from '@adapters/database/tournament-persistence.service';
 import { MatchAccess, MatchAccessService } from './access/match-access.service';
+import { TeamPlacementService } from './access/team-placement.service';
 
 type ResumeMeta = { source?: 'expired' | 'admin' | 'chat'; reason?: 'tactical'|'technical'|'admin' };
 
@@ -44,7 +45,17 @@ export class MatchOrchestrator {
     @Inject(REDIS_PUB) private readonly pub: Redis,
     @Optional() private readonly tournamentPersistence?: TournamentPersistenceService,
     @Optional() private readonly access?: MatchAccessService,
+    @Optional() private readonly placement?: TeamPlacementService,
   ) {}
+
+  /**
+   * Both teams ready, before the countdown to the live: with sides chosen in the veto, are the players on their
+   * side? false = the live waits (players told in the chat). Always true for other matches.
+   */
+  async checkTeamPlacement(matchId: string, serverId: string): Promise<boolean> {
+    if (!this.placement || !serverId) return true;
+    return this.placement.checkBeforeLive(matchId, serverId);
+  }
 
   // ---------------------------------------------------------------------------
   // Helpers

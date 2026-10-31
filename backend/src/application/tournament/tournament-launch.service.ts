@@ -9,6 +9,7 @@ import { MatchSettings } from '@domain/match-settings.types';
 import { TournamentError } from './tournament-stages.service';
 import { VetoService } from './veto.service';
 import { generateServerPassword, MatchAccessService, toLogSteamId } from '@app/match/access/match-access.service';
+import { TeamPlacementService } from '@app/match/access/team-placement.service';
 import type { Session } from '@app/auth/auth.service';
 import type { GameConnect } from './tournament-view';
 
@@ -30,6 +31,7 @@ export class TournamentLaunchService {
     private readonly orch: MatchOrchestrator,
     private readonly veto: VetoService,
     private readonly access: MatchAccessService,
+    private readonly placement: TeamPlacementService,
   ) {}
 
   // ---------------------------------------------------------------------------
@@ -115,7 +117,8 @@ export class TournamentLaunchService {
     const mapName = input.mapName?.trim() || (planned && planned.mapName !== '-' ? planned.mapName : '');
     if (!mapName) throw new TournamentError('invalid', 'mapName is required (e.g. de_inferno): no veto gave this game a map');
     const sides = await this.veto.startingSides(match.id, input.order);
-    const settings: Partial<MatchSettings> | undefined = sides ? { knifeEnabled: false, ...input.settings } : input.settings;
+    // sides chosen in the veto: no knife, and the players must be on their side before the live
+    const settings: Partial<MatchSettings> | undefined = sides ? { knifeEnabled: false, fixedSides: true, ...input.settings } : input.settings;
 
     const server = await this.findServer(input.server);
     if (server.status === 'OFFLINE') throw new TournamentError('conflict', `server ${server.name} is disabled`);
@@ -149,7 +152,9 @@ export class TournamentLaunchService {
       serverId: server.name,
       matchMapId: game.id,
     });
-    const access = await this.gameAccess(match.tournamentId, [match.teamHome.id, match.teamAway.id], input.access);
+    const rosters = await this.rosterSteamIds(match.tournamentId, [match.teamHome.id, match.teamAway.id]);
+    await this.placement.setLineups(engineMatchId, rosters.get(match.teamHome.id) ?? [], rosters.get(match.teamAway.id) ?? []);
+    const access = this.gameAccess(rosters, input.access);
     const started = await this.orch.startMatch({ serverId: server.name, matchId: engineMatchId, mapName, settings, access: access.access });
     this.log.log(`[launch] series ${match.id} game ${input.order} -> ${server.name} (${mapName}), engine match ${engineMatchId}`);
     return {
@@ -169,25 +174,29 @@ export class TournamentLaunchService {
    * substitutes play bonus matches) plus the Steam admins. The whitelist is left off when a team has no SteamID
    * yet (it would kick the whole team) - said in `whitelist.off`.
    */
-  private async gameAccess(tournamentId: string | null, teamIds: string[], opts: { password?: boolean; whitelist?: boolean } = {}) {
+  private gameAccess(rosters: Map<string, string[]>, opts: { password?: boolean; whitelist?: boolean } = {}) {
     const password = opts.password === false ? null : generateServerPassword();
     if (opts.whitelist === false) return { access: { password }, whitelist: { off: 'disabled for this launch' } };
 
-    const rosters = tournamentId
+    const missing = [...rosters].filter(([, ids]) => !ids.length).map(([teamId]) => teamId);
+    if (missing.length) {
+      this.log.warn(`[launch] whitelist off: no SteamID in the roster of team(s) ${missing.join(', ')}`);
+      return { access: { password }, whitelist: { off: 'a team has no player with a SteamID in its roster' } };
+    }
+    const players = [...rosters.values()].flat();
+    const admins = (process.env.GG_ADMIN_STEAMIDS ?? '').split(',').map((s) => s.trim()).filter(Boolean);
+    return { access: { password, allowedSteamIds: [...players, ...admins] }, whitelist: { players: players.length, admins: admins.length } };
+  }
+
+  /** SteamIDs of every player of each team's roster in the tournament (teams without any: empty list). */
+  private async rosterSteamIds(tournamentId: string | null, teamIds: string[]): Promise<Map<string, string[]>> {
+    const rows = tournamentId
       ? await this.prisma.teamRoster.findMany({
           where: { tournamentId, teamId: { in: teamIds } },
           select: { teamId: true, player: { select: { steamId: true } } },
         })
       : [];
-    const steamIds = (teamId: string) => rosters.filter((r) => r.teamId === teamId && toLogSteamId(r.player.steamId)).map((r) => r.player.steamId!);
-    const missing = teamIds.filter((id) => !steamIds(id).length);
-    if (missing.length) {
-      this.log.warn(`[launch] whitelist off: no SteamID in the roster of team(s) ${missing.join(', ')}`);
-      return { access: { password }, whitelist: { off: 'a team has no player with a SteamID in its roster' } };
-    }
-    const admins = (process.env.GG_ADMIN_STEAMIDS ?? '').split(',').map((s) => s.trim()).filter(Boolean);
-    const allowed = [...teamIds.flatMap(steamIds), ...admins];
-    return { access: { password, allowedSteamIds: allowed }, whitelist: { players: teamIds.flatMap(steamIds).length, admins: admins.length } };
+    return new Map(teamIds.map((id) => [id, rows.filter((r) => r.teamId === id && toLogSteamId(r.player.steamId)).map((r) => r.player.steamId!)]));
   }
 
   /**

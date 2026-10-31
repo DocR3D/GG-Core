@@ -20,6 +20,7 @@ const (
 	EvPlayerConnected  = "player_connected"
 	EvPlayerDisc       = "player_disconnected"
 	EvPlayerNameChange = "player_name_change"
+	EvPlayerTeam       = "player_switched_team"
 	EvDefuseBegin      = "defuse_begin"
 	EvDefuseAbort      = "defuse_abort"
 	EvMatchPaused      = "match_paused"

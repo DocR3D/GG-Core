@@ -71,6 +71,13 @@ export interface MatchSettings {
    * Default: true
    */
   knifeEnabled?: boolean;
+
+  /**
+   * Sides chosen in the veto (side mode "pick"): before the live, the players must be on their team's side
+   * (checked when both teams are ready; both teams inverted → mp_swapteams).
+   * Default: false
+   */
+  fixedSides?: boolean;
 }
 
 /**
@@ -97,4 +104,5 @@ export const DEFAULT_MATCH_SETTINGS: Required<MatchSettings> = {
   overtimeEnabled: true,
   knifeEnabled: true,
   tacticalPauseBankSec: DEFAULT_TAC_BANK_SEC,
+  fixedSides: false,
 };

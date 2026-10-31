@@ -39,18 +39,21 @@ Le cœur moteur de match, l'arbitrage automatisé, le calcul de scores/stats CS2
 ### 3. 🗺️ Module de Vétos de Maps (Map Pick & Ban)
 * **Fait** : pierre-feuille-ciseaux puis véto BO1 / BO3 / BO5 sur la page `/veto/:matchId` (capitaines connectés avec
   Steam, désignés par l'admin), mode de side knife ou pick par tournoi / phase, maps → games de la série, lancement sur
-  la map et les sides du véto (`docs/context/backend.md`).
+  la map et les sides du véto (`docs/context/backend.md`). Camps des joueurs en mode de side « pick » : quand les deux
+  équipes sont prêtes, chaque joueur des rosters doit être dans le camp de son équipe (suivi des lignes
+  `switched from team`) : bon camp → décompte ; les deux équipes inversées → `mp_swapteams` puis décompte ; sinon
+  lancement bloqué, joueurs mal placés nommés dans le chat, alerte admin `sides:misplaced`, `!ready` à retaper. Pas de
+  kick. Noms d'équipe en jeu posés ensuite (`mp_teamname_1` = équipe CT) : vérifié sur le serveur, `mp_swapteams`
+  déplace les joueurs mais pas les noms (RT-10).
 * **Reste** :
   - Import des capitaines par CSV (avec l'import des équipes, format à voir avec le dev du site d'inscription).
   - Minuteur par étape (ban aléatoire) : écarté pour l'instant, l'admin débloque à la main.
   - Le backend pousse `veto:updated` (WebSocket) ; la page de test s'en sert déjà pour se recharger, le futur front
     mettra l'écran à jour sans rechargement.
-  - **Camps des joueurs en mode de side « pick »** (pas de knife, et zéro plugin : CS2 ne force personne dans un camp) :
-    au passage en live, contrôle par les deux capitaines (SteamID connus grâce à la connexion Steam) : bon camp →
-    lancement ; les deux inversés → `mp_swapteams` (natif) puis lancement ; sinon lancement bloqué + message chat
-    (« Rouge doit jouer T ») + alerte admin ; joueurs nommés si leurs SteamID sont connus. Pas de kick. Noms d'équipe
-    en jeu (`mp_teamname_1` / `mp_teamname_2`, à vérifier dans le dump des convars) posés **après** l'éventuel swap :
-    on ne sait pas encore si `mp_swapteams` déplace les noms (RT-10). À faire avec les tests sur serveur (RT-09, RT-10).
+  - Camps en mode « pick » : test avec de vrais joueurs (RT-09). Joueurs déjà dans un camp avant le lancement (pas de
+    ligne `switched from team` après) : non suivis, le contrôle ne les voit pas.
+  - Mode knife : la même erreur (équipes inversées par rapport à home = CT) attribuerait le knife à la mauvaise
+    équipe ; non contrôlé.
   - **Front voulu** (la page `/veto/:matchId` actuelle n'est qu'un outil de test) : d'abord un écran
     pierre-feuille-ciseaux, puis un écran pick & ban où l'on clique sur l'image de chaque map. Images servies en local
     (LAN-first), à fournir. Garder séparés l'écran capitaine et l'écran admin (comme les pages de test `/veto/:id` et `/veto/:id/admin`) : un admin qui est aussi capitaine

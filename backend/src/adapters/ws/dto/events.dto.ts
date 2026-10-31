@@ -20,6 +20,8 @@ export type WsEventType =
   | 'match:review_required'
   | 'match:review_resolved'
   | 'access:not_allowed'
+  | 'sides:misplaced'
+  | 'sides:unchecked'
   | 'score:update'
   | 'round:start'
   | 'round:end'

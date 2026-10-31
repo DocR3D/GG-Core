@@ -55,6 +55,16 @@ export class WarmupRule extends BaseRule implements PhaseRule {
             ? MatchPhase.KNIFE_LIVE
             : MatchPhase.LIVE_MAIN;
 
+        // Sides chosen in the veto: the players must be on their side first (or both teams are swapped). Only the
+        // warmup before the first live: at halftime CS2 has moved the players itself.
+        if (currentPhase === MatchPhase.WARMUP_MAIN) {
+          const serverId = cmd.serverId ?? ctx.serverId ?? '';
+          if (!(await ctx.orch.checkTeamPlacement(cmd.matchId, serverId))) {
+            await ctx.orch.resetReady(cmd.matchId);
+            return;
+          }
+        }
+
         await ctx.say('Les deux équipes sont prêtes ! Lancement du décompte.');
         await ctx.orch.startPhaseCountdown(cmd.matchId, targetPhase, CS2_RULES.COUNTDOWN_DELAY_SEC, cmd.serverId ?? '');
       }

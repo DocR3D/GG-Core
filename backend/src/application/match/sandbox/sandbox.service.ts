@@ -1127,6 +1127,16 @@ export function cleanContainerLogPrefix(line: string): string {
 
 const fallbackIgnoreNextWorldSuicide = new Set<string>();
 
+/** Same as NormTeam of the Go parser (events.go): CT, TERRORIST, Spectator, Unassigned. */
+function normTeamLikeGo(team: string): string {
+  const t = team.toLowerCase();
+  if (t.startsWith('ct')) return 'CT';
+  if (t.startsWith('t') || t.startsWith('terror')) return 'TERRORIST';
+  if (t.startsWith('spec')) return 'Spectator';
+  if (t === '' || t.startsWith('unass')) return 'Unassigned';
+  return team;
+}
+
 /**
  * Parser de secours ultra-léger pour rejouer des logs même sans Agent Go actif
  */
@@ -1189,6 +1199,22 @@ export function parseCs2LineFallback(rawLine: string, matchId: string, serverId:
       timestamp: Date.now(),
       payload: {
         player: { name: connMatch[1], steamId: connMatch[3], team: connMatch[4] || 'Unassigned', userId: Number(connMatch[2]) },
+      },
+    };
+  }
+
+  // Changement de camp (arrivée dans une équipe, mp_swapteams, mi-temps) - même payload que le parser Go
+  const teamMatch = line.match(/^"([^"<]+)<(\d+)><([^>]*)>"\s+switched from team <([^>]*)> to <([^>]*)>/);
+  if (teamMatch) {
+    return {
+      type: 'player_switched_team',
+      matchId,
+      serverId,
+      timestamp: Date.now(),
+      payload: {
+        player: { name: teamMatch[1], steamId: teamMatch[3], userId: Number(teamMatch[2]) },
+        from: normTeamLikeGo(teamMatch[4]),
+        to: normTeamLikeGo(teamMatch[5]),
       },
     };
   }

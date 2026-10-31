@@ -53,6 +53,10 @@ En attendant, le backend sert des pages HTML simples, sans JS (sauf rechargement
 ### Accès au serveur (admin uniquement)
 - `access:not_allowed` : un joueur absent de la whitelist du match s'est connecté (`player`, `kicked` : kické ou non).
 
+### Camps (admin uniquement, sides choisis au véto)
+- `sides:misplaced` : des joueurs ne sont pas dans le camp de leur équipe, le live attend (`expected`, `misplaced`).
+- `sides:unchecked` : contrôle impossible (`reason` : roster sans SteamID, équipe absente des camps), live lancé quand même.
+
 ### Véto des maps
 - `veto:updated` : état public du véto après chaque action (room du match de la série). Écrans prévus : pierre-feuille-
   ciseaux, puis pick & ban en cliquant sur l'image des maps ; un capitaine trouve ses matchs par

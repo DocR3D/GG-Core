@@ -13,6 +13,7 @@ export const EventTypes = {
 
   PLAYER_CONNECTED:    'player_connected',    // corrigé
   PLAYER_DISCONNECTED: 'player_disconnected', // corrigé
+  PLAYER_SWITCHED_TEAM: 'player_switched_team', // { player: { name, steamId, userId }, from, to } (CT, TERRORIST, Spectator, Unassigned)
   PLAYER_NAME_CHANGE:  'player_name_change',  // plus explicite
 
   DEFUSE_BEGIN:   'defuse_begin',

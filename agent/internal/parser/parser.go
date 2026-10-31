@@ -43,7 +43,9 @@ var defuseAbortRe = regexp.MustCompile(`^"(?P<name>[^"<]+)<\d+><(?P<steam>[^>]*)
 
 // --- Player connect/disconnect/name change ---
 var playerConnectRe = regexp.MustCompile(`^"(?P<name>[^"<]+)<(?P<uid>\d+)><(?P<steam>[^>]*)><(?P<team>[^>]*)>"\s+connected`)
-var playerDisconnectRe = regexp.MustCompile(`^"(?P<name>[^"<]+)<\d+><(?P<steam>[^>]*)><(?P<team>[^>]*)>"\s+disconnected(?:\s+\((?:reason\s+)?"?(?P<reason>[^")]+)"?\))?`)
+// "Name<3><[U:1:x]>" switched from team <CT> to <TERRORIST> (no team bracket in this line)
+var playerTeamRe = regexp.MustCompile(`^"(?P<name>[^"<]+)<(?P<uid>\d+)><(?P<steam>[^>]*)>"\s+switched from team <(?P<from>[^>]*)> to <(?P<to>[^>]*)>`)
+var playerDisconnectRe =regexp.MustCompile(`^"(?P<name>[^"<]+)<\d+><(?P<steam>[^>]*)><(?P<team>[^>]*)>"\s+disconnected(?:\s+\((?:reason\s+)?"?(?P<reason>[^")]+)"?\))?`)
 var nameChangeRe = regexp.MustCompile(`^"(?P<old>[^"<]+)<\d+><(?P<steam>[^>]*)><[^>]*>"\s+changed\s+name\s+to\s+"(?P<new>[^"]+)"`)
 
 // --- Purchases ---
@@ -446,6 +448,17 @@ func parseLine(line string) (string, json.RawMessage, bool) {
 			payload["reason"] = reason
 		}
 		return events.EvPlayerDisc, mustJSON(payload), true
+	}
+	// A player joins a side or is moved (mp_swapteams, halftime): where each player stands, to check the sides
+	// chosen in the veto before the live
+	if playerTeamRe.MatchString(line) {
+		userID, _ := strconv.Atoi(grp(playerTeamRe, line, "uid"))
+		payload := map[string]any{
+			"player": map[string]any{"name": grp(playerTeamRe, line, "name"), "steamId": grp(playerTeamRe, line, "steam"), "userId": userID},
+			"from":   events.NormTeam(grp(playerTeamRe, line, "from")),
+			"to":     events.NormTeam(grp(playerTeamRe, line, "to")),
+		}
+		return events.EvPlayerTeam, mustJSON(payload), true
 	}
 	if nameChangeRe.MatchString(line) {
 		old := grp(nameChangeRe, line, "old")

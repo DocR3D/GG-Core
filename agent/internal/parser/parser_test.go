@@ -326,6 +326,18 @@ func TestTryParse(t *testing.T) {
 			},
 		},
 		{
+			name:     "Player switched team",
+			logLine:  `"Player_05<3><[U:1:10000005]>" switched from team <CT> to <TERRORIST>`,
+			wantType: events.EvPlayerTeam,
+			wantOk:   true,
+			verifyAssert: func(t *testing.T, payload map[string]any) {
+				player, _ := payload["player"].(map[string]any)
+				if player["steamId"] != "[U:1:10000005]" || payload["from"] != "CT" || payload["to"] != "TERRORIST" {
+					t.Fatalf("unexpected payload: %v", payload)
+				}
+			},
+		},
+		{
 			name:     "Bot Disconnect with reason",
 			logLine:  `"Dragomir<14><BOT><CT>" disconnected (reason "NETWORK_DISCONNECT_KICKED")`,
 			wantType: events.EvPlayerDisc,
