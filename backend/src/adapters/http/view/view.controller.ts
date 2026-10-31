@@ -1,7 +1,9 @@
 // src/adapters/http/view/view.controller.ts
-import { BadRequestException, ConflictException, Controller, Get, Header, NotFoundException, Param, Query, Res } from '@nestjs/common';
-import type { Response } from 'express';
+import { BadRequestException, ConflictException, Controller, Get, Header, NotFoundException, Param, Query, Req, Res } from '@nestjs/common';
+import type { Request, Response } from 'express';
 import { TournamentError, TournamentStagesService } from '@app/tournament/tournament-stages.service';
+import { TournamentLaunchService } from '@app/tournament/tournament-launch.service';
+import type { Session } from '@app/auth/auth.service';
 import { asciiPage, renderMatchDetailHtml, renderTournamentAscii, renderTournamentHtml } from '@app/tournament/tournament-view';
 import { htmlPage } from '@app/shared/html-page';
 
@@ -15,7 +17,10 @@ const esc = (v: string) => v.replace(/&/g, '&amp;').replace(/</g, '&lt;').replac
  */
 @Controller('view')
 export class ViewController {
-  constructor(private readonly stages: TournamentStagesService) {}
+  constructor(
+    private readonly stages: TournamentStagesService,
+    private readonly launch: TournamentLaunchService,
+  ) {}
 
   /** List of tournaments. */
   @Get()
@@ -51,9 +56,11 @@ ${items.length ? `<ul>${items.join('')}</ul>` : '<p>Aucun tournoi pour l’insta
   /** A match: series, games, player stats, where its teams come from and where they go (links). */
   @Get('matches/:id')
   @Header('Content-Type', 'text/html; charset=utf-8')
-  async match(@Param('id') matchId: string) {
+  async match(@Param('id') matchId: string, @Req() req: Request & { ggSession?: Session | null }) {
     const detail = await this.run(() => this.stages.getMatchDetail(matchId));
-    return renderMatchDetailHtml(detail, `/view/tournaments/${detail.tournament.id}`, (id) => `/view/matches/${id}`);
+    // "Se connecter" with the server password: players of the match and admins only
+    const connect = await this.launch.connectInfo(matchId, req.ggSession);
+    return renderMatchDetailHtml(detail, `/view/tournaments/${detail.tournament.id}`, (id) => `/view/matches/${id}`, connect);
   }
 
   private async run<T>(fn: () => Promise<T>): Promise<T> {

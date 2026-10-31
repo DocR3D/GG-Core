@@ -11,6 +11,9 @@ export const redisConst = {
   // Liaison serveur ↔ match
   serverMatch: (serverId: string) => `server:${serverId}:currentMatch`,
   matchServer: (matchId: string) => `match:${matchId}:server`,
+  // Accès au serveur du match : mot de passe (sv_password) et SteamID autorisés (set, [U:1:x] ; absent = pas de whitelist)
+  matchPassword: (matchId: string) => `match:${matchId}:password`,
+  matchAllowed: (matchId: string) => `match:${matchId}:allowed`,
   // Heartbeat de l'agent d'un serveur (JSON, TTL 10 s : absent = agent arrêté)
   agentState: (serverId: string) => `ggbot:agent:${serverId}:state`,
   // Liaison match temps réel ↔ MatchMap PostgreSQL (UUID)

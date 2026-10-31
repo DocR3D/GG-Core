@@ -13,14 +13,16 @@ NAME=${1:-}
 IP=${2:-}
 GAME_PORT=${3:-27015}
 LAN_IP=${4:-}
+TV_PORT=${5:-27020} # GOTV (tv_port): the "Regarder" button of the match page
 FIRST_LOG_PORT=8082
 LAST_LOG_PORT=8113 # published by infra/docker-compose.dev.yml (manager): 32 servers
 
-usage() { echo "Usage : make server NAME=srv-b IP=<IP du serveur CS2> [PORT=27015] [LAN_IP=<IP de cette machine>]" >&2; exit 1; }
+usage() { echo "Usage : make server NAME=srv-b IP=<IP du serveur CS2> [PORT=27015] [TV_PORT=27020] [LAN_IP=<IP de cette machine>]" >&2; exit 1; }
 [ -n "$NAME" ] && [ -n "$IP" ] || usage
 [[ "$NAME" =~ ^[a-z0-9][a-z0-9-]{0,31}$ ]] || { echo "❌ NAME : minuscules, chiffres et tirets (ex. srv-b)" >&2; exit 1; }
 [[ "$IP" =~ ^[A-Za-z0-9.-]+$ ]] || { echo "❌ IP invalide : $IP" >&2; exit 1; }
 [[ "$GAME_PORT" =~ ^[0-9]+$ ]] || { echo "❌ PORT invalide : $GAME_PORT" >&2; exit 1; }
+[[ "$TV_PORT" =~ ^[0-9]+$ ]] || { echo "❌ TV_PORT invalide : $TV_PORT" >&2; exit 1; }
 
 file="agents.d/$NAME.yaml"
 if [ -e "$file" ]; then
@@ -78,7 +80,7 @@ echo "✅ $file (logs sur le port $LOG_PORT)"
 # Registered in the tournament (already there: fine, e.g. the file was recreated)
 code=$(curl -s -o /tmp/ggcore-add-server.$$ -w '%{http_code}' -X POST "$API/api/tournament/servers" \
   -H 'Content-Type: application/json' -H "Authorization: Bearer $GG_ADMIN_TOKEN" \
-  -d "{\"name\":\"$NAME\",\"ip\":\"$IP\",\"port\":$GAME_PORT}" || echo 000)
+  -d "{\"name\":\"$NAME\",\"ip\":\"$IP\",\"port\":$GAME_PORT,\"tvPort\":$TV_PORT}" || echo 000)
 case "$code" in
   2??) echo "✅ Serveur $NAME enregistré dans le tournoi" ;;
   409) echo "✅ Serveur $NAME déjà enregistré dans le tournoi" ;;

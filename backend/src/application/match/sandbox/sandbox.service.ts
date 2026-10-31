@@ -1178,6 +1178,21 @@ export function parseCs2LineFallback(rawLine: string, matchId: string, serverId:
     };
   }
 
+  // Connexion d'un joueur (même payload que le parser Go) : userId = id de connexion du serveur, utilisé par kickid
+  // (whitelist du match). Équipe vide → "Unassigned" comme NormTeam côté Go.
+  const connMatch = line.match(/^"([^"<]+)<(\d+)><([^>]*)><([^>]*)>"\s+connected/);
+  if (connMatch) {
+    return {
+      type: 'player_connected',
+      matchId,
+      serverId,
+      timestamp: Date.now(),
+      payload: {
+        player: { name: connMatch[1], steamId: connMatch[3], team: connMatch[4] || 'Unassigned', userId: Number(connMatch[2]) },
+      },
+    };
+  }
+
   // Déconnexion : le `committed suicide with "world"` qui suit EST une mort pour CS2 (round_stats),
   // il n'est donc plus ignoré.
   const discMatch = line.match(/^"([^"<]+)<\d+><([^>]*)><([^>]*)>"\s+disconnected/);

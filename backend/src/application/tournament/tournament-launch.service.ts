@@ -8,6 +8,9 @@ import { MatchPhase } from '@domain/phase.types';
 import { MatchSettings } from '@domain/match-settings.types';
 import { TournamentError } from './tournament-stages.service';
 import { VetoService } from './veto.service';
+import { generateServerPassword, MatchAccessService, toLogSteamId } from '@app/match/access/match-access.service';
+import type { Session } from '@app/auth/auth.service';
+import type { GameConnect } from './tournament-view';
 
 /**
  * Game servers of the LAN and the bridge "tournament game → real-time engine on a server".
@@ -26,18 +29,19 @@ export class TournamentLaunchService {
     private readonly state: MatchStateService,
     private readonly orch: MatchOrchestrator,
     private readonly veto: VetoService,
+    private readonly access: MatchAccessService,
   ) {}
 
   // ---------------------------------------------------------------------------
   // Servers
   // ---------------------------------------------------------------------------
 
-  async createServer(input: { name: string; ip: string; port?: number; game?: string }) {
+  async createServer(input: { name: string; ip: string; port?: number; tvPort?: number; game?: string }) {
     const name = input.name?.trim();
     if (!name || !input.ip?.trim()) throw new TournamentError('invalid', 'name (agent id, e.g. srv-a) and ip are required');
     if (await this.prisma.server.findUnique({ where: { name } })) throw new TournamentError('conflict', `server ${name} already exists`);
     const server = await this.prisma.server.create({
-      data: { name, ip: input.ip.trim(), port: input.port ?? 27015, game: input.game?.trim() || 'cs2' },
+      data: { name, ip: input.ip.trim(), port: input.port ?? 27015, tvPort: input.tvPort ?? 27020, game: input.game?.trim() || 'cs2' },
     });
     return { ...server, rconPassword: undefined };
   }
@@ -93,6 +97,8 @@ export class TournamentLaunchService {
     server: string;
     mapName?: string;
     settings?: Partial<MatchSettings>;
+    /** Server password and whitelist of the two rosters, both on by default (off: training, tests) */
+    access?: { password?: boolean; whitelist?: boolean };
   }) {
     if (!isUuid(input.matchId)) throw new TournamentError('not_found', 'match not found');
     const match = await this.prisma.match.findUnique({
@@ -143,9 +149,91 @@ export class TournamentLaunchService {
       serverId: server.name,
       matchMapId: game.id,
     });
-    const started = await this.orch.startMatch({ serverId: server.name, matchId: engineMatchId, mapName, settings });
+    const access = await this.gameAccess(match.tournamentId, [match.teamHome.id, match.teamAway.id], input.access);
+    const started = await this.orch.startMatch({ serverId: server.name, matchId: engineMatchId, mapName, settings, access: access.access });
     this.log.log(`[launch] series ${match.id} game ${input.order} -> ${server.name} (${mapName}), engine match ${engineMatchId}`);
-    return { gameId: game.id, engineMatchId, server: server.name, mapName, sides: sides ?? 'knife', started };
+    return {
+      gameId: game.id,
+      engineMatchId,
+      server: server.name,
+      mapName,
+      sides: sides ?? 'knife',
+      connect: `connect ${server.ip}:${server.port}${access.access.password ? `; password ${access.access.password}` : ''}`,
+      whitelist: access.whitelist,
+      started,
+    };
+  }
+
+  /**
+   * Who may join a game: a new random password, and every player of the two rosters (starters and substitutes:
+   * substitutes play bonus matches) plus the Steam admins. The whitelist is left off when a team has no SteamID
+   * yet (it would kick the whole team) - said in `whitelist.off`.
+   */
+  private async gameAccess(tournamentId: string | null, teamIds: string[], opts: { password?: boolean; whitelist?: boolean } = {}) {
+    const password = opts.password === false ? null : generateServerPassword();
+    if (opts.whitelist === false) return { access: { password }, whitelist: { off: 'disabled for this launch' } };
+
+    const rosters = tournamentId
+      ? await this.prisma.teamRoster.findMany({
+          where: { tournamentId, teamId: { in: teamIds } },
+          select: { teamId: true, player: { select: { steamId: true } } },
+        })
+      : [];
+    const steamIds = (teamId: string) => rosters.filter((r) => r.teamId === teamId && toLogSteamId(r.player.steamId)).map((r) => r.player.steamId!);
+    const missing = teamIds.filter((id) => !steamIds(id).length);
+    if (missing.length) {
+      this.log.warn(`[launch] whitelist off: no SteamID in the roster of team(s) ${missing.join(', ')}`);
+      return { access: { password }, whitelist: { off: 'a team has no player with a SteamID in its roster' } };
+    }
+    const admins = (process.env.GG_ADMIN_STEAMIDS ?? '').split(',').map((s) => s.trim()).filter(Boolean);
+    const allowed = [...teamIds.flatMap(steamIds), ...admins];
+    return { access: { password, allowedSteamIds: allowed }, whitelist: { players: teamIds.flatMap(steamIds).length, admins: admins.length } };
+  }
+
+  /**
+   * How to join the games being played in a series. Only an admin or a player of one of the two teams gets the
+   * server and its password (`play`) - the password must not reach the other teams or the spectators; everyone
+   * but the players of the match may watch (GOTV, open and delayed).
+   */
+  async connectInfo(matchId: string, viewer: Session | null | undefined): Promise<GameConnect[]> {
+    if (!isUuid(matchId)) return [];
+    const match = await this.prisma.match.findUnique({
+      where: { id: matchId },
+      select: {
+        tournamentId: true,
+        teamHomeId: true,
+        teamAwayId: true,
+        maps: { where: { status: 'LIVE', serverId: { not: null } }, include: { server: true }, orderBy: { mapOrder: 'asc' } },
+      },
+    });
+    if (!match?.maps.length) return [];
+    const isAdmin = viewer?.role === 'admin';
+    const isPlayer = !isAdmin && (await this.playsInMatch(match, viewer));
+    return Promise.all(
+      match.maps.map(async (g) => ({
+        order: g.mapOrder,
+        mapName: g.mapName,
+        // the players of the match play it, they do not watch it (delayed GOTV of their own game)
+        watch: isPlayer ? undefined : `${g.server!.ip}:${g.server!.tvPort}`,
+        play: isAdmin || isPlayer ? { address: `${g.server!.ip}:${g.server!.port}`, password: await this.access.getPassword(g.id) } : undefined,
+      })),
+    );
+  }
+
+  /** Whether the viewer is a player of one of the two rosters of the match (Steam login). */
+  private async playsInMatch(
+    match: { tournamentId: string | null; teamHomeId: string | null; teamAwayId: string | null },
+    viewer: Session | null | undefined,
+  ): Promise<boolean> {
+    if (!viewer) return false;
+    const steamId = toLogSteamId(viewer.sub);
+    const teamIds = [match.teamHomeId, match.teamAwayId].filter((id): id is string => !!id);
+    if (!steamId || !match.tournamentId || !teamIds.length) return false;
+    const rosters = await this.prisma.teamRoster.findMany({
+      where: { tournamentId: match.tournamentId, teamId: { in: teamIds } },
+      select: { player: { select: { steamId: true } } },
+    });
+    return rosters.some((r) => toLogSteamId(r.player.steamId) === steamId);
   }
 
   /** The real-time match a server runs, if it is not over. */

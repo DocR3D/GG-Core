@@ -224,9 +224,40 @@ function buildTournamentLines(t: TournamentView): { lines: string[]; links: Line
 }
 
 /** Minimal HTML page: no CSS, no script, just the text. */
-export function asciiPage(title: string, body: string, bodyIsHtml = false, refreshSec?: number): string {
+export function asciiPage(title: string, body: string, bodyIsHtml = false, refreshSec?: number, beforeHtml = ''): string {
   // optional auto refresh (e.g. to follow a simulated tournament): still no script
-  return htmlPage({ title, body: `<pre>${bodyIsHtml ? body : escapeHtml(body)}</pre>`, refreshSec });
+  return htmlPage({ title, body: `${beforeHtml}<pre>${bodyIsHtml ? body : escapeHtml(body)}</pre>`, refreshSec });
+}
+
+/** How to join a game being played: GOTV for everyone, the server and its password for the players and admins. */
+export interface GameConnect {
+  order: number;
+  mapName: string;
+  /** GOTV ip:tv_port - not for the players of the match */
+  watch?: string;
+  /** server ip:port + password - only for the players of the match and the admins */
+  play?: { address: string; password: string | null };
+}
+
+/**
+ * Per game being played: "Se connecter" for the players and the admins (steam:// link with the password, opens CS2
+ * on the server), "Regarder (GOTV)" for everyone but the players (secondary next to "Se connecter", for the
+ * admins); each with its console line.
+ */
+export function renderConnectHtml(games: GameConnect[]): string {
+  const button = (href: string, label: string, line: string, secondary = false) =>
+    `<a role="button"${secondary ? ' class="secondary"' : ''} href="${escapeHtml(href)}">${label}</a> <code>${escapeHtml(line)}</code>`;
+  return games
+    .map((g) => {
+      const parts = [`<span>game ${g.order} - ${escapeHtml(g.mapName)}</span>`];
+      if (g.play) {
+        const pw = g.play.password;
+        parts.push(button(`steam://connect/${g.play.address}${pw ? `/${pw}` : ''}`, 'Se connecter', `connect ${g.play.address}${pw ? `; password ${pw}` : ''}`));
+      }
+      if (g.watch) parts.push(button(`steam://connect/${g.watch}`, 'Regarder (GOTV)', `connect ${g.watch}`, !!g.play));
+      return `<p class="gg-connect">${parts.join(' ')}</p>`;
+    })
+    .join('\n');
 }
 
 /**
@@ -360,7 +391,12 @@ const statusFr = (s: string) =>
   ({ PENDING: 'à jouer', LIVE: 'en cours', FINISHED: 'terminé', CANCELLED: 'non joué', VETO: 'véto', WARMUP: 'warmup', PAUSED: 'en pause' } as Record<string, string>)[s] ?? s;
 
 /** Detail of one match, as HTML (links to the tournament and to the matches before / after it in the bracket). */
-export function renderMatchDetailHtml(d: MatchDetailView, tournamentHref: string, matchHref: (id: string) => string): string {
+export function renderMatchDetailHtml(
+  d: MatchDetailView,
+  tournamentHref: string,
+  matchHref: (id: string) => string,
+  connect: GameConnect[] = [],
+): string {
   const lines: string[] = [];
   const links: { line: number; col: number; len: number; href: string }[] = [];
   const link = (text: string, href: string, prefix = '') => {
@@ -429,5 +465,5 @@ export function renderMatchDetailHtml(d: MatchDetailView, tournamentHref: string
   const body = lines
     .map((text, i) => linkify(text, links.filter((l) => l.line === i).map((l) => ({ ...l, matchId: l.href })), (h) => h))
     .join('\n');
-  return asciiPage(`${d.label} - ${d.tournament.name}`, body + '\n', true);
+  return asciiPage(`${d.label} - ${d.tournament.name}`, body + '\n', true, undefined, renderConnectHtml(connect));
 }

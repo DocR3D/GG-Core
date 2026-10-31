@@ -317,6 +317,13 @@ func TestTryParse(t *testing.T) {
 			logLine:  `"Player_02<2><[U:1:10000002]><>" connected, address "10.0.0.14:61353"`,
 			wantType: events.EvPlayerConnected,
 			wantOk:   true,
+			verifyAssert: func(t *testing.T, payload map[string]any) {
+				player, _ := payload["player"].(map[string]any)
+				// the userid is what kickid needs (whitelist of the match)
+				if player["userId"] != float64(2) || player["steamId"] != "[U:1:10000002]" {
+					t.Fatalf("unexpected player: %v", player)
+				}
+			},
 		},
 		{
 			name:     "Bot Disconnect with reason",

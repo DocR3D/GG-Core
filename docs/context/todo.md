@@ -58,13 +58,15 @@ Le cœur moteur de match, l'arbitrage automatisé, le calcul de scores/stats CS2
 
 ### 4. 🔒 Sécurité des Accès Serveurs & Whitelist SteamID
 * **Origine** : Protection des matchs LAN contre les intrusions ou erreurs de connexion.
-* **Tâches à réaliser** :
-  - **Mot de passe unique obligatoire** : génération d'un mot de passe aléatoire par match, injecté sur le serveur CS2 via RCON (`sv_password <password>`).
-  - **Module de Whitelist SteamID** :
-    - Vérification à l'événement `player_connected` ou `player_connect`.
-    - Si le joueur n'appartient à aucune des deux équipes inscrites, émission d'une commande RCON pour le kicker (`kickid <userid> "Vous n'êtes pas inscrit sur ce match"`).
-    - Option désactivable pour les matchs d'entraînement / tests.
-    - Accepter **tout le roster** de l'équipe (titulaires **et remplaçants**), pas seulement les titulaires : les remplaçants jouent notamment les matchs bonus.
+* **Fait** : au lancement d'un game de tournoi, mot de passe aléatoire (`sv_password`) et whitelist = roster complet
+  des deux équipes (titulaires et remplaçants) + admins Steam ; un joueur non inscrit est kické à sa connexion
+  (`kickid <userid> "Vous n'êtes pas inscrit sur ce match"`) et les admins sont alertés (`access:not_allowed`) ;
+  désactivable au lancement (`access: { password: false, whitelist: false }`) ; boutons « Se connecter » (joueurs du match, admins) et « Regarder (GOTV) » (tous sauf les joueurs du match, GOTV ouverte en différé) sur
+  `/view/matches/:id` pour les joueurs du match et les admins.
+* **Reste** :
+  - Test avec de vrais joueurs (RT-11).
+  - Joueurs déjà sur le serveur au lancement : non contrôlés (le kick post-match du match précédent vide le serveur).
+  - Pas de whitelist si une équipe n'a encore aucun SteamID (import CSV à venir).
 
 ### 5. 🌐 Orchestration Dynamique de la Flotte de Serveurs (Multi-serveurs)
 * **Origine** : Objectif de superviser jusqu'à 32 (ou 64) serveurs simultanément en LAN.

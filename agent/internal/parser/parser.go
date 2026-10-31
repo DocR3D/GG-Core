@@ -42,7 +42,7 @@ var defuseBeginRe = regexp.MustCompile(`^"(?P<name>[^"<]+)<\d+><(?P<steam>[^>]*)
 var defuseAbortRe = regexp.MustCompile(`^"(?P<name>[^"<]+)<\d+><(?P<steam>[^>]*)><(?P<team>CT|TERRORIST)>"\s+triggered\s+"Aborted_Bomb_Defuse"`)
 
 // --- Player connect/disconnect/name change ---
-var playerConnectRe = regexp.MustCompile(`^"(?P<name>[^"<]+)<\d+><(?P<steam>[^>]*)><(?P<team>[^>]*)>"\s+connected`)
+var playerConnectRe = regexp.MustCompile(`^"(?P<name>[^"<]+)<(?P<uid>\d+)><(?P<steam>[^>]*)><(?P<team>[^>]*)>"\s+connected`)
 var playerDisconnectRe = regexp.MustCompile(`^"(?P<name>[^"<]+)<\d+><(?P<steam>[^>]*)><(?P<team>[^>]*)>"\s+disconnected(?:\s+\((?:reason\s+)?"?(?P<reason>[^")]+)"?\))?`)
 var nameChangeRe = regexp.MustCompile(`^"(?P<old>[^"<]+)<\d+><(?P<steam>[^>]*)><[^>]*>"\s+changed\s+name\s+to\s+"(?P<new>[^"]+)"`)
 
@@ -426,8 +426,10 @@ func parseLine(line string) (string, json.RawMessage, bool) {
 		name := grp(playerConnectRe, line, "name")
 		steam := grp(playerConnectRe, line, "steam")
 		team := grp(playerConnectRe, line, "team")
+		// userId: the server's id of the connection, needed by kickid (whitelist of the match)
+		userID, _ := strconv.Atoi(grp(playerConnectRe, line, "uid"))
 		payload := map[string]any{
-			"player": map[string]any{"name": name, "steamId": steam, "team": events.NormTeam(team)},
+			"player": map[string]any{"name": name, "steamId": steam, "team": events.NormTeam(team), "userId": userID},
 		}
 		return events.EvPlayerConnected, mustJSON(payload), true
 	}

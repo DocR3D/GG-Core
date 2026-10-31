@@ -10,6 +10,7 @@ import { PhaseEventsHandler } from './phase-events.handler';
 import { RoundEventsHandler } from './round-events.handler';
 import { KillAndBombEventsHandler } from './kill-bomb-events.handler';
 import { DatabaseEventsHandler } from './database-events.handler';
+import { MatchAccessService } from '@app/match/access/match-access.service';
 
 @Injectable()
 export class MatchEventsHandler {
@@ -23,6 +24,7 @@ export class MatchEventsHandler {
     private readonly phase: MatchPhaseService,
     private readonly mss: MatchStateService,
     private readonly ctxFactory: RuleContextFactory,
+    private readonly access: MatchAccessService,
   ) {}
 
   async handle(ev: AnyEvent & { serverId?: string }): Promise<void> {
@@ -47,6 +49,13 @@ export class MatchEventsHandler {
         .make({ matchId, serverId: ev.serverId })
         .orch.onServerGameOver(matchId, ev.serverId, { ct: Number(p.scoreCT) || 0, t: Number(p.scoreT) || 0 });
       return;
+    }
+
+    // 0) Connexion d'un joueur : whitelist du match (kick s'il n'est pas inscrit), quelle que soit la phase
+    if ((ev.type as string) === EventTypes.PLAYER_CONNECTED) {
+      await this.access
+        .onPlayerConnected(matchId, ev.serverId, (ev as any).payload?.player ?? {})
+        .catch((err) => this.logger.warn(`[MatchEventsHandler] access check error: ${err?.message}`));
     }
 
     // 0bis) Résultat gelé (désaccord serveur / GG-Core) : en attendant l'admin, on ne fait qu'archiver les

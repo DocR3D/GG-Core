@@ -50,6 +50,9 @@ En attendant, le backend sert des pages HTML simples, sans JS (sauf rechargement
 - `knife:result`
 - `sponsor:rotate`
 
+### Accès au serveur (admin uniquement)
+- `access:not_allowed` : un joueur absent de la whitelist du match s'est connecté (`player`, `kicked` : kické ou non).
+
 ### Véto des maps
 - `veto:updated` : état public du véto après chaque action (room du match de la série). Écrans prévus : pierre-feuille-
   ciseaux, puis pick & ban en cliquant sur l'image des maps ; un capitaine trouve ses matchs par

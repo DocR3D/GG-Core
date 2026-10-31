@@ -61,7 +61,7 @@ export class TournamentController {
 
   /** Registers a game server; `name` = agent id (agents.d/<name>.yaml, e.g. "srv-a"). */
   @Post('servers')
-  createServer(@Body() body: { name: string; ip: string; port?: number; game?: string }) {
+  createServer(@Body() body: { name: string; ip: string; port?: number; tvPort?: number; game?: string }) {
     return this.run(() => this.launch.createServer(body ?? ({} as any)));
   }
 
@@ -78,15 +78,18 @@ export class TournamentController {
 
   /**
    * Starts game n° `order` of a series on a server chosen by the admin (real-time engine; the result flows back
-   * automatically). Relaunch on another server after a crash: same call with the other server.
+   * automatically). Relaunch on another server after a crash: same call with the other server. A new server
+   * password and the whitelist of the two rosters are set unless `access: { password: false, whitelist: false }`.
    */
   @Post('matches/:id/games/:order/launch')
   launchGame(
     @Param('id') matchId: string,
     @Param('order', ParseIntPipe) order: number,
-    @Body() body: { server: string; mapName?: string; settings?: Partial<MatchSettings> },
+    @Body() body: { server: string; mapName?: string; settings?: Partial<MatchSettings>; access?: { password?: boolean; whitelist?: boolean } },
   ) {
-    return this.run(() => this.launch.launchGame({ matchId, order, server: body?.server, mapName: body?.mapName, settings: body?.settings }));
+    return this.run(() =>
+      this.launch.launchGame({ matchId, order, server: body?.server, mapName: body?.mapName, settings: body?.settings, access: body?.access }),
+    );
   }
 
   @Get('tournaments')

@@ -84,8 +84,8 @@ status: ## Résumé de l'état et des URLs
 	@if $(COMPOSE) --profile cs2 ps --services --status running 2>/dev/null | grep -qx cs2; then echo "   CS2            connect localhost:27015 (RCON $$(grep '^GG_RCON_PASSWORD=' .env | cut -d= -f2-))"; fi
 	@echo ""
 
-server: ## Ajoute un serveur CS2 de la LAN (NAME=srv-b IP=<IP du serveur> [PORT=27015] [LAN_IP=<IP de cette machine>])
-	@COMPOSE="$(COMPOSE)" API="$(API)" GG_ADMIN_TOKEN="$(GG_ADMIN_TOKEN)" bash infra/add-server.sh "$(NAME)" "$(IP)" "$(or $(PORT),27015)" "$(LAN_IP)"
+server: ## Ajoute un serveur CS2 de la LAN (NAME=srv-b IP=<IP du serveur> [PORT=27015] [TV_PORT=27020] [LAN_IP=<IP de cette machine>])
+	@COMPOSE="$(COMPOSE)" API="$(API)" GG_ADMIN_TOKEN="$(GG_ADMIN_TOKEN)" bash infra/add-server.sh "$(NAME)" "$(IP)" "$(or $(PORT),27015)" "$(LAN_IP)" "$(or $(TV_PORT),27020)"
 
 servers: ## État des serveurs CS2 : agent, RCON, logs reçus (à vérifier avant la LAN)
 	@$(COMPOSE) exec -T backend node scripts/servers.mjs

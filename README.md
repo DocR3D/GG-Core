@@ -53,7 +53,7 @@ Sous Windows : lancer ces commandes depuis un terminal WSL, dans le dépôt (ex.
 Une commande par serveur, depuis la machine GG-Core :
 
 ```bash
-make server NAME=srv-b IP=10.0.0.12            # [PORT=27015] [LAN_IP=<IP de cette machine sur la LAN>]
+make server NAME=srv-b IP=10.0.0.12            # [PORT=27015] [TV_PORT=27020] [LAN_IP=<IP de cette machine sur la LAN>]
 ```
 
 Elle crée l'agent du serveur (`agents.d/srv-b.yaml`, port de logs suivant : 8083, 8084… jusqu'à 32 serveurs), enregistre

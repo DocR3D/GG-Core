@@ -203,6 +203,8 @@ model Server {
   game         String       @default("cs2") @db.VarChar(32)
   ip           String       @db.VarChar(64)
   port         Int          @default(27015)
+  /// Port GOTV (tv_port) : bouton « Regarder » de la page d'un match
+  tvPort       Int          @default(27020) @map("tv_port")
   rconPort     Int?         @map("rcon_port")
   rconPassword String?      @map("rcon_password") @db.VarChar(128)
   status       ServerStatus @default(IDLE)

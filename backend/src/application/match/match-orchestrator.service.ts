@@ -19,6 +19,7 @@ import { CS2_CFG } from '@domain/rules/rules.constants';
 import { REDIS_CHANNELS } from './state/redis.keys';
 import { RuleContext } from '@domain/rules';
 import { TournamentPersistenceService, isUuid } from '@adapters/database/tournament-persistence.service';
+import { MatchAccess, MatchAccessService } from './access/match-access.service';
 
 type ResumeMeta = { source?: 'expired' | 'admin' | 'chat'; reason?: 'tactical'|'technical'|'admin' };
 
@@ -42,6 +43,7 @@ export class MatchOrchestrator {
     private readonly ctxFactory: RuleContextFactory,
     @Inject(REDIS_PUB) private readonly pub: Redis,
     @Optional() private readonly tournamentPersistence?: TournamentPersistenceService,
+    @Optional() private readonly access?: MatchAccessService,
   ) {}
 
   // ---------------------------------------------------------------------------
@@ -407,6 +409,8 @@ export class MatchOrchestrator {
     matchId: string;
     mapName?: string;
     settings?: Partial<MatchSettings>;
+    /** Server password and players allowed; none = server without password nor whitelist (Sandbox, tests) */
+    access?: MatchAccess;
   }) {
     const { serverId, matchId } = opts;
     const mapName = opts.mapName ?? 'de_mirage';
@@ -429,6 +433,10 @@ export class MatchOrchestrator {
 
     // 3) Warmup config (applied by the agent) & start GOTV demo recording
     await this.execCfg({ serverId, matchId }, CS2_CFG.WARMUP).catch(() => {});
+    // Access (sv_password, public GOTV) AFTER the map change: CS2 runs server.cfg at each map load, and a
+    // server.cfg with `sv_password ""` wiped a password set before changelevel (seen on the dev server). Commands
+    // sent after changelevel reach the server once the map is loaded, like the warmup cfg above.
+    const access = await this.access?.apply(matchId, serverId, opts.access);
     await this.cmds.rcon({ serverId, matchId, command: `tv_record "${matchId}_${mapName}"` }).catch(() => {});
 
     // 3) Initial phase
@@ -439,7 +447,7 @@ export class MatchOrchestrator {
     await this.cmds.say(serverId, `[GG-Core] Match configuré sur ${mapName} ! Tapez !ready quand vous êtes prêts.`);
     await this.push(matchId, 'match:state', await this.state.getSnapshot(matchId));
 
-    return { ok: true, matchId, serverId, map: mapName, phase: initialPhase };
+    return { ok: true, matchId, serverId, map: mapName, phase: initialPhase, access };
   }
 
   async endMatch(matchId: string, winnerSide: GameSide | null, ctx: RuleContext) {

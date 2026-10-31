@@ -29,7 +29,8 @@ export type DefuseAbortEvent = BaseEvent<typeof EventTypes.DEFUSE_ABORT, {
 }>;
 
 export type PlayerConnectedEvent = BaseEvent<typeof EventTypes.PLAYER_CONNECTED, {
-  player: PlayerRefLogs;
+  /** userId: the server's connection id (kickid) */
+  player: PlayerRefLogs & { userId?: number };
 }>;
 export type PlayerDisconnectedEvent = BaseEvent<typeof EventTypes.PLAYER_DISCONNECTED, {
   player: { name: string; steamId: string };

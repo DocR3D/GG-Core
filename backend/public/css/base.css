@@ -21,6 +21,8 @@
  *   button.danger      destructive action (start the veto over, stop a simulation)
  *   .gg-ct / .gg-t     a CT / T side: text, or a button choosing that side
  *   .gg-meta           small secondary line under a title (tournament, format, links)
+ *   .gg-connect        a game being played: "Se connecter" (players) / "Regarder (GOTV)" (everyone): a[role=button]
+ *                      (steam:// link) + its console line
  */
 
 @font-face { font-family: Poppins; font-style: normal; font-weight: 400; font-display: swap; src: url(/assets/fonts/poppins-latin-400-normal.woff2) format('woff2'); }
@@ -158,6 +160,17 @@ button.gg-ct:hover, button.gg-t:hover { filter: brightness(1.12); }
 }
 .gg-actions form { margin: 0; }
 .gg-actions button { margin: 0; }
+
+/* Join the server of a game being played (players of the match, admins): the button, then the console line */
+.gg-connect {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem 1rem;
+  margin-bottom: var(--pico-spacing);
+}
+.gg-connect [role='button'] { margin: 0; }
+.gg-connect code { font-size: var(--gg-step--1); user-select: all; }
 
 /* Struck-out = banned / not played */
 del { color: var(--gg-muted); text-decoration-color: var(--gg-muted); }
