@@ -11,6 +11,7 @@ import {
   NotFoundException,
   Param,
   ParseIntPipe,
+  Patch,
   Post,
   Put,
   Req,
@@ -26,6 +27,7 @@ import {
 import { TournamentLaunchService } from '@app/tournament/tournament-launch.service';
 import { VetoService } from '@app/tournament/veto.service';
 import { TournamentAdminService } from '@app/tournament/tournament-admin.service';
+import { TournamentEditService } from '@app/tournament/tournament-edit.service';
 import type { Session } from '@app/auth/auth.service';
 import type { VetoConfig } from '@domain/tournament/veto';
 import { actorOf } from '../veto/veto.controller';
@@ -43,6 +45,7 @@ export class TournamentController {
     private readonly launch: TournamentLaunchService,
     private readonly veto: VetoService,
     private readonly admin: TournamentAdminService,
+    private readonly edit: TournamentEditService,
   ) {}
 
   /** The data behind the /view pages, as JSON. */
@@ -83,6 +86,18 @@ export class TournamentController {
     return this.run(() => this.launch.createServer(body ?? ({} as any)));
   }
 
+  /** { ip?, port?, tvPort? } (the name is the agent id: it stays). */
+  @Patch('servers/:id')
+  updateServer(@Param('id') idOrName: string, @Body() body: { ip?: string; port?: number; tvPort?: number }) {
+    return this.run(() => this.launch.updateServer(idOrName, body ?? {}));
+  }
+
+  /** Removes a server (refused while it runs a match). */
+  @Delete('servers/:id')
+  deleteServer(@Param('id') idOrName: string) {
+    return this.run(() => this.launch.deleteServer(idOrName));
+  }
+
   /**
    * disable: dead PC / server, never chosen for a game · enable: back in service ·
    * release: frees a server stuck on a match that will never end (crash, cut replay).
@@ -119,6 +134,36 @@ export class TournamentController {
   @Post('tournaments')
   createTournament(@Body() body: { name: string; slug?: string; game?: string }) {
     return this.run(() => this.stages.createTournament(body ?? ({} as any)));
+  }
+
+  /** { name?, status? } - status: UPCOMING | ACTIVE | COMPLETED | ARCHIVED. */
+  @Patch('tournaments/:id')
+  updateTournament(@Param('id') tournamentId: string, @Body() body: { name?: string; status?: string }) {
+    return this.run(() => this.edit.updateTournament(tournamentId, body ?? {}));
+  }
+
+  /** { name?, tag? } of a team (shared by its tournaments). */
+  @Patch('teams/:id')
+  updateTeam(@Param('id') teamId: string, @Body() body: { name?: string; tag?: string | null }) {
+    return this.run(() => this.edit.updateTeam(teamId, body ?? {}));
+  }
+
+  /** Takes a team out of a tournament before it plays (refused once it has a match or a place in a stage). */
+  @Delete('tournaments/:id/teams/:teamId')
+  removeTeam(@Param('id') tournamentId: string, @Param('teamId') teamId: string) {
+    return this.run(() => this.edit.removeTeam(tournamentId, teamId));
+  }
+
+  /** { username?, steamId? } of a player (SteamID64 or [U:1:x], empty = none; refused if another player has it). */
+  @Patch('players/:id')
+  updatePlayer(@Param('id') playerId: string, @Body() body: { username?: string; steamId?: string | null }) {
+    return this.run(() => this.edit.updatePlayer(playerId, body ?? {}));
+  }
+
+  /** Takes a player out of a team's roster for the tournament (the player is kept). */
+  @Delete('tournaments/:id/teams/:teamId/players/:playerId')
+  removePlayer(@Param('id') tournamentId: string, @Param('teamId') teamId: string, @Param('playerId') playerId: string) {
+    return this.run(() => this.edit.removePlayer(tournamentId, teamId, playerId));
   }
 
   /** Deletes a tournament and the teams that took part in no other tournament. */

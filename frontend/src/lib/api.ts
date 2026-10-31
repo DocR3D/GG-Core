@@ -55,6 +55,37 @@ export interface ServerRow {
   agent: { online: boolean; rconConnected?: boolean; rconError?: string; lastLogAt?: string | null; lastBadTokenAt?: string };
 }
 
+/** A team of a tournament with its roster (GET /api/tournament/tournaments/:id/teams). */
+export interface TournamentTeam {
+  id: string;
+  name: string;
+  tag: string | null;
+  players: { id: string; username: string; steamId: string | null; captain: boolean; role: string }[];
+}
+
+/** Overview of a tournament (GET /api/tournament/tournaments/:id/overview), the parts the admin screen uses. */
+export interface OverviewMatch {
+  id: string;
+  label?: string;
+  home: string | null;
+  away: string | null;
+  format: 'BO1' | 'BO3' | 'BO5';
+  status: 'PENDING' | 'LIVE' | 'FINISHED' | string;
+  scoreHome: number;
+  scoreAway: number;
+  winner: string | null;
+  isForfeit: boolean;
+  bracket?: string;
+  placement?: number | null;
+  games: { id?: string; order: number; mapName: string; status: string; scoreHome: number; scoreAway: number; server: string | null }[];
+}
+export interface Overview {
+  name: string;
+  game: string;
+  stages: { name: string; type: string; order: number; groups: { name: string; matches: OverviewMatch[] }[]; matches: OverviewMatch[] }[];
+  bonusMatches: OverviewMatch[];
+}
+
 export interface TournamentSummary {
   id: string;
   name: string;

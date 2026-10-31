@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState, type FormEvent, type ReactNode } from 'react';
+import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react';
 import { Link, useParams } from 'react-router';
 import { api, ApiError, type LiveGame } from '../lib/api';
 import { describe, type LogLine } from '../lib/events';
@@ -6,6 +6,7 @@ import { liveSocket } from '../lib/live';
 import { isAdmin, useSession } from '../lib/session';
 import { usePolling } from '../lib/usePolling';
 import { TeamLine } from '../components/live';
+import { Button } from '../components/ui';
 
 /**
  * Match console (admins): one game of the real-time engine. Score and state, the commands (each through the API,
@@ -338,23 +339,3 @@ const TONE: Record<LogLine['tone'], string> = {
   admin: 'text-white',
   alert: 'text-red-light',
 };
-
-/** Red = the expected action now (only one at a time); the others are outlined. */
-function Button({
-  primary = false,
-  type = 'button',
-  children,
-  ...rest
-}: { primary?: boolean; type?: 'button' | 'submit'; children: ReactNode; disabled?: boolean; onClick?: () => void; title?: string }) {
-  return (
-    <button
-      type={type}
-      className={`px-4 py-2 text-sm font-semibold disabled:cursor-not-allowed disabled:opacity-40 ${
-        primary ? 'bg-red text-white hover:bg-red-light' : 'border border-line-strong text-text hover:border-text hover:text-white'
-      }`}
-      {...rest}
-    >
-      {children}
-    </button>
-  );
-}

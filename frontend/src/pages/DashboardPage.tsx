@@ -1,4 +1,7 @@
-import type { LiveGame, ServerRow, TournamentSummary } from '../lib/api';
+import { useState, type FormEvent } from 'react';
+import { Link, useNavigate } from 'react-router';
+import { api, type LiveGame, type ServerRow, type TournamentSummary } from '../lib/api';
+import { Button, Input, NoticeLine, useAction } from '../components/ui';
 import { isAdmin, useSession } from '../lib/session';
 import { usePolling } from '../lib/usePolling';
 import { ago, Empty, LiveGamesTable, Section, Table, Td, TOURNAMENT_STATUS, useNow } from '../components/live';
@@ -60,14 +63,15 @@ function Dashboard() {
       </Section>
 
       <Section title="Tournois" count={tournaments.data?.length} error={tournaments.error}>
+        <NewTournament />
         {tournaments.data && tournaments.data.length === 0 && <Empty>Aucun tournoi.</Empty>}
         {tournaments.data && tournaments.data.length > 0 && (
           <ul className="divide-y divide-line border-y border-line">
             {tournaments.data.map((t) => (
               <li key={t.id} className="flex items-baseline gap-4 py-2.5">
-                <a href={`/view/tournaments/${t.id}`} className="font-semibold text-white hover:underline">
+                <Link to={`/admin/tournaments/${t.id}`} className="font-semibold text-white hover:underline">
                   {t.name}
-                </a>
+                </Link>
                 <span className="text-sm text-muted">{TOURNAMENT_STATUS[t.status] ?? t.status}</span>
               </li>
             ))}
@@ -105,5 +109,30 @@ function ServerLine({ s, now }: { s: ServerRow; now: number }) {
         {a.lastLogAt ? <span className="text-muted">reçus {ago(Date.parse(a.lastLogAt), now)}</span> : <span className="text-muted">aucun</span>}
       </Td>
     </tr>
+  );
+}
+
+/** Creates a tournament and opens its management screen. */
+function NewTournament() {
+  const [name, setName] = useState('');
+  const navigate = useNavigate();
+  const { busy, notice, run } = useAction();
+  return (
+    <div className="mb-4 space-y-2">
+      <form
+        className="flex flex-wrap gap-2"
+        onSubmit={async (e: FormEvent) => {
+          e.preventDefault();
+          const t = await run('Tournoi créé', () => api<{ id: string }>('/api/tournament/tournaments', { method: 'POST', body: JSON.stringify({ name: name.trim() }) }));
+          if (t?.id) navigate(`/admin/tournaments/${t.id}`);
+        }}
+      >
+        <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="Nom du nouveau tournoi" className="sm:w-72" />
+        <Button type="submit" disabled={busy || !name.trim()}>
+          Créer le tournoi
+        </Button>
+      </form>
+      <NoticeLine notice={notice} />
+    </div>
   );
 }

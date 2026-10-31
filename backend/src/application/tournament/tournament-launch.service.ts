@@ -70,6 +70,39 @@ export class TournamentLaunchService {
   }
 
   /**
+   * { ip?, port?, tvPort? } - the name stays: it is the agent id (agents.d/<name>.yaml), renaming it would cut the
+   * server from its agent. The RCON address used by the agent is in that YAML (make server writes both).
+   */
+  async updateServer(idOrName: string, input: { ip?: string; port?: number; tvPort?: number }) {
+    const server = await this.findServer(idOrName);
+    const data: { ip?: string; port?: number; tvPort?: number } = {};
+    if (input.ip !== undefined) {
+      if (!/^[A-Za-z0-9.-]{1,64}$/.test(input.ip.trim())) throw new TournamentError('invalid', 'ip: an address or a host name');
+      data.ip = input.ip.trim();
+    }
+    for (const key of ['port', 'tvPort'] as const) {
+      if (input[key] === undefined) continue;
+      const n = Number(input[key]);
+      if (!Number.isInteger(n) || n < 1 || n > 65535) throw new TournamentError('invalid', `${key}: 1 to 65535`);
+      data[key] = n;
+    }
+    const updated = await this.prisma.server.update({ where: { id: server.id }, data });
+    return { ...updated, rconPassword: undefined };
+  }
+
+  /**
+   * Removes a server from the tournament (a PC given back): refused while it runs a match. Its past games keep
+   * their result, without server. Its agent keeps running until agents.d/<name>.yaml is deleted (said back).
+   */
+  async deleteServer(idOrName: string) {
+    const server = await this.findServer(idOrName);
+    const busyWith = await this.runningMatch(server.name);
+    if (busyWith) throw new TournamentError('conflict', `server ${server.name} is running match ${busyWith.matchId}: release it first`);
+    await this.prisma.server.delete({ where: { id: server.id } });
+    return { deleted: server.name, agent: `agents.d/${server.name}.yaml still starts its agent: delete the file to stop it` };
+  }
+
+  /**
    * Frees a server stuck on a match that will never end (crash, cut replay…): the binding is removed, the
    * real-time match is left as is. The server becomes available for a new game.
    */

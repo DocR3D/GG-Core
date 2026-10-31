@@ -5,6 +5,8 @@
 import { escapeHtml, htmlPage } from '@app/shared/html-page';
 
 export interface ViewGame {
+  /** game id = match id of the real-time engine (console) */
+  id?: string;
   order: number;
   mapName: string;
   scoreHome: number;

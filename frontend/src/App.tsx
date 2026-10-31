@@ -4,6 +4,7 @@ import { useLiveStatus } from './lib/live';
 import { HomePage } from './pages/HomePage';
 import { DashboardPage } from './pages/DashboardPage';
 import { MatchConsolePage } from './pages/MatchConsolePage';
+import { TournamentAdminPage } from './pages/TournamentAdminPage';
 
 export function App() {
   return (
@@ -15,6 +16,7 @@ export function App() {
             <Route path="/" element={<HomePage />} />
             <Route path="/admin" element={<DashboardPage />} />
             <Route path="/admin/games/:gameId" element={<MatchConsolePage />} />
+            <Route path="/admin/tournaments/:tournamentId" element={<TournamentAdminPage />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </main>

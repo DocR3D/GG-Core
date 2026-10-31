@@ -497,6 +497,7 @@ export class TournamentStagesService {
       bracket: m.bracketType,
       advantageHome: m.advantageHome,
       games: m.maps.map((g) => ({
+        id: g.id,
         order: g.mapOrder,
         mapName: g.mapName,
         scoreHome: g.scoreHome,
