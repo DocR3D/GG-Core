@@ -27,7 +27,7 @@ ifeq ($(CS2),local)
 endif
 
 .DEFAULT_GOAL := help
-.PHONY: help doctor admin _core up up-cs2 down restart ps logs status sandbox replay fixtures test test-backend test-db test-go e2e-tournament tournament veto-demo veto-bot shell-backend psql redis-cli reset
+.PHONY: help doctor admin _core up up-cs2 down restart ps logs status server servers sandbox replay fixtures test test-backend test-db test-go e2e-tournament tournament veto-demo veto-bot shell-backend psql redis-cli reset
 
 help: ## Affiche cette aide
 	@echo "GG-Core - commandes disponibles :"
@@ -93,6 +93,12 @@ status: ## Résumé de l'état et des URLs
 	@if [ "$(CS2)" = "local" ]; then echo "   CS2 (hors Docker) attendu sur $(GG_CS2_HOST):27015 - logaddress_add_http \"http://<IP de cette machine>:8082/logs?token=$$(grep '^GG_LOGS_TOKEN=' .env | cut -d= -f2-)\" (RCON : $$(grep '^GG_RCON_PASSWORD=' .env | cut -d= -f2-))"; \
 	 elif $(COMPOSE) --profile cs2 ps --services --status running 2>/dev/null | grep -qx cs2; then echo "   CS2            connect localhost:27015 (RCON $$(grep '^GG_RCON_PASSWORD=' .env | cut -d= -f2-))"; fi
 	@echo ""
+
+server: ## Ajoute un serveur CS2 de la LAN (NAME=srv-b IP=<IP du serveur> [PORT=27015] [LAN_IP=<IP de cette machine>])
+	@COMPOSE="$(COMPOSE)" API="$(API)" GG_ADMIN_TOKEN="$(GG_ADMIN_TOKEN)" bash infra/add-server.sh "$(NAME)" "$(IP)" "$(or $(PORT),27015)" "$(LAN_IP)"
+
+servers: ## État des serveurs CS2 : agent, RCON, logs reçus (à vérifier avant la LAN)
+	@$(COMPOSE) exec -T backend node scripts/servers.mjs
 
 sandbox: ## Affiche l'URL de la Sandbox
 	@echo "$(API)/sandbox"

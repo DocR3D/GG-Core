@@ -116,12 +116,15 @@ type heartbeat struct {
 	RCON struct {
 		Connected bool   `json:"connected"`
 		Addr      string `json:"addr"`
+		Error     string `json:"error,omitempty"`
 	} `json:"rcon"`
 	Logs struct {
-		Bind    string `json:"bind"`
-		OK      bool   `json:"ok"`
-		Queue   int64  `json:"queue"`
-		Dropped int64  `json:"dropped"`
+		Bind           string `json:"bind"`
+		OK             bool   `json:"ok"`
+		Queue          int64  `json:"queue"`
+		Dropped        int64  `json:"dropped"`
+		LastAt         int64  `json:"lastAt"`
+		LastBadTokenAt int64  `json:"lastBadTokenAt,omitempty"`
 	} `json:"logs"`
 	CurrentMatchID string `json:"currentMatchId,omitempty"`
 }
@@ -151,6 +154,10 @@ var (
 	logQueue      = make(chan string, 10000)
 	droppedLogs   int64
 	logHTTPServer *http.Server
+	// unix seconds of the last accepted log batch / of the last batch refused for a bad token (0 = never):
+	// shown in the heartbeat to check a server's logaddress_add_http line
+	lastLogAt      int64
+	lastBadTokenAt int64
 )
 
 // rcon executor
@@ -158,6 +165,7 @@ var (
 	rconMu   sync.Mutex
 	rconCli  *myrcon.Client
 	rconAddr string
+	rconErr  string // last connection error, "" when connected
 )
 
 func main() {
@@ -248,6 +256,7 @@ func runLogsHTTP(ctx context.Context, cfg AgentConfig) {
 		if tok == "" || tok != cfg.Logs.Token {
 			log.Printf("[agent:%s] /logs 401 (bad token) from %s ct=%s len=%d",
 				cfg.ServerID, r.RemoteAddr, r.Header.Get("Content-Type"), r.ContentLength)
+			atomic.StoreInt64(&lastBadTokenAt, time.Now().Unix())
 			w.WriteHeader(http.StatusUnauthorized)
 			return
 		}
@@ -256,6 +265,7 @@ func runLogsHTTP(ctx context.Context, cfg AgentConfig) {
 		body, _ := io.ReadAll(r.Body)
 		_ = r.Body.Close()
 
+		atomic.StoreInt64(&lastLogAt, time.Now().Unix())
 		lines := splitLines(string(body))
 		for _, line := range lines {
 			select {
@@ -454,18 +464,7 @@ func withRcon(ctx context.Context, cfg AgentConfig, fn func(context.Context, *my
 	rconMu.Lock()
 	defer rconMu.Unlock()
 
-	if rconCli == nil {
-		host, port := splitHostPort(cfg.CS2.Addr)
-		rconAddr = cfg.CS2.Addr
-		log.Printf("[agent:%s] RCON new client host=%s port=%d", cfg.ServerID, host, port)
-		rconCli = myrcon.New(myrcon.Config{
-			Host:      host,
-			Port:      port,
-			Password:  cfg.CS2.RconPassword,
-			Timeout:   time.Duration(max(500, cfg.CS2.Rcon.CommandTimeoutMs)) * time.Millisecond,
-			RateLimit: rconInterval(cfg.CS2.Rcon.RateLimitPerSec),
-		})
-	}
+	newRconClientLocked(cfg)
 	if err := ensureRcon(ctx, rconCli); err != nil {
 		log.Printf("[agent:%s] RCON connect error: %v", cfg.ServerID, err)
 		return "", err
@@ -478,6 +477,47 @@ func withRcon(ctx context.Context, cfg AgentConfig, fn func(context.Context, *my
 		rconCli = nil
 	}
 	return out, err
+}
+
+// newRconClientLocked creates the RCON client if there is none (rconMu held).
+func newRconClientLocked(cfg AgentConfig) {
+	if rconCli != nil {
+		return
+	}
+	host, port := splitHostPort(cfg.CS2.Addr)
+	rconAddr = cfg.CS2.Addr
+	log.Printf("[agent:%s] RCON new client host=%s port=%d", cfg.ServerID, host, port)
+	rconCli = myrcon.New(myrcon.Config{
+		Host:      host,
+		Port:      port,
+		Password:  cfg.CS2.RconPassword,
+		Timeout:   time.Duration(max(500, cfg.CS2.Rcon.CommandTimeoutMs)) * time.Millisecond,
+		RateLimit: rconInterval(cfg.CS2.Rcon.RateLimitPerSec),
+	})
+}
+
+// probeRcon opens the RCON connection if it is not open (dial + auth, no command sent: the rate limit is
+// untouched), so the heartbeat tells whether the server is reachable with this password before any match.
+// An open connection is trusted until a command fails on it (withRcon then closes it).
+func probeRcon(ctx context.Context, cfg AgentConfig) (bool, string) {
+	rconMu.Lock()
+	defer rconMu.Unlock()
+	newRconClientLocked(cfg)
+	prev := rconErr
+	if err := rconCli.Connect(ctx); err != nil {
+		_ = rconCli.Close()
+		rconErr = err.Error()
+	} else {
+		rconErr = ""
+	}
+	if rconErr != prev {
+		if rconErr == "" {
+			log.Printf("[agent:%s] RCON connected to %s", cfg.ServerID, rconAddr)
+		} else {
+			log.Printf("[agent:%s] RCON unreachable (%s): %s", cfg.ServerID, rconAddr, rconErr)
+		}
+	}
+	return rconErr == "", rconErr
 }
 
 func ensureRcon(ctx context.Context, c *myrcon.Client) error {
@@ -512,10 +552,12 @@ func runHeartbeat(ctx context.Context, cfg AgentConfig, rdb *redis.Client) {
 			return
 		case <-time.After(interval):
 			hb := heartbeat{TS: time.Now().Unix()}
-			hb.RCON.Connected = rconCli != nil
-			hb.RCON.Addr = rconAddr
+			hb.RCON.Connected, hb.RCON.Error = probeRcon(ctx, cfg)
+			hb.RCON.Addr = cfg.CS2.Addr
 			hb.Logs.Bind = cfg.Logs.Bind
 			hb.Logs.OK = true
+			hb.Logs.LastAt = atomic.LoadInt64(&lastLogAt)
+			hb.Logs.LastBadTokenAt = atomic.LoadInt64(&lastBadTokenAt)
 			hb.Logs.Queue = int64(len(logQueue))
 			hb.Logs.Dropped = atomic.LoadInt64(&droppedLogs)
 			b, _ := json.Marshal(&hb)

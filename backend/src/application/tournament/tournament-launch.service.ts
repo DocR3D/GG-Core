@@ -42,14 +42,17 @@ export class TournamentLaunchService {
     return { ...server, rconPassword: undefined };
   }
 
-  /** Every server with its availability: disabled, busy (with the running match), or free. */
+  /**
+   * Every server with its availability (disabled, busy with the running match, or free) and what its agent last
+   * reported (RCON reachable, last logs received): enough to check a server before the LAN starts.
+   */
   async listServers() {
     const servers = await this.prisma.server.findMany({ orderBy: { name: 'asc' } });
     return Promise.all(
       servers.map(async (s) => {
-        const busyWith = await this.runningMatch(s.name);
+        const [busyWith, agent] = await Promise.all([this.runningMatch(s.name), this.state.getAgentState(s.name)]);
         const availability = s.status === 'OFFLINE' ? 'disabled' : busyWith ? 'busy' : 'free';
-        return { ...s, rconPassword: undefined, availability, busyWith };
+        return { ...s, rconPassword: undefined, availability, busyWith, agent };
       }),
     );
   }

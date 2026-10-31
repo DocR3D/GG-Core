@@ -70,7 +70,9 @@ Le cœur moteur de match, l'arbitrage automatisé, le calcul de scores/stats CS2
 * **Origine** : Objectif de superviser jusqu'à 32 (ou 64) serveurs simultanément en LAN.
 * **Fait** : serveurs enregistrés en base avec leur disponibilité (`free` / `busy` + match en cours / `disabled`),
   game lancé sur le serveur choisi par l'admin (409 si occupé ou désactivé), PC mort désactivé, serveur bloqué libéré
-  à la main ; en fin de match, reset warmup différé et kick des joueurs restés connectés.
+  à la main ; en fin de match, reset warmup différé et kick des joueurs restés connectés. Ajout d'un serveur en une
+  commande (`make server` : agent, enregistrement, lignes de config CS2, contrôle RCON) et état de chaque serveur
+  (`make servers` : RCON, logs reçus, mauvais jeton).
 * **Reste** :
   - Aiguilleur d'allocation : proposer ou prendre automatiquement le premier serveur libre au lancement (aujourd'hui
     l'admin choisit).

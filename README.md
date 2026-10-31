@@ -44,22 +44,34 @@ Sous Windows : lancer ces commandes depuis un terminal WSL, dans le dépôt (ex.
 - WSL s'arrête quand plus aucun terminal WSL n'est ouvert (et Docker avec lui) : garder un terminal WSL ouvert pendant les tests. Les conteneurs redémarrent seuls à la réouverture.
 - Les données Docker (dont les ~73 Go de CS2) vivent dans le disque virtuel de WSL, **sur C: par défaut**. Si C: est petit, déplacer la distribution avant `make up-cs2` : `wsl --shutdown` puis `wsl --manage Debian --move D:\WSL\Debian`.
 
-**CS2 déjà installé via Steam (pas de téléchargement)** : lancer `scripts/start-cs2-dedicated.bat` côté Windows puis `make up CS2=local` - l'agent se connecte au CS2 de la machine hôte.
+**CS2 déjà installé via Steam (pas de téléchargement)** : `make up CS2=local` (crée les secrets), puis lancer `infra\start-cs2-local.bat` côté Windows (il lit le mot de passe RCON et le jeton des logs dans `.env`) - l'agent se connecte au CS2 de la machine hôte.
 
 - Backend (REST) : http://localhost:8081/api (health : `/api/health`)
 - WebSocket : ws://localhost:8081
 - Console Sandbox (rejeu de logs, injection d'état, RCON) : http://localhost:8081/sandbox
-- Serveur CS2 conteneurisé : `connect localhost:27015` (RCON `123456`)
+- Serveur CS2 conteneurisé : `connect localhost:27015` (mot de passe RCON : `make status`)
 
-### Configuration serveur CS2
-Les logs CS2 sont envoyés à l'**agent Go** du serveur (un port par serveur, `8082` pour `srv-a`), qui les parse puis les transmet au backend.
-Dans la config du serveur CS2 :
+### Serveurs CS2 de la LAN
+Une commande par serveur, depuis la machine GG-Core :
 
-```
-rcon_password 123456
-logaddress_add_http "http://<AGENT_HOST>:8082/logs?token=<logs.token de agents.d/srv-a.yaml>"
+```bash
+make server NAME=srv-b IP=10.0.0.12            # [PORT=27015] [LAN_IP=<IP de cette machine sur la LAN>]
 ```
 
+Elle crée l'agent du serveur (`agents.d/srv-b.yaml`, port de logs suivant : 8083, 8084… jusqu'à 32 serveurs), enregistre
+le serveur dans le tournoi, affiche les lignes à coller dans la config du serveur CS2 (`rcon_password`, `log on`,
+`logaddress_add_http` avec le bon port et le bon jeton) et vérifie la connexion RCON. Ensuite, et avant la LAN :
+
+```bash
+make servers    # pour chaque serveur : libre / occupé, RCON connecté, derniers logs reçus, jeton refusé
+```
+
+Les secrets restent dans `.env` (aucun mot de passe dans `agents.d/`). Retirer un serveur : supprimer son fichier
+`agents.d/<nom>.yaml` (l'agent s'arrête dans les 5 s) et le désactiver dans le tournoi
+(`POST /api/tournament/servers/<nom>/disable`). Sous WSL, les serveurs de la LAN ne voient pas la VM : donner
+`LAN_IP` = l'IP de Windows et rendre les ports de logs joignables (réseau « mirrored » de WSL, ou `netsh interface portproxy`).
+
+Les logs CS2 vont à l'**agent Go** du serveur, qui les parse puis les transmet au backend.
 > ⚠️ Ne pas pointer CS2 directement vers le backend (`/cs2/logs`) : cet endpoint attend des événements **JSON déjà parsés** par l'agent et rejette les lignes de log brutes (HTTP 400).
 
 ---

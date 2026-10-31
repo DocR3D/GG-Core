@@ -128,8 +128,8 @@ services:
       redis:
         condition: service_healthy
     ports:
-      - "8082:8082" # srv-a : logs.bind 0.0.0.0:8082
-      - "8083:8083" # srv-b (exemple)
+      # un port de logs par serveur CS2 (logs.bind de agents.d/*.yaml) : srv-a = 8082, puis ceux de `make server`
+      - "8082-8113:8082-8113"
     restart: unless-stopped
 
   cs2:

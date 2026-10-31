@@ -11,6 +11,8 @@ export const redisConst = {
   // Liaison serveur ↔ match
   serverMatch: (serverId: string) => `server:${serverId}:currentMatch`,
   matchServer: (matchId: string) => `match:${matchId}:server`,
+  // Heartbeat de l'agent d'un serveur (JSON, TTL 10 s : absent = agent arrêté)
+  agentState: (serverId: string) => `ggbot:agent:${serverId}:state`,
   // Liaison match temps réel ↔ MatchMap PostgreSQL (UUID)
   dbMatchMap: (matchId: string) => `match:${matchId}:db_match_map`,
 

@@ -74,6 +74,10 @@ type Manager struct {
 	files   map[string]string      // path -> fileHash
 	bySrv   map[string]string      // serverId -> path
 	debOnce map[string]*debouncer  // path -> debounce helper
+
+	// serializes the handling of config files (watcher events and periodic rescan) so one file never
+	// starts two agents
+	fileMu sync.Mutex
 }
 
 type procHandle struct {
@@ -449,6 +453,8 @@ func (m *Manager) watchDir() error {
 				}
 				d := m.getDebouncer(ev.Name)
 				d.Do(func() {
+					m.fileMu.Lock()
+					defer m.fileMu.Unlock()
 					alive, _ := m.aliveAgentsFromRedis(m.ctx)
 					if err := m.handleFileCreateOrWrite(ev.Name, alive); err != nil {
 						log.Printf("[manager] file write err: %v", err)
@@ -456,13 +462,83 @@ func (m *Manager) watchDir() error {
 				})
 			}
 			if ev.Op&(fsnotify.Remove|fsnotify.Rename) != 0 {
+				m.fileMu.Lock()
 				m.handleFileRemove(ev.Name)
+				m.fileMu.Unlock()
 			}
 		case err := <-w.Errors:
 			log.Printf("[manager] watcher error: %v", err)
 		case <-m.ctx.Done():
 			return nil
 		}
+	}
+}
+
+// rescanLoop compares the directory with the known files every `every`: new or changed files are applied,
+// missing ones stop their agent. Watcher events are not enough on every filesystem: on a Windows drive
+// mounted in WSL (/mnt/d, bind-mounted into the container) a file deleted from Windows is never notified,
+// and a new one not always - checked on the dev stack.
+func (m *Manager) rescanLoop(every time.Duration) {
+	ticker := time.NewTicker(every)
+	defer ticker.Stop()
+	for {
+		select {
+		case <-m.ctx.Done():
+			return
+		case <-ticker.C:
+			m.rescan()
+		}
+	}
+}
+
+func (m *Manager) rescan() {
+	entries, err := os.ReadDir(m.agentsDir)
+	if err != nil {
+		log.Printf("[manager] rescan: %v", err)
+		return
+	}
+	m.fileMu.Lock()
+	defer m.fileMu.Unlock()
+
+	present := map[string]bool{}
+	for _, e := range entries {
+		name := e.Name()
+		if e.IsDir() || !yamlFileRe.MatchString(name) || strings.HasSuffix(strings.ToLower(name), ".disabled.yaml") {
+			continue
+		}
+		path := filepath.Join(m.agentsDir, name)
+		present[path] = true
+		h, err := hashFile(path)
+		if err != nil {
+			continue
+		}
+		m.mu.Lock()
+		known := m.files[path]
+		m.mu.Unlock()
+		if known == h {
+			continue // unchanged: nothing to do (also avoids re-arming the heartbeat watch of an external agent)
+		}
+		alive, _ := m.aliveAgentsFromRedis(m.ctx)
+		log.Printf("[manager] rescan: %s new or changed", name)
+		if err := m.handleFileCreateOrWrite(path, alive); err != nil {
+			log.Printf("[manager] rescan err for %s: %v", path, err)
+			m.mu.Lock()
+			m.files[path] = h // invalid file: logged once, tried again when it changes
+			m.mu.Unlock()
+		}
+	}
+
+	m.mu.Lock()
+	var gone []string
+	for path := range m.files {
+		if !present[path] {
+			gone = append(gone, path)
+		}
+	}
+	m.mu.Unlock()
+	for _, path := range gone {
+		log.Printf("[manager] rescan: %s removed", filepath.Base(path))
+		m.handleFileRemove(path)
 	}
 }
 
@@ -532,6 +608,7 @@ func main() {
 	if err := mgr.initialScan(alive); err != nil {
 		log.Fatalf("initial scan: %v", err)
 	}
+	go mgr.rescanLoop(5 * time.Second)
 	if err := mgr.watchDir(); err != nil {
 		log.Fatalf("watch: %v", err)
 	}

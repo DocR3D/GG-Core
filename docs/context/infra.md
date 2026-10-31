@@ -20,7 +20,7 @@ Services (réseau `ggcore` 172.30.0.0/24) :
 - **redis** - `redis:7-alpine`, port 6379
 - **postgres** - `postgres:16-alpine`, port 5432, volume `infra_pgdata`
 - **backend** - NestJS dev (hot-reload), port 8081, volume `../backend:/app` + `../test:/test:ro` (fixtures) ; au démarrage : `prisma generate` + `prisma db push` (`npx --no-install` : aucun téléchargement au runtime). `node_modules` = volume anonyme renouvelé à chaque `make up`.
-- **manager** - Go manager, IP fixe 172.30.0.10, volumes `../agents.d` + `../agent/cfg`, ports 8082-8083. Les YAML `agents.d/*.yaml` acceptent `${VAR:-défaut}` : défauts natifs (127.0.0.1), surchargés par compose (`GG_REDIS_URL`, `GG_BACKEND_URL`, `GG_CS2_HOST`, `GG_RCON_PASSWORD`, `GG_LOGS_TOKEN`).
+- **manager** - Go manager, IP fixe 172.30.0.10, volumes `../agents.d` + `../agent/cfg`, ports 8082-8113 (un port de logs par serveur, 32 serveurs). Nouveau / modifié / supprimé dans `agents.d/` : pris en compte seul (surveillance + nouvel examen du dossier toutes les 5 s, car sous WSL une suppression sur `/mnt/d` n'est pas notifiée). Les YAML `agents.d/*.yaml` acceptent `${VAR:-défaut}` : défauts natifs (127.0.0.1), surchargés par compose (`GG_REDIS_URL`, `GG_BACKEND_URL`, `GG_CS2_HOST`, `GG_RCON_PASSWORD`, `GG_LOGS_TOKEN`).
 - **cs2** *(profil `cs2`)* - `cm2network/cs2` vanilla, ports 27015 tcp/udp + 27020 udp, volume `infra_cs2data` (~73 Go au 1er lancement), `logaddress_add_http` → `http://172.30.0.10:8082/logs`.
 - **log-drain** *(profil `debug`)* - copie le bus Redis dans `infra/logs/`.
 
@@ -80,11 +80,17 @@ docker/
 ```
 
 ## Déploiement LAN (objectif < 15 min)
-1. `docker compose -f infra/docker-compose.dev.yml up -d`
-2. Configurer `agents.d/srv-a.yaml` avec IP + RCON du serveur CS2
-3. Sur le serveur CS2 : `rcon_password` + `logaddress_add_http "http://<manager-ip>:8082/logs?token=<logs.token>"`
-4. Appliquer le schéma PostgreSQL : `cd backend && npx prisma db push`
-5. Créer le match via `POST /api/matches/:id/start` (ou `/init`), avec `matchMapId` pour lier l'historique au tournoi
+1. Machine GG-Core : `git clone`, puis `make up` (secrets générés, schéma PostgreSQL appliqué).
+2. Pour chaque serveur CS2 : `make server NAME=srv-b IP=<IP du serveur> [LAN_IP=<IP de la machine GG-Core>]`
+   → agent créé (`agents.d/srv-b.yaml`, ignoré par git), serveur enregistré dans le tournoi, lignes à coller dans la
+   config du serveur CS2 (`rcon_password`, `log on`, `logaddress_add_http`), connexion RCON vérifiée.
+3. `make servers` : chaque serveur doit afficher « RCON connecté » et « logs reçus » (un serveur doit être sur une map
+   pour envoyer des logs). « logs refusés » = mauvais jeton dans `logaddress_add_http`.
+4. Tournoi : équipes, phases, puis lancement des games sur les serveurs (`docs/context/backend.md`).
+
+État d'un agent : clé Redis `ggbot:agent:<serverId>:state` (heartbeat toutes les ~3 s, TTL 10 s) : `rcon.connected` /
+`rcon.error` (l'agent tente la connexion RCON à chaque heartbeat, sans envoyer de commande), `logs.lastAt`,
+`logs.lastBadTokenAt` ; exposé par `GET /api/tournament/servers` (champ `agent`).
 
 ## Dépendances Go (`agent/go.mod`)
 - `github.com/fsnotify/fsnotify` - file watching (manager)

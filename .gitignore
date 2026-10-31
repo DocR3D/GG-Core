@@ -36,6 +36,10 @@ test/fixtures/demos/*.dem
 # Tooling scripts (separate repo)
 /scripts/
 
+# Agents of the LAN's CS2 servers (make server): machine specific; srv-a = the dev server, kept
+/agents.d/*.yaml
+!/agents.d/srv-a.yaml
+
 # Local personal memory bank
 memory-bank/
 

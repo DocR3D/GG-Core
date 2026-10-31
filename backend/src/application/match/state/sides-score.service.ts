@@ -9,6 +9,13 @@ import { GameSide, normalizeSide, CS2_SIDE_TERRORIST } from '@domain/side.types'
 export type { GameSide };
 export type Logical = 'home' | 'away';
 export type CoreSide = { home: GameSide; away: GameSide };
+export type AgentState = {
+  online: boolean;
+  rconConnected?: boolean;
+  rconError?: string;
+  lastLogAt?: string | null;
+  lastBadTokenAt?: string;
+};
 
 @Injectable()
 export class SidesScoreService {
@@ -41,6 +48,27 @@ export class SidesScoreService {
   /** Removes the server → match binding (the match itself is left untouched). */
   async unbindServer(serverId: string) {
     await this.redis.del(this.serverMatchKey(serverId));
+  }
+
+  /**
+   * What the agent of a server last reported (heartbeat every ~3 s): RCON reachable with its password, last
+   * logs received from CS2, last logs refused for a bad token. `online: false` = no agent running for it.
+   */
+  async getAgentState(serverId: string): Promise<AgentState> {
+    const raw = await this.redis.get(redisConst.agentState(serverId));
+    if (!raw) return { online: false };
+    try {
+      const hb = JSON.parse(raw);
+      return {
+        online: true,
+        rconConnected: !!hb.rcon?.connected,
+        rconError: hb.rcon?.error || undefined,
+        lastLogAt: hb.logs?.lastAt ? new Date(hb.logs.lastAt * 1000).toISOString() : null,
+        lastBadTokenAt: hb.logs?.lastBadTokenAt ? new Date(hb.logs.lastBadTokenAt * 1000).toISOString() : undefined,
+      };
+    } catch {
+      return { online: true };
+    }
   }
 
   async setDbMatchMapId(matchId: string, matchMapId: string) {

@@ -49,6 +49,9 @@ export class MatchStateService {
   unbindServer(serverId: string) {
     return this.sidesScore.unbindServer(serverId);
   }
+  getAgentState(serverId: string) {
+    return this.sidesScore.getAgentState(serverId);
+  }
 
   // Match temps réel ↔ MatchMap PostgreSQL
   setDbMatchMapId(matchId: string, matchMapId: string) {
