@@ -51,6 +51,24 @@ export class TournamentController {
     return this.run(() => this.stages.getOverview(tournamentId));
   }
 
+  /** Teams of a tournament with their roster (ids, SteamID, captain, role). */
+  @Get('tournaments/:id/teams')
+  teams(@Param('id') tournamentId: string) {
+    return this.run(() => this.stages.tournamentTeams(tournamentId));
+  }
+
+  /** A series: teams (with ids), games (with the engine id), provenance and next match in the bracket, stats. */
+  @Get('matches/:id')
+  matchDetail(@Param('id') matchId: string) {
+    return this.run(() => this.stages.getMatchDetail(matchId));
+  }
+
+  /** Every game being played (admin dashboard): series, server, phase, score per team, pause, frozen result. */
+  @Get('live')
+  live() {
+    return this.run(() => this.launch.liveGames());
+  }
+
   // --- Servers ------------------------------------------------------------------------------------------
 
   /** Servers with availability: free / busy (running match) / disabled. */

@@ -379,6 +379,8 @@ export class TournamentStagesService {
       status: m.status,
       home: m.teamHome?.name ?? null,
       away: m.teamAway?.name ?? null,
+      homeId: m.teamHomeId,
+      awayId: m.teamAwayId,
       scoreHome: m.scoreHome,
       scoreAway: m.scoreAway,
       winner: m.winner?.name ?? null,
@@ -397,6 +399,7 @@ export class TournamentStagesService {
         ...(m.loserNextMatch ? [{ what: 'perdant' as const, slot: m.loserNextMatchSlot, match: ref(m.loserNextMatch) }] : []),
       ],
       games: m.maps.map((g) => ({
+        id: g.id,
         order: g.mapOrder,
         mapName: g.mapName,
         status: g.status,
@@ -413,6 +416,43 @@ export class TournamentStagesService {
         })),
       })),
     };
+  }
+
+  /**
+   * The teams of a tournament with their roster in it (ids for the admin actions; SteamID, captain, role): every
+   * team with a roster, a place in a stage or a match of the tournament.
+   */
+  async tournamentTeams(tournamentId: string) {
+    await this.mustFind('tournament', () => this.prisma.tournament.findUnique({ where: { id: tournamentId } }));
+    const [rosters, entries, matches] = await Promise.all([
+      this.prisma.teamRoster.findMany({ where: { tournamentId }, select: { teamId: true } }),
+      this.prisma.stageTeam.findMany({ where: { stage: { tournamentId } }, select: { teamId: true } }),
+      this.prisma.match.findMany({ where: { tournamentId }, select: { teamHomeId: true, teamAwayId: true } }),
+    ]);
+    const ids = [
+      ...new Set([
+        ...rosters.map((r) => r.teamId),
+        ...entries.map((e) => e.teamId),
+        ...matches.flatMap((m) => [m.teamHomeId, m.teamAwayId]).filter((id): id is string => !!id),
+      ]),
+    ];
+    const teams = await this.prisma.team.findMany({
+      where: { id: { in: ids } },
+      orderBy: { name: 'asc' },
+      include: { rosters: { where: { tournamentId }, include: { player: true }, orderBy: [{ isCaptain: 'desc' }, { createdAt: 'asc' }] } },
+    });
+    return teams.map((t) => ({
+      id: t.id,
+      name: t.name,
+      tag: t.tag,
+      players: t.rosters.map((r) => ({
+        id: r.player.id,
+        username: r.player.username,
+        steamId: r.player.steamId,
+        captain: r.isCaptain,
+        role: r.role,
+      })),
+    }));
   }
 
   listTournaments() {

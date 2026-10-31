@@ -174,7 +174,7 @@ export class MatchOrchestrator {
   /** Pause technique (admin ou commande) : illimitée par défaut, pas de timer auto */
   async requestPauseTechnical(
     ids: { serverId?: string | null; matchId?: string | null },
-    team: Logical = 'home'
+    team: Logical | 'system' = 'home'
   ): Promise<{ ok: true }> {
     const { serverId, matchId } = await this.resolve(ids);
 

@@ -14,6 +14,9 @@ Le cœur moteur de match, l'arbitrage automatisé, le calcul de scores/stats CS2
 * **Tâches à réaliser** :
   - **Initialisation** : projet React + Vite (TypeScript, React Router, Tailwind CSS avec la charte de `base.css`,
     shadcn/ui restylé, client Socket.IO), compilé et servi par NestJS (choix et raisons : `docs/context/frontend.md`).
+  - **API de la console admin faite** (2026-10-31) : games en cours, équipes et joueurs d'un tournoi, détail d'une
+    série en JSON, commandes de match (pause, reprise, départ forcé, échange des camps, rejouer un round, message),
+    journal du match (`docs/context/backend.md`). Reste : modifier / supprimer équipes, joueurs, serveurs.
   - **Interface Administrateur** :
     - Dashboard de gestion des tournois, poules, matchs et affectations de serveurs.
     - Console de match en direct avec commandes d'arbitrage 1-clic (pause, reprise, swap de camp, redémarrage, changement de map, restauration de backup).

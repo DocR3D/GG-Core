@@ -249,6 +249,44 @@ export class TournamentLaunchService {
   }
 
   /**
+   * Every game being played, all tournaments together (admin dashboard): the series and its teams, the server,
+   * and from the real-time engine the phase, the score per team, the pause and a frozen result awaiting the admin.
+   */
+  async liveGames() {
+    const games = await this.prisma.matchMap.findMany({
+      where: { status: 'LIVE', serverId: { not: null } },
+      orderBy: { startedAt: 'asc' },
+      include: {
+        server: true,
+        match: { include: { teamHome: true, teamAway: true, tournament: { select: { id: true, name: true } } } },
+      },
+    });
+    return Promise.all(
+      games.map(async (g) => {
+        const [snap, review] = await Promise.all([this.state.getSnapshot(g.id), this.state.getReview(g.id)]);
+        const homeSide = snap?.sides?.home === 'T' ? 't' : 'ct';
+        const awaySide = homeSide === 'ct' ? 't' : 'ct';
+        return {
+          gameId: g.id,
+          order: g.mapOrder,
+          mapName: g.mapName,
+          startedAt: g.startedAt,
+          server: g.server!.name,
+          tournament: g.match.tournament,
+          match: { id: g.match.id, format: g.match.format, scoreHome: g.match.scoreHome, scoreAway: g.match.scoreAway },
+          home: g.match.teamHome?.name ?? null,
+          away: g.match.teamAway?.name ?? null,
+          phase: snap?.phase ?? null,
+          sides: snap?.sides ?? null,
+          score: { home: snap?.score?.[homeSide] ?? 0, away: snap?.score?.[awaySide] ?? 0, round: snap?.score?.round ?? 0 },
+          pause: snap?.pause?.state && snap.pause.state !== 'none' ? snap.pause : null,
+          review: review ?? null,
+        };
+      }),
+    );
+  }
+
+  /**
    * No server given at launch: the first one (by name) that is enabled, serves this game, runs no match (or this
    * very game, for a relaunch) and whose agent reaches CS2 in RCON - a PC switched off or a server without the right
    * RCON password is never chosen. 409 when none is free.

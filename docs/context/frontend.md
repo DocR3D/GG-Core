@@ -83,6 +83,9 @@ NestJS, le front a la même adresse que l'API : la connexion (Steam, mot de pass
 - `knife:result`
 - `sponsor:rotate`
 
+### Console admin (admin uniquement)
+- `admin:action` : une commande de la console a été passée (`action`, `by`, paramètres, `at`).
+
 ### Accès au serveur (admin uniquement)
 - `access:not_allowed` : un joueur absent de la whitelist du match s'est connecté (`player`, `kicked` : kické ou non).
 

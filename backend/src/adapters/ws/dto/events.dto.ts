@@ -22,6 +22,7 @@ export type WsEventType =
   | 'access:not_allowed'
   | 'sides:misplaced'
   | 'sides:unchecked'
+  | 'admin:action'
   | 'score:update'
   | 'round:start'
   | 'round:end'

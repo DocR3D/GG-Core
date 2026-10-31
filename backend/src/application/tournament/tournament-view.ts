@@ -362,6 +362,9 @@ export interface MatchDetailView {
   status: string;
   home: string | null;
   away: string | null;
+  /** team ids, for the admin actions (forfeit, replace) */
+  homeId: string | null;
+  awayId: string | null;
   scoreHome: number;
   scoreAway: number;
   winner: string | null;
@@ -372,6 +375,8 @@ export interface MatchDetailView {
   from: { slot: 'HOME' | 'AWAY'; what: 'Vainq.' | 'Perd.'; match: MatchRef }[];
   next: { what: 'vainqueur' | 'perdant'; slot: 'HOME' | 'AWAY' | null; match: MatchRef }[];
   games: {
+    /** game id = match id of the real-time engine (snapshot, console) */
+    id: string;
     order: number;
     mapName: string;
     status: string;
