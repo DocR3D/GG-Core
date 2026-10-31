@@ -8,7 +8,10 @@ import {
   Param,
   ParseIntPipe,
   Post,
+  Req,
 } from '@nestjs/common';
+import type { Request } from 'express';
+import type { Session } from '@app/auth/auth.service';
 import { ManualResultError, TournamentPersistenceService } from '@adapters/database/tournament-persistence.service';
 
 export type ManualGameResultDto = {
@@ -16,9 +19,10 @@ export type ManualGameResultDto = {
   scoreAway: number;
   /** Optional (games without maps, or map unknown). */
   mapName?: string;
-  /** Who enters the result (admin name); no authentication yet (JWT = backlog §6). */
-  reportedBy?: string;
 };
+
+/** Who did it, from the session - never from the request body (an admin could write any name there). */
+export const authorOf = (session: Session | null | undefined) => (session?.name ?? 'admin').slice(0, 64);
 
 /**
  * Tournament series (database Match, UUID) - distinct from /api/matches/:id, which drives the real-time engine.
@@ -33,6 +37,7 @@ export class TournamentMatchesController {
     @Param('id') matchId: string,
     @Param('order', ParseIntPipe) mapOrder: number,
     @Body() dto: ManualGameResultDto,
+    @Req() req: Request & { ggSession?: Session | null },
   ) {
     try {
       return await this.persistence.recordManualGameResult({
@@ -41,7 +46,7 @@ export class TournamentMatchesController {
         scoreHome: Number(dto?.scoreHome),
         scoreAway: Number(dto?.scoreAway),
         mapName: dto?.mapName?.trim() || undefined,
-        reportedBy: dto?.reportedBy?.trim() || 'admin',
+        reportedBy: authorOf(req.ggSession),
       });
     } catch (e) {
       if (!(e instanceof ManualResultError)) throw e;

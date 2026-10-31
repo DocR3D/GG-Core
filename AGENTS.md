@@ -13,7 +13,7 @@ Ce fichier sert de point d'entrée universel pour tout agent d'intelligence arti
 2. **Backend NestJS** (`backend/`) : Cœur métier en Clean Architecture, machine à états, gestion des règles, API REST et serveur WebSocket (Socket.IO).
 3. **Redis** : Bus de messages temps réel (Pub/Sub) et cache d'état actif (snapshots de match).
 4. **PostgreSQL** : Source of Truth historique (Sourcing d'événements, tables `events_primary`, tournois, équipes, joueurs).
-5. **Frontend Next.js** (`frontend/`) : Interfaces réactives pour administrateurs (console live), spectateurs (scoreboard) et joueurs.
+5. **Frontend Next.js** (`frontend/`, pas encore créé) : Interfaces réactives pour administrateurs (console live), spectateurs (scoreboard) et joueurs. En attendant, le backend sert des pages HTML simples (`/view`, `/veto`, `/login`, `/sandbox`) stylées par `backend/public/css/`.
 
 ---
 

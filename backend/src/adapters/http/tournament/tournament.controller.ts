@@ -25,9 +25,11 @@ import {
 } from '@app/tournament/tournament-stages.service';
 import { TournamentLaunchService } from '@app/tournament/tournament-launch.service';
 import { VetoService } from '@app/tournament/veto.service';
+import { TournamentAdminService } from '@app/tournament/tournament-admin.service';
 import type { Session } from '@app/auth/auth.service';
 import type { VetoConfig } from '@domain/tournament/veto';
 import { actorOf } from '../veto/veto.controller';
+import { authorOf } from './tournament-matches.controller';
 import { MatchSettings } from '@domain/match-settings.types';
 
 /**
@@ -40,6 +42,7 @@ export class TournamentController {
     private readonly stages: TournamentStagesService,
     private readonly launch: TournamentLaunchService,
     private readonly veto: VetoService,
+    private readonly admin: TournamentAdminService,
   ) {}
 
   /** The data behind the /view pages, as JSON. */
@@ -146,6 +149,44 @@ export class TournamentController {
     @Body() body: { rules: QualificationRule[]; manualOrder?: Record<string, string[]> },
   ) {
     return this.run(() => this.stages.qualify(stageId, body ?? ({} as any)));
+  }
+
+  // --- Admin operations of the LAN day ----------------------------------------------------------------------
+
+  /** Forfeit: { absentTeamId } - the other team wins the series and moves on in the bracket. */
+  @Post('matches/:id/forfeit')
+  forfeit(@Param('id') matchId: string, @Body() body: { absentTeamId: string }, @Req() req: Request & { ggSession?: Session | null }) {
+    return this.run(() => this.admin.forfeit(matchId, body?.absentTeamId, authorOf(req.ggSession)));
+  }
+
+  /**
+   * Format on the fly: { matchIds: [...] } or { stageId, bracket?: UPPER | LOWER | FINAL }, + format. Matches not
+   * started only; a veto already begun is erased. Answers changed / vetoReset / skipped (with the reason).
+   */
+  @Post('matches/format')
+  setFormat(@Body() body: { matchIds?: string[]; stageId?: string; bracket?: 'UPPER' | 'LOWER' | 'FINAL'; format: MatchFormat }) {
+    return this.run(() => this.admin.setFormat(body ?? ({} as any)));
+  }
+
+  /** Replaces a team in a match not started: { teamId, newTeamId }. */
+  @Post('matches/:id/replace-team')
+  replaceTeam(@Param('id') matchId: string, @Body() body: { teamId: string; newTeamId: string }) {
+    return this.run(() => this.admin.replaceTeam(matchId, body?.teamId, body?.newTeamId));
+  }
+
+  /** Bonus match: { homeTeamId, awayTeamId, format?, placement? (7 = for 7th / 8th), countsInStats? }. */
+  @Post('tournaments/:id/bonus-matches')
+  createBonusMatch(
+    @Param('id') tournamentId: string,
+    @Body() body: { homeTeamId: string; awayTeamId: string; format?: MatchFormat; placement?: number; countsInStats?: boolean },
+  ) {
+    return this.run(() => this.admin.createBonusMatch(tournamentId, body ?? ({} as any)));
+  }
+
+  /** Removes a bonus match not started. */
+  @Delete('bonus-matches/:id')
+  deleteBonusMatch(@Param('id') matchId: string) {
+    return this.run(() => this.admin.deleteBonusMatch(matchId));
   }
 
   // --- Veto (the page and the captains' actions: /veto/:matchId) --------------------------------------------

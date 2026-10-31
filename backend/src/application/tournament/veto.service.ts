@@ -283,14 +283,25 @@ export class VetoService {
   /** Admin: everything again from the rock-paper-scissors. */
   async reset(matchId: string, actor: VetoActor) {
     this.mustBeAdmin(actor);
+    await this.clear(matchId);
+    return this.getState(matchId, actor);
+  }
+
+  /**
+   * Erases the veto of a match (RPS, steps, games it created) - for an admin change that makes it obsolete (other
+   * format, other team). Returns whether there was one; refused once a game has started.
+   */
+  async clear(matchId: string): Promise<boolean> {
     const match = await this.load(matchId);
+    const had = match.vetos.length > 0 || match.rps.length > 0 || !!match.vetoStartTeamId;
+    if (!had) return false;
     await this.prisma.$transaction([
       ...this.deleteGames(match),
       this.prisma.matchVeto.deleteMany({ where: { matchId: match.id } }),
       this.prisma.matchRps.deleteMany({ where: { matchId: match.id } }),
       this.prisma.match.update({ where: { id: match.id }, data: { vetoStartTeamId: null } }),
     ]);
-    return this.getState(matchId, actor);
+    return true;
   }
 
   /**

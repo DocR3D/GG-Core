@@ -3,6 +3,11 @@
 ## État actuel
 **Non implémenté.** Aucun dossier `frontend/` n'existe dans le projet.
 
+En attendant, le backend sert des pages HTML simples, sans JS (sauf rechargement sur `veto:updated`) : `/view`
+(tournois, arbres, matchs), `/veto/:matchId` (+ `/admin`), `/login`, et les outils de dev `/sandbox` et
+`/sandbox/tournament`. Leur style vit dans `backend/public/css/` (voir « Design des pages » dans
+`docs/context/backend.md`). Toutes les données passent par l'API REST : un futur front pourra s'y brancher tel quel.
+
 ## Stack prévue (selon cahier des charges)
 - **Next.js** (React)
 - **Socket.IO client** pour WebSocket temps réel
@@ -93,4 +98,7 @@ POST  /api/matches/:id/init      (body : sides, teams, serverId, matchMapId, set
 POST  /api/matches/:id/start     (init + démarrage serveur)
 PATCH /api/matches/:id/teams
 ```
+Liste complète (tournois, poules, arbres, véto, serveurs, opérations admin, connexion) : tableau des endpoints de
+`docs/context/backend.md`.
+
 CORS : ajouter l'origine du frontend à `CORS_ORIGIN` côté backend (défaut `http://localhost:3000`).

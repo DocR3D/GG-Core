@@ -3,7 +3,7 @@ import { Injectable } from '@nestjs/common';
 import { MatchFormat, StageType } from '@prisma/client';
 import { PrismaService } from '@adapters/database/prisma.service';
 import { computeStandings, FinishedSeries, roundRobinPairings, snakeDistribute, StandingRow } from '@domain/tournament/round-robin';
-import { buildDoubleElimination, doubleElimPlacements, SlotSource } from '@domain/tournament/double-elimination';
+import { applyPlacementMatches, buildDoubleElimination, doubleElimPlacements, SlotSource } from '@domain/tournament/double-elimination';
 import { randomUUID } from 'crypto';
 import type { MatchDetailView, TournamentView, ViewMatch, ViewStage } from './tournament-view';
 
@@ -507,8 +507,16 @@ export class TournamentStagesService {
                 }),
             ).map((r) => ({ place: r.place, team: r.team as string }))
           : undefined;
+      // bonus matches for a place (7 = 7th / 8th) settle the teams sharing it
+      const placementResults = tournament.matches
+        .filter((m) => !m.stageId && m.placement != null && m.status === 'FINISHED' && m.winner)
+        .map((m) => ({
+          place: m.placement!,
+          winner: m.winner!.name,
+          loser: (m.winnerId === m.teamHomeId ? m.teamAway : m.teamHome)?.name ?? '',
+        }));
       stages.push({
-        ranking,
+        ranking: ranking && applyPlacementMatches(ranking, placementResults),
         name: st.name,
         type: st.type,
         order: st.order,

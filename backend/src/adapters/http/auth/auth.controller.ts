@@ -3,6 +3,7 @@ import { Body, Controller, Get, Post, Query, Req, Res } from '@nestjs/common';
 import type { Request, Response } from 'express';
 import { AuthService, Session } from '@app/auth/auth.service';
 import { steamLoginUrl, verifySteamAssertion } from '@app/auth/steam-openid';
+import { LoginThrottle } from '@app/auth/login-throttle';
 import { htmlPage } from '@app/shared/html-page';
 
 const esc = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
@@ -16,6 +17,9 @@ const page = (title: string, body: string) => htmlPage({ title, body: `<h1>${esc
  */
 @Controller()
 export class AuthController {
+  /** 10 wrong offline admin passwords within a minute from one address → refused until the minute passes */
+  private readonly throttle = new LoginThrottle();
+
   constructor(private readonly auth: AuthService) {}
 
   /**
@@ -68,11 +72,19 @@ export class AuthController {
   }
 
   @Post('auth/local')
-  local(@Body() body: { password?: string; next?: string }, @Res() res: Response) {
+  local(@Body() body: { password?: string; next?: string }, @Req() req: Request, @Res() res: Response) {
     const next = safeNext(body?.next);
+    const address = req.ip ?? req.socket.remoteAddress ?? 'unknown';
+    const wait = this.throttle.retryAfterSec(address);
+    if (wait > 0) {
+      res.setHeader('Retry-After', String(wait));
+      return res.redirect(303, `/login?error=${encodeURIComponent(`Trop d’essais : réessaie dans ${wait} s`)}&next=${encodeURIComponent(next)}`);
+    }
     if (!this.auth.checkAdminPassword(body?.password ?? '')) {
+      this.throttle.failed(address);
       return res.redirect(303, `/login?error=${encodeURIComponent('Mot de passe incorrect')}&next=${encodeURIComponent(next)}`);
     }
+    this.throttle.succeeded(address);
     res.setHeader('Set-Cookie', this.auth.cookie(this.auth.sign({ sub: 'local-admin', role: 'admin', name: 'admin (hors ligne)', via: 'password' })));
     res.redirect(303, next);
   }

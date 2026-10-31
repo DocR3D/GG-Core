@@ -1,4 +1,4 @@
-import { buildDoubleElimination, doubleElimPlacements, seedOrder, BracketMatch, SlotSource } from './double-elimination';
+import { applyPlacementMatches, buildDoubleElimination, doubleElimPlacements, seedOrder, BracketMatch, SlotSource } from './double-elimination';
 
 /** Plays the whole bracket: `pickHome(match)` decides each winner. Returns champion and losses per seed. */
 function simulate(bracket: BracketMatch[], teamCount: number, pickHome: (m: BracketMatch, home: number, away: number) => boolean) {
@@ -114,5 +114,26 @@ describe('doubleElimPlacements', () => {
       { place: '1', team: 1 }, { place: '2', team: 2 }, { place: '3', team: 3 }, { place: '4', team: 4 },
       { place: '5-6', team: 5 }, { place: '5-6', team: 6 }, { place: '7-8', team: 7 }, { place: '7-8', team: 8 },
     ]);
+  });
+});
+
+describe('applyPlacementMatches', () => {
+  const ranking = [
+    { place: '1', team: 'A' },
+    { place: '7-8', team: 'G' },
+    { place: '7-8', team: 'H' },
+    { place: '5-6', team: 'E' },
+    { place: '5-6', team: 'F' },
+  ];
+
+  it('un match pour la 7e place départage les deux équipes 7-8', () => {
+    const out = applyPlacementMatches(ranking, [{ place: 7, winner: 'H', loser: 'G' }]);
+    expect(out.filter((r) => r.team === 'G' || r.team === 'H')).toEqual([{ place: '7', team: 'H' }, { place: '8', team: 'G' }]);
+    expect(out.map((r) => r.place)).toEqual(['1', '5-6', '5-6', '7', '8']);
+  });
+
+  it('sans effet si les équipes ne partagent pas la place visée', () => {
+    expect(applyPlacementMatches(ranking, [{ place: 7, winner: 'E', loser: 'G' }]).find((r) => r.team === 'G')!.place).toBe('7-8');
+    expect(applyPlacementMatches(ranking, [{ place: 3, winner: 'G', loser: 'H' }]).find((r) => r.team === 'G')!.place).toBe('7-8');
   });
 });

@@ -175,3 +175,24 @@ export function doubleElimPlacements<T>(matches: PlacedMatch<T>[]): { place: str
   }
   return out;
 }
+
+/**
+ * Placement (bonus) matches settle shared places: a match for place 7 between two teams sharing "7-8" puts its
+ * winner 7th and its loser 8th. A result whose teams do not share a range covering that place changes nothing.
+ */
+export function applyPlacementMatches<T>(
+  ranking: { place: string; team: T }[],
+  results: { place: number; winner: T; loser: T }[],
+): { place: string; team: T }[] {
+  const out = ranking.map((r) => ({ ...r }));
+  for (const res of results) {
+    const w = out.find((r) => r.team === res.winner);
+    const l = out.find((r) => r.team === res.loser);
+    if (!w || !l || w.place !== l.place) continue;
+    const [from, to = from] = w.place.split('-').map(Number);
+    if (res.place < from || res.place + 1 > to) continue;
+    w.place = String(res.place);
+    l.place = String(res.place + 1);
+  }
+  return out.sort((a, b) => parseInt(a.place, 10) - parseInt(b.place, 10));
+}

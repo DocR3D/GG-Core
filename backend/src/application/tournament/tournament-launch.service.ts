@@ -36,9 +36,10 @@ export class TournamentLaunchService {
     const name = input.name?.trim();
     if (!name || !input.ip?.trim()) throw new TournamentError('invalid', 'name (agent id, e.g. srv-a) and ip are required');
     if (await this.prisma.server.findUnique({ where: { name } })) throw new TournamentError('conflict', `server ${name} already exists`);
-    return this.prisma.server.create({
+    const server = await this.prisma.server.create({
       data: { name, ip: input.ip.trim(), port: input.port ?? 27015, game: input.game?.trim() || 'cs2' },
     });
+    return { ...server, rconPassword: undefined };
   }
 
   /** Every server with its availability: disabled, busy (with the running match), or free. */
@@ -55,7 +56,8 @@ export class TournamentLaunchService {
 
   async setServerEnabled(idOrName: string, enabled: boolean) {
     const server = await this.findServer(idOrName);
-    return this.prisma.server.update({ where: { id: server.id }, data: { status: enabled ? 'IDLE' : 'OFFLINE' } });
+    const updated = await this.prisma.server.update({ where: { id: server.id }, data: { status: enabled ? 'IDLE' : 'OFFLINE' } });
+    return { ...updated, rconPassword: undefined };
   }
 
   /**

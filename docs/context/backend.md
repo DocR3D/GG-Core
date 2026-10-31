@@ -147,9 +147,13 @@ Redis ggbot:events
 | `POST /api/tournament/stages/:id/bracket/generate` | Double élimination pour les qualifiés de la phase (ou `teamIds` en ordre de seed), n'importe quel effectif ≥ 3 : exempts résolus à la génération (y compris dans le bracket du bas), places exactes vainqueur / perdant, grande finale avec **1 map d'avance** au finaliste du haut. `formats: { upper, lower, grandFinal }` (défauts BO1 / BO1 / BO3, grande finale BO3 ou BO5). Refusé si un match de la phase est terminé. Classement final dans la vue (1, 2, 3, 4, 5-6, 7-8…) |
 | `GET /api/tournament/stages/:id/standings` | Classement de chaque poule (points 3/1/0, puis confrontation directe, différence de score, score marqué ; `tied` = égalité à trancher par l'admin) |
 | `POST /api/tournament/stages/:id/qualify` | `{ rules: [{ ranks: [1,2], targetStageId }, …], manualOrder? }` → qualifiés envoyés aux phases suivantes, seeds croisés (1ers A, B…, puis 2es). Refusé si poules non terminées ou égalité non résolue à une frontière |
-| `POST /api/tournament/matches/:id/games/:order/result` | **Saisie admin** du résultat du game n° `order` d'une série (Match en base, UUID) : `{ scoreHome, scoreAway, mapName?, reportedBy? }` → game `MANUAL` / `CONFIRMED`, puis mise à jour de la série (BO1/BO3/BO5) et de l'arbre. 404 match inconnu, 409 série terminée, 400 saisie invalide |
+| `POST /api/tournament/matches/:id/games/:order/result` | **Saisie admin** du résultat du game n° `order` d'une série (Match en base, UUID) : `{ scoreHome, scoreAway, mapName? }` (auteur = l'admin de la session, jamais un nom envoyé dans la requête) → game `MANUAL` / `CONFIRMED`, puis mise à jour de la série (BO1/BO3/BO5) et de l'arbre. 404 match inconnu, 409 série terminée, 400 saisie invalide |
 | `GET /api/tournament/servers` · `POST /api/tournament/servers` | Serveurs de jeu avec disponibilité (`free` / `busy` + match en cours / `disabled`) · enregistrer un serveur (`{ name: id de l'agent, ip, port?, game? }`) |
 | `POST /api/tournament/servers/:id/disable` \| `enable` \| `release` | Désactiver un PC mort (jamais choisi) / le remettre en service / **libérer** un serveur bloqué sur un match qui ne finira jamais |
+| `POST /api/tournament/matches/:id/forfeit` | Forfait `{ absentTeamId }` : chaque map qui manque à l'autre équipe devient un game gagné 13-0 (auteur « forfait », compté dans la différence de score des poules ; map du véto conservée), puis série terminée, games restants annulés, arbre. 409 si un game est en cours sur un serveur |
+| `POST /api/tournament/matches/format` | Format à la volée `{ matchIds: [...] }` ou `{ stageId, bracket?: UPPER\|LOWER\|FINAL }` + `format` : seulement les matchs pas commencés, véto commencé effacé ; grande finale jamais en BO1. Répond `changed`, `vetoReset`, `skipped` (avec la raison) |
+| `POST /api/tournament/matches/:id/replace-team` | `{ teamId, newTeamId }` dans un match pas commencé (véto effacé) |
+| `POST /api/tournament/tournaments/:id/bonus-matches` · `DELETE /api/tournament/bonus-matches/:id` | Match bonus entre deux équipes du tournoi `{ homeTeamId, awayTeamId, format?, placement?, countsInStats? }` : fun (nul permis, hors stats par défaut) ou pour une place (`placement: 7` = 7e / 8e : vainqueur obligatoire, compte dans les stats, départage au classement final les équipes ex aequo sur cette place). Suppression tant qu'il n'est pas commencé |
 | `POST /api/tournament/matches/:id/games/:order/launch` | Lancer le game n° `order` d'une série sur un serveur choisi : `{ server, mapName?, settings? }` (après un véto : `mapName` facultatif = map du véto, et en mode de side « pick » les sides choisis au véto, sans knife). Le moteur temps réel utilise l'UUID du game comme matchId : le résultat remonte seul (game → série → arbre). Relancer sur un autre serveur après un crash = même appel. 409 si serveur désactivé / occupé / jeu différent |
 | `/sandbox/tournament` | **Tournois simulés** (outil de dev, page HTML sans JS) : un scénario JSON de `test/fixtures/tournaments` joué en accéléré - équipes, joueurs et stats CS2 factices, résultats déterministes, games « en cours » pendant `delayMs`, N séries en parallèle, pause / reprendre / game suivant / arrêter. API : `GET scenarios`, `GET\|POST runs`, `GET runs/:id`, `POST runs/:id/(pause\|resume\|step\|stop)`. Relancer un scénario remplace son tournoi. Suivi en direct : `/view/tournaments/:id?refresh=N` |
 | `GET /api/tournament/tournaments/:id/overview` | Données JSON des pages `/view` (phases, poules, classements, arbres, matchs, games, serveurs, classement final) |
@@ -169,6 +173,8 @@ Redis ggbot:events
   déconnecter (barre du site : nom + « Se déconnecter ») ;
 - `GET /login` (page), `GET /auth/steam` → Steam OpenID → `GET /auth/steam/return` (assertion vérifiée auprès de Steam, rôle selon le SteamID : admin si dans `GG_ADMIN_STEAMIDS`, joueur si SteamID connu, sinon visiteur), `POST /auth/local` (mot de passe admin hors ligne `GG_ADMIN_PASSWORD`), `GET /auth/logout`, `GET /auth/me` ;
 - session : JWT signé (`JWT_SECRET`) dans un cookie HttpOnly (24 h) ; scripts / curl : `Authorization: Bearer <GG_ADMIN_TOKEN>`.
+- mot de passe admin hors ligne : 10 essais par minute et par adresse au plus (fenêtre courte : derrière la redirection de
+  ports Docker, tous les navigateurs peuvent avoir la même adresse, celle de la passerelle).
 
 **Pages humaines (hors `/api`, réservé à l'API JSON)** - HTML simple sans JS (vues de tournoi en `<pre>`) :
 - `GET /view` : liste des tournois ;
@@ -243,7 +249,7 @@ CORS REST : origines autorisées via `CORS_ORIGIN` (liste séparée par des virg
 - `DatabaseEventsHandler` (asynchrone, non bloquant) :
   - écrit **toujours** l'événement dans `events_primary` avec `match_id` / `server_id`, et `match_map_id` seulement si la liaison est résolue (cache 30 s) ;
   - n'écrit les `PlayerMapStats` que si le `MatchMap` **et** l'UUID d'équipe (`teams.home_id/away_id`, via côté CT/T → home/away) sont connus.
-- Fin de match : progression du bracket uniquement pour un `MatchMap` d'un match **BO1** (ou un matchId = UUID de `Match`) ; les séries BO3/BO5 ne sont pas avancées à la fin d'une map.
+- Fin de match : le résultat du game est écrit (`recordGameResult`, source `AUTOMATIC`), puis la série est recalculée (`updateSeries`) : BO1 / BO3 / BO5 avancent l'arbre par le même chemin qu'une saisie admin. Sans game lié, un matchId qui est l'UUID d'un `Match` fait avancer ce match directement.
 - Test d'intégration sur vraie base : `DB_IT=1 npx jest --config jest.config.ts event-sourcing.db` (les autres specs mockent Prisma).
 
 ---

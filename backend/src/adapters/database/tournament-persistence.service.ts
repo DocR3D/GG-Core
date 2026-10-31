@@ -35,7 +35,7 @@ const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/
 
 /** Les colonnes relationnelles (MatchMap, Match, Team…) sont des UUID PostgreSQL. */
 /** Wins needed to take a series, per format. */
-const WINS_NEEDED: Record<'BO1' | 'BO3' | 'BO5', number> = { BO1: 1, BO3: 2, BO5: 3 };
+export const WINS_NEEDED: Record<'BO1' | 'BO3' | 'BO5', number> = { BO1: 1, BO3: 2, BO5: 3 };
 
 /**
  * Elimination (bracket) matches and placement matches need a winner: no draw. Group matches and "fun"

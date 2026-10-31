@@ -141,10 +141,16 @@ async function main() {
     ok(game && Math.max(game.scoreHome, game.scoreAway) === 13, 'game score taken from the real log (13 rounds for the winner)');
   }
 
-  console.log('\n5. Four matches entered by the admin');
-  for (const m of matches.slice(2)) {
+  console.log('\n5. Three matches entered by the admin, one forfeit');
+  for (const m of matches.slice(2, 5)) {
     await must('POST', `/api/tournament/matches/${m.id}/games/1/result`, { scoreHome: 13, scoreAway: 8, mapName: 'de_nuke', reportedBy: 'e2e' });
   }
+  // the script sends reportedBy "e2e": the author must come from the session (the admin token) instead
+  const detail = await fetch(`${API}/view/matches/${matches[2].id}`).then((r) => r.text());
+  ok(detail.includes('saisie de admin (token)') && !detail.includes('saisie de e2e'), 'result author taken from the session, not the request body');
+  const absent = matches[5];
+  const forfeit = await must('POST', `/api/tournament/matches/${absent.id}/forfeit`, { absentTeamId: teams.find((x) => x.name === absent.away).id });
+  ok(forfeit.isForfeit && forfeit.status === 'FINISHED' && forfeit.winnerId === teams.find((x) => x.name === absent.home).id, `forfeit: ${absent.home} wins against absent ${absent.away}`);
 
   console.log('\n6. Standings and qualification');
   const st = await must('GET', `/api/tournament/stages/${groups.id}/standings`);
@@ -161,7 +167,14 @@ async function main() {
   ok(q[0].seeds.length === 2 && q[1].seeds.length === 2, 'Elite 2 teams, Amateur 2 teams');
   ok(q[0].seeds[0] === rows[0].teamId, 'group winner is Elite seed 1');
 
-  console.log('\n7. ASCII view (look for anything odd)\n');
+  console.log('\n7. Bonus match (fun), then removed');
+  const bonus = await must('POST', `/api/tournament/tournaments/${t.id}/bonus-matches`, { homeTeamId: teams[0].id, awayTeamId: teams[1].id });
+  ok(bonus.countsInStats === false && bonus.placement === null, 'fun bonus match created, out of the official stats');
+  ok((await overview(t.id)).bonusMatches.some((m) => m.id === bonus.id), 'bonus match in the overview');
+  await must('DELETE', `/api/tournament/bonus-matches/${bonus.id}`);
+  ok(!(await overview(t.id)).bonusMatches.some((m) => m.id === bonus.id), 'bonus match removed');
+
+  console.log('\n8. ASCII view (look for anything odd)\n');
   const ascii = await fetch(`${API}/view/tournaments/${t.id}.txt`).then((r) => r.text());
   console.log(ascii);
   console.log(`View: ${API}/view/tournaments/${t.id}`);

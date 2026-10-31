@@ -26,6 +26,7 @@ import { ViewController } from './view/view.controller';
 import { TournamentStagesService } from '@app/tournament/tournament-stages.service';
 import { TournamentLaunchService } from '@app/tournament/tournament-launch.service';
 import { VetoService } from '@app/tournament/veto.service';
+import { TournamentAdminService } from '@app/tournament/tournament-admin.service';
 import { VetoController } from './veto/veto.controller';
 
 @Module({
@@ -52,6 +53,6 @@ import { VetoController } from './veto/veto.controller';
     ViewController,
     VetoController,
   ],
-  providers: [TournamentStagesService, TournamentLaunchService, TournamentSimulationService, VetoService],
+  providers: [TournamentStagesService, TournamentLaunchService, TournamentSimulationService, VetoService, TournamentAdminService],
 })
 export class HttpModule {}

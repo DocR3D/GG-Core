@@ -27,13 +27,14 @@ Le cœur moteur de match, l'arbitrage automatisé, le calcul de scores/stats CS2
     - Indicateur de statut de connexion / vérification de Whitelist SteamID.
 
 ### 2. 🏆 API Métier Tournois, Poules, Brackets & Équipes
-* **Origine** : Les modèles de données existent dans Prisma ([`backend/prisma/schema.prisma`](file:///d:/DEV/GG-Core/backend/prisma/schema.prisma)), mais il n'y a pas encore d'API REST pour les manipuler.
-* **Tâches à réaliser** :
-  - **Endpoints REST CRUD** :
-    - Tournois : `POST /api/tournaments`, `GET /api/tournaments/:id`, `PATCH /api/tournaments/:id`.
-    - Équipes & Joueurs : inscription, composition du roster (titulaires, remplaçants), association des SteamID.
-    - Poules & Brackets : génération automatique des rencontres de poules (Round-Robin) et des arbres d'élimination directe/double (Playoffs).
-  - **Liaison Match ➔ Tournoi** : avancement automatique du gagnant dans l'arbre lors du `postgame`.
+* **Fait** : tournois, équipes, joueurs / capitaines, poules (round robin, classements, qualification), double
+  élimination (grande finale avec map d'avance), lancement des games sur un serveur choisi, résultat automatique ou
+  saisi → série → arbre, vues `/view`, simulation, et les opérations admin du jour J : forfait, format à la volée
+  (un match, ou une phase / un bracket entier), remplacement d'une équipe, matchs bonus (fun ou pour une place,
+  intégrés au classement final) - `docs/context/backend.md`.
+* **Reste** :
+  - Import des équipes / joueurs par CSV (format à voir avec le dev du site d'inscription).
+  - Annuler un forfait / corriger une série terminée : demanderait un retour en arrière de l'arbre (pas fait).
 
 ### 3. 🗺️ Module de Vétos de Maps (Map Pick & Ban)
 * **Fait** : pierre-feuille-ciseaux puis véto BO1 / BO3 / BO5 sur la page `/veto/:matchId` (capitaines connectés avec
@@ -67,17 +68,21 @@ Le cœur moteur de match, l'arbitrage automatisé, le calcul de scores/stats CS2
 
 ### 5. 🌐 Orchestration Dynamique de la Flotte de Serveurs (Multi-serveurs)
 * **Origine** : Objectif de superviser jusqu'à 32 (ou 64) serveurs simultanément en LAN.
-* **Tâches à réaliser** :
-  - Cycle de vie des serveurs dans la base de données : `IDLE` ➔ `ASSIGNED` ➔ `BUSY` ➔ `RELEASED`.
-  - Aiguilleur d'allocation : assignation automatique du premier serveur libre lors du passage d'un match en phase `warmup`.
-  - Libération et réinitialisation automatique du serveur à la fin du match (`postgame`).
+* **Fait** : serveurs enregistrés en base avec leur disponibilité (`free` / `busy` + match en cours / `disabled`),
+  game lancé sur le serveur choisi par l'admin (409 si occupé ou désactivé), PC mort désactivé, serveur bloqué libéré
+  à la main ; en fin de match, reset warmup différé et kick des joueurs restés connectés.
+* **Reste** :
+  - Aiguilleur d'allocation : proposer ou prendre automatiquement le premier serveur libre au lancement (aujourd'hui
+    l'admin choisit).
 
 ### 6. 🔑 Authentification & Gestion des Rôles (JWT)
-* **Origine** : Sécurisation des accès d'arbitrage.
-* **Tâches à réaliser** :
-  - Authentification JWT pour les administrateurs et arbitres (rôles `ADMIN`, `REFEREE`, `SPECTATOR`).
-  - Protection des routes d'administration REST et des commandes RCON.
-  - Ségrégation des flux WebSocket Socket.IO : rooms `match:{id}:admin` (commandes, logs bruts, actions) vs `match:{id}:public` (scores, stats, rounds).
+* **Fait (V1)** : connexion Steam (admin si SteamID dans `GG_ADMIN_STEAMIDS`, joueur si SteamID connu) ou mot de
+  passe admin hors ligne (10 essais par minute et par adresse), session JWT en cookie HttpOnly, jeton Bearer pour les
+  scripts ; toute modification et le Sandbox réservés aux admins ; rooms WebSocket `match:{id}:public` /
+  `match:{id}:admin` avec garde JWT (`docs/context/backend.md`).
+* **Reste** :
+  - Rôle arbitre distinct de l'admin, si le besoin se confirme (aujourd'hui : admin ou non).
+  - HTTPS de la LAN : voir §12 bis (mis de côté).
 
 ### 7. 📊 Export des Données & Statistiques de Fin de Tournoi
 * **Tâches à réaliser** :
@@ -116,6 +121,13 @@ Le cœur moteur de match, l'arbitrage automatisé, le calcul de scores/stats CS2
 ### 12. 🧰 Petites suites identifiées
 * **Restauration de backup** : restaurer aussi l'économie (argent) comme CS2 ; aujourd'hui score, stats et séries seulement.
 * **Parser de secours** : parser les commandes chat comme le parser Go.
+
+### 12 bis. 🔒 HTTPS de la LAN (mis de côté)
+* Aujourd'hui tout est en HTTP, comme eBot : sur le réseau de la LAN, une session admin circule en clair (lisible
+  par quelqu'un qui écoute le réseau).
+* Prêt sur la branche `feat/https-login` (non mergée, jugé trop contraignant pour l'instant) : certificat auto-signé
+  créé par `make`, connexion et actions en HTTPS (8443), lecture en HTTP ; inconvénient : avertissement du navigateur
+  une fois par poste. Sans avertissement : vrai certificat sur un sous-domaine de gglan.fr (challenge DNS).
 
 ### 13. 🎥 Overlays OBS (score en direct sur le stream)
 * **Besoin** : pages « source navigateur » pour OBS (score, prochain match, arbre, MVP de la map).
