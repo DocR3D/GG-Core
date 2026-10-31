@@ -1,7 +1,8 @@
 // src/application/match/sandbox/sandbox.service.spec.ts
 import * as fs from 'fs';
 import * as path from 'path';
-import { SandboxService, splitRawLogIntoRounds, parseCs2LineFallback } from './sandbox.service';
+import { SandboxService, splitRawLogIntoRounds } from './sandbox.service';
+import { parseCs2LineFallback } from '@app/parser/cs2-log-parser.fallback';
 import { InjectStateDto } from './sandbox.dto';
 import { MatchStateService } from '../state/match-state.service';
 import { SidesScoreService } from '../state/sides-score.service';

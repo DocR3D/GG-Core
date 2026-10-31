@@ -2,7 +2,7 @@ import { AnyEvent } from '@domain/events/match.event';
 import { CommandEvent } from '@domain/events/command.event';
 import { EventType } from '@domain/events/event.types';
 import { RuleContext } from './rule-context';
-import { SaySpec } from '@app/match/messages/messages.types';
+import { SaySpec } from './message-spec.types';
 import { normalizeChatCommand } from './rules.constants';
 
 export interface PhaseRule {

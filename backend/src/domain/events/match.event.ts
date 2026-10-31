@@ -1,7 +1,7 @@
 import type { BaseEvent } from './base.event';
 import { EventType, EventTypes } from './event.types';
 import type { CommandEvent } from './command.event';
-import { GameSide } from '@app/match/state';
+import type { GameSide } from '../side.types';
 
 export type EventKind = 'primary' | 'telemetry';
 export type Team = 'T' | 'CT';

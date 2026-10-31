@@ -9,7 +9,7 @@ import { SnapshotQuery } from '../state/snapshot.query';
 import { MatchStateService } from '../state/match-state.service';
 import { KillAndBombEventsHandler } from '../../subscribers/kill-bomb-events.handler';
 import { LiveRule } from '../rules/live.rule';
-import { parseCs2LineFallback } from './sandbox.service';
+import { parseCs2LineFallback } from '@app/parser/cs2-log-parser.fallback';
 import { MatchPhase } from '@domain/phase.types';
 import { EventTypes } from '@domain/events/event.types';
 

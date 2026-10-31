@@ -47,9 +47,7 @@ export class MatchEventsHandler {
     // 0) Game Over du serveur : comparé à GG-Core (après un court délai), jamais traité par les règles
     if ((ev.type as string) === EventTypes.GAME_OVER) {
       const p = (ev as any).payload ?? {};
-      this.ctxFactory
-        .make({ matchId, serverId: ev.serverId })
-        .orch.onServerGameOver(matchId, ev.serverId, { ct: Number(p.scoreCT) || 0, t: Number(p.scoreT) || 0 });
+      this.ctxFactory.orchestrator.onServerGameOver(matchId, ev.serverId, { ct: Number(p.scoreCT) || 0, t: Number(p.scoreT) || 0 });
       return;
     }
 

@@ -383,8 +383,7 @@ export class MatchOrchestrator {
   async onRoundStart(ev: (RoundStartEvent & { serverId?: string }) | (GenericMatchEvent & { serverId?: string })) {
     await this.phase.setRoundPhase(ev.matchId, RoundPhase.LIVE);
 
-    const ctx = this.ctxFactory.make({ matchId: ev.matchId, serverId: ev.serverId });
-    const s = await ctx.state.getSnapshot(ctx.matchId);
+    const s = await this.state.getSnapshot(ev.matchId);
     const HCT = s.sides?.home === 'CT';
     const ctBank = (HCT ? s.economy.home_bank : s.economy.away_bank) ?? 0;
     const tBank = (HCT ? s.economy.away_bank : s.economy.home_bank) ?? 0;

@@ -12,7 +12,6 @@ import { WsModule } from '@adapters/ws/ws.module';
 // Contrôleurs HTTP
 import { MatchesController } from './matches/matches.controller';
 import { PlayersController } from './matches/players.controller';
-import { MatchInitController } from './matches/init.controller';
 import { SidesController } from './matches/sides.controller';
 import { EconomyController } from './matches/economy.controller';
 import { Cs2LogsController } from './cs2-logs/cs2-logs.controller';
@@ -46,7 +45,6 @@ import { MatchAdminService } from '@app/match/admin/match-admin.service';
   controllers: [
     MatchesController,
     PlayersController,
-    MatchInitController,
     SidesController,
     EconomyController,
     Cs2LogsController,

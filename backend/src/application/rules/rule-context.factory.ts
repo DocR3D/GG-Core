@@ -16,6 +16,11 @@ export class RuleContextFactory {
     @Inject(REDIS_PUB) private readonly pub: Redis,
   ) {}
 
+  /** The full orchestrator, for the event pipeline (not the rules, which only see RuleContext). */
+  get orchestrator(): MatchOrchestrator {
+    return this.orch;
+  }
+
   make(params: { matchId: string; serverId?: string }): RuleContext {
     const { matchId, serverId } = params;
 

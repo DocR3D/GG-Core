@@ -1,4 +1,4 @@
-import { cleanContainerLogPrefix, parseCs2LineFallback } from './sandbox.service';
+import { cleanContainerLogPrefix, parseCs2LineFallback } from '@app/parser/cs2-log-parser.fallback';
 import { DatabaseEventsHandler } from '../../subscribers/database-events.handler';
 import { EventTypes } from '@domain/events/event.types';
 

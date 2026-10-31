@@ -15,6 +15,8 @@ const config: Config = {
   ],
   coverageReporters: ['text', 'lcov', 'clover'],
   coverageThreshold: {
+    // no global floor (most of the code is covered by the Golden Master and the DB specs, not by line counts)
+    global: {},
     './src/domain/tournament/': {
       lines: 95,
       statements: 95,

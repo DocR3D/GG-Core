@@ -18,7 +18,7 @@ function setup(review: object | null) {
     registry: { getRule: jest.fn().mockReturnValue(rule) },
     phase: { getPhase: jest.fn().mockResolvedValue('live_main') },
     mss: { getReview: jest.fn().mockResolvedValue(review), getMatchIdFromServerId: jest.fn() },
-    ctxFactory: { make: jest.fn(() => ({ orch })) },
+    ctxFactory: { make: jest.fn(() => ({ orch })), orchestrator: orch },
   };
   const handler = new MatchEventsHandler(
     deps.phaseHandler as any, deps.roundHandler as any, deps.combatHandler as any, deps.dbHandler as any,
