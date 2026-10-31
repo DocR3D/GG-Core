@@ -3,6 +3,8 @@ node_modules/
 dist/
 bin/
 build/
+coverage/
+backend/src/coverage/
 **/*.exe
 **/*.exe~
 **/*.test
@@ -10,6 +12,8 @@ build/
 agent/tmp/
 agent/managerd
 agent/agentd
+agent/manager
+agent/agent
 
 # OS & IDE
 .DS_Store
@@ -21,6 +25,7 @@ Thumbs.db
 .env
 *.env
 !.env.example
+infra/certs/
 
 # Runtime Logs
 logs/
