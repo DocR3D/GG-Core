@@ -4,7 +4,6 @@
 #   make            → aide
 #   make up         → stack complète (Redis, Postgres, backend, agent)
 #   make up-cs2     → + serveur CS2 dédié en conteneur
-#   make up CS2=local → agent branché sur un CS2 lancé hors Docker (ex. Steam Windows)
 #   make test       → typecheck + Jest + Go + intégration PostgreSQL
 
 SHELL        := /bin/bash
@@ -17,14 +16,6 @@ COMPOSE      := docker compose --env-file .env -f infra/docker-compose.dev.yml
 API          := http://localhost:8081
 F            ?=
 S            ?=
-CS2          ?=
-
-# CS2=local : CS2 tourne sur la machine hôte (Windows/Steam ou Linux natif).
-# Sous WSL2 l'hôte Windows est la passerelle par défaut de la VM ; ailleurs host.docker.internal.
-ifeq ($(CS2),local)
-  GG_CS2_HOST ?= $(shell grep -qi microsoft /proc/version 2>/dev/null && ip route show default | awk '{print $$3}' || echo host.docker.internal)
-  export GG_CS2_HOST
-endif
 
 .DEFAULT_GOAL := help
 .PHONY: help doctor admin _core up up-cs2 down restart ps logs status server servers sandbox replay fixtures test test-backend test-db test-go e2e-tournament tournament veto-demo veto-bot shell-backend psql redis-cli reset
@@ -33,7 +24,7 @@ help: ## Affiche cette aide
 	@echo "GG-Core - commandes disponibles :"
 	@grep -hE '^[a-zA-Z0-9_-]+:.*?## ' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "  make %-14s %s\n", $$1, $$2}'
 	@echo ""
-	@echo "Options : CS2=local (CS2 hors Docker), F=<fixture> (replay), S=<service> (logs)"
+	@echo "Options : F=<fixture> (replay), S=<service> (logs)"
 
 doctor: ## Vérifie les prérequis (Docker, Compose, droits, disque)
 	@command -v docker >/dev/null || { echo "❌ docker introuvable"; exit 1; }
@@ -90,8 +81,7 @@ status: ## Résumé de l'état et des URLs
 	@echo "   Logs agent     http://localhost:8082/logs (srv-a)"
 	@echo "   Postgres       postgresql://postgres:postgres@localhost:5432/ggcore"
 	@echo "   Redis          redis://localhost:6379"
-	@if [ "$(CS2)" = "local" ]; then echo "   CS2 (hors Docker) attendu sur $(GG_CS2_HOST):27015 - logaddress_add_http \"http://<IP de cette machine>:8082/logs?token=$$(grep '^GG_LOGS_TOKEN=' .env | cut -d= -f2-)\" (RCON : $$(grep '^GG_RCON_PASSWORD=' .env | cut -d= -f2-))"; \
-	 elif $(COMPOSE) --profile cs2 ps --services --status running 2>/dev/null | grep -qx cs2; then echo "   CS2            connect localhost:27015 (RCON $$(grep '^GG_RCON_PASSWORD=' .env | cut -d= -f2-))"; fi
+	@if $(COMPOSE) --profile cs2 ps --services --status running 2>/dev/null | grep -qx cs2; then echo "   CS2            connect localhost:27015 (RCON $$(grep '^GG_RCON_PASSWORD=' .env | cut -d= -f2-))"; fi
 	@echo ""
 
 server: ## Ajoute un serveur CS2 de la LAN (NAME=srv-b IP=<IP du serveur> [PORT=27015] [LAN_IP=<IP de cette machine>])

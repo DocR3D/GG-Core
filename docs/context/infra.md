@@ -14,7 +14,7 @@
 ## Docker Compose
 
 ### Dev (`infra/docker-compose.dev.yml`) - piloté par le `Makefile` racine
-`make up` (stack), `make up-cs2` (+ CS2 conteneurisé), `make up CS2=local` (CS2 hors Docker), `make test`, `make replay F=…`, `make logs S=…`, `make doctor`, `make reset`. Seul prérequis : Docker + Compose v2 (sous Windows : depuis un terminal WSL).
+`make up` (stack), `make up-cs2` (+ CS2 conteneurisé), `make test`, `make replay F=…`, `make logs S=…`, `make doctor`, `make reset`. Seul prérequis : Docker + Compose v2 (sous Windows : depuis un terminal WSL).
 
 Services (réseau `ggcore` 172.30.0.0/24) :
 - **redis** - `redis:7-alpine`, port 6379

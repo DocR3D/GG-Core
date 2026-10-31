@@ -107,9 +107,6 @@ services:
     networks:
       ggcore:
         ipv4_address: 172.30.0.10
-    # host.docker.internal : pour joindre un CS2 lancé hors Docker (make up CS2=local)
-    extra_hosts:
-      - "host.docker.internal:host-gateway"
     environment:
       # le backend demande "knife.cfg", "warmup.cfg"… : ils sont dans agent/cfg/ggbot/
       CFG_BASE: /app/cfg/ggbot

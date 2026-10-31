@@ -5,4 +5,3 @@ Makefile          text eol=lf
 agents.d/*.yaml   text eol=lf
 agent/cfg/**      text eol=lf
 infra/**          text eol=lf
-*.bat             text eol=crlf

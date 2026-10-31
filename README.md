@@ -44,8 +44,6 @@ Sous Windows : lancer ces commandes depuis un terminal WSL, dans le dépôt (ex.
 - WSL s'arrête quand plus aucun terminal WSL n'est ouvert (et Docker avec lui) : garder un terminal WSL ouvert pendant les tests. Les conteneurs redémarrent seuls à la réouverture.
 - Les données Docker (dont les ~73 Go de CS2) vivent dans le disque virtuel de WSL, **sur C: par défaut**. Si C: est petit, déplacer la distribution avant `make up-cs2` : `wsl --shutdown` puis `wsl --manage Debian --move D:\WSL\Debian`.
 
-**CS2 déjà installé via Steam (pas de téléchargement)** : `make up CS2=local` (crée les secrets), puis lancer `infra\start-cs2-local.bat` côté Windows (il lit le mot de passe RCON et le jeton des logs dans `.env`) - l'agent se connecte au CS2 de la machine hôte.
-
 - Backend (REST) : http://localhost:8081/api (health : `/api/health`)
 - WebSocket : ws://localhost:8081
 - Console Sandbox (rejeu de logs, injection d'état, RCON) : http://localhost:8081/sandbox
