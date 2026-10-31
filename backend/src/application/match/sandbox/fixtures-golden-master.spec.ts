@@ -115,7 +115,7 @@ function createInMemoryRedis() {
         rpush: (k: string, ...v: string[]) => { ops.push(() => api.rpush(k, ...v)); return chain; },
         lrem: (k: string, c: number, v: string) => { ops.push(() => api.lrem(k, c, v)); return chain; },
         exec: async () => {
-          const res = [];
+          const res: unknown[] = [];
           for (const op of ops) res.push([null, await op()]);
           return res;
         },

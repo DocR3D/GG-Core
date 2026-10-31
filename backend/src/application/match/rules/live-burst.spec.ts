@@ -3,6 +3,7 @@
  * Simule les cas réels observés lors des replays Sandbox accélérés ou des reconnexions
  */
 import { LiveRule } from './live.rule';
+import type { PauseCommand } from '@app/match/commands/pause.command';
 import { EventTypes } from '@domain/events/event.types';
 import { MatchPhase } from '@domain/phase.types';
 
@@ -13,7 +14,7 @@ describe('LiveRule - Burst & Rapid-Fire Replay Stress Tests', () => {
   let rule: LiveRule;
 
   beforeEach(() => {
-    rule = new LiveRule();
+    rule = new LiveRule({} as PauseCommand);
   });
 
   function makeBurstContext() {

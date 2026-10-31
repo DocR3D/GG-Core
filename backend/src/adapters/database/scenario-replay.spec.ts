@@ -97,7 +97,7 @@ describe('Scenario Replay - Real LAN Matches via DatabaseEventsHandler', () => {
           return Promise.resolve({ _sum: { headshots: totalHs } });
         }),
         findMany: jest.fn(() => {
-          const list = [];
+          const list: Record<string, unknown>[] = [];
           for (const s of dbStore.playerMapStats.values()) {
             const player = Array.from(dbStore.players.values()).find(
               (p) => p.id === s.playerId,

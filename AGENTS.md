@@ -103,7 +103,7 @@ Avant de considérer une tâche comme achevée, toujours valider la non-régress
 ```bash
 # Backend NestJS
 cd backend
-npm run typecheck    # Vérification stricte des types TypeScript (tsc --noEmit)
+npm run typecheck    # Vérification stricte des types TypeScript, code ET tests (tsc --noEmit -p tsconfig.json)
 npm run build        # Compilation complète NestJS
 npm test             # Suite Jest complète (dont Golden Master sur fixtures réelles)
 

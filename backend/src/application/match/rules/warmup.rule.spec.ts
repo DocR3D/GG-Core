@@ -58,6 +58,7 @@ describe('WarmupRule - Ready Checks & Target Phase Selection', () => {
 
   describe('onReadyCommand', () => {
     const makeCmd = (team: 'CT' | 'T', command = '!ready'): CommandEvent => ({
+      v: 1, id: 'ev-test', source: 'logs', kind: 'primary',
       type: 'command',
       matchId: 'm-test',
       serverId: 'srv-a',
@@ -65,7 +66,7 @@ describe('WarmupRule - Ready Checks & Target Phase Selection', () => {
       payload: {
         command,
         parameters: [],
-        sender: { name: `Capt_${team}`, steamId: `STEAM_${team}`, team },
+        sender: { name: `Capt_${team}`, steamId: `STEAM_${team}`, team, channel: 'say' },
       },
     });
 

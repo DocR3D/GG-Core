@@ -23,6 +23,7 @@ function setup(review: object | null) {
   const handler = new MatchEventsHandler(
     deps.phaseHandler as any, deps.roundHandler as any, deps.combatHandler as any, deps.dbHandler as any,
     deps.registry as any, deps.phase as any, deps.mss as any, deps.ctxFactory as any,
+    {} as any, {} as any, // access (whitelist), placement (sides): not on the game over path
   );
   return { handler, deps, orch, ruleHandler };
 }

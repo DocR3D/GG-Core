@@ -1,6 +1,7 @@
 import * as fs from 'fs';
 import * as path from 'path';
 import { LiveRule } from './live.rule';
+import type { PauseCommand } from '@app/match/commands/pause.command';
 import { EventTypes } from '@domain/events/event.types';
 import { MatchPhase } from '@domain/phase.types';
 
@@ -13,7 +14,7 @@ describe('Scenario 03 Full Replay - 53-Round 5-Overtime Inferno Match through Li
     expect(fs.existsSync(fixturePath)).toBe(true);
 
     const scenarioData = JSON.parse(fs.readFileSync(fixturePath, 'utf8'));
-    const rule = new LiveRule();
+    const rule = new LiveRule({} as PauseCommand);
     const handler = (rule as any).events.get(EventTypes.TEAM_ROUND_WIN);
 
     let currentScore = { ct: 0, t: 0, round: 0 };

@@ -44,6 +44,7 @@ describe('BaseRule - Command Dispatch & Prefix Stripping', () => {
 
   it('handleCommand doit exécuter le handler enregistré même si le payload contient !ready', async () => {
     const cmdEvent: CommandEvent = {
+      v: 1, id: 'ev-test', source: 'logs', kind: 'primary',
       type: 'command',
       matchId: 'm-1',
       serverId: 'srv-a',
@@ -51,7 +52,7 @@ describe('BaseRule - Command Dispatch & Prefix Stripping', () => {
       payload: {
         command: '!ready',
         parameters: [],
-        sender: { name: 'Player1', steamId: '76561198000000001', team: 'CT' },
+        sender: { name: 'Player1', steamId: '76561198000000001', team: 'CT', channel: 'say' },
       },
     };
 
@@ -63,6 +64,7 @@ describe('BaseRule - Command Dispatch & Prefix Stripping', () => {
 
   it('handleCommand doit exécuter le handler enregistré si le payload contient stay ou !stay', async () => {
     const cmdEvent: CommandEvent = {
+      v: 1, id: 'ev-test', source: 'logs', kind: 'primary',
       type: 'command',
       matchId: 'm-1',
       serverId: 'srv-a',
@@ -70,7 +72,7 @@ describe('BaseRule - Command Dispatch & Prefix Stripping', () => {
       payload: {
         command: '!stay',
         parameters: [],
-        sender: { name: 'Player1', steamId: '76561198000000001', team: 'CT' },
+        sender: { name: 'Player1', steamId: '76561198000000001', team: 'CT', channel: 'say' },
       },
     };
 

@@ -71,7 +71,7 @@ export class RoundBackupService {
    */
   buildBackupOptionsFromSnapshot(
     snapshot: any,
-    map = CS2_RULES.DEFAULT_MAP,
+    map: string = CS2_RULES.DEFAULT_MAP,
     overrides?: Partial<ValveBackupOptions>,
   ): ValveBackupOptions {
     const round = snapshot?.score?.round ?? overrides?.round ?? 0;

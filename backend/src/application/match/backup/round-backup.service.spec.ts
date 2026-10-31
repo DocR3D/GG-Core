@@ -66,11 +66,11 @@ describe('RoundBackupService', () => {
       expect(parsed.map).toBe('de_inferno');
       expect(parsed.firstHalfScore.team1).toBe(7);
       expect(parsed.firstHalfScore.team2).toBe(5);
-      expect(parsed.secondHalfScore.team1).toBe(5);
-      expect(parsed.secondHalfScore.team2).toBe(7);
-      expect(parsed.overtimeScore.team1).toBe(13);
-      expect(parsed.overtimeScore.team2).toBe(16);
-      expect(parsed.overtimeScore.overtimeId).toBe(5);
+      expect(parsed.secondHalfScore?.team1).toBe(5);
+      expect(parsed.secondHalfScore?.team2).toBe(7);
+      expect(parsed.overtimeScore?.team1).toBe(13);
+      expect(parsed.overtimeScore?.team2).toBe(16);
+      expect(parsed.overtimeScore?.overtimeId).toBe(5);
       expect(Object.keys(parsed.roundResults).length).toBeGreaterThanOrEqual(30);
     });
   });

@@ -89,12 +89,12 @@ describe('pages HTML avec liens', () => {
   it('page d’un match : retour au tournoi, provenance et suite cliquables, games avec auteur et serveur', () => {
     const detail: MatchDetailView = {
       id: 'x', tournament: { id: 't', name: 'GGLan IT' }, context: 'Élite - Bracket du haut', label: 'H T2#1',
-      format: 'BO3', status: 'FINISHED', home: 'Alpha', away: 'Bravo', scoreHome: 2, scoreAway: 1, winner: 'Alpha',
+      format: 'BO3', status: 'FINISHED', home: 'Alpha', away: 'Bravo', homeId: 'team-a', awayId: 'team-b', scoreHome: 2, scoreAway: 1, winner: 'Alpha',
       isForfeit: false, advantageHome: 0, countsInStats: true, placement: null,
       from: [{ slot: 'HOME', what: 'Vainq.', match: { id: 'a', label: 'H T1#1' } }],
       next: [{ what: 'perdant', slot: 'AWAY', match: { id: 'b', label: 'B T2#4' } }],
       games: [{
-        order: 1, mapName: 'de_mirage', status: 'FINISHED', scoreHome: 13, scoreAway: 11, source: 'AUTOMATIC',
+        id: 'game-1', order: 1, mapName: 'de_mirage', status: 'FINISHED', scoreHome: 13, scoreAway: 11, source: 'AUTOMATIC',
         resultStatus: 'CONFIRMED', reportedBy: 'cs2', reportedAt: null, server: 'srv-a',
         stats: [{ team: 'Alpha', player: 'Player_01', kills: 20, deaths: 12, assists: 4, headshots: 9, adr: 88.4 }],
       }],
