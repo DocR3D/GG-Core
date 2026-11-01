@@ -4,7 +4,6 @@ import * as path from 'path';
 import { SandboxService, splitRawLogIntoRounds } from './sandbox.service';
 import { parseCs2LineFallback } from '@app/parser/cs2-log-parser.fallback';
 import { InjectStateDto } from './sandbox.dto';
-import { MatchStateService } from '../state/match-state.service';
 import { SidesScoreService } from '../state/sides-score.service';
 import { SnapshotQuery } from '../state/snapshot.query';
 import { MatchCommandsService } from '@app/commands/match-commands.service';
@@ -12,7 +11,7 @@ import { WsBroadcaster } from '@adapters/ws/broadcaster.service';
 import { RoundBackupService } from '../backup/round-backup.service';
 import { MatchPhase } from '@domain/phase.types';
 import { REDIS_CHANNELS, redisConst } from '../state/redis.keys';
-import { CS2_RCON_COMMANDS, CS2_CFG } from '@domain/rules/rules.constants';
+import { CS2_CFG } from '@domain/rules/rules.constants';
 
 describe('SandboxService', () => {
   let service: SandboxService;

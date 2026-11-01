@@ -4,7 +4,6 @@ import { RuleContextFactory } from '@app/rules/rule-context.factory';
 import { RuleRegistry } from '@app/match/rules/rule.registry';
 import { MatchPhaseService } from '@app/match/phase/match-phase.service';
 import { MatchCommandsService } from '@app/commands/match-commands.service';
-import { MatchPhase } from '@domain/phase.types';
 import type { CommandEvent } from '@domain/events/command.event';
 
 import { isNonPlayingSide } from '@domain/side.types';
@@ -85,7 +84,8 @@ private ensureGlobalInit() {
       this.logger.warn(`[COMMAND] ignored: missing matchId (serverId=${ev?.serverId ?? '∅'})`);
       return;
     }
-    if ((ev as any).kind && (ev as any).kind !== 'primary') return;
+    const kind = (ev as { kind?: string }).kind;
+    if (kind && kind !== 'primary') return;
 
     const sender = ev.payload?.sender;
     const command = normalizeChatCommand(ev.payload?.command);

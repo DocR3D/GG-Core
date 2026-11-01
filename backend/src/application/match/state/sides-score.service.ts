@@ -4,7 +4,7 @@ import { REDIS_CMD } from '@adapters/redis/redis.tokens';
 import { redisConst } from './redis.keys';
 import { Phase } from '@domain/phase.types';
 import { MatchSettings, MatchReview, DEFAULT_MATCH_SETTINGS } from '@domain/match-settings.types';
-import { GameSide, normalizeSide, CS2_SIDE_TERRORIST } from '@domain/side.types';
+import { GameSide, normalizeSide } from '@domain/side.types';
 
 export type { GameSide };
 export type Logical = 'home' | 'away';
@@ -26,12 +26,7 @@ export class SidesScoreService {
   // Server ↔ Match binding
   // ─────────────────────────────────────────────────────────────────────────────
   private serverMatchKey(serverId: string): string {
-    // compat: certains projets avaient serverMatchid
-    // @ts-ignore
-    if (typeof (redisConst as any).serverMatch === 'function') return (redisConst as any).serverMatch(serverId);
-    // @ts-ignore
-    if (typeof (redisConst as any).serverMatchid === 'function') return (redisConst as any).serverMatchid(serverId);
-    throw new BadRequestException('redisConst.serverMatch(.serverMatchid) manquant');
+    return redisConst.serverMatch(serverId);
   }
 
   async setServerMatch(serverId: string, matchId: string, ttlSec?: number) {
@@ -58,7 +53,11 @@ export class SidesScoreService {
     const raw = await this.redis.get(redisConst.agentState(serverId));
     if (!raw) return { online: false };
     try {
-      const hb = JSON.parse(raw);
+      // the agent's heartbeat (agent/: rcon state, last log received, last request with a bad token)
+      const hb = JSON.parse(raw) as {
+        rcon?: { connected?: boolean; error?: string };
+        logs?: { lastAt?: number; lastBadTokenAt?: number };
+      };
       return {
         online: true,
         rconConnected: !!hb.rcon?.connected,
@@ -277,7 +276,7 @@ export class SidesScoreService {
       warmupAfterKnife: raw.warmupAfterKnife === 'true',
       warmupAtHalftime: raw.warmupAtHalftime === 'true',
       warmupAtOvertime: raw.warmupAtOvertime === 'true',
-      postgameAction: (raw.postgameAction as any) || DEFAULT_MATCH_SETTINGS.postgameAction,
+      postgameAction: (raw.postgameAction as MatchSettings['postgameAction']) || DEFAULT_MATCH_SETTINGS.postgameAction,
       postgameResetDelaySec: raw.postgameResetDelaySec
         ? Number(raw.postgameResetDelaySec)
         : DEFAULT_MATCH_SETTINGS.postgameResetDelaySec,
@@ -393,6 +392,6 @@ export class SidesScoreService {
 }
 
 // ───────────── helpers ─────────────
-function isSide(s: any): s is GameSide {
+function isSide(s: unknown): s is GameSide {
   return s === 'CT' || s === 'T';
 }

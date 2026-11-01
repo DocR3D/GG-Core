@@ -84,7 +84,7 @@ export class TournamentController {
   /** Registers a game server; `name` = agent id (agents.d/<name>.yaml, e.g. "srv-a"). */
   @Post('servers')
   createServer(@Body() body: { name: string; ip: string; port?: number; tvPort?: number; game?: string }) {
-    return this.run(() => this.launch.createServer(body ?? ({} as any)));
+    return this.run(() => this.launch.createServer(body ?? ({} as typeof body)));
   }
 
   /** { ip?, port?, tvPort? } (the name is the agent id: it stays). */
@@ -134,7 +134,7 @@ export class TournamentController {
 
   @Post('tournaments')
   createTournament(@Body() body: { name: string; slug?: string; game?: string }) {
-    return this.run(() => this.stages.createTournament(body ?? ({} as any)));
+    return this.run(() => this.stages.createTournament(body ?? ({} as typeof body)));
   }
 
   /** { name?, status? } - status: UPCOMING | ACTIVE | COMPLETED | ARCHIVED. */
@@ -184,7 +184,7 @@ export class TournamentController {
     @Param('id') tournamentId: string,
     @Body() body: { name: string; type: StageType; order: number; settings?: object },
   ) {
-    return this.run(() => this.stages.createStage(tournamentId, body ?? ({} as any)));
+    return this.run(() => this.stages.createStage(tournamentId, body ?? ({} as typeof body)));
   }
 
   /** { name?, type? } of a stage (the type only while it has no match). */
@@ -217,7 +217,7 @@ export class TournamentController {
     @Param('id') stageId: string,
     @Body() body: { teamIds?: string[]; groupCount: number; format?: MatchFormat },
   ) {
-    return this.run(() => this.stages.generateGroups(stageId, body ?? ({} as any)));
+    return this.run(() => this.stages.generateGroups(stageId, body ?? ({} as typeof body)));
   }
 
   /**
@@ -240,7 +240,7 @@ export class TournamentController {
     @Param('id') stageId: string,
     @Body() body: { rules: QualificationRule[]; manualOrder?: Record<string, string[]> },
   ) {
-    return this.run(() => this.stages.qualify(stageId, body ?? ({} as any)));
+    return this.run(() => this.stages.qualify(stageId, body ?? ({} as typeof body)));
   }
 
   // --- Admin operations of the LAN day ----------------------------------------------------------------------
@@ -257,7 +257,7 @@ export class TournamentController {
    */
   @Post('matches/format')
   setFormat(@Body() body: { matchIds?: string[]; stageId?: string; bracket?: 'UPPER' | 'LOWER' | 'FINAL'; format: MatchFormat }) {
-    return this.run(() => this.admin.setFormat(body ?? ({} as any)));
+    return this.run(() => this.admin.setFormat(body ?? ({} as typeof body)));
   }
 
   /** Replaces a team in a match not started: { teamId, newTeamId }. */
@@ -272,7 +272,7 @@ export class TournamentController {
     @Param('id') tournamentId: string,
     @Body() body: { homeTeamId: string; awayTeamId: string; format?: MatchFormat; placement?: number; countsInStats?: boolean },
   ) {
-    return this.run(() => this.admin.createBonusMatch(tournamentId, body ?? ({} as any)));
+    return this.run(() => this.admin.createBonusMatch(tournamentId, body ?? ({} as typeof body)));
   }
 
   /** Removes a bonus match not started. */

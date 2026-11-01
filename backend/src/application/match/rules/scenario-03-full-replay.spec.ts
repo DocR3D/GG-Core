@@ -3,7 +3,6 @@ import * as path from 'path';
 import { LiveRule } from './live.rule';
 import type { PauseCommand } from '@app/match/commands/pause.command';
 import { EventTypes } from '@domain/events/event.types';
-import { MatchPhase } from '@domain/phase.types';
 
 describe('Scenario 03 Full Replay - 53-Round 5-Overtime Inferno Match through LiveRule', () => {
   it('replays all 53 rounds of scenario-03 without premature termination and concludes at 25-28 in OT5', async () => {
@@ -17,13 +16,12 @@ describe('Scenario 03 Full Replay - 53-Round 5-Overtime Inferno Match through Li
     const rule = new LiveRule({} as PauseCommand);
     const handler = (rule as any).events.get(EventTypes.TEAM_ROUND_WIN);
 
-    let currentScore = { ct: 0, t: 0, round: 0 };
+    const currentScore = { ct: 0, t: 0, round: 0 };
     let currentSides: { home: 'CT' | 'T'; away: 'CT' | 'T' } = { home: 'CT', away: 'T' };
     let halftimePlayed = false;
     let otCount = 0;
     let matchEnded = false;
     let matchWinner: string | null = null;
-    let currentPhase = MatchPhase.LIVE_MAIN;
 
     const ctx = {
       matchId: 'm-sandbox-1',
@@ -38,9 +36,7 @@ describe('Scenario 03 Full Replay - 53-Round 5-Overtime Inferno Match through Li
           else currentScore.t++;
           currentScore.round = currentScore.ct + currentScore.t;
         }),
-        setPhase: jest.fn().mockImplementation(async (_mid: string, p: MatchPhase) => {
-          currentPhase = p;
-        }),
+        setPhase: jest.fn().mockResolvedValue(undefined),
         swapSides: jest.fn().mockImplementation(async () => {
           const tmp = currentScore.ct;
           currentScore.ct = currentScore.t;
@@ -54,7 +50,6 @@ describe('Scenario 03 Full Replay - 53-Round 5-Overtime Inferno Match through Li
         endMatch: jest.fn().mockImplementation(async (_mid: string, winner: 'CT' | 'T' | null) => {
           matchEnded = true;
           matchWinner = winner;
-          currentPhase = MatchPhase.POSTGAME;
         }),
       },
       state: {

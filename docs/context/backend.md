@@ -134,7 +134,7 @@ Redis ggbot:events
 | Endpoint | Rôle |
 |----------|------|
 | `GET /api/health` | Health check |
-| `POST /cs2/logs` | Reçoit les événements **JSON déjà parsés par l'agent** (NDJSON / tableau / objet), résout matchId, publie Redis. Une ligne de log CS2 brute → 400 |
+| `POST /cs2/logs` | Reçoit les événements **JSON déjà parsés par l'agent** (NDJSON / tableau / objet / `{ events }`, corps lu en texte brut par `main.ts` puis parsé), résout matchId, publie Redis. Une ligne de log CS2 brute → 400. L'agent actuel publie directement dans Redis : cette route sert aux envois HTTP |
 | `GET /api/matches/:id/snapshot` | État complet match |
 | `GET /api/matches/:id/score-with-teams` | Score + équipes |
 | `PATCH /api/matches/:id/teams` | Set noms/IDs équipes |
@@ -248,6 +248,7 @@ CORS REST : origines autorisées via `CORS_ORIGIN` (liste séparée par des virg
 - `match.gateway.ts` - Socket.IO (`/socket.io`), rooms `match:{id}:public` et `match:{id}:admin`. Rôle : jeton JWT du handshake (scripts) ou, à défaut, **cookie de session** (le front React, même origine). Match : `?matchId=` à la connexion (pages de véto) et/ou `match:subscribe { matchId }` / `match:unsubscribe` ensuite ; une connexion sans match est acceptée et ne reçoit rien tant qu'elle ne s'abonne pas
 - `broadcaster.service.ts` - Subscribe `ggbot:events`, mappe vers `InternalEvent`, broadcast WS
 - `socket.auth.guard.ts` - Guard JWT (role: admin/viewer)
+- `ws-socket.ts` - `WsSocket` : connexion Socket.IO avec `socket.data` typé (`role`, `user`, `matchId`)
 - `dto/events.dto.ts` - `WsEventType` + tous les types WS typés
 - Événements admin d'arbitrage : `match:review_required` (Game Over serveur ≠ GG-Core), `match:review_resolved`. Les comptes à rebours (`phase:countdown` / `phase:cancelled`) sont mappés dans les deux graphies (`:` et `_`)
 
@@ -292,6 +293,16 @@ warmup → freeze → live → bomb_planted → end
 - `MatchPhase` → clé `match:{id}:phase` (warmup_knife, live_main, etc.)
 - `RoundPhase` → clé `match:{id}:roundPhase` (freeze, live, bomb_planted, end)
 - **Ces deux clés sont distinctes** - ne pas confondre
+
+## Lint (`backend/eslint.config.mjs`)
+- ESLint 9 + `typescript-eslint` 8, règles **typées** (`recommendedTypeChecked`) : promesses non attendues, `await` d'une
+  valeur non-promesse, variables inutilisées, assertions inutiles… Le formatage reste à Prettier (`.prettierrc`).
+- `any` interdit (et ses usages : `no-unsafe-*`) partout, **sauf** dans une liste de fichiers legacy du moteur de match
+  qui lisent encore les payloads d'événements en `any` (cause : `GenericMatchEvent`, `domain/events/match.event.ts`).
+  On retire un fichier de la liste quand il est typé ; on n'en ajoute jamais.
+- Specs : la famille `any` est permise (mocks partiels) ; elles restent vérifiées par `npm run typecheck`.
+- `_` en préfixe = inutilisé volontairement ; `catch {}` vide = échec ignoré volontairement.
+- `npm run lint:fix` applique les correctifs automatiques.
 
 ## Journal des refus HTTP
 `RequestErrorsInterceptor` (global, `adapters/http/request-errors.interceptor.ts`) : chaque requête refusée est journalisée

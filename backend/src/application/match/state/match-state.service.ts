@@ -80,7 +80,7 @@ export class MatchStateService {
       matchMapId?: string;
     } = {},
   ) {
-    await this.setSides(matchId, { home: opts.home ?? 'CT', away: opts.away ?? 'T' } as CoreSide);
+    await this.setSides(matchId, { home: opts.home ?? 'CT', away: opts.away ?? 'T' });
     await this.initScore(matchId);
     await this.initTimeouts(matchId, opts.homeTac ?? 4, opts.awayTac ?? 4, opts.homeTech ?? 0, opts.awayTech ?? 0);
     if (opts.teams) await this.setTeams(matchId, opts.teams);

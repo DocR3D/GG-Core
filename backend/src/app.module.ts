@@ -15,7 +15,6 @@ import { MatchStateModule } from './application/match-state.module';
 import { PhaseModule } from '@app/match/phase/phase.module';
 import { RulesModule } from './application/match/rules/rules.module';
 import { SubscribersModule } from './application/subscribers/subscribers.module';
-import { AdminModule } from './application/admin.module';
 
 import { HealthController } from './adapters/http/health/health.controller';
 import { AuthModule } from './adapters/http/auth/auth.module';
@@ -37,7 +36,6 @@ import { AuthModule } from './adapters/http/auth/auth.module';
     PhaseModule,
     RulesModule,
     SubscribersModule,
-    AdminModule,
   ],
   controllers: [HealthController],
   // every refused request is logged (method, address, reason)

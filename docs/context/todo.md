@@ -142,11 +142,21 @@ Le cœur moteur de match, l'arbitrage automatisé, le calcul de scores/stats CS2
   créé par `make`, connexion et actions en HTTPS (8443), lecture en HTTP ; inconvénient : avertissement du navigateur
   une fois par poste. Sans avertissement : vrai certificat sur un sous-domaine de gglan.fr (challenge DNS).
 
+### 12 ter. 🛟 Résilience aux coupures réseau (agent ↔ Redis, backend ↔ Redis)
+* **But** : ne perdre aucun événement de match si un agent ou GG-Core est coupé un moment. Détail, cas couverts et
+  manques : `docs/architecture.md` § « Résilience aux coupures ».
+* Backend : lire `ggbot:events_primary:<sid>` (consumer group) à la place du Pub/Sub pour les événements de match.
+* Agent : garder et renvoyer les lots quand Redis est injoignable (aujourd'hui jetés).
+* Agent : clé `ggbot:server:<sid>:currentMatch` ≠ `server:<sid>:currentMatch` du backend (matchId toujours "unknown").
+
 ### 13. 🎥 Overlays OBS (score en direct sur le stream)
 * **Besoin** : pages « source navigateur » pour OBS (score, prochain match, arbre, MVP de la map).
 * **Prévu** : thème `overlay` (`backend/public/css/overlay.css` + `htmlPage({ theme: 'overlay' })`) : fond transparent,
   sans barre du site, 1920×1080 ; une adresse par serveur (`/overlay/server/:serverId/score`) qui suit le match en cours ;
   mise à jour par le WebSocket public, pas par rechargement (seule exception à « pages sans JS »).
+* Audience WebSocket `overlay` (et `team` pour le portail joueur) : `docs/architecture.md` § « Flux d'événements ».
+* V2 : agent CSTV (spectateur du flux GOTV) → télémétrie sur un canal Redis séparé → `events_secondary` → replay 2D en
+  fin de partie (pas de positions en direct : pas de délai à gérer).
 
 ### 14. 🎨 Page charte du design
 * Une page qui montre tous les éléments (titres, tableaux, boutons, formulaires, bloc ASCII, classes du vocabulaire de

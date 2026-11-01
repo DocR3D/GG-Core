@@ -68,7 +68,7 @@ export class TeamPlacementService {
     const where: Record<string, { side: string; name: string }> = {};
     for (const [id, v] of Object.entries(raw ?? {})) {
       try {
-        where[id] = JSON.parse(v);
+        where[id] = JSON.parse(v) as { side: string; name: string };
       } catch {
         /* ignore a broken entry */
       }

@@ -60,7 +60,7 @@ export async function verifySteamAssertion(
   check: CheckAuthentication = checkWithSteam,
   now = Date.now(),
 ): Promise<string | null> {
-  const get = (k: string) => (typeof query[k] === 'string' ? (query[k] as string) : '');
+  const get = (k: string) => (typeof query[k] === 'string' ? (query[k]) : '');
   if (get('openid.mode') !== 'id_res') return null;
   if (get('openid.op_endpoint') !== STEAM_OPENID_ENDPOINT) return null;
   if (!get('openid.return_to').startsWith(expectedReturnTo)) return null;

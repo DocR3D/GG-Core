@@ -16,6 +16,7 @@ import {
   VetoFormat,
   VetoKind,
   vetoState,
+  VetoState,
   VetoTeam,
 } from '@domain/tournament/veto';
 import { TournamentError } from './tournament-stages.service';
@@ -129,7 +130,7 @@ export class VetoService {
   async getTournamentConfig(tournamentId: string): Promise<VetoConfig | null> {
     const t = await this.prisma.tournament.findUnique({ where: { id: this.uuid(tournamentId, 'tournament') } });
     if (!t) throw new TournamentError('not_found', 'tournament not found');
-    const raw = (t.settings as any)?.veto;
+    const raw = (t.settings as { veto?: Partial<VetoConfig> } | null)?.veto;
     if (!raw) return null;
     try {
       return validateVetoConfig(raw);
@@ -252,8 +253,8 @@ export class VetoService {
         ? { kind: 'side', team: this.letter(next.teamId, startTeamId), map: next.map!, side: input.side as Side }
         : { kind: next.kind, team: this.letter(next.teamId, startTeamId), map: input.map?.trim() ?? '' };
     const config = this.config(match)!;
-    const format = match.format as VetoFormat;
-    let after;
+    const format = match.format;
+    let after: VetoState;
     try {
       after = vetoState(config, format, [...this.done(match), step]);
     } catch (e) {
@@ -439,7 +440,7 @@ export class VetoService {
     const home = match.teamHome;
     const away = match.teamAway;
     const config = this.config(match);
-    const format = match.format as VetoFormat;
+    const format = match.format;
     const captain = (teamId?: string) =>
       match.tournament.rosters.find((r) => r.teamId === teamId)?.player.username ?? null;
     const base: VetoView = {
@@ -511,7 +512,7 @@ export class VetoService {
 
     const start = match.vetoStartTeamId;
     const teamOf = (t: VetoTeam) => (t === 'A' ? start : this.opponent(match, start));
-    let state;
+    let state: VetoState;
     try {
       state = vetoState(config, format, this.done(match));
     } catch (e) {
@@ -523,7 +524,7 @@ export class VetoService {
       teamId: v.teamId!,
       kind: ACTION_TO_KIND[v.action]!,
       map: v.mapName,
-      ...(v.sidePick ? { side: v.sidePick as Side } : {}),
+      ...(v.sidePick ? { side: v.sidePick } : {}),
       actedBy: v.actedBy,
       at: v.createdAt,
     }));
@@ -552,13 +553,14 @@ export class VetoService {
       kind: ACTION_TO_KIND[v.action]!,
       team: this.letter(v.teamId!, start),
       map: v.mapName,
-      ...(v.sidePick ? { side: v.sidePick as Side } : {}),
+      ...(v.sidePick ? { side: v.sidePick } : {}),
     }));
   }
 
   private config(match: VetoMatch): VetoConfig | null {
-    const fromStage = (match.stageRef?.settings as any)?.veto;
-    const fromTournament = (match.tournament.settings as any)?.veto;
+    const vetoOf = (settings: unknown) => (settings as { veto?: Partial<VetoConfig> } | null)?.veto;
+    const fromStage = vetoOf(match.stageRef?.settings);
+    const fromTournament = vetoOf(match.tournament.settings);
     const raw = fromStage ?? fromTournament;
     if (!raw) return null;
     try {

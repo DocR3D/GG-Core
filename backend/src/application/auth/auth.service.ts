@@ -78,7 +78,7 @@ export class AuthService {
     if (!raw) return null;
     try {
       const p = jwt.verify(decodeURIComponent(raw), this.secret()) as jwt.JwtPayload & Session;
-      return { sub: p.sub!, role: p.role, name: p.name, via: p.via };
+      return { sub: p.sub, role: p.role, name: p.name, via: p.via };
     } catch {
       return null;
     }

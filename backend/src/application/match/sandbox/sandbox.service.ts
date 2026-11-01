@@ -6,17 +6,17 @@ import * as fs from 'fs';
 import { REDIS_CMD, REDIS_PUB } from '@adapters/redis/redis.tokens';
 import { redisConst, REDIS_CHANNELS } from '../state/redis.keys';
 import { MatchStateService } from '../state/match-state.service';
-import { SidesScoreService, type CoreSide, type Logical } from '../state/sides-score.service';
+import { SidesScoreService, type Logical } from '../state/sides-score.service';
 import { SnapshotQuery } from '../state/snapshot.query';
 import { MatchCommandsService } from '@app/commands/match-commands.service';
 import { WsBroadcaster } from '@adapters/ws/broadcaster.service';
 import { EventsRouterSubscriber } from '@app/subscribers/events-router.consumer';
-import { MatchPhase, Phase, RoundPhase } from '@domain/phase.types';
+import { MatchPhase } from '@domain/phase.types';
 import { MatchSettings } from '@domain/match-settings.types';
 import { CS2_CFG, CS2_RULES, CS2_RCON_COMMANDS } from '@domain/rules/rules.constants';
-import { GameSide, normalizeSide } from '@domain/side.types';
+import { normalizeSide } from '@domain/side.types';
 import { EventTypes } from '@domain/events/event.types';
-import { RoundBackupService, ValveBackupOptions, ValveBackupPlayer } from '../backup/round-backup.service';
+import { RoundBackupService } from '../backup/round-backup.service';
 import { cleanContainerLogPrefix, parseCs2LineFallback } from '@app/parser/cs2-log-parser.fallback';
 import {
   InjectStateDto,
@@ -164,7 +164,7 @@ export class SandboxService {
   /**
    * Injecte directement un état complet dans Redis et diffuse l'événement WebSocket aux clients
    */
-  async injectState(dto: InjectStateDto): Promise<any> {
+  async injectState(dto: InjectStateDto) {
     const mid = dto.matchId.trim();
     if (!mid) throw new BadRequestException('matchId est requis');
 
@@ -195,7 +195,7 @@ export class SandboxService {
 
     // 4. Phase globale & RoundPhase
     if (dto.phase) {
-      await this.state.setPhase(mid, dto.phase as Phase);
+      await this.state.setPhase(mid, dto.phase);
       if ((dto.phase === MatchPhase.WARMUP_MAIN || dto.phase === MatchPhase.KNIFE_WARMUP) && dto.serverId) {
         await this.cmds.exec({ serverId: dto.serverId, matchId: mid, cfgName: CS2_CFG.WARMUP })
           .catch((e) => this.logger.warn(`Warmup cfg failed: ${e.message}`));
@@ -256,8 +256,8 @@ export class SandboxService {
     // 8. Roster & Players
     if (dto.players && dto.players.length > 0) {
       for (const p of dto.players) {
-        const side = normalizeSide(p.side as GameSide);
-        const logical: Logical = (p.teamLogical || (await this.state.sideToLogical(mid, side)) || 'home') as Logical;
+        const side = normalizeSide(p.side);
+        const logical: Logical = (p.teamLogical || (await this.state.sideToLogical(mid, side)) || 'home');
         await this.state.upsertPlayer(mid, {
           steamId: p.steamId,
           name: p.name,
@@ -382,8 +382,8 @@ export class SandboxService {
     // - Overtime MR3 : alterne toutes les 3 manches
     const isTeam1Ct = this.isTeam1OnCt(round);
 
-    let playersCt = dto.playersCt ?? (isTeam1Ct ? dto.playersTeam1 : dto.playersTeam2) ?? [];
-    let playersT = dto.playersT ?? (isTeam1Ct ? dto.playersTeam2 : dto.playersTeam1) ?? [];
+    const playersCt = dto.playersCt ?? (isTeam1Ct ? dto.playersTeam1 : dto.playersTeam2) ?? [];
+    const playersT = dto.playersT ?? (isTeam1Ct ? dto.playersTeam2 : dto.playersTeam1) ?? [];
 
     // Calculer le nombre de joueurs en vie pour le VDF (minimum 1 pour éviter que CS2 ne force les joueurs en état mort)
     const playersAliveCT = Math.max(1, playersCt.length);
@@ -587,7 +587,7 @@ export class SandboxService {
   /**
    * Récupère le snapshot complet d'un match
    */
-  async getState(matchId: string): Promise<any> {
+  async getState(matchId: string) {
     return this.snapshotQ.getSnapshot(matchId);
   }
 
@@ -804,7 +804,7 @@ export class SandboxService {
     }
     for (const chunk of session.chunks.slice(session.cursor, target)) {
       if (session.kind === 'scenario') {
-        await this.sendScenarioEvents(chunk.items as any[], session.matchId, session.serverId, 'instant');
+        await this.sendScenarioEvents(chunk.items, session.matchId, session.serverId, 'instant');
       } else {
         await this.sendRawLines(chunk.items as string[], session.matchId, session.serverId, 'instant');
       }
@@ -1045,7 +1045,7 @@ type RoundReplaySession = {
   matchId: string;
   serverId: string;
   settings: Partial<MatchSettings>;
-  chunks: RoundChunk<string | any>[];
+  chunks: RoundChunk<unknown>[];
   /** Nombre de rounds déjà joués (0 = aucun) */
   cursor: number;
 };

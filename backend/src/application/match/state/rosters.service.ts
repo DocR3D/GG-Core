@@ -39,7 +39,7 @@ export class TeamsRosterService {
     try {
       const h = await this.redis.hgetall(key);
       if (h && Object.keys(h).length > 0) {
-        return h as TeamsDoc;
+        return h;
       }
     } catch {
       // Fallback si la clé était encore une String JSON

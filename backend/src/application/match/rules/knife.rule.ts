@@ -1,6 +1,6 @@
 // src/domain/rules/knife.rule.ts
 import { BaseRule, PhaseRule, RuleContext } from '@domain/rules';
-import { EventTypes, type EventType } from '@domain/events/event.types';
+import { EventTypes } from '@domain/events/event.types';
 import type { KillEvent, TeamRoundWinEvent } from '@domain/events/match.event';
 import type { Logical } from '@app/match/state/sides-score.service';
 import { MatchPhase } from '@domain/phase.types';
@@ -8,7 +8,6 @@ import { Logger } from '@nestjs/common';
 import { CS2_CFG } from '@domain/rules/rules.constants';
 import { isNonPlayingSide } from '@domain/side.types';
 
-type TeamSide = 'CT' | 'T';
 type SteamId = string;
 
 type KnifeState = {
@@ -23,12 +22,6 @@ export class KnifeRule extends BaseRule implements PhaseRule {
   name = 'knife_live' as const;
   private readonly logger = new Logger(KnifeRule.name);
 
-  publicTypes = new Set<EventType>([
-    EventTypes.KILL,
-    EventTypes.TEAM_ROUND_WIN,
-    'match:state' as EventType,
-    'pause:update' as EventType,
-  ]);
 
   private state = new Map<string, KnifeState>();
 
@@ -52,9 +45,7 @@ export class KnifeRule extends BaseRule implements PhaseRule {
     if (!serverId) throw new Error(`Aucun serveur lié au match ${ctx.matchId}`);
 
     await ctx.orch.execCfg({ serverId, matchId: ctx.matchId}, CS2_CFG.KNIFE);
-    if (typeof (ctx.orch as any).resetReady === "function") {
-      await (ctx.orch as any).resetReady(ctx.matchId);
-    }
+    await ctx.orch.resetReady(ctx.matchId);
     await ctx.say('[knife] Knife round begins!');
     await ctx.orch.push(ctx.matchId, 'match:state', await ctx.state.getSnapshot(ctx.matchId));
   }
@@ -71,8 +62,8 @@ export class KnifeRule extends BaseRule implements PhaseRule {
     const killed = this.extractVictim(ev);
     if (!killed) return;
     // Ignorer les faux kills (redémarrage de map ou entités sans steamId / non-joueurs)
-    if (!killed.steamId || isNonPlayingSide(killed.team as string)) return;
-    const side = this.toTeamSide(killed.team as any);
+    if (!killed.steamId || isNonPlayingSide(killed.team)) return;
+    const side = this.toTeamSide(killed.team);
     if (!side) {
       await ctx.say(`[knife][warn] team inconnu pour ${killed.name}: ${side}`);
       return;
@@ -97,7 +88,7 @@ private async onTeamRoundWin(ev: TeamRoundWinEvent, ctx: RuleContext) {
 
   // Si pas d'état en mémoire (rare), fallback sur l'event brut
   if (!st) {
-    const winnerFromEvent = this.toTeamSide((ev.payload as any)?.winner);
+    const winnerFromEvent = this.toTeamSide(ev.payload?.winner);
     if (!winnerFromEvent) {
       await ctx.say('[knife][error] winner introuvable dans payload et aucun état en mémoire');
       return;
@@ -118,7 +109,7 @@ private async onTeamRoundWin(ev: TeamRoundWinEvent, ctx: RuleContext) {
 
   // Égalité parfaite → fallback sur l'event brut
   if (st.deathsAway.size === st.deathsHome.size) {
-    const sideFromEvent = this.toTeamSide((ev.payload as any)?.winner);
+    const sideFromEvent = this.toTeamSide(ev.payload?.winner);
     if (sideFromEvent) {
       const logicalFromEvent = await ctx.orch.sideToLogical(ev.matchId, sideFromEvent);
       if (logicalFromEvent) winnerLogical = logicalFromEvent;
@@ -126,12 +117,12 @@ private async onTeamRoundWin(ev: TeamRoundWinEvent, ctx: RuleContext) {
   }
 
   // Convertit le gagnant logique en côté physique 'CT' | 'T'
-  let winnerSide = await ctx.orch.logicalToSide(ev.matchId, winnerLogical);
+  const winnerSide = await ctx.orch.logicalToSide(ev.matchId, winnerLogical);
   if(winnerSide == undefined) return;
   await ctx.say(
     `[knife] Gagnant knife: ${winnerSide} (homeDeaths=${st.deathsHome.size}, awayDeaths=${st.deathsAway.size})`,
   );
-  let winSide = this.toTeamSide(winnerSide)
+  const winSide = this.toTeamSide(winnerSide)
   if(winSide == undefined) return;
 
   try {
@@ -158,10 +149,10 @@ private async onTeamRoundWin(ev: TeamRoundWinEvent, ctx: RuleContext) {
   }
 
   // Verrouille et nettoie l'état pour éviter des doubles traitements
-  (st as any).finished = true;
+  st.finished = true;
   this.state.delete(ev.matchId);
   if(!ctx.serverId) ctx.serverId = await ctx.state.getServerIdFromMatchId(ev.matchId)
-  if(ctx.serverId) ctx.orch.startWarmup(ctx.serverId);
+  if (ctx.serverId) await ctx.orch.startWarmup(ctx.serverId);
   try {
     await ctx.orch.startPhaseCountdown(ev.matchId, MatchPhase.KNIFE_CHOICE, 0, serverId);
   } catch (e) {

@@ -233,7 +233,7 @@ export type LobbyRemove = {
 };
 export type LobbyAdminDebug = {
   type: 'matches:debug';
-  payload: any;
+  payload: unknown;
 };
 
 export type LobbyEvent = LobbyUpsert | LobbyRemove;
@@ -344,7 +344,7 @@ export type RawLogEvent = BaseWsEvent<'log:raw', RawLogPayload>;
 export interface AgentActionPayload {
   action: 'pause'|'unpause'|'knife'|'restart'|'tac_timeout'|'tech_timeout'|'start';
   source: { via: 'chat'|'api'|'system'; player?: { name:string; steamId?:string; team?:TeamSide; channel?: 'say'|'say_team' } };
-  payload?: any;
+  payload?: unknown;
 }
 export type AgentActionEvent = BaseWsEvent<'agent:action', AgentActionPayload>;
 

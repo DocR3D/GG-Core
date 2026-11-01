@@ -2,6 +2,7 @@
 import { Inject, Injectable, Logger } from '@nestjs/common';
 import type Redis from 'ioredis';
 import { REDIS_CMD } from './redis.tokens';
+import { errorMessage } from '@app/shared/error-message';
 
 @Injectable()
 export class RedisSafeService {
@@ -19,23 +20,23 @@ export class RedisSafeService {
 
   async hgetall(key: string) {
     try { return await this.r.hgetall(key); }
-    catch (e:any) { await this.logType('hgetall', key, e); throw e; }
+    catch (e) { await this.logType('hgetall', key, e); throw e; }
   }
-  async hset(key: string, obj: Record<string, any>) {
+  async hset(key: string, obj: Record<string, string | number>) {
     try { return await this.r.hset(key, obj); }
-    catch (e:any) { await this.logType('hset', key, e); throw e; }
+    catch (e) { await this.logType('hset', key, e); throw e; }
   }
   async get(key: string) {
     try { return await this.r.get(key); }
-    catch (e:any) { await this.logType('get', key, e); throw e; }
+    catch (e) { await this.logType('get', key, e); throw e; }
   }
   async set(key: string, val: string) {
     try { return await this.r.set(key, val); }
-    catch (e:any) { await this.logType('set', key, e); throw e; }
+    catch (e) { await this.logType('set', key, e); throw e; }
   }
 
-  private async logType(op: string, key: string, e: any) {
+  private async logType(op: string, key: string, e: unknown) {
     const t = await this.r.type(key).catch(()=> 'err');
-    this.logger.error(`[redis:${op}] key=${key} type=${t} err=${e?.message}`);
+    this.logger.error(`[redis:${op}] key=${key} type=${t} err=${errorMessage(e)}`);
   }
 }

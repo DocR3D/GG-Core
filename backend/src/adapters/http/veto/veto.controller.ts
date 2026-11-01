@@ -22,6 +22,9 @@ import { renderVetoPage } from '@app/tournament/veto-view';
 import { RealtimeEmitter } from '@adapters/ws/ws-emitter.internal';
 import type { VetoUpdatedWsEvent } from '@adapters/ws/dto/events.dto';
 
+/** A veto action, from the page's form (strings, _form = "1") or as JSON. */
+type VetoBody = { _form?: string; _page?: string; choice?: string; first?: boolean | string; teamId?: string; map?: string; side?: string } | undefined;
+
 type SessionRequest = Request & { ggSession?: Session | null };
 
 /**
@@ -59,32 +62,32 @@ export class VetoController {
   }
 
   @Post(':matchId/rps')
-  rps(@Param('matchId') id: string, @Body() body: Record<string, any>, @Req() req: SessionRequest, @Res({ passthrough: true }) res: Response) {
-    return this.act(id, body, req, res, (actor) => this.veto.playRps(id, actor, body?.choice));
+  rps(@Param('matchId') id: string, @Body() body: VetoBody, @Req() req: SessionRequest, @Res({ passthrough: true }) res: Response) {
+    return this.act(id, body, req, res, (actor) => this.veto.playRps(id, actor, body?.choice ?? ''));
   }
 
   @Post(':matchId/start')
-  start(@Param('matchId') id: string, @Body() body: Record<string, any>, @Req() req: SessionRequest, @Res({ passthrough: true }) res: Response) {
+  start(@Param('matchId') id: string, @Body() body: VetoBody, @Req() req: SessionRequest, @Res({ passthrough: true }) res: Response) {
     const first = body?.first === undefined ? undefined : body.first === true || body.first === 'true';
     return this.act(id, body, req, res, (actor) => this.veto.chooseStart(id, actor, { first, teamId: body?.teamId }));
   }
 
   @Post(':matchId/step')
-  step(@Param('matchId') id: string, @Body() body: Record<string, any>, @Req() req: SessionRequest, @Res({ passthrough: true }) res: Response) {
+  step(@Param('matchId') id: string, @Body() body: VetoBody, @Req() req: SessionRequest, @Res({ passthrough: true }) res: Response) {
     return this.act(id, body, req, res, (actor) => this.veto.playStep(id, actor, { map: body?.map, side: body?.side }));
   }
 
   @Post(':matchId/undo')
-  undo(@Param('matchId') id: string, @Body() body: Record<string, any>, @Req() req: SessionRequest, @Res({ passthrough: true }) res: Response) {
+  undo(@Param('matchId') id: string, @Body() body: VetoBody, @Req() req: SessionRequest, @Res({ passthrough: true }) res: Response) {
     return this.act(id, body, req, res, (actor) => this.veto.undo(id, actor));
   }
 
   @Post(':matchId/reset')
-  reset(@Param('matchId') id: string, @Body() body: Record<string, any>, @Req() req: SessionRequest, @Res({ passthrough: true }) res: Response) {
+  reset(@Param('matchId') id: string, @Body() body: VetoBody, @Req() req: SessionRequest, @Res({ passthrough: true }) res: Response) {
     return this.act(id, body, req, res, (actor) => this.veto.reset(id, actor));
   }
 
-  private async act<T>(id: string, body: Record<string, any>, req: SessionRequest, res: Response, fn: (actor: VetoActor) => Promise<T>) {
+  private async act<T>(id: string, body: VetoBody, req: SessionRequest, res: Response, fn: (actor: VetoActor) => Promise<T>) {
     const actor = actorOf(req.ggSession);
     if (!actor) throw new HttpException({ statusCode: 401, message: 'authentication required (Sign in through Steam on /login)' }, 401);
     if (body?._form !== '1') {
@@ -99,7 +102,8 @@ export class VetoController {
       await this.broadcast(id);
       res.redirect(303, page);
     } catch (e) {
-      const message = e instanceof HttpException ? String((e.getResponse() as any)?.message ?? e.message) : 'unexpected error';
+      const reason = e instanceof HttpException ? (e.getResponse() as { message?: unknown })?.message : undefined;
+      const message = typeof reason === 'string' ? reason : e instanceof HttpException ? e.message : 'unexpected error';
       res.redirect(303, `${page}?error=${encodeURIComponent(message)}`);
     }
   }

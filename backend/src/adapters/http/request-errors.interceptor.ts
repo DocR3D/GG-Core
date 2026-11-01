@@ -30,5 +30,6 @@ export class RequestErrorsInterceptor implements NestInterceptor {
 function describe(response: string | object): string {
   if (typeof response === 'string') return response;
   const message = (response as { message?: unknown }).message;
-  return Array.isArray(message) ? message.join('; ') : String(message ?? JSON.stringify(response));
+  if (Array.isArray(message)) return message.join('; ');
+  return typeof message === 'string' ? message : JSON.stringify(response);
 }

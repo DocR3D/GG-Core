@@ -13,7 +13,7 @@ export class PostgameRule extends BaseRule implements PhaseRule {
 
   async onExit(_: RuleContext) {}
 
-  async say(_rct: RuleContext): Promise<SaySpec> {
-    return [];
+  say(_ctx: RuleContext): Promise<SaySpec> {
+    return Promise.resolve([]);
   }
 }

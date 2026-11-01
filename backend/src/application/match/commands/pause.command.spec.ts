@@ -159,17 +159,12 @@ describe('TC-03 - PauseCommand : phase live_main', () => {
     const cmd = makeCmd(pauseService);
     const ctx = makeCtx();
 
-    const result = await cmd.handle(makePauseEvent('pause', 'CT'), {
-      ...ctx,
-      // overwrite sender team via event
-    } as any);
-
     // On override le payload directement
     const spectatorEvent = {
       ...makePauseEvent('pause'),
       payload: { command: 'pause', parameters: [], sender: { name: 'obs', steamId: '', team: 'SPECTATOR' } },
     };
-    const res = await cmd.handle(spectatorEvent as any, ctx);
+    const res = await cmd.handle(spectatorEvent, ctx);
     expect(res).toBe(false);
   });
 

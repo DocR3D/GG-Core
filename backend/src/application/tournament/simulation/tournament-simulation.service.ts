@@ -8,6 +8,7 @@ import { PrismaService } from '@adapters/database/prisma.service';
 import { ManualResultError, TournamentPersistenceService } from '@adapters/database/tournament-persistence.service';
 import { DoubleElimFormats, QualificationRule, TournamentError, TournamentStagesService } from '../tournament-stages.service';
 import { fakeGameStats, fakePlayerNames, fakeTeamNames, hashSeed, Random, seededRandom } from './fake-data';
+import { errorMessage } from '@app/shared/error-message';
 
 /** A fake tournament, as in test/fixtures/tournaments/*.json */
 export interface TournamentScenario {
@@ -168,7 +169,7 @@ export class TournamentSimulationService {
       if (e instanceof Stopped) run.status = 'stopped';
       else {
         run.status = 'error';
-        run.error = e?.message ?? String(e);
+        run.error = errorMessage(e);
         this.log.error(`[simulation] ${run.name}: ${run.error}`);
       }
       run.finishedAt = new Date();
@@ -225,7 +226,7 @@ export class TournamentSimulationService {
       teams: teamCount,
       stages: [
         { key: 'groups', name: 'Poules', type: 'ROUND_ROBIN', order: 1, groupCount, format: opts.groupFormat ?? 'BO1' },
-        ...brackets.map((b, i) => ({ key: b.key, name: b.name, type: 'DOUBLE_ELIM' as StageType, order: i + 2, formats: opts.bracketFormats })),
+        ...brackets.map((b, i) => ({ key: b.key, name: b.name, type: 'DOUBLE_ELIM' as const, order: i + 2, formats: opts.bracketFormats })),
       ],
       qualify: brackets.length ? { from: 'groups', rules: brackets.map((b) => ({ ranks: b.ranks, to: b.key })) } : undefined,
       // random: 50/50 whatever the seeds
@@ -293,7 +294,7 @@ export class TournamentSimulationService {
         if (e instanceof Stopped) run.status = 'stopped';
         else {
           run.status = 'error';
-          run.error = e?.message ?? String(e);
+          run.error = errorMessage(e);
           this.log.error(`[sandbox] ${run.name}: ${run.error}`);
         }
         run.finishedAt = new Date();
@@ -419,7 +420,7 @@ export class TournamentSimulationService {
       await this.prisma.match.updateMany({ where: { id: match.id, status: 'PENDING' }, data: { status: 'LIVE' } });
       await this.wait(run);
 
-      let game;
+      let game: { id: string };
       try {
         ({ game } = await this.persistence.recordManualGameResult({
           matchId: match.id, mapOrder: order, scoreHome, scoreAway, mapName, reportedBy: SIM_AUTHOR,
@@ -431,7 +432,8 @@ export class TournamentSimulationService {
       }
       if (players.size) await this.recordFakeStats(rnd, game.id, match, scoreHome, scoreAway, players);
       run.gamesPlayed++;
-      homeWins ? home++ : away++;
+      if (homeWins) home++;
+      else away++;
     }
     run.seriesPlayed++;
   }
@@ -498,7 +500,7 @@ export class TournamentSimulationService {
     if (!dir || !name || !fs.existsSync(path.join(dir, name))) {
       throw new TournamentError('not_found', `scenario ${fixtureName ?? '(none)'} not found in test/fixtures/tournaments`);
     }
-    return JSON.parse(fs.readFileSync(path.join(dir, name), 'utf8'));
+    return JSON.parse(fs.readFileSync(path.join(dir, name), 'utf8')) as TournamentScenario;
   }
 
   private scenariosDir(): string | null {

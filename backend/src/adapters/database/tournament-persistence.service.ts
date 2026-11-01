@@ -1,6 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from './prisma.service';
-import { VetoAction, TeamSide, ResultSource, ResultStatus } from '@prisma/client';
+import { Prisma, VetoAction, TeamSide, ResultSource, ResultStatus } from '@prisma/client';
 
 export interface ResolvePlayerInput {
   steamId?: string | null;
@@ -162,7 +162,7 @@ export class TournamentPersistenceService {
   async recordEventLog(
     matchMapId: string | null,
     type: string,
-    payload: any,
+    payload: Prisma.InputJsonValue | null | undefined,
     timestamp: number = Date.now(),
     ref: EventRef = {},
   ) {
@@ -447,7 +447,7 @@ export class TournamentPersistenceService {
     mapName?: string;
     reportedBy: string;
   }) {
-    if (!isUuid(input.matchId)) throw new ManualResultError('not_found', `match ${input.matchId} not found`);
+    if (!isUuid(input.matchId)) throw new ManualResultError('not_found', 'match not found'); // the id is in the logged address
     const match = await this.prisma.match.findUnique({ where: { id: input.matchId } });
     if (!match) throw new ManualResultError('not_found', `match ${input.matchId} not found`);
     if (match.status === 'FINISHED') throw new ManualResultError('finished', 'series already finished');
@@ -493,7 +493,7 @@ export class TournamentPersistenceService {
    * A group match is refused once its stage is qualified (the standings already sent teams on).
    */
   async correctGameResult(input: { matchId: string; mapOrder: number; scoreHome: number; scoreAway: number; reportedBy: string }) {
-    if (!isUuid(input.matchId)) throw new ManualResultError('not_found', `match ${input.matchId} not found`);
+    if (!isUuid(input.matchId)) throw new ManualResultError('not_found', 'match not found'); // the id is in the logged address
     const match = await this.prisma.match.findUnique({
       where: { id: input.matchId },
       include: { maps: true, nextMatch: { include: { maps: true } }, loserNextMatch: { include: { maps: true } }, stageRef: true },

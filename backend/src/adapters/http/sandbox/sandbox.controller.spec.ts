@@ -1,6 +1,5 @@
 // src/adapters/http/sandbox/sandbox.controller.spec.ts
 import { SandboxController } from './sandbox.controller';
-import { SandboxService } from '@app/match/sandbox/sandbox.service';
 
 describe('SandboxController', () => {
   let controller: SandboxController;
@@ -34,7 +33,7 @@ describe('SandboxController', () => {
       }),
     };
 
-    controller = new SandboxController(mockService as unknown as SandboxService);
+    controller = new SandboxController(mockService);
   });
 
   it('devrait être défini', () => {

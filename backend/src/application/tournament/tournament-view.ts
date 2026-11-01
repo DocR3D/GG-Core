@@ -311,7 +311,7 @@ export function renderBracketTree(
   const colX = (m: ViewMatch) => rounds.indexOf(m.round) * (cellWidth + gap);
   const height = Math.max(...[...y.values()]) + 2;
   const width = rounds.length * (cellWidth + gap);
-  const grid: string[][] = Array.from({ length: height }, () => Array(width).fill(' '));
+  const grid: string[][] = Array.from({ length: height }, () => Array<string>(width).fill(' '));
   const put = (row: number, col: number, text: string) => {
     for (let i = 0; i < text.length && col + i < width; i++) if (row >= 0 && row < height) grid[row][col + i] = text[i];
   };

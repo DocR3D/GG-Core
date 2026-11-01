@@ -26,7 +26,7 @@ export class PhaseEventsHandler {
     const oldRule  = this.registry.getRule(oldPhase);
 
     if (oldRule?.onExit) {
-      const ctxOld = await this.ctxFactory.make({ matchId: ev.matchId, serverId: ev.serverId });
+      const ctxOld = this.ctxFactory.make({ matchId: ev.matchId, serverId: ev.serverId });
       await oldRule.onExit(ctxOld);
     }
 
@@ -40,7 +40,7 @@ export class PhaseEventsHandler {
 
     const newRule = this.registry.getRule(newPhase as MatchPhase);
     if (newRule?.onEnter) {
-      const ctxNew = await this.ctxFactory.make({ matchId: ev.matchId, serverId: ev.serverId });
+      const ctxNew = this.ctxFactory.make({ matchId: ev.matchId, serverId: ev.serverId });
       this.logger.debug(`[PhaseEventsHandler] enter phase=${newPhase} match=${ev.matchId}`);
       await newRule.onEnter(ctxNew);
     }

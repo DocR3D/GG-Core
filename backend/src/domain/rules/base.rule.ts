@@ -11,7 +11,6 @@ export interface PhaseRule {
   handle(ev: AnyEvent, ctx: RuleContext): Promise<void>;
   canHandleCommand?(cmd: string): boolean;
   handleCommand?(cmd: CommandEvent, ctx: RuleContext): Promise<void>;
-  publicTypes?: ReadonlySet<EventType>;
   onEnter?(ctx: RuleContext): Promise<void>;
   onExit?(ctx: RuleContext): Promise<void>;
 }
@@ -21,7 +20,7 @@ export abstract class BaseRule implements PhaseRule {
   protected readonly commands = new Map<string, (cmd: CommandEvent, ctx: RuleContext) => Promise<void>>();
   async say?(rct: RuleContext): Promise<SaySpec>;
   canHandle(t: EventType) { return this.events.has(t); }
-  async handle(ev: AnyEvent, ctx: RuleContext) { const f = this.events.get(ev.type); if (f) await f(ev as any, ctx); }
+  async handle(ev: AnyEvent, ctx: RuleContext) { const f = this.events.get(ev.type); if (f) await f(ev, ctx); }
   canHandleCommand(cmd: string) {
     const clean = normalizeChatCommand(cmd);
     return this.commands.has(clean) || this.commands.has(cmd);

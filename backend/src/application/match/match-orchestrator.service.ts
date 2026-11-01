@@ -21,6 +21,7 @@ import { RuleContext } from '@domain/rules';
 import { TournamentPersistenceService, isUuid } from '@adapters/database/tournament-persistence.service';
 import { MatchAccess, MatchAccessService } from './access/match-access.service';
 import { TeamPlacementService } from './access/team-placement.service';
+import { errorMessage } from '@app/shared/error-message';
 
 type ResumeMeta = { source?: 'expired' | 'admin' | 'chat'; reason?: 'tactical'|'technical'|'admin' };
 
@@ -73,7 +74,7 @@ export class MatchOrchestrator {
     this.disarmAutoUnpause(matchId); // idempotent
     const delayMs = Math.max(0, Math.floor(seconds)) * 1000;
 
-    const t = setTimeout(async () => {
+    const t = setTimeout(() => void (async () => {
       try {
         const st = await this.pause.getPauseState(matchId); // { state, reason, team, startedAt, tacBankHome, tacBankAway }
 
@@ -93,9 +94,10 @@ export class MatchOrchestrator {
         // Banque à 0 → orchestrer la reprise (annule périodiques via PauseMatchService.resume)
         await this.resume({ matchId, serverId }, { source: 'expired', reason: 'tactical' });
       } catch (e) {
-        // log si tu veux; on ne relance pas pour éviter boucle en échec
+        // not re-armed: a failing resume would loop
+        this.log.warn(`auto-unpause failed match=${matchId}: ${String(e)}`);
       }
-    }, delayMs);
+    })(), delayMs).unref();
 
     this.autoTimers.set(matchId, t);
   }
@@ -106,7 +108,7 @@ export class MatchOrchestrator {
     this.autoTimers.delete(matchId);
   }
 
-  private async notify(type: string, payload: any) {
+  private async notify(type: string, payload: Record<string, unknown>) {
     await this.pub.publish(REDIS_CHANNELS.EVENTS, JSON.stringify({ v: 1, type, timestamp: Date.now(), ...payload }));
   }
 
@@ -152,7 +154,7 @@ export class MatchOrchestrator {
       const duration = res.pick.req.durationSec ?? (reason === 'tactical' ? 30 : 60);
 
       // 1) Appliquer la pause côté état + messages périodiques
-      await this.pause.pause(ev.matchId, ev.serverId!, {
+      await this.pause.pause(ev.matchId, ev.serverId, {
         reason,
         team: res.pick.team,
         durationSec: duration,
@@ -166,7 +168,7 @@ export class MatchOrchestrator {
       // 3) Auto-unpause si pause tactique
       if (reason === 'tactical' && res.pick.team !== 'system') {
         const bank = await this.pause.getTacBank(ev.matchId, res.pick.team);
-        this.armAutoUnpause(ev.matchId, ev.serverId!, bank);
+        this.armAutoUnpause(ev.matchId, ev.serverId, bank);
       }
     }
   }
@@ -213,7 +215,7 @@ export class MatchOrchestrator {
   async push(
     matchId: string,
     wsEventType: WsEventType,
-    payload: any,
+    payload: unknown,
     audience?: Audience,
   ) {
     await this.ws.push(matchId, wsEventType, payload, audience);
@@ -231,9 +233,9 @@ export class MatchOrchestrator {
   onServerGameOver(matchId: string, serverId: string | undefined, serverScore: { ct: number; t: number }) {
     setTimeout(() => {
       this.checkServerGameOver(matchId, serverId, serverScore).catch((e) =>
-        this.log.warn(`[gameOver] check failed for ${matchId}: ${e?.message}`),
+        this.log.warn(`[gameOver] check failed for ${matchId}: ${errorMessage(e)}`),
       );
-    }, MatchOrchestrator.GAME_OVER_SETTLE_MS);
+    }, MatchOrchestrator.GAME_OVER_SETTLE_MS).unref(); // unref: a pending timer alone does not keep the process up
   }
 
   async checkServerGameOver(matchId: string, serverId: string | undefined, serverScore: { ct: number; t: number }) {
@@ -339,7 +341,7 @@ export class MatchOrchestrator {
     return this.phase.isBothReady(matchId);
   }
 
-  setReady(matchId: string, team: any, ready: boolean) {
+  setReady(matchId: string, team: Logical, ready: boolean) {
     return this.phase.setReady(matchId, team, ready);
   }
 
@@ -359,7 +361,7 @@ export class MatchOrchestrator {
     const ok = await this.state.swapSides(matchId);
     if (ok) {
       const sides = await this.state.getSides(matchId);
-      await this.push(matchId, 'sides:swapped', { sides } as any);
+      await this.push(matchId, 'sides:swapped', { sides });
     }
     return ok;
   }
@@ -399,7 +401,7 @@ export class MatchOrchestrator {
   }
 
   startWarmup(serverId: string) {
-    this.cmds.rcon({ serverId, command: 'mp_warmup_start' });
+    return this.cmds.rcon({ serverId, command: 'mp_warmup_start' });
   }
 
   setPhase(matchId: string, phase: Phase) {
@@ -437,8 +439,8 @@ export class MatchOrchestrator {
     // 2) Change map if needed
     try {
       await this.cmds.changeLevel({ serverId, map: mapName });
-    } catch (err: any) {
-      this.log.debug(`changelevel: ${err?.message}`);
+    } catch (err) {
+      this.log.debug(`changelevel: ${errorMessage(err)}`);
     }
 
     // 3) Warmup config (applied by the agent) & start GOTV demo recording
@@ -489,8 +491,8 @@ export class MatchOrchestrator {
       try {
         await this.cmds.rcon({ serverId, matchId, command: 'tv_stoprecord' });
         this.log.log(`[endMatch] tv_stoprecord executed on server ${serverId}`);
-      } catch (err: any) {
-        this.log.warn(`[endMatch] tv_stoprecord failed: ${err?.message}`);
+      } catch (err) {
+        this.log.warn(`[endMatch] tv_stoprecord failed: ${errorMessage(err)}`);
       }
     }
 
@@ -530,8 +532,8 @@ export class MatchOrchestrator {
         } else {
           this.log.debug(`[endMatch] match ${matchId} not linked to the tournament model: nothing recorded`);
         }
-      } catch (err: any) {
-        this.log.warn(`[endMatch] tournament result not recorded: ${err?.message}`);
+      } catch (err) {
+        this.log.warn(`[endMatch] tournament result not recorded: ${errorMessage(err)}`);
       }
     }
 
@@ -543,9 +545,9 @@ export class MatchOrchestrator {
       this.log.log(`[endMatch] server ${serverId} reset (${settings.postgameAction}) in ${delaySec}s`);
       setTimeout(() => {
         this.resetServerAfterMatch(serverId, matchId, settings.postgameAction).catch((e) =>
-          this.log.warn(`[endMatch] server reset failed: ${e?.message}`),
+          this.log.warn(`[endMatch] server reset failed: ${errorMessage(e)}`),
         );
-      }, delaySec * 1000);
+      }, delaySec * 1000).unref();
 
       // 7. Free the server: at the LAN people stay connected long after their match. 'restart' quits anyway.
       const kickSec = settings.postgameKickDelaySec ?? DEFAULT_MATCH_SETTINGS.postgameKickDelaySec;
@@ -553,9 +555,9 @@ export class MatchOrchestrator {
         this.log.log(`[endMatch] players of server ${serverId} kicked in ${kickSec}s`);
         setTimeout(() => {
           this.kickPlayersAfterMatch(serverId, matchId).catch((e) =>
-            this.log.warn(`[endMatch] kick failed: ${e?.message}`),
+            this.log.warn(`[endMatch] kick failed: ${errorMessage(e)}`),
           );
-        }, kickSec * 1000);
+        }, kickSec * 1000).unref();
       }
     }
   }

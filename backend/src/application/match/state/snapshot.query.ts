@@ -325,7 +325,7 @@ export class SnapshotQuery {
     try {
       const h = await this.redis.hgetall(key);
       if (Object.keys(h).length > 0) {
-        return h as TeamsHash;
+        return h;
       }
     } catch {
       // Clé stockée en String JSON -> on passe au fallback migration ci-dessous
@@ -341,7 +341,7 @@ export class SnapshotQuery {
     if (!raw) return {};
 
     try {
-      const o = JSON.parse(raw) as any;
+      const o = JSON.parse(raw);
       const mapped: TeamsHash = {
         ct_id: o.ct_id ?? o.ct?.id,
         t_id: o.t_id ?? o.t?.id,
@@ -355,8 +355,7 @@ export class SnapshotQuery {
 
       // Supprimer l'ancienne String AVANT d'écrire le Hash (même clé)
       await this.redis.del(key);
-      const flatEntries = Object.entries(mapped)
-        .filter(([, v]) => v != null) as [string, string][];
+      const flatEntries = Object.entries(mapped).filter((e): e is [string, string] => e[1] != null);
       if (flatEntries.length > 0) {
         await this.redis.hset(key, Object.fromEntries(flatEntries));
       }

@@ -60,10 +60,11 @@ export function vetoSequence(format: VetoFormat, poolSize: number): ('ban' | 'pi
   const games = GAMES[format];
   if (!games) throw new VetoError(`unknown format ${format}`);
   if (poolSize < games) throw new VetoError(`a ${format} needs at least ${games} maps in the pool (${poolSize})`);
-  if (games === 1) return Array(poolSize - 1).fill('ban');
+  const steps = (n: number, kind: 'ban' | 'pick') => Array<'ban' | 'pick'>(n).fill(kind);
+  if (games === 1) return steps(poolSize - 1, 'ban');
   const firstBans = Math.min(2, poolSize - games);
   const lastBans = poolSize - games - firstBans;
-  return [...Array(firstBans).fill('ban'), ...Array(games - 1).fill('pick'), ...Array(lastBans).fill('ban')];
+  return [...steps(firstBans, 'ban'), ...steps(games - 1, 'pick'), ...steps(lastBans, 'ban')];
 }
 
 export function validateVetoConfig(config: Partial<VetoConfig> | undefined): VetoConfig {

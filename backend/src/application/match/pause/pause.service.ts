@@ -61,9 +61,9 @@ export class PauseMatchService {
   async getPauseState(matchId: string): Promise<PauseState> {
     const h = await this.redis.hgetall(this.key(matchId));
     return {
-      state: (h.state as any) || 'none',
-      reason: (h.reason as any) || undefined,
-      team: (h.team as any) || undefined,
+      state: (h.state as PauseState['state']) || 'none',
+      reason: (h.reason as PauseState['reason']) || undefined,
+      team: (h.team as PauseState['team']) || undefined,
       startedAt: h.started_at ? parseInt(h.started_at, 10) : undefined,
       tacBankHome: h.tac_bank_home ? parseInt(h.tac_bank_home, 10) : undefined,
       tacBankAway: h.tac_bank_away ? parseInt(h.tac_bank_away, 10) : undefined,
@@ -182,7 +182,7 @@ export class PauseMatchService {
       // applique l'état "paused" (messages périodiques inclus), sans RCON
       await this.pause(matchId, /* serverId */ 'n/a', {
         reason: pick.req.reason,
-        team: pick.team === 'system' ? 'system' : (pick.team as Logical),
+        team: pick.team === 'system' ? 'system' : (pick.team),
         durationSec: duration,
         armOnly: false,
         by: pick.req.by,
@@ -191,11 +191,11 @@ export class PauseMatchService {
       return {
         activated: true,
         reason: pick.req.reason,
-        team: pick.team === 'system' ? 'system' : (pick.team as Logical),
+        team: pick.team === 'system' ? 'system' : (pick.team),
         durationSec: duration,
       };
     } catch (err) {
-      this.logger.error(`[tryActivateAtFreeze] match=${matchId} error`, err as any);
+      this.logger.error(`[tryActivateAtFreeze] match=${matchId} error`, err);
       return { activated: false };
     } finally {
       await this.redis.del(activateLock(matchId));
@@ -218,9 +218,10 @@ export class PauseMatchService {
         return { consumed: false };
       }
 
-      const home = h.arm_home_json ? JSON.parse(h.arm_home_json) : null;
-      const away = h.arm_away_json ? JSON.parse(h.arm_away_json) : null;
-      const system = h.arm_system_json ? JSON.parse(h.arm_system_json) : null;
+      const read = (json?: string) => (json ? (JSON.parse(json) as ArmedPick['req']) : null);
+      const home = read(h.arm_home_json);
+      const away = read(h.arm_away_json);
+      const system = read(h.arm_system_json);
 
       const candidates = [
         home && { team: 'home' as const, req: home },
@@ -246,7 +247,7 @@ export class PauseMatchService {
       // Ne PAS lancer la pause ici - on laisse l’appelant décider
       return { consumed: true, pick };
     } catch (err) {
-      this.logger.error(`[consumeArmed] error match=${matchId}`, err as any);
+      this.logger.error(`[consumeArmed] error match=${matchId}`, err);
       return { consumed: false };
     }
   }

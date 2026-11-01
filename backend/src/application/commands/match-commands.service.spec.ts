@@ -1,5 +1,5 @@
 import { BadRequestException } from '@nestjs/common';
-import { MatchCommandsService, resolveNextPhase } from './match-commands.service';
+import { MatchCommandsService } from './match-commands.service';
 import { MatchPhase } from '@domain/phase.types';
 import { redisConst, REDIS_CHANNELS } from '../match/state/redis.keys';
 
@@ -7,7 +7,6 @@ describe('MatchCommandsService', () => {
   let service: MatchCommandsService;
   let mockRedis: any;
   let mockPub: any;
-  let mockMs: any;
   let mockMps: any;
   let mockPauseMatchService: any;
 
@@ -31,11 +30,6 @@ describe('MatchCommandsService', () => {
       publish: jest.fn().mockResolvedValue(1),
     };
 
-    mockMs = {
-      sideToLogical: jest.fn(),
-      setPhase: jest.fn().mockResolvedValue(undefined),
-    };
-
     mockMps = {
       startPhaseCountdown: jest.fn().mockResolvedValue(undefined),
       cancelPhaseCountdown: jest.fn().mockResolvedValue(undefined),
@@ -47,7 +41,6 @@ describe('MatchCommandsService', () => {
     };
 
     service = new MatchCommandsService(
-      mockMs,
       mockMps,
       mockRedis,
       mockPub,
@@ -122,14 +115,6 @@ describe('MatchCommandsService', () => {
       await expect(service.say('', 'Hello')).rejects.toThrow(BadRequestException);
     });
 
-    it('sayTeam publie un message d’équipe', async () => {
-      await service.sayTeam({ serverId: 'srv-a', team: 'CT', message: 'Eco this round' });
-      expect(mockPub.publish).toHaveBeenCalledWith(
-        REDIS_CHANNELS.agentActions('srv-a'),
-        expect.stringContaining('"action":"say_team"'),
-      );
-    });
-
     it('exec publie exec_cfg avec vars optionnelles', async () => {
       await service.exec({
         serverId: 'srv-a',
@@ -180,18 +165,6 @@ describe('MatchCommandsService', () => {
   });
 
   describe('gestion de l’état et binding', () => {
-    it('bindServerToMatch lie server et match dans Redis', async () => {
-      const res = await service.bindServerToMatch('srv-a', 'm-1');
-      expect(res).toEqual({ ok: true, serverId: 'srv-a', matchId: 'm-1' });
-      expect(mockRedis.set).toHaveBeenCalledWith(redisConst.serverMatch('srv-a'), 'm-1');
-      expect(mockRedis.set).toHaveBeenCalledWith(redisConst.matchServer('m-1'), 'srv-a');
-    });
-
-    it('bindServerToMatch refuse les identifiants invalides', async () => {
-      await expect(service.bindServerToMatch('', 'm-1')).rejects.toThrow(BadRequestException);
-      await expect(service.bindServerToMatch('srv-a', 'unknown')).rejects.toThrow(BadRequestException);
-    });
-
     it('ensureInitMatch initialise les clés Redis du match et lance le countdown warmup', async () => {
       const res = await service.ensureInitMatch('srv-a', 'm-100', 'de_dust2', 'Lions', 'Tigers');
       expect(res.matchId).toBe('m-100');
@@ -206,68 +179,6 @@ describe('MatchCommandsService', () => {
     it('ensureInitMatch génère un matchId automatique si absent', async () => {
       const res = await service.ensureInitMatch('srv-a');
       expect(res.matchId).toMatch(/^m-[a-f0-9]{10}$/);
-    });
-
-    it('setReady met à jour la readiness et déclenche le countdown quand les 2 équipes sont prêtes', async () => {
-      mockMs.sideToLogical.mockResolvedValue('home');
-      mockRedis.hget.mockResolvedValue('0');
-      mockRedis.hgetall.mockResolvedValue({ home: '1', away: '1' });
-      mockRedis.get.mockResolvedValue('knife');
-
-      await service.setReady({
-        serverId: 'srv-a',
-        matchId: 'm-1',
-        actor: { name: 'Cap1', teamSide: 'CT' },
-        ready: true,
-      });
-
-      expect(mockRedis.hset).toHaveBeenCalledWith(redisConst.ready('m-1'), 'home', 1);
-      expect(mockMps.startPhaseCountdown).toHaveBeenCalledWith('m-1', MatchPhase.KNIFE_CHOICE, 5, 'srv-a');
-    });
-
-    it('setReady annule le countdown si une équipe se met unready', async () => {
-      mockMs.sideToLogical.mockResolvedValue('away');
-      mockRedis.hget.mockResolvedValue('1');
-      mockRedis.hgetall.mockResolvedValue({ home: '1', away: '0' });
-
-      await service.setReady({
-        serverId: 'srv-a',
-        matchId: 'm-1',
-        actor: { name: 'Cap2', teamSide: 'T' },
-        ready: false,
-      });
-
-      expect(mockMps.cancelPhaseCountdown).toHaveBeenCalledWith('m-1', 'team_unready');
-    });
-
-    it('setReady lève BadRequestException si la logique ne peut pas être résolue', async () => {
-      mockMs.sideToLogical.mockResolvedValue(null);
-      await expect(
-        service.setReady({
-          serverId: 'srv-a',
-          matchId: 'm-1',
-          actor: { name: 'Cap1', teamSide: 'CT' },
-          ready: true,
-        }),
-      ).rejects.toThrow(BadRequestException);
-    });
-
-    it('stopMatch arrête le match et met la phase à postgame', async () => {
-      await service.stopMatch({ serverId: 'srv-a', matchId: 'm-1' });
-      expect(mockMs.setPhase).toHaveBeenCalledWith('m-1', 'postgame');
-      expect(mockPub.publish).toHaveBeenCalledWith(
-        REDIS_CHANNELS.agentActions('srv-a'),
-        expect.stringContaining('[match] stopped by admin'),
-      );
-    });
-
-    it('startLive déclenche un unpause pour lancer le match', async () => {
-      const res = await service.startLive({ serverId: 'srv-a', matchId: 'm-1' });
-      expect(res).toEqual({ ok: true });
-      expect(mockPub.publish).toHaveBeenCalledWith(
-        REDIS_CHANNELS.agentActions('srv-a'),
-        expect.stringContaining('"action":"unpause"'),
-      );
     });
 
     it('restartGame est un alias vers restart', async () => {
@@ -286,22 +197,6 @@ describe('MatchCommandsService', () => {
         REDIS_CHANNELS.agentActions('srv-a'),
         expect.stringContaining('"text":"mp_swapteams"'),
       );
-    });
-  });
-
-  describe('resolveNextPhase (fonction pure)', () => {
-    it('gère phase initiale avec ou sans knife', () => {
-      expect(resolveNextPhase(null, { knifeEnabled: true })).toBe(MatchPhase.KNIFE_LIVE);
-      expect(resolveNextPhase(null, { knifeEnabled: false })).toBe(MatchPhase.LIVE_MAIN);
-    });
-
-    it('gère knife et knife_decision', () => {
-      expect(resolveNextPhase('knife' as any)).toBe(MatchPhase.KNIFE_CHOICE);
-      expect(resolveNextPhase('knife_decision' as any)).toBe(MatchPhase.LIVE_MAIN);
-    });
-
-    it('gère phase postgame ou défaut', () => {
-      expect(resolveNextPhase('postgame' as any)).toBe(MatchPhase.KNIFE_CHOICE);
     });
   });
 });

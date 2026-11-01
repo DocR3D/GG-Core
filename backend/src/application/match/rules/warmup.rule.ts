@@ -9,10 +9,6 @@ import { CS2_RULES, CS2_CHAT_COMMANDS, CS2_CFG, CS2_RCON_COMMANDS } from '@domai
 export class WarmupRule extends BaseRule implements PhaseRule {
   name = 'warmup_rule' as const;
 
-  publicTypes = new Set<string>([
-    'match:state',
-    'pause:update',
-  ]) as any;
 
   constructor(private readonly readyCmd: ReadyCommand) {
     super();
@@ -31,9 +27,7 @@ export class WarmupRule extends BaseRule implements PhaseRule {
         command: CS2_RCON_COMMANDS.WARMUP_INFINITE,
       });
     }
-    if (typeof (ctx.orch as any).resetReady === 'function') {
-      await (ctx.orch as any).resetReady(ctx.matchId);
-    }
+    await ctx.orch.resetReady(ctx.matchId);
     await ctx.say('[Warmup] Tapez !ready quand vous êtes prêts.');
     await ctx.orch.push(ctx.matchId, 'match:state', await ctx.state.getSnapshot(ctx.matchId));
   }
@@ -45,7 +39,7 @@ export class WarmupRule extends BaseRule implements PhaseRule {
 
     if (success) {
       if (await ctx.orch.isBothReady(ctx.matchId)) {
-        if (typeof (ctx.orch as any).isCountdownActive === 'function' && await (ctx.orch as any).isCountdownActive(ctx.matchId)) {
+        if (await ctx.orch.isCountdownActive(ctx.matchId)) {
           return;
         }
 

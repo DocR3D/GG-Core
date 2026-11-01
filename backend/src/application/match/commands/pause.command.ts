@@ -4,7 +4,6 @@ import { CommandEvent } from '@domain/events/command.event';
 import { RuleContext } from '@domain/rules';
 import { MatchCommandsService } from '@app/commands/match-commands.service';
 import { PauseMatchService, PauseReason } from '@app/match/pause/pause.service';
-import { Logical } from '@app/match/state';
 import { isNonPlayingSide, GameSide } from '@domain/side.types';
 import { CS2_CHAT_COMMANDS } from '@domain/rules/rules.constants';
 

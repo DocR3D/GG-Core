@@ -1,5 +1,4 @@
 import { PlayerStatsService } from './player-stats.service';
-import { redisConst } from './redis.keys';
 
 describe('PlayerStatsService', () => {
   let service: PlayerStatsService;

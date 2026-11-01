@@ -55,7 +55,7 @@ export class RuleContextFactory {
         await this.cmds.say(srv, msg);
       },
 
-      pubEvent: async (type: string, payload: any) => {
+      pubEvent: async (type: string, payload: unknown) => {
         await this.pub.publish(
           REDIS_CHANNELS.EVENTS,
           JSON.stringify({

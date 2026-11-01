@@ -1,11 +1,10 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { BusPublisher } from '@adapters/bus/publisher';
-import { MatchIdResolver } from '@app/match/state/match-id.resolver';
-import type { LogCtx } from '@app/shared/logging/logctx';
 import { MatchStateService } from '@app/match/state/match-state.service';
 import { REDIS_CHANNELS } from '@app/match/state/redis.keys';
 
-type IncomingEvent = {
+/** An event as the agent posts it (already parsed, no regex here). */
+export type IncomingEvent = {
   v?: number;
   id?: string;
   ts?: number;

@@ -1,7 +1,7 @@
 // src/domain/rules/live.rule.ts
 
 import { BaseRule, PhaseRule, RuleContext } from '@domain/rules';
-import { EventTypes, type EventType } from '@domain/events/event.types';
+import { EventTypes } from '@domain/events/event.types';
 import type { KillEvent, RoundStartEvent, TeamRoundWinEvent } from '@domain/events/match.event';
 import type { CommandEvent } from '@domain/events/command.event';
 import { PauseCommand } from '@app/match/commands/pause.command';
@@ -14,19 +14,6 @@ export class LiveRule extends BaseRule implements PhaseRule {
   name = 'live_main' as const;
   private readonly logger = new Logger(LiveRule.name);
 
-  publicTypes = new Set<EventType>([
-    EventTypes.ROUND_START,
-    EventTypes.TEAM_ROUND_WIN,
-    EventTypes.SFUI_TARGET_BOMBED,
-    EventTypes.KILL,
-    'match:state' as EventType,
-    'score:update' as EventType,
-    'pause:update' as EventType,
-    'sides:swapped' as EventType,
-    'chat:public' as EventType,
-    'grenade_throw' as EventType,
-    'player_blinded' as EventType,
-  ]);
 
   constructor(private readonly pauseCmd: PauseCommand) {
     super();
@@ -124,8 +111,8 @@ export class LiveRule extends BaseRule implements PhaseRule {
   }
 
   private async onKill(ev: KillEvent, ctx: RuleContext) {
-    await ctx.orch.push(ev.matchId, 'kill' as any, {
-      ...(ev as KillEvent).payload,
+    await ctx.orch.push(ev.matchId, 'kill', {
+      ...(ev).payload,
       round: ev.round,
       tick: ev.tick,
     });
@@ -193,8 +180,6 @@ export class LiveRule extends BaseRule implements PhaseRule {
       economy: snapshot.economy,
       streaks: snapshot.streaks,
     });
-
-    const serverId = ctx.serverId ?? (await ctx.state.getServerIdFromMatchId(ev.matchId));
 
     // 3) Halftime Check (Regulation MR12 at round 12)
     // CS2 performs the halftime itself (mp_maxrounds = 2 x MR): it swaps the teams and KEEPS the score.

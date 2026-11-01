@@ -66,8 +66,8 @@ describe('TC-01 - Résolution matchId depuis serverId', () => {
     const { svc, publisher } = makeService();
 
     await svc.handleEvents([
-      { type: '', payload: {} } as any,
-      { type: 'round_start', payload: undefined } as any,
+      { type: '', payload: {} },
+      { type: 'round_start', payload: undefined },
       null as any,
     ]);
 

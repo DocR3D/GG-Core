@@ -24,7 +24,7 @@ type RawBusEvent = {
   serverId?: string;
   source?: 'logs' | 'api' | 'system' | 'agent';
   kind?: 'primary' | 'telemetry';
-  payload?: any;
+  payload?: unknown;
   audience?: Audience;
   // si c'est déjà un InternalEvent:
   name?: InternalEvent['name'];
@@ -105,18 +105,19 @@ export class WsBroadcaster implements OnModuleInit {
         ? 'admin'
         : 'both';
 
-    this.sub.on('message', async (_channel, raw) => {
+    const onMessage = async (_channel: string, raw: string) => {
       const recvAt = Date.now();
 
       let base: RawBusEvent;
       try {
-        base = JSON.parse(raw);
+        base = JSON.parse(raw) as RawBusEvent;
       } catch (e) {
         this.logger.warn(`⚠️ Invalid JSON: ${(e as Error).message}`);
         return;
       }
 
-      if (!base?.type && ((base as any).rcon || (base as any).logs)) {
+      const heartbeat = base as { rcon?: unknown; logs?: unknown };
+      if (!base?.type && (heartbeat.rcon || heartbeat.logs)) {
         //this.logger.debug('ignored agent heartbeat on ggbot:events');
         return;
       }
@@ -128,9 +129,11 @@ export class WsBroadcaster implements OnModuleInit {
           const sid = typeof base.serverId === 'string' && base.serverId.trim() ? base.serverId : null;
           if ((!base.matchId || base.matchId === 'unknown') && sid) {
             try {
-              const mid = await this.matchState.getMatchIdFromServerId(sid); // sid est string ici
-              if (mid) base.matchId = mid; // getServerMatch: Promise<string | null>
-            } catch {}
+              const mid = await this.matchState.getMatchIdFromServerId(sid);
+              if (mid) base.matchId = mid;
+            } catch {
+              // no match known for this server: the event goes out with "unknown"
+            }
           }
       }
       this.logger.debug(`📩 RX on ${_channel}: ${raw.slice(0, 240)}${raw.length > 240 ? '…' : ''}`);
@@ -163,7 +166,7 @@ export class WsBroadcaster implements OnModuleInit {
           source: base.source ?? 'agent',
           kind: base.kind ?? 'primary',
           payload: base.payload,
-        } as InternalEvent;
+        };
       }
 
       // assure l'ordre & l'horodatage
@@ -173,16 +176,16 @@ export class WsBroadcaster implements OnModuleInit {
       const toPublic = ev.audience === 'public' || ev.audience === 'both';
       const toAdmin  = ev.audience === 'admin'  || ev.audience === 'both';
 
-      const send = (eventName: WsEventType, payload: any = ev) => {
+      const send = (eventName: WsEventType, payload: unknown = ev) => {
         if (toPublic && toAdmin) {
-          this.logger.verbose(`🛰️  → WS both[${ev!.matchId}] "${eventName}"`);
-          this.emitter.emitBoth(ev!.matchId, eventName, payload);
+          this.logger.verbose(`🛰️  → WS both[${ev.matchId}] "${eventName}"`);
+          this.emitter.emitBoth(ev.matchId, eventName, payload);
         } else if (toPublic) {
-          this.logger.verbose(`🛰️  → WS public[${ev!.matchId}] "${eventName}"`);
-          this.emitter.emitPublic(ev!.matchId, eventName, payload);
+          this.logger.verbose(`🛰️  → WS public[${ev.matchId}] "${eventName}"`);
+          this.emitter.emitPublic(ev.matchId, eventName, payload);
         } else if (toAdmin) {
-          this.logger.verbose(`🛰️  → WS admin [${ev!.matchId}] "${eventName}"`);
-          this.emitter.emitAdmin(ev!.matchId, eventName, payload);
+          this.logger.verbose(`🛰️  → WS admin [${ev.matchId}] "${eventName}"`);
+          this.emitter.emitAdmin(ev.matchId, eventName, payload);
         }
       };
 
@@ -200,15 +203,15 @@ export class WsBroadcaster implements OnModuleInit {
         case 'TEAM_ROUND_WIN':    send('team_round_win'); break;
 
         // Bomb / defuse
-        case 'BOMB_PLANTED':      send('bomb:planted', asWs('bomb:planted' as WsEventType, ev, ev.payload, ev.seq!, ev.ts!)); break;
+        case 'BOMB_PLANTED':      send('bomb:planted', asWs('bomb:planted', ev, ev.payload, ev.seq, ev.ts)); break;
         case 'BOMB_DEFUSED':      send('bomb_defused'); break;
-        case 'BEGIN_BOMB_PLANT':  send('bomb:begin',    asWs('bomb:begin'    as WsEventType, ev, ev.payload, ev.seq!, ev.ts!)); break;
-        case 'DEFUSE_BEGIN':      send('defuse:begin',  asWs('defuse:begin'  as WsEventType, ev, ev.payload, ev.seq!, ev.ts!)); break;
-        case 'DEFUSE_ABORT':      send('defuse:abort',  asWs('defuse:abort'  as WsEventType, ev, ev.payload, ev.seq!, ev.ts!)); break;
+        case 'BEGIN_BOMB_PLANT':  send('bomb:begin',    asWs('bomb:begin', ev, ev.payload, ev.seq, ev.ts)); break;
+        case 'DEFUSE_BEGIN':      send('defuse:begin',  asWs('defuse:begin', ev, ev.payload, ev.seq, ev.ts)); break;
+        case 'DEFUSE_ABORT':      send('defuse:abort',  asWs('defuse:abort', ev, ev.payload, ev.seq, ev.ts)); break;
 
         // Pause explicite (si l'agent envoie match_paused/unpaused)
-        case 'MATCH_PAUSED':      send('pause:update',  asWs('pause:update'  as WsEventType, ev, { state: 'paused' },   ev.seq!, ev.ts!)); break;
-        case 'MATCH_UNPAUSED':    send('pause:update',  asWs('pause:update'  as WsEventType, ev, { state: 'unpaused' }, ev.seq!, ev.ts!)); break;
+        case 'MATCH_PAUSED':      send('pause:update',  asWs('pause:update', ev, { state: 'paused' },   ev.seq, ev.ts)); break;
+        case 'MATCH_UNPAUSED':    send('pause:update',  asWs('pause:update', ev, { state: 'unpaused' }, ev.seq, ev.ts)); break;
 
         // Grenades / blinded
         case 'GRENADE_THROW':     send('grenade_throw'); break;
@@ -222,15 +225,15 @@ export class WsBroadcaster implements OnModuleInit {
         case 'PLAYER_NAME_CHANGE':  send('player:name_change'); break;
         case 'ITEM_PURCHASE':       send('item:purchase'); break;
         case 'PHASE_COUNTDOWN':
-          send('phase:countdown', asWs('phase:countdown' as WsEventType, ev, ev.payload, ev.seq!, ev.ts!));
+          send('phase:countdown', asWs('phase:countdown', ev, ev.payload, ev.seq, ev.ts));
           break;
 
         case 'PHASE_CHANGED':
-          send('phase:changed', asWs('phase:changed' as WsEventType, ev, ev.payload, ev.seq!, ev.ts!));
+          send('phase:changed', asWs('phase:changed', ev, ev.payload, ev.seq, ev.ts));
           break;
 
         case 'PHASE_CANCELLED':
-          send('phase:cancelled', asWs('phase:cancelled' as WsEventType, ev, ev.payload, ev.seq!, ev.ts!));
+          send('phase:cancelled', asWs('phase:cancelled', ev, ev.payload, ev.seq, ev.ts));
           break;
 
         // SFUI bombed (fallback rare, utile overlay)
@@ -252,7 +255,7 @@ export class WsBroadcaster implements OnModuleInit {
               steamId: p.player.steamId ?? undefined,
               team: toTeamSide(p.player.team),
             },
-          }, ev.seq!, ev.ts!);
+          }, ev.seq, ev.ts);
           this.emitter.emitAdmin(ev.matchId, 'chat:public', dto);
           break;
         }
@@ -272,7 +275,7 @@ export class WsBroadcaster implements OnModuleInit {
               team: toTeamSide(p.sender.team),
               channel: p.sender.channel,
             },
-          }, ev.seq!, ev.ts!);
+          }, ev.seq, ev.ts);
           this.emitter.emitAdmin(ev.matchId, 'command', dto);
           break;
         }
@@ -286,13 +289,16 @@ export class WsBroadcaster implements OnModuleInit {
       }
 
       this.logger.debug(`✅ Handled ${ev.name}#${ev.seq} (match=${ev.matchId}) in ${Date.now()-recvAt}ms`);
+    };
+    this.sub.on('message', (channel: string, raw: string) => {
+      onMessage(channel, raw).catch((e) => this.logger.error(`bus message to WS failed: ${String(e)}`));
     });
   }
   // ws-broadcaster.ts
 async push(
   matchId: string,
   type: WsEventType,
-  payload: any,
+  payload: unknown,
   audience: Audience = 'both',
 ) {
   const seq = await this.seq.next(matchId);

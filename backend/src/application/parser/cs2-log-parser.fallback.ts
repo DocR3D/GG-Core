@@ -20,10 +20,13 @@ function normTeamLikeGo(team: string): string {
   return team;
 }
 
+/** An event as the Go agent would publish it on ggbot:events (same shape, fewer types). */
+export type FallbackEvent = { type: string; matchId: string; serverId: string; timestamp: number; payload: Record<string, unknown> };
+
 /**
  * Parser de secours ultra-léger pour rejouer des logs même sans Agent Go actif
  */
-export function parseCs2LineFallback(rawLine: string, matchId: string, serverId: string): any | null {
+export function parseCs2LineFallback(rawLine: string, matchId: string, serverId: string): FallbackEvent | null {
   let line = cleanContainerLogPrefix(rawLine).trim();
   line = line.replace(/^(?:L\s+)?\d{2}\/\d{2}\/\d{4}\s*-\s*\d{2}:\d{2}:\d{2}(?:\.\d{3})?\s*[-:]\s*/, '').trim();
   if (!line) return null;

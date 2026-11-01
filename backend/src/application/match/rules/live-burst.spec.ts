@@ -18,7 +18,7 @@ describe('LiveRule - Burst & Rapid-Fire Replay Stress Tests', () => {
   });
 
   function makeBurstContext() {
-    let currentScore = { ct: 0, t: 0, round: 0 };
+    const currentScore = { ct: 0, t: 0, round: 0 };
     let lastScoredRound = 0;
     let halftimePlayed = false;
     let currentPhase = MatchPhase.LIVE_MAIN;

@@ -17,7 +17,7 @@ export abstract class BaseCommand implements ICommand {
     public abstract handle(event: CommandEvent, context: RuleContext): Promise<boolean>;
 
     // Méthode utilitaire qui pourrait être utile à toutes les commandes
-    protected async logCommand(cmdName: string, event: CommandEvent) {
+    protected logCommand(cmdName: string, event: CommandEvent): void {
         // Logique de journalisation commune
         const sender = event.payload.sender.name || event.payload.sender.steamId;
         if (process.env.NODE_ENV !== 'test') {

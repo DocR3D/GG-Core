@@ -12,6 +12,7 @@ import { KillAndBombEventsHandler } from './kill-bomb-events.handler';
 import { DatabaseEventsHandler } from './database-events.handler';
 import { MatchAccessService } from '@app/match/access/match-access.service';
 import { TeamPlacementService } from '@app/match/access/team-placement.service';
+import { errorMessage } from '@app/shared/error-message';
 
 @Injectable()
 export class MatchEventsHandler {
@@ -55,7 +56,7 @@ export class MatchEventsHandler {
     if ((ev.type as string) === EventTypes.PLAYER_CONNECTED) {
       await this.access
         .onPlayerConnected(matchId, ev.serverId, (ev as any).payload?.player ?? {})
-        .catch((err) => this.logger.warn(`[MatchEventsHandler] access check error: ${err?.message}`));
+        .catch((err) => this.logger.warn(`[MatchEventsHandler] access check error: ${errorMessage(err)}`));
     }
 
     // 0) Camp de chaque joueur (sides choisis au véto : contrôle avant le live)
@@ -70,7 +71,7 @@ export class MatchEventsHandler {
     // événements - le serveur a pu relancer une partie qui fausserait score et stats.
     if (await this.mss.getReview(matchId)) {
       this.dbHandler.handle(evWithMatch).catch((err) => {
-        this.logger.warn(`[MatchEventsHandler] async dbHandler error: ${err?.message}`);
+        this.logger.warn(`[MatchEventsHandler] async dbHandler error: ${errorMessage(err)}`);
       });
       return;
     }
@@ -81,7 +82,7 @@ export class MatchEventsHandler {
     await this.combatHandler.handle(evWithMatch);
     // Traitement persistance BDD en arrière-plan non bloquant pour le moteur temps réel CS2
     this.dbHandler.handle(evWithMatch).catch((err) => {
-      this.logger.warn(`[MatchEventsHandler] async dbHandler error: ${err?.message}`);
+      this.logger.warn(`[MatchEventsHandler] async dbHandler error: ${errorMessage(err)}`);
     });
 
     // 2) Dispatch à la règle active pour la logique métier de la phase

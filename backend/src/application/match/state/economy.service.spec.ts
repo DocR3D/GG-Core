@@ -1,7 +1,5 @@
 // src/application/match/state/economy.service.spec.ts
 import { EconomyService } from './economy.service';
-import type { SidesScoreService } from './sides-score.service';
-import type { TeamsRosterService } from './rosters.service';
 
 describe('EconomyService', () => {
   let service: EconomyService;
@@ -43,8 +41,8 @@ describe('EconomyService', () => {
 
     service = new EconomyService(
       mockRedis,
-      mockSidesScore as unknown as SidesScoreService,
-      mockTeamsRoster as unknown as TeamsRosterService,
+      mockSidesScore,
+      mockTeamsRoster,
     );
   });
 

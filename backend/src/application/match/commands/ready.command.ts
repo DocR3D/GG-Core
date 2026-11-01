@@ -4,21 +4,12 @@ import { Injectable, Logger } from '@nestjs/common';
 import { BaseCommand } from '@domain/commands/base.command';
 import { CommandEvent } from '@domain/events/command.event';
 import { RuleContext } from '@domain/rules';
-import { MatchStateService } from '@app/match/state/match-state.service';
-import { MatchCommandsService } from '@app/commands/match-commands.service';
-import { Logical } from '@app/match/state';
 import { isNonPlayingSide, GameSide } from '@domain/side.types';
 import { CS2_CHAT_COMMANDS, normalizeChatCommand } from '@domain/rules/rules.constants';
-import { send } from 'process';
 
 @Injectable()
 export class ReadyCommand extends BaseCommand {
   private readonly logger = new Logger(ReadyCommand.name);
-
-  constructor(
-  ) {
-    super();
-  }
 
   async canHandle(event: CommandEvent, ctx: RuleContext): Promise<boolean> {
     const sender = event.payload.sender;
@@ -43,7 +34,7 @@ export class ReadyCommand extends BaseCommand {
   async handle(event: CommandEvent, ctx: RuleContext): Promise<boolean> {
     const sender = event.payload.sender;
     if(isNonPlayingSide(sender.team)) {
-        await this.logger.debug('Vous devez être dans une équipe pour utiliser cette commande.');
+        this.logger.debug('Vous devez être dans une équipe pour utiliser cette commande.');
         return false;
     }
     const team = await ctx.orch.sideToLogical(event.matchId, sender.team as GameSide);

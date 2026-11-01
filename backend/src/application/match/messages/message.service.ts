@@ -1,16 +1,12 @@
 // message.service.ts
 import { forwardRef, Inject, Injectable, Logger } from '@nestjs/common';
-
-// 🔁 1) Utilise **tes** types comme source unique de vérité
-import {
-  MessageMode,
-  SaySpec as SpecFromTypes, // = SayUnit | SayUnit[]
-  SayUnit,                 // une entrée
-} from '../messages/messages.types'; // <-- adapte le chemin si besoin
+import { MessageMode, SaySpec, SayUnit } from '../messages/messages.types';
 import { MatchCommandsService } from '@app/commands/match-commands.service';
 
-type SaySpec = SpecFromTypes;
-
+/**
+ * Repeated chat messages of a phase (say:{matchId}:phase:{phase}): started when the phase is applied, stopped when it
+ * changes. The pause messages have their own service (PeriodicMessenger).
+ */
 @Injectable()
 export class MessageService {
   private readonly logger = new Logger('MessageService');
@@ -22,187 +18,63 @@ export class MessageService {
     private readonly cmds: MatchCommandsService,
   ) {}
 
-  private groupId(matchId: string, phase: string) {
-    return `say:${matchId}:${phase}`;
+  private prefix(matchId: string) {
+    return `say:${matchId}:phase:`;
   }
 
-  public stop(matchId: string, phase: string) {
-    const gid = this.groupId(matchId, phase);
+  private clear(gid: string) {
     const set = this.groups.get(gid);
-    let n = 0;
-    if (set) {
-      for (const t of set) {
-        clearInterval(t);
-        clearTimeout(t);
-        n++;
-      }
-      this.groups.delete(gid);
-    }
-    this.logger.debug(`[STOP] group=${gid} cleared=${n}`);
+    if (!set) return 0;
+    for (const t of set) clearInterval(t);
+    this.groups.delete(gid);
+    return set.size;
   }
 
-  public stopAll(matchId: string) {
+  /** Stops the messages of one phase. */
+  public stop(matchId: string, phase: string) {
+    const gid = `${this.prefix(matchId)}${phase}`;
+    this.logger.debug(`[STOP] group=${gid} cleared=${this.clear(gid)}`);
+  }
+
+  /** Stops the messages of every phase of the match. */
+  public stopPhaseGroups(matchId: string) {
     let total = 0;
-    for (const [gid, set] of Array.from(this.groups.entries())) {
-      if (gid.startsWith(`say:${matchId}:`)) {
-        for (const t of set) {
-          clearInterval(t);
-          clearTimeout(t);
-          total++;
-        }
-        this.groups.delete(gid);
-        this.logger.debug(`[STOP ALL] group=${gid} cleared=${set.size}`);
-      }
+    for (const gid of Array.from(this.groups.keys())) {
+      if (gid.startsWith(this.prefix(matchId))) total += this.clear(gid);
     }
-    this.logger.debug(`[STOP ALL] match=${matchId} total_cleared=${total}`);
+    return total;
   }
 
-  private addTimer(gid: string, timer: NodeJS.Timeout) {
+  public startPhase(matchId: string, phase: string, serverId: string, spec: SaySpec) {
+    const gid = `${this.prefix(matchId)}${phase}`;
+    this.clear(gid); // no duplicate timers for this phase
+    this.logger.debug(`[START PHASE] group=${gid}`);
+    const units: SayUnit[] = Array.isArray(spec) ? spec : [spec];
+    for (const u of units) this.planUnit(gid, serverId, u);
+  }
+
+  private every(gid: string, serverId: string, intervalMs: number, nextText: () => string, mode: string) {
+    const timer = setInterval(() => {
+      this.cmds.say(serverId, nextText()).catch((e) => this.logger.warn(`[${mode}] ${gid} ${String((e as Error).message)}`));
+    }, Math.max(1000, intervalMs));
     let set = this.groups.get(gid);
-    if (!set) {
-      set = new Set<NodeJS.Timeout>();
-      this.groups.set(gid, set);
-    }
+    if (!set) this.groups.set(gid, (set = new Set<NodeJS.Timeout>()));
     set.add(timer);
   }
 
-  // 🔁 2) Accepte SaySpec (unit **ou** array) et normalise
-  public start(matchId: string, phase: string, serverId: string, spec: SaySpec) {
-    const gid = this.groupId(matchId, phase);
-
-    // anti-doublon
-    this.stop(matchId, phase);
-
-    const units: SayUnit[] = Array.isArray(spec) ? spec : [spec];
-
-    for (const u of units) {
-      this.logger.debug(`[START] group=${gid} mode=${u.mode}`);
-      if (u.mode === MessageMode.Chain) {
-        for (const item of u.items) {
-          const timer = setInterval(async () => {
-            try {
-              await this.cmds.say( serverId, item.text );
-            } catch (e) {
-              this.logger.warn(`[CHAIN] say failed group=${gid} err=${(e as Error).message}`);
-            }
-          }, Math.max(1000, item.intervalMs));
-          this.addTimer(gid, timer);
-        }
-        continue;
-      }
-
-      if (u.mode === MessageMode.Rotate) {
-        if (!u.items.length) continue;
-        let idx = 0;
-        const timer = setInterval(async () => {
-          const text = u.items[idx % u.items.length];
-          idx++;
-          try {
-            await this.cmds.say( serverId, text );
-          } catch (e) {
-            this.logger.warn(`[ROTATE] say failed group=${gid} err=${(e as Error).message}`);
-          }
-        }, Math.max(1000, u.intervalMs));
-        this.addTimer(gid, timer);
-        continue;
-      }
-
-      if (u.mode === MessageMode.Random) {
-        if (!u.items.length) continue;
-        const timer = setInterval(async () => {
-          const text = u.items[Math.floor(Math.random() * u.items.length)];
-          try {
-            await this.cmds.say(serverId, text);
-          } catch (e) {
-            this.logger.warn(`[RANDOM] say failed group=${gid} err=${(e as Error).message}`);
-          }
-        }, Math.max(1000, u.intervalMs));
-        this.addTimer(gid, timer);
-        continue;
-      }
+  private planUnit(gid: string, serverId: string, u: SayUnit) {
+    if (u.mode === MessageMode.Chain) {
+      for (const item of u.items) this.every(gid, serverId, item.intervalMs, () => item.text, 'CHAIN');
+      return;
     }
-  }
-
-  // --- Préfixes ---
-private prefix(matchId: string, kind: 'phase' | 'pause') {
-  return `say:${matchId}:${kind}:`;
-}
-
-// --- Stop par préfixe ---
-private stopByPrefix(prefix: string) {
-  let total = 0;
-  for (const [gid, set] of Array.from(this.groups.entries())) {
-    if (gid.startsWith(prefix)) {
-      for (const t of set) { clearInterval(t); clearTimeout(t); total++; }
-      this.groups.delete(gid);
-      this.logger.debug(`[STOP by prefix] ${prefix} -> cleared=${set.size}`);
-    }
-  }
-  return total;
-}
-
-// --- API groupes PHASE ---
-public stopPhaseGroups(matchId: string) {
-  return this.stopByPrefix(this.prefix(matchId, 'phase'));
-}
-
-public startPhase(matchId: string, phase: string, serverId: string, spec: SaySpec) {
-  const gid = `${this.prefix(matchId, 'phase')}${phase}`;
-  // anti-doublon : on nettoie uniquement ce groupe
-  const set = this.groups.get(gid);
-  if (set) { for (const t of set) { clearInterval(t); clearTimeout(t); } this.groups.delete(gid); }
-  this.logger.debug(`[START PHASE] group=${gid}`);
-  const units: SayUnit[] = Array.isArray(spec) ? spec : [spec];
-  for (const u of units) this.planUnit(gid, serverId, u);
-}
-
-// --- API groupes PAUSE ---
-public stopPauseGroups(matchId: string) {
-  return this.stopByPrefix(this.prefix(matchId, 'pause'));
-}
-
-public startPause(matchId: string, key: string, serverId: string, spec: SaySpec) {
-  const gid = `${this.prefix(matchId, 'pause')}${key}`;
-  const set = this.groups.get(gid);
-  if (set) { for (const t of set) { clearInterval(t); clearTimeout(t); } this.groups.delete(gid); }
-  this.logger.debug(`[START PAUSE] group=${gid}`);
-  const units: SayUnit[] = Array.isArray(spec) ? spec : [spec];
-  for (const u of units) this.planUnit(gid, serverId, u);
-}
-
-// --- Planification commune (réutilise ta logique existante) ---
-private planUnit(gid: string, serverId: string, u: SayUnit) {
-  if (u.mode === MessageMode.Chain) {
-    for (const item of u.items) {
-      const timer = setInterval(async () => {
-        try { await this.cmds.say( serverId, item.text ); }
-        catch (e) { this.logger.warn(`[CHAIN] ${gid} ${String((e as Error).message)}`); }
-      }, Math.max(1000, item.intervalMs));
-      this.addTimer(gid, timer);
-    }
-    return;
-  }
-  if (u.mode === MessageMode.Rotate) {
     if (!u.items.length) return;
-    let idx = 0;
-    const timer = setInterval(async () => {
-      const text = u.items[idx % u.items.length]; idx++;
-      try { await this.cmds.say( serverId, text ); }
-      catch (e) { this.logger.warn(`[ROTATE] ${gid} ${String((e as Error).message)}`); }
-    }, Math.max(1000, u.intervalMs));
-    this.addTimer(gid, timer);
-    return;
+    if (u.mode === MessageMode.Rotate) {
+      let idx = 0;
+      this.every(gid, serverId, u.intervalMs, () => u.items[idx++ % u.items.length], 'ROTATE');
+      return;
+    }
+    if (u.mode === MessageMode.Random) {
+      this.every(gid, serverId, u.intervalMs, () => u.items[Math.floor(Math.random() * u.items.length)], 'RANDOM');
+    }
   }
-  if (u.mode === MessageMode.Random) {
-    if (!u.items.length) return;
-    const timer = setInterval(async () => {
-      const text = u.items[Math.floor(Math.random() * u.items.length)];
-      try { await this.cmds.say( serverId, text ); }
-      catch (e) { this.logger.warn(`[RANDOM] ${gid} ${String((e as Error).message)}`); }
-    }, Math.max(1000, u.intervalMs));
-    this.addTimer(gid, timer);
-    return;
-  }
-}
-
 }

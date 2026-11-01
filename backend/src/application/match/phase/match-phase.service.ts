@@ -1,14 +1,13 @@
 // src/application/services/match-phase.service.ts
-import { Injectable, Logger, Inject, forwardRef, Optional } from '@nestjs/common';
+import { Injectable, Logger, Inject, forwardRef } from '@nestjs/common';
 import type Redis from 'ioredis';
 import { REDIS_CMD, REDIS_PUB } from '@adapters/redis/redis.tokens';
 import { redisConst, REDIS_CHANNELS } from '@app/match/state/redis.keys';
 
-import { MatchPhase, Phase, RoundPhase} from '@domain/phase.types';
+import { MatchPhase, RoundPhase } from '@domain/phase.types';
 import { RuleContextFactory } from '@app/rules/rule-context.factory';
 import { EventTypes } from '@domain/events/event.types';
 import { PauseMatchService } from '../pause/pause.service';
-import { BaseRule } from '@domain/rules';
 import { MessageService } from '../messages/message.service';
 import { RuleRegistry } from '../rules/rule.registry';
 import { MatchCommandsService } from '@app/commands/match-commands.service';
@@ -108,7 +107,7 @@ export class MatchPhaseService {
         source: 'system', kind: 'primary', payload: { nextPhase, remain },
       }));
       // replanifie le tick
-      const t = setTimeout(tick, 1000);
+      const t = setTimeout(runTick, 1000);
       this.timers.set(matchId, t);
       return;
     }
@@ -121,8 +120,12 @@ export class MatchPhaseService {
     this.timers.delete(matchId);
   };
 
+  const runTick = () => {
+    tick().catch((e) => this.logger.error(`countdown tick failed match=${matchId}: ${String(e)}`));
+  };
+
   // Démarre la boucle
-  const t = setTimeout(tick, 1000);
+  const t = setTimeout(runTick, 1000);
   this.timers.set(matchId, t);
 }
 
@@ -137,7 +140,7 @@ export class MatchPhaseService {
 private clearTimersForGroup(groupId: string) {
   for (const [key, int] of this.timers.entries()) {
     if (key.startsWith(groupId)) {
-      clearInterval(int as NodeJS.Timeout);
+      clearInterval(int);
       this.timers.delete(key);
     }
   }

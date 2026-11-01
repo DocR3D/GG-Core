@@ -13,7 +13,7 @@ type Target = { serverId: string; matchId: string };
 
 /** The parts of the match snapshot the rules read (the full snapshot is built by the application). */
 export interface RuleSnapshot {
-  phase: Phase | string | null;
+  phase: string | null; // a Phase, as read from Redis
   score: { ct: number; t: number; round: number };
   sides: { home: GameSide; away: GameSide } | null;
   teams: { home_id: string | null; away_id: string | null; home_name: string | null; away_name: string | null };
@@ -49,7 +49,7 @@ export interface IRuleContextOrchestrator {
   setReady(matchId: string, team: LogicalTeam, ready: boolean): Promise<unknown>;
   resetReady(matchId: string): Promise<void>;
   checkTeamPlacement(matchId: string, serverId: string): Promise<boolean>;
-  startWarmup(serverId: string): void;
+  startWarmup(serverId: string): Promise<unknown>;
 }
 
 export interface IRuleContextState {

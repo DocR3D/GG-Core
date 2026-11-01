@@ -3,7 +3,7 @@ import {
   HttpCode, Query, Logger, Headers, BadRequestException
 } from '@nestjs/common';
 import type { Request } from 'express';
-import { Cs2LogsService } from './cs2-logs.service';
+import { Cs2LogsService, type IncomingEvent } from './cs2-logs.service';
 import { MatchStateService } from '@app/match/state/match-state.service';
 
 // ================= Utils IP =================
@@ -31,17 +31,6 @@ function isIpAllowed(ip: string, allowedList: string[]): boolean {
   });
 }
 
-// ================= Types min pour l’API =================
-type IncomingEvent = {
-  v?: number;
-  id?: string;
-  ts?: number;
-  seq?: number;
-  serverId?: string;
-  matchId?: string;
-  type: string;
-  payload: unknown;
-};
 
 @Controller('cs2/logs')
 export class Cs2LogsController {
@@ -59,7 +48,7 @@ export class Cs2LogsController {
   @HttpCode(200)
   async receive(
     @Req() req: Request,
-    @Body() body: any,
+    @Body() body: unknown,
     @Headers('x-server-id') headerServerId?: string,
     @Query('server') serverQ?: string,
     @Query('serverId') serverIdQ?: string,
@@ -91,31 +80,43 @@ export class Cs2LogsController {
     let matchIdHint = matchIdQ ?? undefined;
     if (!matchIdHint && serverIdHint) {
       // fallback: si on n’a pas matchId dans l’event, on tentera ce hint
-      try { matchIdHint = await this.matchState.getMatchIdFromServerId(serverIdHint) ?? undefined; } catch {}
+      try {
+        matchIdHint = (await this.matchState.getMatchIdFromServerId(serverIdHint)) ?? undefined;
+      } catch {
+        // no hint: the service resolves each event's match again
+      }
     }
 
     // ===== 4) Normalisation input: NDJSON | Array | Single =====
     const events: IncomingEvent[] = [];
 
     if (isNdjson) {
-      const raw = String(body ?? '');
+      const raw = typeof body === 'string' ? body : '';
       const lines = raw.split(/\r?\n/).map(l => l.trim()).filter(Boolean);
       for (const [i, line] of lines.entries()) {
         try {
-          const ev = JSON.parse(line);
-          events.push(ev);
-        } catch (e) {
+          events.push(JSON.parse(line) as IncomingEvent);
+        } catch {
           this.logger.warn(`Drop NDJSON line ${i}: invalid JSON`);
         }
       }
     } else {
-      // Nest parse déjà le JSON pour application/json
+      // main.ts reads /cs2/logs as raw text (every content type): JSON is parsed here. The service drops events
+      // without a type or a payload.
+      if (typeof body === 'string') {
+        try {
+          body = JSON.parse(body);
+        } catch {
+          throw new BadRequestException('Expected JSON event(s)');
+        }
+      }
       if (Array.isArray(body)) {
-        events.push(...body);
+        events.push(...(body as IncomingEvent[]));
       } else if (body && typeof body === 'object') {
         // accepte aussi { events: [...] }
-        if (Array.isArray(body.events)) {
-          events.push(...body.events);
+        const wrapped = (body as { events?: unknown }).events;
+        if (Array.isArray(wrapped)) {
+          events.push(...(wrapped as IncomingEvent[]));
         } else {
           events.push(body as IncomingEvent);
         }

@@ -24,15 +24,10 @@
     "strictNullChecks": true,
     "forceConsistentCasingInFileNames": true,
     "noImplicitAny": false,
-    "strictBindCallApply": false,
+    "strictBindCallApply": true,
     "noFallthroughCasesInSwitch": false
-    
   },
   "ts-node": { 
     "require": ["tsconfig-paths/register"] 
-  },
-  "scripts": {
-  "start:dev": "nest start --watch"
-}
-  
+  }
 }

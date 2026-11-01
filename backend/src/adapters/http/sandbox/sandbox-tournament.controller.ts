@@ -14,7 +14,7 @@ import {
 import type { Response } from 'express';
 import { TournamentError } from '@app/tournament/tournament-stages.service';
 import { htmlPage } from '@app/shared/html-page';
-import type { PrepareOptions } from '@app/tournament/simulation/tournament-simulation.service';
+import type { PrepareOptions, SimulationOptions } from '@app/tournament/simulation/tournament-simulation.service';
 import {
   SimulationRun,
   TournamentSimulationService,
@@ -79,17 +79,19 @@ ${active ? '<p><small>Page rafraîchie toutes les 3 s pendant une simulation.</s
 
   /** JSON: { fixtureName | scenario, delayMs?, parallel?, withStats?, paused? } - or the page's form. */
   @Post('runs')
-  async start(@Body() body: Record<string, any>, @Res({ passthrough: true }) res: Response) {
+  async start(@Body() body: Record<string, unknown> | undefined, @Res({ passthrough: true }) res: Response) {
     const form = body?._form === '1';
-    const opts = form
-      ? {
-          fixtureName: body.fixtureName,
-          delayMs: Number(body.delayMs),
-          parallel: Number(body.parallel),
-          withStats: body.withStats === 'on',
-          paused: body.paused === 'on',
-        }
-      : body ?? {};
+    // the page's form sends strings ("on" for a ticked box), the JSON callers send the options as they are
+    const opts: SimulationOptions =
+      form && body
+        ? {
+            fixtureName: typeof body.fixtureName === 'string' ? body.fixtureName : undefined,
+            delayMs: Number(body.delayMs),
+            parallel: Number(body.parallel),
+            withStats: body.withStats === 'on',
+            paused: body.paused === 'on',
+          }
+        : (body ?? {});
     const run = await this.wrap(() => this.sim.start(opts));
     if (form) return res.redirect(303, PAGE);
     return run;
@@ -106,7 +108,7 @@ ${active ? '<p><small>Page rafraîchie toutes les 3 s pendant une simulation.</s
 
   /** pause | resume | step | stop */
   @Post('runs/:id/:action')
-  control(@Param('id') id: string, @Param('action') action: string, @Body() body: Record<string, any>, @Res({ passthrough: true }) res: Response) {
+  control(@Param('id') id: string, @Param('action') action: string, @Body() body: { _form?: string } | undefined, @Res({ passthrough: true }) res: Response) {
     const run = this.wrapSync(() => this.sim.control(id, action));
     if (body?._form === '1') return res.redirect(303, PAGE);
     return run;

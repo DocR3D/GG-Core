@@ -1,5 +1,6 @@
 import { Injectable, Logger, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
 import { PrismaClient } from '@prisma/client';
+import { errorMessage } from '@app/shared/error-message';
 
 @Injectable()
 export class PrismaService
@@ -21,9 +22,9 @@ export class PrismaService
     try {
       await this.$connect();
       this.logger.log('Connected to PostgreSQL via Prisma');
-    } catch (err: any) {
+    } catch (err) {
       this.logger.warn(
-        `PostgreSQL connection deferred or unavailable: ${err?.message}`,
+        `PostgreSQL connection deferred or unavailable: ${errorMessage(err)}`,
       );
     }
   }

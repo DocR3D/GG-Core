@@ -17,7 +17,7 @@ describe('fake tournament data', () => {
     const rnd = seededRandom(7);
     for (let i = 0; i < 50; i++) {
       const { home, away } = fakeGameStats(13, 7, 5, rnd);
-      const sum = (lines: typeof home, k: keyof (typeof home)[number]) => lines.reduce((s, l) => s + (l[k] as number), 0);
+      const sum = (lines: typeof home, k: keyof (typeof home)[number]) => lines.reduce((s, l) => s + (l[k]), 0);
       expect(sum(home, 'kills')).toBe(sum(away, 'deaths'));
       expect(sum(away, 'kills')).toBe(sum(home, 'deaths'));
       expect(sum(home, 'kills')).toBeGreaterThan(sum(away, 'kills'));

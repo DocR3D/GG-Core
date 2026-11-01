@@ -8,6 +8,7 @@ import { MatchStateService } from '@app/match/state/match-state.service';
 import { PauseMatchService } from '@app/match/pause/pause.service';
 import { MatchPhase } from '@domain/phase.types';
 import { CS2_RCON_COMMANDS, CS2_RULES } from '@domain/rules/rules.constants';
+import { errorMessage } from '@app/shared/error-message';
 
 export class MatchAdminError extends Error {
   constructor(
@@ -155,7 +156,7 @@ export class MatchAdminService {
     const matchMapId = await this.state.getDbMatchMapId(matchId);
     await this.prisma.eventPrimary
       .create({ data: { matchId, serverId, matchMapId: matchMapId ?? null, timestamp: BigInt(Date.now()), type: 'admin_action', payload } })
-      .catch((e) => this.log.warn(`[admin] action not recorded: ${e?.message}`));
+      .catch((e) => this.log.warn(`[admin] action not recorded: ${errorMessage(e)}`));
     await this.ws.push(matchId, 'admin:action', { matchId, serverId, ...payload, at: Date.now() }, 'admin');
     return { ok: true, matchId, ...payload };
   }

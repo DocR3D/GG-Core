@@ -39,7 +39,7 @@ export function roundRobinPairings<T>(teamIds: T[]): Pairing<T>[] {
       const b = slots[n - 1 - i];
       if (a === BYE || b === BYE) continue;
       const swap = (r + i) % 2 === 1;
-      pairings.push({ round: r + 1, home: (swap ? b : a) as T, away: (swap ? a : b) as T });
+      pairings.push({ round: r + 1, home: (swap ? b : a), away: (swap ? a : b) });
     }
     // rotate every slot but the first
     slots.splice(1, 0, slots.pop()!);

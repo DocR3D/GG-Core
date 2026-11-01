@@ -124,7 +124,7 @@ export class KillAndBombEventsHandler {
                 p.victim?.team &&
                 !isNonPlayingSide(p.killer.team) &&
                 !isNonPlayingSide(p.victim.team) &&
-                normalizeSide(p.killer.team as any) === normalizeSide(p.victim.team as any),
+                normalizeSide(p.killer.team) === normalizeSide(p.victim.team),
             );
             const isTeamkill = Boolean(p.teamkill) || isSameTeam;
 
@@ -168,7 +168,7 @@ export class KillAndBombEventsHandler {
               p.victim?.team &&
               !isNonPlayingSide(p.player.team) &&
               !isNonPlayingSide(p.victim.team) &&
-              normalizeSide(p.player.team as any) === normalizeSide(p.victim.team as any),
+              normalizeSide(p.player.team) === normalizeSide(p.victim.team),
           );
           if (!isWarmupEvent && !isFriendlyAssist) {
             await this.matchState.recordAssist(

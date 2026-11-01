@@ -16,9 +16,12 @@ export type PlayerRefLogs = {
 // ----------------------------
 // Core match events
 // ----------------------------
-export type RoundStartEvent = BaseEvent<typeof EventTypes.ROUND_START, {}>;
-export type MatchPausedEvent = BaseEvent<typeof EventTypes.MATCH_PAUSED, {}>;
-export type MatchUnpausedEvent = BaseEvent<typeof EventTypes.MATCH_UNPAUSED, {}>;
+/** An event that carries nothing in its payload. */
+type NoPayload = Record<string, never>;
+
+export type RoundStartEvent = BaseEvent<typeof EventTypes.ROUND_START, NoPayload>;
+export type MatchPausedEvent = BaseEvent<typeof EventTypes.MATCH_PAUSED, NoPayload>;
+export type MatchUnpausedEvent = BaseEvent<typeof EventTypes.MATCH_UNPAUSED, NoPayload>;
 
 export type DefuseBeginEvent = BaseEvent<typeof EventTypes.DEFUSE_BEGIN, {
   player: PlayerRefLogs;
@@ -133,12 +136,12 @@ export type PhaseChangeEvent = BaseEvent<typeof EventTypes.PHASE_CHANGED, {
   newPhase: string; at?: number;
 }>;
 
-export type RoundFreezeStartEvent = BaseEvent<
-  typeof EventTypes.ROUND_FREEZE_START,
-  {}
->;
+export type RoundFreezeStartEvent = BaseEvent<typeof EventTypes.ROUND_FREEZE_START, NoPayload>;
 
 // ----------------------------
+// Catch-all of AnyEvent: an event type without its own payload type above. Its `any` payload is why the engine's
+// handlers read payloads untyped (the legacy files of eslint.config.mjs); typing every payload removes it.
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 export type GenericMatchEvent = BaseEvent<EventType, Record<string, any>>;
 
 export type AnyEvent =

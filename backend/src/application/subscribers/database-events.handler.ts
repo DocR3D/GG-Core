@@ -3,6 +3,7 @@ import { EventTypes } from '@domain/events/event.types';
 import type { AnyEvent } from '@domain/events/match.event';
 import { TournamentPersistenceService, isUuid } from '@adapters/database/tournament-persistence.service';
 import { MatchStateService, normalizeSide } from '@app/match/state/match-state.service';
+import { errorMessage } from '@app/shared/error-message';
 
 /** Durée de cache de la résolution matchId → MatchMap (évite une requête SQL par événement). */
 const MATCH_MAP_CACHE_TTL_MS = 30_000;
@@ -42,16 +43,16 @@ export class DatabaseEventsHandler {
           break;
 
         case EventTypes.TEAM_ROUND_WIN:
-          await this.handleTeamRoundWin(ev);
+          this.handleTeamRoundWin(ev);
           break;
 
         default:
           break;
       }
-    } catch (err: any) {
+    } catch (err) {
       // Safe resilience: Log warning but never crash the real-time match engine
       this.logger.warn(
-        `[DatabaseEventsHandler] Failed to persist event ${ev.type} for match ${ev.matchId}: ${err?.message}`,
+        `[DatabaseEventsHandler] Failed to persist event ${ev.type} for match ${ev.matchId}: ${errorMessage(err)}`,
       );
     }
   }
@@ -123,8 +124,8 @@ export class DatabaseEventsHandler {
     return isUuid(teamId) ? teamId : null;
   }
 
-  private async handleTeamRoundWin(ev: AnyEvent & { matchId: string }): Promise<void> {
-    const payload = ev.payload as any;
+  private handleTeamRoundWin(ev: AnyEvent & { matchId: string }): void {
+    const payload = ev.payload as { winner?: string } | undefined;
     this.logger.debug(
       `[DatabaseEventsHandler] Round win persisted for match ${ev.matchId}, winner=${payload?.winner}`,
     );

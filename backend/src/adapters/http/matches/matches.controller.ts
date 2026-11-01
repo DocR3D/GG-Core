@@ -42,7 +42,7 @@ export class MatchesController {
 
   @Post(':id/init')
   async init(@Param('id') matchId: string, @Body() dto: InitDto = {}) {
-    await this.matchState.initMatchState(matchId, dto as any);
+    await this.matchState.initMatchState(matchId, dto);
     return { ok: true, matchId };
   }
 

@@ -8,6 +8,7 @@ import { MatchEventsHandler } from './match-events.handler';
 import { ChatCommandHandler } from './chat-commands.handler';
 import { MatchStateService } from '@app/match/state/match-state.service';
 import { REDIS_CHANNELS } from '@app/match/state/redis.keys';
+import { errorMessage } from '@app/shared/error-message';
 
 @Injectable()
 export class EventsRouterSubscriber implements OnModuleInit, OnModuleDestroy {
@@ -22,7 +23,7 @@ export class EventsRouterSubscriber implements OnModuleInit, OnModuleDestroy {
   private onMessageBound = (channel: string, message: string) => {
     this.processingQueue = this.processingQueue
       .then(() => this.onMessage(channel, message))
-      .catch((err) => this.logger.error(`Queue processing error: ${err?.message}`));
+      .catch((err) => this.logger.error(`Queue processing error: ${errorMessage(err)}`));
   };
 
   constructor(
@@ -65,7 +66,7 @@ export class EventsRouterSubscriber implements OnModuleInit, OnModuleDestroy {
     // 1) Parse JSON
     let ev: AnyEvent | null = null;
     try {
-      ev = JSON.parse(msg);
+      ev = JSON.parse(msg) as AnyEvent;
     } catch {
       this.logger.warn(`Invalid JSON on ${channel}`);
       return;
@@ -74,13 +75,14 @@ export class EventsRouterSubscriber implements OnModuleInit, OnModuleDestroy {
 
     // 2) Filtre "kind" (ne traite que le flux principal)
     //    (garde ta convention: kind: 'primary' | 'telemetry' | ...)
-    if ((ev as any).kind && (ev as any).kind !== 'primary') return;
+    const kind = (ev as { kind?: string }).kind;
+    if (kind && kind !== 'primary') return;
 
     // 3) Résoudre matchId s'il manque mais qu'on a serverId
     if ((!ev.matchId || ev.matchId === 'unknown') && !!ev.serverId) {
       try {
         const mid = await this.matchState.getMatchIdFromServerId(ev.serverId);
-        if (mid) (ev as any).matchId = mid;
+        if (mid) ev.matchId = mid;
       } catch {
         // ignore, on garde le matchId tel quel
       }
@@ -100,7 +102,7 @@ export class EventsRouterSubscriber implements OnModuleInit, OnModuleDestroy {
       }
     } catch (e) {
       this.logger.error(
-        `Routing failed: type=${(ev as any).type} match=${ev.matchId} err=${(e as Error)?.message}`,
+        `Routing failed: type=${ev.type} match=${ev.matchId} err=${errorMessage(e)}`,
       );
     }
   }

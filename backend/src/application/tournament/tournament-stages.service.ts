@@ -48,7 +48,7 @@ export class TournamentStagesService {
 
   /** Creates teams by name (before the import from the registration site exists). */
   async createTeams(names: string[]) {
-    const clean = (names ?? []).map((n) => n?.trim()).filter(Boolean) as string[];
+    const clean = (names ?? []).map((n) => n?.trim()).filter((n): n is string => !!n);
     if (!clean.length) throw new TournamentError('invalid', 'at least one team name is required');
     return this.prisma.$transaction(clean.map((name) => this.prisma.team.create({ data: { name } })));
   }
@@ -565,7 +565,7 @@ export class TournamentStagesService {
                     loser: loser?.name ?? null,
                   };
                 }),
-            ).map((r) => ({ place: r.place, team: r.team as string }))
+            ).map((r) => ({ place: r.place, team: r.team }))
           : undefined;
       // bonus matches for a place (7 = 7th / 8th) settle the teams sharing it
       const placementResults = tournament.matches

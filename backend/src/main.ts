@@ -3,16 +3,18 @@ import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
 import * as bodyParser from 'body-parser';
 import { json, urlencoded, static as serveStatic } from 'express';
+import type { Express, NextFunction, Request, Response } from 'express';
+import type { NestExpressApplication } from '@nestjs/platform-express';
 import * as path from 'path';
 import * as fs from 'fs';
 import { RequestMethod } from '@nestjs/common';
 import { AuthMiddleware } from './adapters/http/auth/auth.middleware';
 
 async function bootstrap() {
-  const app = await NestFactory.create(AppModule, { logger: ['log','error','warn','debug','verbose'] });
+  const app = await NestFactory.create<NestExpressApplication>(AppModule, { logger: ['log','error','warn','debug','verbose'] });
 
   // Pour des IP correctes derrière proxy
-  (app.getHttpAdapter().getInstance() as any).set('trust proxy', 1);
+  app.set('trust proxy', 1);
 
   // ✅ 1) TEXTE brut UNIQUEMENT pour /cs2/logs (d’abord)
   app.use('/cs2/logs', bodyParser.text({ type: () => true, limit: '2mb' }));
@@ -35,7 +37,7 @@ async function bootstrap() {
   // Access rules for EVERY request, at the Express level: a Nest module middleware would only cover the
   // /api-prefixed routes, not /sandbox, /view, /login, /auth (excluded from the prefix below)
   const access = app.get(AuthMiddleware);
-  app.use((req: any, res: any, next: any) => access.use(req, res, next));
+  app.use((req: Request, res: Response, next: NextFunction) => access.use(req, res, next));
 
   serveFront(app.getHttpAdapter().getInstance());
 
@@ -73,7 +75,7 @@ const SERVER_PATHS = /^\/(api|auth|login|view|veto|sandbox|assets|cs2|socket\.io
  * page address gets index.html, React Router shows the right screen. FRONT_DIST = the built folder (Docker:
  * /front); no build → no front, the server pages still work.
  */
-function serveFront(express: any) {
+function serveFront(express: Express) {
   const dist = process.env.FRONT_DIST || path.join(process.cwd(), '../frontend/dist');
   const index = path.join(dist, 'index.html');
   if (!fs.existsSync(index)) {
@@ -81,11 +83,14 @@ function serveFront(express: any) {
     return;
   }
   express.use('/static', serveStatic(path.join(dist, 'static'), { index: false, maxAge: '1y', immutable: true }));
-  express.use((req: any, res: any, next: any) => {
+  express.use((req: Request, res: Response, next: NextFunction) => {
     if (req.method !== 'GET' || SERVER_PATHS.test(req.path) || !req.accepts('html')) return next();
     res.setHeader('Cache-Control', 'no-cache'); // a new build shows up on the next load
     res.sendFile(index);
   });
 }
 
-bootstrap();
+bootstrap().catch((e) => {
+  console.error('backend failed to start', e);
+  process.exit(1);
+});

@@ -10,7 +10,8 @@ import {
 } from '@nestjs/websockets';
 
 import { UseGuards, Logger } from '@nestjs/common'; // <-- UseGuards vient d'ici
-import type { Server, Socket } from 'socket.io';
+import type { Server } from 'socket.io';
+import type { WsSocket } from './ws-socket';
 import { RealtimeEmitter } from './ws-emitter.internal';
 import { SocketAuthGuard } from './socket.auth.guard';
 import * as jwt from 'jsonwebtoken';
@@ -46,16 +47,16 @@ export class MatchGateway implements OnGatewayInit, OnGatewayConnection, OnGatew
     this.logger.log('[WS] Gateway initialized');
   }
 
-  handleConnection(@ConnectedSocket() socket: Socket) {
+  handleConnection(@ConnectedSocket() socket: WsSocket) {
     // 1) Role: JWT in the handshake, or the session cookie
     const token = (socket.handshake.auth?.token || socket.handshake.query?.token) as string | undefined;
     let role: 'admin' | 'viewer' = 'viewer';
     if (token) {
       try {
-        const decoded = jwt.verify(String(token), process.env.JWT_SECRET!) as jwt.JwtPayload | string;
+        const decoded = jwt.verify(String(token), process.env.JWT_SECRET!);
         if (typeof decoded !== 'string') {
-          role = ((decoded as any).role ?? 'viewer') as 'admin' | 'viewer';
-          socket.data.user = { id: (decoded as any).sub };
+          role = (decoded as { role?: 'admin' | 'viewer' }).role ?? 'viewer';
+          socket.data.user = { id: decoded.sub };
         }
       } catch {
         this.logger.warn('Invalid JWT on WS handshake, disconnecting');
@@ -73,14 +74,14 @@ export class MatchGateway implements OnGatewayInit, OnGatewayConnection, OnGatew
 
     // 2) Match given at connection (optional)
     const raw = socket.handshake.query?.matchId;
-    const matchId = Array.isArray(raw) ? raw[0] : (raw as string | undefined);
+    const matchId = Array.isArray(raw) ? raw[0] : (raw);
     if (matchId?.trim()) this.join(socket, matchId.trim());
     else this.logger.log(`[WS] ${socket.id} connected without match (role=${role})`);
   }
 
   /** Follow a match: its public room, and its admin room for an admin. */
   @SubscribeMessage('match:subscribe')
-  subscribe(@ConnectedSocket() socket: Socket, @MessageBody() body: { matchId?: string }) {
+  subscribe(@ConnectedSocket() socket: WsSocket, @MessageBody() body: { matchId?: string }) {
     const matchId = String(body?.matchId ?? '').trim();
     if (!MATCH_ID.test(matchId)) return { ok: false, error: 'matchId' };
     this.join(socket, matchId);
@@ -89,21 +90,21 @@ export class MatchGateway implements OnGatewayInit, OnGatewayConnection, OnGatew
 
   /** Stop following a match. */
   @SubscribeMessage('match:unsubscribe')
-  unsubscribe(@ConnectedSocket() socket: Socket, @MessageBody() body: { matchId?: string }) {
+  unsubscribe(@ConnectedSocket() socket: WsSocket, @MessageBody() body: { matchId?: string }) {
     const matchId = String(body?.matchId ?? '').trim();
-    socket.leave(`match:${matchId}:public`);
-    socket.leave(`match:${matchId}:admin`);
+    void socket.leave(`match:${matchId}:public`);
+    void socket.leave(`match:${matchId}:admin`);
     return { ok: true, matchId };
   }
 
-  handleDisconnect(@ConnectedSocket() socket: Socket) {
+  handleDisconnect(@ConnectedSocket() socket: WsSocket) {
     this.logger.log(`[WS] ${socket.id} disconnected (match=${socket.data?.matchId || '-'})`);
   }
 
-  private join(socket: Socket, matchId: string) {
+  private join(socket: WsSocket, matchId: string) {
     socket.data.matchId = matchId;
-    socket.join(`match:${matchId}:public`);
-    if (socket.data.role === 'admin') socket.join(`match:${matchId}:admin`);
+    void socket.join(`match:${matchId}:public`); // in-memory adapter: synchronous
+    if (socket.data.role === 'admin') void socket.join(`match:${matchId}:admin`);
     this.logger.log(`[WS] ${socket.id} joined match:${matchId} (role=${socket.data.role})`);
   }
 }

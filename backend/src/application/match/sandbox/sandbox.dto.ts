@@ -68,7 +68,7 @@ export class ReplayScenarioDto {
   matchId?: string;
   serverId?: string;
   fixtureName?: string;
-  events?: any[];
+  events?: unknown[];
   speed?: 'instant' | 'fast' | 'realtime';
 }
 
@@ -80,7 +80,7 @@ export class StartRoundReplayDto {
   /** Log brut fourni directement */
   content?: string;
   /** Scénario fourni directement */
-  events?: any[];
+  events?: unknown[];
 }
 
 /** next / prev : un round ; goto : aller au round `round` (0 = avant le 1er round). */

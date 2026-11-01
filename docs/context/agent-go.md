@@ -21,7 +21,7 @@ Programme Go qui fait le lien entre un serveur CS2 et le backend.
 - Client RCON (rate-limit, timeout)
 - Heartbeat Redis TTL (`ggbot:agent:<serverId>:state`)
 - Subscribe `ggbot:agent:<serverId>:actions` pour exécuter les commandes
-- Publie événements sur `ggbot:events` (pub/sub) + `ggbot:events_primary:<serverId>` (stream)
+- Publie événements sur `ggbot:events` (pub/sub, lu par le backend) + `ggbot:events_primary:<serverId>` (stream borné `MAXLEN ~`, prévu pour rattraper les événements après une coupure, lu par personne aujourd'hui : voir `docs/architecture.md` § « Résilience aux coupures »). En cas d'erreur Redis, `flush()` jette le lot
 
 ## Packages internes
 

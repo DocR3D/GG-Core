@@ -1,6 +1,6 @@
 // src/application/tournament/tournament-admin.service.ts
 import { Injectable } from '@nestjs/common';
-import { MatchFormat } from '@prisma/client';
+import { MatchFormat, Prisma } from '@prisma/client';
 import { PrismaService } from '@adapters/database/prisma.service';
 import { isUuid, TournamentPersistenceService, WINS_NEEDED } from '@adapters/database/tournament-persistence.service';
 import { TournamentError } from './tournament-stages.service';
@@ -81,7 +81,7 @@ export class TournamentAdminService {
    */
   async setFormat(input: { matchIds?: string[]; stageId?: string; bracket?: 'UPPER' | 'LOWER' | 'FINAL'; format: MatchFormat }) {
     if (!FORMATS.includes(input.format)) throw new TournamentError('invalid', 'format: BO1 | BO3 | BO5');
-    let matches;
+    let matches: Prisma.MatchGetPayload<{ include: { maps: true } }>[];
     if (input.matchIds?.length) {
       const ids = input.matchIds.filter((id) => isUuid(id));
       matches = await this.prisma.match.findMany({ where: { id: { in: ids } }, include: { maps: true } });
