@@ -1,10 +1,27 @@
+export const REDIS_CHANNELS = {
+  /** Canal principal Pub/Sub de distribution des événements de match */
+  EVENTS: 'ggbot:events',
+  /** Canal de commande RCON vers un agent spécifique */
+  agentActions: (serverId: string) => `ggbot:agent:${serverId}:actions`,
+} as const;
+
 export const redisConst = {
   // Liaison serveur ↔ match
   serverMatch: (serverId: string) => `server:${serverId}:currentMatch`,
   matchServer: (matchId: string) => `match:${matchId}:server`,
+  // Accès au serveur du match : mot de passe (sv_password) et SteamID autorisés (set, [U:1:x] ; absent = pas de whitelist)
+  matchPassword: (matchId: string) => `match:${matchId}:password`,
+  matchAllowed: (matchId: string) => `match:${matchId}:allowed`,
+  // Camp de chaque joueur sur un serveur (hash steamId → JSON { side, name }), suivi des lignes "switched from team"
+  serverPlayerSides: (serverId: string) => `server:${serverId}:playerSides`,
+  // Heartbeat de l'agent d'un serveur (JSON, TTL 10 s : absent = agent arrêté)
+  agentState: (serverId: string) => `ggbot:agent:${serverId}:state`,
+  // Liaison match temps réel ↔ MatchMap PostgreSQL (UUID)
+  dbMatchMap: (matchId: string) => `match:${matchId}:db_match_map`,
 
-  // Bus d’événements
-  eventsPrimary: (serverId: string) => `ggbot:events_primary:${serverId}`,
+  // Bus d’événements & Canaux Pub/Sub
+  events: REDIS_CHANNELS.EVENTS,
+  agentActions: REDIS_CHANNELS.agentActions,
 
   // Match-level
   phase:        (m: string) => `match:${m}:phase`,
@@ -19,16 +36,28 @@ export const redisConst = {
   timeouts:     (m: string) => `match:${m}:timeouts`,       // hash
   teams:        (m: string) => `match:${m}:teams`,          // hash
 
-  // 🔹 NEW: map (hash)
+  // Settings & Lifecycle
+  settings:     (m: string) => `match:${m}:settings`,       // hash
+  review:       (m: string) => `match:${m}:review`,         // string JSON: result frozen, waiting for an admin
+  lastScoredRound: (m: string) => `match:${m}:last_scored_round`,
+  halftimePlayed: (m: string) => `match:${m}:halftime_played`,
+  overtimeCount:  (m: string) => `match:${m}:overtime_count`,
+
+  // Map (hash)
   map:          (m: string) => `match:${m}:map`,            // hash { name, set_at }
 
   ready:        (m: string) => `match:${m}:ready`,          // hash
   playersHash:  (m: string) => `match:${m}:players`,
+  playerStatsHash: (m: string) => `match:${m}:player_stats`,
+  // Photo des stats joueurs au début de chaque round (champ = nb de rounds joués) : rollback sur backup restore
+  playerStatsHistory: (m: string) => `match:${m}:player_stats_history`,
   lineupHome:   (m: string) => `match:${m}:lineup:home`,
   lineupAway:   (m: string) => `match:${m}:lineup:away`,
 
   // Économie
   economyTeam:  (m: string) => `match:${m}:economy:team`,
+  // Photo de economy:team au début de chaque round (champ = nb de rounds joués) : rollback sur backup restore
+  economyTeamHistory: (m: string) => `match:${m}:economy:team_history`,
   moneyHash:    (m: string) => `match:${m}:money`,
   equipHash:    (m: string) => `match:${m}:equip`,
 

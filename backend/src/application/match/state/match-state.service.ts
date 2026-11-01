@@ -1,15 +1,27 @@
 import { Injectable } from '@nestjs/common';
 import {
   SidesScoreService,
-  type GameSide,
   type Logical,
   type CoreSide,
 } from './sides-score.service';
 import { TimeoutsService } from './timeouts.service';
 import { TeamsRosterService, type PlayerInfo } from './rosters.service';
 import { EconomyService, type TeamEconomyMeta } from './economy.service';
+import { PlayerStatsService, type PlayerCombatStats } from './player-stats.service';
 import { SnapshotQuery } from './snapshot.query';
 import { Phase } from '@domain/phase.types';
+import { MatchSettings, MatchReview } from '@domain/match-settings.types';
+import {
+  GameSide,
+  CS2_SIDE_TERRORIST,
+  CS2_SIDE_T,
+  CS2_SIDE_CT,
+  normalizeSide,
+} from '@domain/side.types';
+
+export type { GameSide };
+export { CS2_SIDE_TERRORIST, CS2_SIDE_T, CS2_SIDE_CT, normalizeSide };
+
 @Injectable()
 export class MatchStateService {
   constructor(
@@ -17,6 +29,7 @@ export class MatchStateService {
     private readonly timeouts: TimeoutsService,
     private readonly teamsRoster: TeamsRosterService,
     private readonly economy: EconomyService,
+    private readonly playerStats: PlayerStatsService,
     private readonly snapshotQ: SnapshotQuery,
   ) {}
 
@@ -33,6 +46,49 @@ export class MatchStateService {
     return this.sidesScore.getServerIdFromMatchId(matchId);
   }
 
+  unbindServer(serverId: string) {
+    return this.sidesScore.unbindServer(serverId);
+  }
+  getAgentState(serverId: string) {
+    return this.sidesScore.getAgentState(serverId);
+  }
+
+  // Match temps réel ↔ MatchMap PostgreSQL
+  setDbMatchMapId(matchId: string, matchMapId: string) {
+    return this.sidesScore.setDbMatchMapId(matchId, matchMapId);
+  }
+  getDbMatchMapId(matchId: string) {
+    return this.sidesScore.getDbMatchMapId(matchId);
+  }
+
+  /**
+   * Initial real-time state of a match (sides, score, timeouts, teams, settings, server binding, MatchMap link).
+   * Used by POST /api/matches/:id/init|start and by the launch of a tournament game.
+   */
+  async initMatchState(
+    matchId: string,
+    opts: {
+      home?: CoreSide['home'];
+      away?: CoreSide['away'];
+      homeTac?: number;
+      awayTac?: number;
+      homeTech?: number;
+      awayTech?: number;
+      teams?: { home_id?: string; away_id?: string; home_name?: string; away_name?: string };
+      settings?: Partial<MatchSettings>;
+      serverId?: string;
+      matchMapId?: string;
+    } = {},
+  ) {
+    await this.setSides(matchId, { home: opts.home ?? 'CT', away: opts.away ?? 'T' });
+    await this.initScore(matchId);
+    await this.initTimeouts(matchId, opts.homeTac ?? 4, opts.awayTac ?? 4, opts.homeTech ?? 0, opts.awayTech ?? 0);
+    if (opts.teams) await this.setTeams(matchId, opts.teams);
+    if (opts.settings) await this.setSettings(matchId, opts.settings);
+    if (opts.serverId) await this.setServerIdToMatchId(opts.serverId, matchId);
+    if (opts.matchMapId) await this.setDbMatchMapId(matchId, opts.matchMapId);
+  }
+
   // ───────────────────────────────────────────────────────────────────────────
   // Sides / Score / Phase
   // ───────────────────────────────────────────────────────────────────────────
@@ -46,21 +102,20 @@ export class MatchStateService {
     return this.sidesScore.swapSides(matchId);
   }
   sideToLogical(matchId: string, side: GameSide) {
-    if(side == 'TERRORIST') side = "T";
-    return this.sidesScore.sideToLogical(matchId, side);
+    return this.sidesScore.sideToLogical(matchId, normalizeSide(side));
   }
 
   logicalToSide(matchId: string, logical: Logical) {
     return this.sidesScore.logicalToSide(matchId, logical);
   }
-  applyKnifeResult(matchId: string, winnerSide: 'CT' | 'T'){
+  applyKnifeResult(matchId: string, winnerSide: 'CT' | 'T') {
     return this.sidesScore.applyKnifeResult(matchId, winnerSide);
   }
-  getKnifeResult(matchId: string) :Promise<{
-      side: GameSide | null;
-      logical: Logical | null;
-      team: { id: string | null; name: string | null } | null;
-    }>{
+  getKnifeResult(matchId: string): Promise<{
+    side: GameSide | null;
+    logical: Logical | null;
+    team: { id: string | null; name: string | null } | null;
+  }> {
     return this.sidesScore.getKnifeWinner(matchId);
   }
 
@@ -74,8 +129,10 @@ export class MatchStateService {
     return this.sidesScore.incRound(matchId);
   }
   addPoint(matchId: string, winner: GameSide) {
-    if(winner == 'TERRORIST') winner = "T";
-    return this.sidesScore.addPoint(matchId, winner);
+    return this.sidesScore.addPoint(matchId, normalizeSide(winner));
+  }
+  reconcileScore(matchId: string, ct: number, t: number) {
+    return this.sidesScore.reconcileScore(matchId, ct, t);
   }
   getPhase(matchId: string) {
     return this.sidesScore.getPhase(matchId);
@@ -85,6 +142,44 @@ export class MatchStateService {
   }
   getScore(matchId: string) {
     return this.sidesScore.getScore(matchId);
+  }
+
+  // ───────────────────────────────────────────────────────────────────────────
+  // Anti-eBot Bug Guards & Lifecycle State
+  // ───────────────────────────────────────────────────────────────────────────
+  getLastScoredRound(matchId: string) {
+    return this.sidesScore.getLastScoredRound(matchId);
+  }
+  setLastScoredRound(matchId: string, round: number) {
+    return this.sidesScore.setLastScoredRound(matchId, round);
+  }
+  isHalftimePlayed(matchId: string) {
+    return this.sidesScore.isHalftimePlayed(matchId);
+  }
+  setHalftimePlayed(matchId: string, played: boolean) {
+    return this.sidesScore.setHalftimePlayed(matchId, played);
+  }
+  getOvertimeCount(matchId: string) {
+    return this.sidesScore.getOvertimeCount(matchId);
+  }
+  setOvertimeCount(matchId: string, count: number) {
+    return this.sidesScore.setOvertimeCount(matchId, count);
+  }
+
+  // ───────────────────────────────────────────────────────────────────────────
+  // Settings (Warmup toggles, Overtime config, Postgame action)
+  // ───────────────────────────────────────────────────────────────────────────
+  getReview(matchId: string) {
+    return this.sidesScore.getReview(matchId);
+  }
+  setReview(matchId: string, review: MatchReview | null) {
+    return this.sidesScore.setReview(matchId, review);
+  }
+  getSettings(matchId: string) {
+    return this.sidesScore.getSettings(matchId);
+  }
+  setSettings(matchId: string, settings: Partial<MatchSettings>) {
+    return this.sidesScore.setSettings(matchId, settings);
   }
 
   // ───────────────────────────────────────────────────────────────────────────
@@ -122,15 +217,21 @@ export class MatchStateService {
   getScoreWithTeams(matchId: string) {
     return this.teamsRoster.getScoreWithTeams(matchId);
   }
+  getTeamIds(matchId: string) {
+    return this.teamsRoster.getTeamIds(matchId);
+  }
 
-  upsertPlayer(matchId: string, p: PlayerInfo) {
-    return this.teamsRoster.upsertPlayer(matchId, p);
+  upsertPlayer(matchId: string, p: PlayerInfo, opts?: { preserveLogical?: boolean }) {
+    return this.teamsRoster.upsertPlayer(matchId, p, opts);
   }
   movePlayerLogical(matchId: string, steamId: string, logical: Logical) {
     return this.teamsRoster.movePlayerLogical(matchId, steamId, logical);
   }
   removePlayer(matchId: string, steamId: string) {
     return this.teamsRoster.removePlayer(matchId, steamId);
+  }
+  clearRoster(matchId: string) {
+    return this.teamsRoster.clearRoster(matchId);
   }
   getPlayers(matchId: string) {
     return this.teamsRoster.getPlayers(matchId);
@@ -146,10 +247,65 @@ export class MatchStateService {
   }
 
   // ───────────────────────────────────────────────────────────────────────────
+  // Combat Stats (Scoreboard)
+  // ───────────────────────────────────────────────────────────────────────────
+  recordKill(
+    matchId: string,
+    killer: { steamId: string; name?: string },
+    victim?: { steamId: string; name?: string },
+    headshot = false,
+    teamkill = false,
+  ) {
+    return this.playerStats.recordKill(matchId, killer, victim, headshot, teamkill);
+  }
+  recordAssist(
+    matchId: string,
+    assister: { steamId: string; name?: string },
+    flashAssist = false,
+  ) {
+    return this.playerStats.recordAssist(matchId, assister, flashAssist);
+  }
+  recordBombPlant(
+    matchId: string,
+    planter: { steamId: string; name?: string },
+  ) {
+    return this.playerStats.recordBombPlant(matchId, planter);
+  }
+  recordBombDefuse(
+    matchId: string,
+    defuser: { steamId: string; name?: string },
+  ) {
+    return this.playerStats.recordBombDefuse(matchId, defuser);
+  }
+  getPlayerStats(matchId: string) {
+    return this.playerStats.getPlayerStats(matchId);
+  }
+  setPlayerStats(matchId: string, steamId: string, stats: Partial<PlayerCombatStats>) {
+    return this.playerStats.setPlayerStats(matchId, steamId, stats);
+  }
+  /** Photo de début de round (stats joueurs + séries d'équipe), base d'un rollback sur backup restore. */
+  async snapshotRound(matchId: string, roundsPlayed: number) {
+    await this.playerStats.snapshotPlayerStats(matchId, roundsPlayed);
+    await this.economy.snapshotTeamEconomy(matchId, roundsPlayed);
+  }
+  /** Backup restore CS2 : remet stats joueurs et séries d'équipe à la photo. Retourne false sans photo. */
+  async restoreRound(matchId: string, roundsPlayed: number): Promise<boolean> {
+    const restored = await this.playerStats.restorePlayerStats(matchId, roundsPlayed);
+    if (restored) await this.economy.restoreTeamEconomy(matchId, roundsPlayed);
+    return restored;
+  }
+  resetPlayerStats(matchId: string) {
+    return this.playerStats.resetPlayerStats(matchId);
+  }
+
+  // ───────────────────────────────────────────────────────────────────────────
   // Économie équipes + roundEnd
   // ───────────────────────────────────────────────────────────────────────────
   initEconomy(matchId: string) {
     return this.economy.initEconomy(matchId);
+  }
+  resetStreaks(matchId: string) {
+    return this.economy.resetStreaks(matchId);
   }
   getTeamEconomyMeta(matchId: string): Promise<TeamEconomyMeta> {
     return this.economy.getTeamEconomyMeta(matchId);
@@ -158,17 +314,15 @@ export class MatchStateService {
     return this.economy.setTeamLossStreak(matchId, logical, streak);
   }
   updateEconomyOnRoundEnd(matchId: string, winnerSide: GameSide) {
-    if(winnerSide == 'TERRORIST') winnerSide = "T";
-    return this.economy.updateEconomyOnRoundEnd(matchId, winnerSide);
+    return this.economy.updateEconomyOnRoundEnd(matchId, normalizeSide(winnerSide));
   }
-  roundEnd(
+  async roundEnd(
     matchId: string,
     winnerSide: GameSide,
     playerEconomy?: { steamId: string; money: number; equip: number }[],
   ) {
-    if(winnerSide == 'TERRORIST') winnerSide = "T";
-    this.economy.updateEconomyOnRoundEnd(matchId,winnerSide);
-    return this.economy.roundEnd(matchId, winnerSide, playerEconomy);
+    const norm = normalizeSide(winnerSide);
+    return await this.economy.roundEnd(matchId, norm, playerEconomy);
   }
 
   // ───────────────────────────────────────────────────────────────────────────
@@ -179,7 +333,7 @@ export class MatchStateService {
   }
 }
 
-// Re-export des types pour compatibilité avec l’ancien import depuis ce fichier
-export type { GameSide, Logical, CoreSide } from './sides-score.service';
+export type { Logical, CoreSide } from './sides-score.service';
 export type { PlayerInfo } from './rosters.service';
+export type { PlayerCombatStats } from './player-stats.service';
 export type { TeamEconomyMeta } from './economy.service';

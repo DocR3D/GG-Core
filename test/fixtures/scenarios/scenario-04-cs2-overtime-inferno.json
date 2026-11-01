@@ -1,0 +1,2169 @@
+{
+  "metadata": {
+    "generatedAt": "2026-10-26T21:57:06.043Z",
+    "sourceLog": "cs2_match_inferno_overtime_anonymized.log",
+    "matchId": "m-sandbox-1",
+    "map": "de_inferno",
+    "totalEvents": 110,
+    "totalRounds": 36,
+    "eventSummary": {
+      "match_start": 1,
+      "round_start": 37,
+      "kill": 36,
+      "team_round_win": 36
+    },
+    "notes": "CS2 MR12 Double Overtime match (12-12 -> OT1 15-15 -> OT2 17-19) on de_inferno"
+  },
+  "events": [
+    {
+      "v": 1,
+      "id": "ev-1",
+      "timestamp": 1793050002000,
+      "source": "logs",
+      "kind": "primary",
+      "serverId": "srv-a",
+      "matchId": "m-sandbox-1",
+      "map": "de_inferno",
+      "round": 0,
+      "type": "match_start",
+      "payload": {}
+    },
+    {
+      "v": 1,
+      "id": "ev-2",
+      "timestamp": 1793050003000,
+      "source": "logs",
+      "kind": "primary",
+      "serverId": "srv-a",
+      "matchId": "m-sandbox-1",
+      "map": "de_inferno",
+      "round": 1,
+      "type": "round_start",
+      "payload": {}
+    },
+    {
+      "v": 1,
+      "id": "ev-3",
+      "timestamp": 1793050004000,
+      "source": "logs",
+      "kind": "primary",
+      "serverId": "srv-a",
+      "matchId": "m-sandbox-1",
+      "map": "de_inferno",
+      "round": 2,
+      "type": "round_start",
+      "payload": {}
+    },
+    {
+      "v": 1,
+      "id": "ev-4",
+      "timestamp": 1793050005000,
+      "source": "logs",
+      "kind": "primary",
+      "serverId": "srv-a",
+      "matchId": "m-sandbox-1",
+      "map": "de_inferno",
+      "round": 2,
+      "type": "kill",
+      "payload": {
+        "kind": "player",
+        "killer": {
+          "name": "Alpha_Romeo",
+          "steamId": "[U:1:10000001]",
+          "team": "CT"
+        },
+        "victim": {
+          "name": "Bravo_Kilo",
+          "steamId": "[U:1:20000002]",
+          "team": "TERRORIST"
+        },
+        "weapon": "m4a1_silencer",
+        "headshot": true
+      }
+    },
+    {
+      "v": 1,
+      "id": "ev-5",
+      "timestamp": 1793050006000,
+      "source": "logs",
+      "kind": "primary",
+      "serverId": "srv-a",
+      "matchId": "m-sandbox-1",
+      "map": "de_inferno",
+      "round": 2,
+      "type": "team_round_win",
+      "payload": {
+        "winner": "CT",
+        "team": "CT",
+        "reason": "elim",
+        "scoreCT": 1,
+        "scoreT": 0
+      }
+    },
+    {
+      "v": 1,
+      "id": "ev-6",
+      "timestamp": 1793050007000,
+      "source": "logs",
+      "kind": "primary",
+      "serverId": "srv-a",
+      "matchId": "m-sandbox-1",
+      "map": "de_inferno",
+      "round": 3,
+      "type": "round_start",
+      "payload": {}
+    },
+    {
+      "v": 1,
+      "id": "ev-7",
+      "timestamp": 1793050008000,
+      "source": "logs",
+      "kind": "primary",
+      "serverId": "srv-a",
+      "matchId": "m-sandbox-1",
+      "map": "de_inferno",
+      "round": 3,
+      "type": "kill",
+      "payload": {
+        "kind": "player",
+        "killer": {
+          "name": "Alpha_Romeo",
+          "steamId": "[U:1:10000001]",
+          "team": "CT"
+        },
+        "victim": {
+          "name": "Bravo_Kilo",
+          "steamId": "[U:1:20000002]",
+          "team": "TERRORIST"
+        },
+        "weapon": "m4a1_silencer",
+        "headshot": true
+      }
+    },
+    {
+      "v": 1,
+      "id": "ev-8",
+      "timestamp": 1793050009000,
+      "source": "logs",
+      "kind": "primary",
+      "serverId": "srv-a",
+      "matchId": "m-sandbox-1",
+      "map": "de_inferno",
+      "round": 3,
+      "type": "team_round_win",
+      "payload": {
+        "winner": "CT",
+        "team": "CT",
+        "reason": "elim",
+        "scoreCT": 2,
+        "scoreT": 0
+      }
+    },
+    {
+      "v": 1,
+      "id": "ev-9",
+      "timestamp": 1793050010000,
+      "source": "logs",
+      "kind": "primary",
+      "serverId": "srv-a",
+      "matchId": "m-sandbox-1",
+      "map": "de_inferno",
+      "round": 4,
+      "type": "round_start",
+      "payload": {}
+    },
+    {
+      "v": 1,
+      "id": "ev-10",
+      "timestamp": 1793050011000,
+      "source": "logs",
+      "kind": "primary",
+      "serverId": "srv-a",
+      "matchId": "m-sandbox-1",
+      "map": "de_inferno",
+      "round": 4,
+      "type": "kill",
+      "payload": {
+        "kind": "player",
+        "killer": {
+          "name": "Bravo_Sierra",
+          "steamId": "[U:1:20000001]",
+          "team": "TERRORIST"
+        },
+        "victim": {
+          "name": "Alpha_Bravo",
+          "steamId": "[U:1:10000002]",
+          "team": "CT"
+        },
+        "weapon": "ak47",
+        "headshot": true
+      }
+    },
+    {
+      "v": 1,
+      "id": "ev-11",
+      "timestamp": 1793050012000,
+      "source": "logs",
+      "kind": "primary",
+      "serverId": "srv-a",
+      "matchId": "m-sandbox-1",
+      "map": "de_inferno",
+      "round": 4,
+      "type": "team_round_win",
+      "payload": {
+        "winner": "T",
+        "team": "T",
+        "reason": "target_bombed",
+        "scoreCT": 2,
+        "scoreT": 1
+      }
+    },
+    {
+      "v": 1,
+      "id": "ev-12",
+      "timestamp": 1793050013000,
+      "source": "logs",
+      "kind": "primary",
+      "serverId": "srv-a",
+      "matchId": "m-sandbox-1",
+      "map": "de_inferno",
+      "round": 5,
+      "type": "round_start",
+      "payload": {}
+    },
+    {
+      "v": 1,
+      "id": "ev-13",
+      "timestamp": 1793050014000,
+      "source": "logs",
+      "kind": "primary",
+      "serverId": "srv-a",
+      "matchId": "m-sandbox-1",
+      "map": "de_inferno",
+      "round": 5,
+      "type": "kill",
+      "payload": {
+        "kind": "player",
+        "killer": {
+          "name": "Bravo_Sierra",
+          "steamId": "[U:1:20000001]",
+          "team": "TERRORIST"
+        },
+        "victim": {
+          "name": "Alpha_Bravo",
+          "steamId": "[U:1:10000002]",
+          "team": "CT"
+        },
+        "weapon": "ak47",
+        "headshot": true
+      }
+    },
+    {
+      "v": 1,
+      "id": "ev-14",
+      "timestamp": 1793050015000,
+      "source": "logs",
+      "kind": "primary",
+      "serverId": "srv-a",
+      "matchId": "m-sandbox-1",
+      "map": "de_inferno",
+      "round": 5,
+      "type": "team_round_win",
+      "payload": {
+        "winner": "T",
+        "team": "T",
+        "reason": "elim",
+        "scoreCT": 2,
+        "scoreT": 2
+      }
+    },
+    {
+      "v": 1,
+      "id": "ev-15",
+      "timestamp": 1793050016000,
+      "source": "logs",
+      "kind": "primary",
+      "serverId": "srv-a",
+      "matchId": "m-sandbox-1",
+      "map": "de_inferno",
+      "round": 6,
+      "type": "round_start",
+      "payload": {}
+    },
+    {
+      "v": 1,
+      "id": "ev-16",
+      "timestamp": 1793050017000,
+      "source": "logs",
+      "kind": "primary",
+      "serverId": "srv-a",
+      "matchId": "m-sandbox-1",
+      "map": "de_inferno",
+      "round": 6,
+      "type": "kill",
+      "payload": {
+        "kind": "player",
+        "killer": {
+          "name": "Alpha_Romeo",
+          "steamId": "[U:1:10000001]",
+          "team": "CT"
+        },
+        "victim": {
+          "name": "Bravo_Kilo",
+          "steamId": "[U:1:20000002]",
+          "team": "TERRORIST"
+        },
+        "weapon": "m4a1_silencer",
+        "headshot": true
+      }
+    },
+    {
+      "v": 1,
+      "id": "ev-17",
+      "timestamp": 1793050018000,
+      "source": "logs",
+      "kind": "primary",
+      "serverId": "srv-a",
+      "matchId": "m-sandbox-1",
+      "map": "de_inferno",
+      "round": 6,
+      "type": "team_round_win",
+      "payload": {
+        "winner": "CT",
+        "team": "CT",
+        "reason": "defused",
+        "scoreCT": 3,
+        "scoreT": 2
+      }
+    },
+    {
+      "v": 1,
+      "id": "ev-18",
+      "timestamp": 1793050019000,
+      "source": "logs",
+      "kind": "primary",
+      "serverId": "srv-a",
+      "matchId": "m-sandbox-1",
+      "map": "de_inferno",
+      "round": 7,
+      "type": "round_start",
+      "payload": {}
+    },
+    {
+      "v": 1,
+      "id": "ev-19",
+      "timestamp": 1793050020000,
+      "source": "logs",
+      "kind": "primary",
+      "serverId": "srv-a",
+      "matchId": "m-sandbox-1",
+      "map": "de_inferno",
+      "round": 7,
+      "type": "kill",
+      "payload": {
+        "kind": "player",
+        "killer": {
+          "name": "Alpha_Romeo",
+          "steamId": "[U:1:10000001]",
+          "team": "CT"
+        },
+        "victim": {
+          "name": "Bravo_Kilo",
+          "steamId": "[U:1:20000002]",
+          "team": "TERRORIST"
+        },
+        "weapon": "m4a1_silencer",
+        "headshot": true
+      }
+    },
+    {
+      "v": 1,
+      "id": "ev-20",
+      "timestamp": 1793050021000,
+      "source": "logs",
+      "kind": "primary",
+      "serverId": "srv-a",
+      "matchId": "m-sandbox-1",
+      "map": "de_inferno",
+      "round": 7,
+      "type": "team_round_win",
+      "payload": {
+        "winner": "CT",
+        "team": "CT",
+        "reason": "elim",
+        "scoreCT": 4,
+        "scoreT": 2
+      }
+    },
+    {
+      "v": 1,
+      "id": "ev-21",
+      "timestamp": 1793050022000,
+      "source": "logs",
+      "kind": "primary",
+      "serverId": "srv-a",
+      "matchId": "m-sandbox-1",
+      "map": "de_inferno",
+      "round": 8,
+      "type": "round_start",
+      "payload": {}
+    },
+    {
+      "v": 1,
+      "id": "ev-22",
+      "timestamp": 1793050023000,
+      "source": "logs",
+      "kind": "primary",
+      "serverId": "srv-a",
+      "matchId": "m-sandbox-1",
+      "map": "de_inferno",
+      "round": 8,
+      "type": "kill",
+      "payload": {
+        "kind": "player",
+        "killer": {
+          "name": "Bravo_Sierra",
+          "steamId": "[U:1:20000001]",
+          "team": "TERRORIST"
+        },
+        "victim": {
+          "name": "Alpha_Bravo",
+          "steamId": "[U:1:10000002]",
+          "team": "CT"
+        },
+        "weapon": "ak47",
+        "headshot": true
+      }
+    },
+    {
+      "v": 1,
+      "id": "ev-23",
+      "timestamp": 1793050024000,
+      "source": "logs",
+      "kind": "primary",
+      "serverId": "srv-a",
+      "matchId": "m-sandbox-1",
+      "map": "de_inferno",
+      "round": 8,
+      "type": "team_round_win",
+      "payload": {
+        "winner": "T",
+        "team": "T",
+        "reason": "target_bombed",
+        "scoreCT": 4,
+        "scoreT": 3
+      }
+    },
+    {
+      "v": 1,
+      "id": "ev-24",
+      "timestamp": 1793050025000,
+      "source": "logs",
+      "kind": "primary",
+      "serverId": "srv-a",
+      "matchId": "m-sandbox-1",
+      "map": "de_inferno",
+      "round": 9,
+      "type": "round_start",
+      "payload": {}
+    },
+    {
+      "v": 1,
+      "id": "ev-25",
+      "timestamp": 1793050026000,
+      "source": "logs",
+      "kind": "primary",
+      "serverId": "srv-a",
+      "matchId": "m-sandbox-1",
+      "map": "de_inferno",
+      "round": 9,
+      "type": "kill",
+      "payload": {
+        "kind": "player",
+        "killer": {
+          "name": "Bravo_Sierra",
+          "steamId": "[U:1:20000001]",
+          "team": "TERRORIST"
+        },
+        "victim": {
+          "name": "Alpha_Bravo",
+          "steamId": "[U:1:10000002]",
+          "team": "CT"
+        },
+        "weapon": "ak47",
+        "headshot": true
+      }
+    },
+    {
+      "v": 1,
+      "id": "ev-26",
+      "timestamp": 1793050027000,
+      "source": "logs",
+      "kind": "primary",
+      "serverId": "srv-a",
+      "matchId": "m-sandbox-1",
+      "map": "de_inferno",
+      "round": 9,
+      "type": "team_round_win",
+      "payload": {
+        "winner": "T",
+        "team": "T",
+        "reason": "elim",
+        "scoreCT": 4,
+        "scoreT": 4
+      }
+    },
+    {
+      "v": 1,
+      "id": "ev-27",
+      "timestamp": 1793050028000,
+      "source": "logs",
+      "kind": "primary",
+      "serverId": "srv-a",
+      "matchId": "m-sandbox-1",
+      "map": "de_inferno",
+      "round": 10,
+      "type": "round_start",
+      "payload": {}
+    },
+    {
+      "v": 1,
+      "id": "ev-28",
+      "timestamp": 1793050029000,
+      "source": "logs",
+      "kind": "primary",
+      "serverId": "srv-a",
+      "matchId": "m-sandbox-1",
+      "map": "de_inferno",
+      "round": 10,
+      "type": "kill",
+      "payload": {
+        "kind": "player",
+        "killer": {
+          "name": "Alpha_Romeo",
+          "steamId": "[U:1:10000001]",
+          "team": "CT"
+        },
+        "victim": {
+          "name": "Bravo_Kilo",
+          "steamId": "[U:1:20000002]",
+          "team": "TERRORIST"
+        },
+        "weapon": "m4a1_silencer",
+        "headshot": true
+      }
+    },
+    {
+      "v": 1,
+      "id": "ev-29",
+      "timestamp": 1793050030000,
+      "source": "logs",
+      "kind": "primary",
+      "serverId": "srv-a",
+      "matchId": "m-sandbox-1",
+      "map": "de_inferno",
+      "round": 10,
+      "type": "team_round_win",
+      "payload": {
+        "winner": "CT",
+        "team": "CT",
+        "reason": "elim",
+        "scoreCT": 5,
+        "scoreT": 4
+      }
+    },
+    {
+      "v": 1,
+      "id": "ev-30",
+      "timestamp": 1793050031000,
+      "source": "logs",
+      "kind": "primary",
+      "serverId": "srv-a",
+      "matchId": "m-sandbox-1",
+      "map": "de_inferno",
+      "round": 11,
+      "type": "round_start",
+      "payload": {}
+    },
+    {
+      "v": 1,
+      "id": "ev-31",
+      "timestamp": 1793050032000,
+      "source": "logs",
+      "kind": "primary",
+      "serverId": "srv-a",
+      "matchId": "m-sandbox-1",
+      "map": "de_inferno",
+      "round": 11,
+      "type": "kill",
+      "payload": {
+        "kind": "player",
+        "killer": {
+          "name": "Bravo_Sierra",
+          "steamId": "[U:1:20000001]",
+          "team": "TERRORIST"
+        },
+        "victim": {
+          "name": "Alpha_Bravo",
+          "steamId": "[U:1:10000002]",
+          "team": "CT"
+        },
+        "weapon": "ak47",
+        "headshot": true
+      }
+    },
+    {
+      "v": 1,
+      "id": "ev-32",
+      "timestamp": 1793050033000,
+      "source": "logs",
+      "kind": "primary",
+      "serverId": "srv-a",
+      "matchId": "m-sandbox-1",
+      "map": "de_inferno",
+      "round": 11,
+      "type": "team_round_win",
+      "payload": {
+        "winner": "T",
+        "team": "T",
+        "reason": "target_bombed",
+        "scoreCT": 5,
+        "scoreT": 5
+      }
+    },
+    {
+      "v": 1,
+      "id": "ev-33",
+      "timestamp": 1793050034000,
+      "source": "logs",
+      "kind": "primary",
+      "serverId": "srv-a",
+      "matchId": "m-sandbox-1",
+      "map": "de_inferno",
+      "round": 12,
+      "type": "round_start",
+      "payload": {}
+    },
+    {
+      "v": 1,
+      "id": "ev-34",
+      "timestamp": 1793050035000,
+      "source": "logs",
+      "kind": "primary",
+      "serverId": "srv-a",
+      "matchId": "m-sandbox-1",
+      "map": "de_inferno",
+      "round": 12,
+      "type": "kill",
+      "payload": {
+        "kind": "player",
+        "killer": {
+          "name": "Alpha_Romeo",
+          "steamId": "[U:1:10000001]",
+          "team": "CT"
+        },
+        "victim": {
+          "name": "Bravo_Kilo",
+          "steamId": "[U:1:20000002]",
+          "team": "TERRORIST"
+        },
+        "weapon": "m4a1_silencer",
+        "headshot": true
+      }
+    },
+    {
+      "v": 1,
+      "id": "ev-35",
+      "timestamp": 1793050036000,
+      "source": "logs",
+      "kind": "primary",
+      "serverId": "srv-a",
+      "matchId": "m-sandbox-1",
+      "map": "de_inferno",
+      "round": 12,
+      "type": "team_round_win",
+      "payload": {
+        "winner": "CT",
+        "team": "CT",
+        "reason": "defused",
+        "scoreCT": 6,
+        "scoreT": 5
+      }
+    },
+    {
+      "v": 1,
+      "id": "ev-36",
+      "timestamp": 1793050037000,
+      "source": "logs",
+      "kind": "primary",
+      "serverId": "srv-a",
+      "matchId": "m-sandbox-1",
+      "map": "de_inferno",
+      "round": 13,
+      "type": "round_start",
+      "payload": {}
+    },
+    {
+      "v": 1,
+      "id": "ev-37",
+      "timestamp": 1793050038000,
+      "source": "logs",
+      "kind": "primary",
+      "serverId": "srv-a",
+      "matchId": "m-sandbox-1",
+      "map": "de_inferno",
+      "round": 13,
+      "type": "kill",
+      "payload": {
+        "kind": "player",
+        "killer": {
+          "name": "Bravo_Sierra",
+          "steamId": "[U:1:20000001]",
+          "team": "TERRORIST"
+        },
+        "victim": {
+          "name": "Alpha_Bravo",
+          "steamId": "[U:1:10000002]",
+          "team": "CT"
+        },
+        "weapon": "ak47",
+        "headshot": true
+      }
+    },
+    {
+      "v": 1,
+      "id": "ev-38",
+      "timestamp": 1793050039000,
+      "source": "logs",
+      "kind": "primary",
+      "serverId": "srv-a",
+      "matchId": "m-sandbox-1",
+      "map": "de_inferno",
+      "round": 13,
+      "type": "team_round_win",
+      "payload": {
+        "winner": "T",
+        "team": "T",
+        "reason": "elim",
+        "scoreCT": 6,
+        "scoreT": 6
+      }
+    },
+    {
+      "v": 1,
+      "id": "ev-39",
+      "timestamp": 1793050040000,
+      "source": "logs",
+      "kind": "primary",
+      "serverId": "srv-a",
+      "matchId": "m-sandbox-1",
+      "map": "de_inferno",
+      "round": 14,
+      "type": "round_start",
+      "payload": {}
+    },
+    {
+      "v": 1,
+      "id": "ev-40",
+      "timestamp": 1793050041000,
+      "source": "logs",
+      "kind": "primary",
+      "serverId": "srv-a",
+      "matchId": "m-sandbox-1",
+      "map": "de_inferno",
+      "round": 14,
+      "type": "kill",
+      "payload": {
+        "kind": "player",
+        "killer": {
+          "name": "Bravo_Sierra",
+          "steamId": "[U:1:20000001]",
+          "team": "CT"
+        },
+        "victim": {
+          "name": "Alpha_Bravo",
+          "steamId": "[U:1:10000002]",
+          "team": "TERRORIST"
+        },
+        "weapon": "m4a1_silencer",
+        "headshot": true
+      }
+    },
+    {
+      "v": 1,
+      "id": "ev-41",
+      "timestamp": 1793050042000,
+      "source": "logs",
+      "kind": "primary",
+      "serverId": "srv-a",
+      "matchId": "m-sandbox-1",
+      "map": "de_inferno",
+      "round": 14,
+      "type": "team_round_win",
+      "payload": {
+        "winner": "CT",
+        "team": "CT",
+        "reason": "elim",
+        "scoreCT": 7,
+        "scoreT": 6
+      }
+    },
+    {
+      "v": 1,
+      "id": "ev-42",
+      "timestamp": 1793050043000,
+      "source": "logs",
+      "kind": "primary",
+      "serverId": "srv-a",
+      "matchId": "m-sandbox-1",
+      "map": "de_inferno",
+      "round": 15,
+      "type": "round_start",
+      "payload": {}
+    },
+    {
+      "v": 1,
+      "id": "ev-43",
+      "timestamp": 1793050044000,
+      "source": "logs",
+      "kind": "primary",
+      "serverId": "srv-a",
+      "matchId": "m-sandbox-1",
+      "map": "de_inferno",
+      "round": 15,
+      "type": "kill",
+      "payload": {
+        "kind": "player",
+        "killer": {
+          "name": "Bravo_Sierra",
+          "steamId": "[U:1:20000001]",
+          "team": "CT"
+        },
+        "victim": {
+          "name": "Alpha_Bravo",
+          "steamId": "[U:1:10000002]",
+          "team": "TERRORIST"
+        },
+        "weapon": "m4a1_silencer",
+        "headshot": true
+      }
+    },
+    {
+      "v": 1,
+      "id": "ev-44",
+      "timestamp": 1793050045000,
+      "source": "logs",
+      "kind": "primary",
+      "serverId": "srv-a",
+      "matchId": "m-sandbox-1",
+      "map": "de_inferno",
+      "round": 15,
+      "type": "team_round_win",
+      "payload": {
+        "winner": "CT",
+        "team": "CT",
+        "reason": "defused",
+        "scoreCT": 8,
+        "scoreT": 6
+      }
+    },
+    {
+      "v": 1,
+      "id": "ev-45",
+      "timestamp": 1793050046000,
+      "source": "logs",
+      "kind": "primary",
+      "serverId": "srv-a",
+      "matchId": "m-sandbox-1",
+      "map": "de_inferno",
+      "round": 16,
+      "type": "round_start",
+      "payload": {}
+    },
+    {
+      "v": 1,
+      "id": "ev-46",
+      "timestamp": 1793050047000,
+      "source": "logs",
+      "kind": "primary",
+      "serverId": "srv-a",
+      "matchId": "m-sandbox-1",
+      "map": "de_inferno",
+      "round": 16,
+      "type": "kill",
+      "payload": {
+        "kind": "player",
+        "killer": {
+          "name": "Alpha_Romeo",
+          "steamId": "[U:1:10000001]",
+          "team": "TERRORIST"
+        },
+        "victim": {
+          "name": "Bravo_Kilo",
+          "steamId": "[U:1:20000002]",
+          "team": "CT"
+        },
+        "weapon": "ak47",
+        "headshot": true
+      }
+    },
+    {
+      "v": 1,
+      "id": "ev-47",
+      "timestamp": 1793050048000,
+      "source": "logs",
+      "kind": "primary",
+      "serverId": "srv-a",
+      "matchId": "m-sandbox-1",
+      "map": "de_inferno",
+      "round": 16,
+      "type": "team_round_win",
+      "payload": {
+        "winner": "T",
+        "team": "T",
+        "reason": "target_bombed",
+        "scoreCT": 8,
+        "scoreT": 7
+      }
+    },
+    {
+      "v": 1,
+      "id": "ev-48",
+      "timestamp": 1793050049000,
+      "source": "logs",
+      "kind": "primary",
+      "serverId": "srv-a",
+      "matchId": "m-sandbox-1",
+      "map": "de_inferno",
+      "round": 17,
+      "type": "round_start",
+      "payload": {}
+    },
+    {
+      "v": 1,
+      "id": "ev-49",
+      "timestamp": 1793050050000,
+      "source": "logs",
+      "kind": "primary",
+      "serverId": "srv-a",
+      "matchId": "m-sandbox-1",
+      "map": "de_inferno",
+      "round": 17,
+      "type": "kill",
+      "payload": {
+        "kind": "player",
+        "killer": {
+          "name": "Alpha_Romeo",
+          "steamId": "[U:1:10000001]",
+          "team": "TERRORIST"
+        },
+        "victim": {
+          "name": "Bravo_Kilo",
+          "steamId": "[U:1:20000002]",
+          "team": "CT"
+        },
+        "weapon": "ak47",
+        "headshot": true
+      }
+    },
+    {
+      "v": 1,
+      "id": "ev-50",
+      "timestamp": 1793050051000,
+      "source": "logs",
+      "kind": "primary",
+      "serverId": "srv-a",
+      "matchId": "m-sandbox-1",
+      "map": "de_inferno",
+      "round": 17,
+      "type": "team_round_win",
+      "payload": {
+        "winner": "T",
+        "team": "T",
+        "reason": "elim",
+        "scoreCT": 8,
+        "scoreT": 8
+      }
+    },
+    {
+      "v": 1,
+      "id": "ev-51",
+      "timestamp": 1793050052000,
+      "source": "logs",
+      "kind": "primary",
+      "serverId": "srv-a",
+      "matchId": "m-sandbox-1",
+      "map": "de_inferno",
+      "round": 18,
+      "type": "round_start",
+      "payload": {}
+    },
+    {
+      "v": 1,
+      "id": "ev-52",
+      "timestamp": 1793050053000,
+      "source": "logs",
+      "kind": "primary",
+      "serverId": "srv-a",
+      "matchId": "m-sandbox-1",
+      "map": "de_inferno",
+      "round": 18,
+      "type": "kill",
+      "payload": {
+        "kind": "player",
+        "killer": {
+          "name": "Bravo_Sierra",
+          "steamId": "[U:1:20000001]",
+          "team": "CT"
+        },
+        "victim": {
+          "name": "Alpha_Bravo",
+          "steamId": "[U:1:10000002]",
+          "team": "TERRORIST"
+        },
+        "weapon": "m4a1_silencer",
+        "headshot": true
+      }
+    },
+    {
+      "v": 1,
+      "id": "ev-53",
+      "timestamp": 1793050054000,
+      "source": "logs",
+      "kind": "primary",
+      "serverId": "srv-a",
+      "matchId": "m-sandbox-1",
+      "map": "de_inferno",
+      "round": 18,
+      "type": "team_round_win",
+      "payload": {
+        "winner": "CT",
+        "team": "CT",
+        "reason": "elim",
+        "scoreCT": 9,
+        "scoreT": 8
+      }
+    },
+    {
+      "v": 1,
+      "id": "ev-54",
+      "timestamp": 1793050055000,
+      "source": "logs",
+      "kind": "primary",
+      "serverId": "srv-a",
+      "matchId": "m-sandbox-1",
+      "map": "de_inferno",
+      "round": 19,
+      "type": "round_start",
+      "payload": {}
+    },
+    {
+      "v": 1,
+      "id": "ev-55",
+      "timestamp": 1793050056000,
+      "source": "logs",
+      "kind": "primary",
+      "serverId": "srv-a",
+      "matchId": "m-sandbox-1",
+      "map": "de_inferno",
+      "round": 19,
+      "type": "kill",
+      "payload": {
+        "kind": "player",
+        "killer": {
+          "name": "Alpha_Romeo",
+          "steamId": "[U:1:10000001]",
+          "team": "TERRORIST"
+        },
+        "victim": {
+          "name": "Bravo_Kilo",
+          "steamId": "[U:1:20000002]",
+          "team": "CT"
+        },
+        "weapon": "ak47",
+        "headshot": true
+      }
+    },
+    {
+      "v": 1,
+      "id": "ev-56",
+      "timestamp": 1793050057000,
+      "source": "logs",
+      "kind": "primary",
+      "serverId": "srv-a",
+      "matchId": "m-sandbox-1",
+      "map": "de_inferno",
+      "round": 19,
+      "type": "team_round_win",
+      "payload": {
+        "winner": "T",
+        "team": "T",
+        "reason": "elim",
+        "scoreCT": 9,
+        "scoreT": 9
+      }
+    },
+    {
+      "v": 1,
+      "id": "ev-57",
+      "timestamp": 1793050058000,
+      "source": "logs",
+      "kind": "primary",
+      "serverId": "srv-a",
+      "matchId": "m-sandbox-1",
+      "map": "de_inferno",
+      "round": 20,
+      "type": "round_start",
+      "payload": {}
+    },
+    {
+      "v": 1,
+      "id": "ev-58",
+      "timestamp": 1793050059000,
+      "source": "logs",
+      "kind": "primary",
+      "serverId": "srv-a",
+      "matchId": "m-sandbox-1",
+      "map": "de_inferno",
+      "round": 20,
+      "type": "kill",
+      "payload": {
+        "kind": "player",
+        "killer": {
+          "name": "Alpha_Romeo",
+          "steamId": "[U:1:10000001]",
+          "team": "TERRORIST"
+        },
+        "victim": {
+          "name": "Bravo_Kilo",
+          "steamId": "[U:1:20000002]",
+          "team": "CT"
+        },
+        "weapon": "ak47",
+        "headshot": true
+      }
+    },
+    {
+      "v": 1,
+      "id": "ev-59",
+      "timestamp": 1793050060000,
+      "source": "logs",
+      "kind": "primary",
+      "serverId": "srv-a",
+      "matchId": "m-sandbox-1",
+      "map": "de_inferno",
+      "round": 20,
+      "type": "team_round_win",
+      "payload": {
+        "winner": "T",
+        "team": "T",
+        "reason": "target_bombed",
+        "scoreCT": 9,
+        "scoreT": 10
+      }
+    },
+    {
+      "v": 1,
+      "id": "ev-60",
+      "timestamp": 1793050061000,
+      "source": "logs",
+      "kind": "primary",
+      "serverId": "srv-a",
+      "matchId": "m-sandbox-1",
+      "map": "de_inferno",
+      "round": 21,
+      "type": "round_start",
+      "payload": {}
+    },
+    {
+      "v": 1,
+      "id": "ev-61",
+      "timestamp": 1793050062000,
+      "source": "logs",
+      "kind": "primary",
+      "serverId": "srv-a",
+      "matchId": "m-sandbox-1",
+      "map": "de_inferno",
+      "round": 21,
+      "type": "kill",
+      "payload": {
+        "kind": "player",
+        "killer": {
+          "name": "Bravo_Sierra",
+          "steamId": "[U:1:20000001]",
+          "team": "CT"
+        },
+        "victim": {
+          "name": "Alpha_Bravo",
+          "steamId": "[U:1:10000002]",
+          "team": "TERRORIST"
+        },
+        "weapon": "m4a1_silencer",
+        "headshot": true
+      }
+    },
+    {
+      "v": 1,
+      "id": "ev-62",
+      "timestamp": 1793050063000,
+      "source": "logs",
+      "kind": "primary",
+      "serverId": "srv-a",
+      "matchId": "m-sandbox-1",
+      "map": "de_inferno",
+      "round": 21,
+      "type": "team_round_win",
+      "payload": {
+        "winner": "CT",
+        "team": "CT",
+        "reason": "defused",
+        "scoreCT": 10,
+        "scoreT": 10
+      }
+    },
+    {
+      "v": 1,
+      "id": "ev-63",
+      "timestamp": 1793050064000,
+      "source": "logs",
+      "kind": "primary",
+      "serverId": "srv-a",
+      "matchId": "m-sandbox-1",
+      "map": "de_inferno",
+      "round": 22,
+      "type": "round_start",
+      "payload": {}
+    },
+    {
+      "v": 1,
+      "id": "ev-64",
+      "timestamp": 1793050065000,
+      "source": "logs",
+      "kind": "primary",
+      "serverId": "srv-a",
+      "matchId": "m-sandbox-1",
+      "map": "de_inferno",
+      "round": 22,
+      "type": "kill",
+      "payload": {
+        "kind": "player",
+        "killer": {
+          "name": "Bravo_Sierra",
+          "steamId": "[U:1:20000001]",
+          "team": "CT"
+        },
+        "victim": {
+          "name": "Alpha_Bravo",
+          "steamId": "[U:1:10000002]",
+          "team": "TERRORIST"
+        },
+        "weapon": "m4a1_silencer",
+        "headshot": true
+      }
+    },
+    {
+      "v": 1,
+      "id": "ev-65",
+      "timestamp": 1793050066000,
+      "source": "logs",
+      "kind": "primary",
+      "serverId": "srv-a",
+      "matchId": "m-sandbox-1",
+      "map": "de_inferno",
+      "round": 22,
+      "type": "team_round_win",
+      "payload": {
+        "winner": "CT",
+        "team": "CT",
+        "reason": "elim",
+        "scoreCT": 11,
+        "scoreT": 10
+      }
+    },
+    {
+      "v": 1,
+      "id": "ev-66",
+      "timestamp": 1793050067000,
+      "source": "logs",
+      "kind": "primary",
+      "serverId": "srv-a",
+      "matchId": "m-sandbox-1",
+      "map": "de_inferno",
+      "round": 23,
+      "type": "round_start",
+      "payload": {}
+    },
+    {
+      "v": 1,
+      "id": "ev-67",
+      "timestamp": 1793050068000,
+      "source": "logs",
+      "kind": "primary",
+      "serverId": "srv-a",
+      "matchId": "m-sandbox-1",
+      "map": "de_inferno",
+      "round": 23,
+      "type": "kill",
+      "payload": {
+        "kind": "player",
+        "killer": {
+          "name": "Alpha_Romeo",
+          "steamId": "[U:1:10000001]",
+          "team": "TERRORIST"
+        },
+        "victim": {
+          "name": "Bravo_Kilo",
+          "steamId": "[U:1:20000002]",
+          "team": "CT"
+        },
+        "weapon": "ak47",
+        "headshot": true
+      }
+    },
+    {
+      "v": 1,
+      "id": "ev-68",
+      "timestamp": 1793050069000,
+      "source": "logs",
+      "kind": "primary",
+      "serverId": "srv-a",
+      "matchId": "m-sandbox-1",
+      "map": "de_inferno",
+      "round": 23,
+      "type": "team_round_win",
+      "payload": {
+        "winner": "T",
+        "team": "T",
+        "reason": "elim",
+        "scoreCT": 11,
+        "scoreT": 11
+      }
+    },
+    {
+      "v": 1,
+      "id": "ev-69",
+      "timestamp": 1793050070000,
+      "source": "logs",
+      "kind": "primary",
+      "serverId": "srv-a",
+      "matchId": "m-sandbox-1",
+      "map": "de_inferno",
+      "round": 24,
+      "type": "round_start",
+      "payload": {}
+    },
+    {
+      "v": 1,
+      "id": "ev-70",
+      "timestamp": 1793050071000,
+      "source": "logs",
+      "kind": "primary",
+      "serverId": "srv-a",
+      "matchId": "m-sandbox-1",
+      "map": "de_inferno",
+      "round": 24,
+      "type": "kill",
+      "payload": {
+        "kind": "player",
+        "killer": {
+          "name": "Bravo_Sierra",
+          "steamId": "[U:1:20000001]",
+          "team": "CT"
+        },
+        "victim": {
+          "name": "Alpha_Bravo",
+          "steamId": "[U:1:10000002]",
+          "team": "TERRORIST"
+        },
+        "weapon": "m4a1_silencer",
+        "headshot": true
+      }
+    },
+    {
+      "v": 1,
+      "id": "ev-71",
+      "timestamp": 1793050072000,
+      "source": "logs",
+      "kind": "primary",
+      "serverId": "srv-a",
+      "matchId": "m-sandbox-1",
+      "map": "de_inferno",
+      "round": 24,
+      "type": "team_round_win",
+      "payload": {
+        "winner": "CT",
+        "team": "CT",
+        "reason": "elim",
+        "scoreCT": 12,
+        "scoreT": 11
+      }
+    },
+    {
+      "v": 1,
+      "id": "ev-72",
+      "timestamp": 1793050073000,
+      "source": "logs",
+      "kind": "primary",
+      "serverId": "srv-a",
+      "matchId": "m-sandbox-1",
+      "map": "de_inferno",
+      "round": 25,
+      "type": "round_start",
+      "payload": {}
+    },
+    {
+      "v": 1,
+      "id": "ev-73",
+      "timestamp": 1793050074000,
+      "source": "logs",
+      "kind": "primary",
+      "serverId": "srv-a",
+      "matchId": "m-sandbox-1",
+      "map": "de_inferno",
+      "round": 25,
+      "type": "kill",
+      "payload": {
+        "kind": "player",
+        "killer": {
+          "name": "Alpha_Romeo",
+          "steamId": "[U:1:10000001]",
+          "team": "TERRORIST"
+        },
+        "victim": {
+          "name": "Bravo_Kilo",
+          "steamId": "[U:1:20000002]",
+          "team": "CT"
+        },
+        "weapon": "ak47",
+        "headshot": true
+      }
+    },
+    {
+      "v": 1,
+      "id": "ev-74",
+      "timestamp": 1793050075000,
+      "source": "logs",
+      "kind": "primary",
+      "serverId": "srv-a",
+      "matchId": "m-sandbox-1",
+      "map": "de_inferno",
+      "round": 25,
+      "type": "team_round_win",
+      "payload": {
+        "winner": "T",
+        "team": "T",
+        "reason": "target_bombed",
+        "scoreCT": 12,
+        "scoreT": 12
+      }
+    },
+    {
+      "v": 1,
+      "id": "ev-75",
+      "timestamp": 1793050076000,
+      "source": "logs",
+      "kind": "primary",
+      "serverId": "srv-a",
+      "matchId": "m-sandbox-1",
+      "map": "de_inferno",
+      "round": 26,
+      "type": "round_start",
+      "payload": {}
+    },
+    {
+      "v": 1,
+      "id": "ev-76",
+      "timestamp": 1793050077000,
+      "source": "logs",
+      "kind": "primary",
+      "serverId": "srv-a",
+      "matchId": "m-sandbox-1",
+      "map": "de_inferno",
+      "round": 26,
+      "type": "kill",
+      "payload": {
+        "kind": "player",
+        "killer": {
+          "name": "Bravo_Sierra",
+          "steamId": "[U:1:20000001]",
+          "team": "CT"
+        },
+        "victim": {
+          "name": "Alpha_Bravo",
+          "steamId": "[U:1:10000002]",
+          "team": "TERRORIST"
+        },
+        "weapon": "m4a1_silencer",
+        "headshot": true
+      }
+    },
+    {
+      "v": 1,
+      "id": "ev-77",
+      "timestamp": 1793050078000,
+      "source": "logs",
+      "kind": "primary",
+      "serverId": "srv-a",
+      "matchId": "m-sandbox-1",
+      "map": "de_inferno",
+      "round": 26,
+      "type": "team_round_win",
+      "payload": {
+        "winner": "CT",
+        "team": "CT",
+        "reason": "elim",
+        "scoreCT": 13,
+        "scoreT": 12
+      }
+    },
+    {
+      "v": 1,
+      "id": "ev-78",
+      "timestamp": 1793050079000,
+      "source": "logs",
+      "kind": "primary",
+      "serverId": "srv-a",
+      "matchId": "m-sandbox-1",
+      "map": "de_inferno",
+      "round": 27,
+      "type": "round_start",
+      "payload": {}
+    },
+    {
+      "v": 1,
+      "id": "ev-79",
+      "timestamp": 1793050080000,
+      "source": "logs",
+      "kind": "primary",
+      "serverId": "srv-a",
+      "matchId": "m-sandbox-1",
+      "map": "de_inferno",
+      "round": 27,
+      "type": "kill",
+      "payload": {
+        "kind": "player",
+        "killer": {
+          "name": "Alpha_Romeo",
+          "steamId": "[U:1:10000001]",
+          "team": "TERRORIST"
+        },
+        "victim": {
+          "name": "Bravo_Kilo",
+          "steamId": "[U:1:20000002]",
+          "team": "CT"
+        },
+        "weapon": "ak47",
+        "headshot": true
+      }
+    },
+    {
+      "v": 1,
+      "id": "ev-80",
+      "timestamp": 1793050081000,
+      "source": "logs",
+      "kind": "primary",
+      "serverId": "srv-a",
+      "matchId": "m-sandbox-1",
+      "map": "de_inferno",
+      "round": 27,
+      "type": "team_round_win",
+      "payload": {
+        "winner": "T",
+        "team": "T",
+        "reason": "elim",
+        "scoreCT": 13,
+        "scoreT": 13
+      }
+    },
+    {
+      "v": 1,
+      "id": "ev-81",
+      "timestamp": 1793050082000,
+      "source": "logs",
+      "kind": "primary",
+      "serverId": "srv-a",
+      "matchId": "m-sandbox-1",
+      "map": "de_inferno",
+      "round": 28,
+      "type": "round_start",
+      "payload": {}
+    },
+    {
+      "v": 1,
+      "id": "ev-82",
+      "timestamp": 1793050083000,
+      "source": "logs",
+      "kind": "primary",
+      "serverId": "srv-a",
+      "matchId": "m-sandbox-1",
+      "map": "de_inferno",
+      "round": 28,
+      "type": "kill",
+      "payload": {
+        "kind": "player",
+        "killer": {
+          "name": "Bravo_Sierra",
+          "steamId": "[U:1:20000001]",
+          "team": "CT"
+        },
+        "victim": {
+          "name": "Alpha_Bravo",
+          "steamId": "[U:1:10000002]",
+          "team": "TERRORIST"
+        },
+        "weapon": "m4a1_silencer",
+        "headshot": true
+      }
+    },
+    {
+      "v": 1,
+      "id": "ev-83",
+      "timestamp": 1793050084000,
+      "source": "logs",
+      "kind": "primary",
+      "serverId": "srv-a",
+      "matchId": "m-sandbox-1",
+      "map": "de_inferno",
+      "round": 28,
+      "type": "team_round_win",
+      "payload": {
+        "winner": "CT",
+        "team": "CT",
+        "reason": "defused",
+        "scoreCT": 14,
+        "scoreT": 13
+      }
+    },
+    {
+      "v": 1,
+      "id": "ev-84",
+      "timestamp": 1793050085000,
+      "source": "logs",
+      "kind": "primary",
+      "serverId": "srv-a",
+      "matchId": "m-sandbox-1",
+      "map": "de_inferno",
+      "round": 29,
+      "type": "round_start",
+      "payload": {}
+    },
+    {
+      "v": 1,
+      "id": "ev-85",
+      "timestamp": 1793050086000,
+      "source": "logs",
+      "kind": "primary",
+      "serverId": "srv-a",
+      "matchId": "m-sandbox-1",
+      "map": "de_inferno",
+      "round": 29,
+      "type": "kill",
+      "payload": {
+        "kind": "player",
+        "killer": {
+          "name": "Alpha_Romeo",
+          "steamId": "[U:1:10000001]",
+          "team": "CT"
+        },
+        "victim": {
+          "name": "Bravo_Kilo",
+          "steamId": "[U:1:20000002]",
+          "team": "TERRORIST"
+        },
+        "weapon": "m4a1_silencer",
+        "headshot": true
+      }
+    },
+    {
+      "v": 1,
+      "id": "ev-86",
+      "timestamp": 1793050087000,
+      "source": "logs",
+      "kind": "primary",
+      "serverId": "srv-a",
+      "matchId": "m-sandbox-1",
+      "map": "de_inferno",
+      "round": 29,
+      "type": "team_round_win",
+      "payload": {
+        "winner": "CT",
+        "team": "CT",
+        "reason": "elim",
+        "scoreCT": 15,
+        "scoreT": 13
+      }
+    },
+    {
+      "v": 1,
+      "id": "ev-87",
+      "timestamp": 1793050088000,
+      "source": "logs",
+      "kind": "primary",
+      "serverId": "srv-a",
+      "matchId": "m-sandbox-1",
+      "map": "de_inferno",
+      "round": 30,
+      "type": "round_start",
+      "payload": {}
+    },
+    {
+      "v": 1,
+      "id": "ev-88",
+      "timestamp": 1793050089000,
+      "source": "logs",
+      "kind": "primary",
+      "serverId": "srv-a",
+      "matchId": "m-sandbox-1",
+      "map": "de_inferno",
+      "round": 30,
+      "type": "kill",
+      "payload": {
+        "kind": "player",
+        "killer": {
+          "name": "Bravo_Sierra",
+          "steamId": "[U:1:20000001]",
+          "team": "TERRORIST"
+        },
+        "victim": {
+          "name": "Alpha_Bravo",
+          "steamId": "[U:1:10000002]",
+          "team": "CT"
+        },
+        "weapon": "ak47",
+        "headshot": true
+      }
+    },
+    {
+      "v": 1,
+      "id": "ev-89",
+      "timestamp": 1793050090000,
+      "source": "logs",
+      "kind": "primary",
+      "serverId": "srv-a",
+      "matchId": "m-sandbox-1",
+      "map": "de_inferno",
+      "round": 30,
+      "type": "team_round_win",
+      "payload": {
+        "winner": "T",
+        "team": "T",
+        "reason": "target_bombed",
+        "scoreCT": 15,
+        "scoreT": 14
+      }
+    },
+    {
+      "v": 1,
+      "id": "ev-90",
+      "timestamp": 1793050091000,
+      "source": "logs",
+      "kind": "primary",
+      "serverId": "srv-a",
+      "matchId": "m-sandbox-1",
+      "map": "de_inferno",
+      "round": 31,
+      "type": "round_start",
+      "payload": {}
+    },
+    {
+      "v": 1,
+      "id": "ev-91",
+      "timestamp": 1793050092000,
+      "source": "logs",
+      "kind": "primary",
+      "serverId": "srv-a",
+      "matchId": "m-sandbox-1",
+      "map": "de_inferno",
+      "round": 31,
+      "type": "kill",
+      "payload": {
+        "kind": "player",
+        "killer": {
+          "name": "Alpha_Romeo",
+          "steamId": "[U:1:10000001]",
+          "team": "CT"
+        },
+        "victim": {
+          "name": "Bravo_Kilo",
+          "steamId": "[U:1:20000002]",
+          "team": "TERRORIST"
+        },
+        "weapon": "m4a1_silencer",
+        "headshot": true
+      }
+    },
+    {
+      "v": 1,
+      "id": "ev-92",
+      "timestamp": 1793050093000,
+      "source": "logs",
+      "kind": "primary",
+      "serverId": "srv-a",
+      "matchId": "m-sandbox-1",
+      "map": "de_inferno",
+      "round": 31,
+      "type": "team_round_win",
+      "payload": {
+        "winner": "CT",
+        "team": "CT",
+        "reason": "defused",
+        "scoreCT": 16,
+        "scoreT": 14
+      }
+    },
+    {
+      "v": 1,
+      "id": "ev-93",
+      "timestamp": 1793050094000,
+      "source": "logs",
+      "kind": "primary",
+      "serverId": "srv-a",
+      "matchId": "m-sandbox-1",
+      "map": "de_inferno",
+      "round": 32,
+      "type": "round_start",
+      "payload": {}
+    },
+    {
+      "v": 1,
+      "id": "ev-94",
+      "timestamp": 1793050095000,
+      "source": "logs",
+      "kind": "primary",
+      "serverId": "srv-a",
+      "matchId": "m-sandbox-1",
+      "map": "de_inferno",
+      "round": 32,
+      "type": "kill",
+      "payload": {
+        "kind": "player",
+        "killer": {
+          "name": "Alpha_Romeo",
+          "steamId": "[U:1:10000001]",
+          "team": "CT"
+        },
+        "victim": {
+          "name": "Bravo_Kilo",
+          "steamId": "[U:1:20000002]",
+          "team": "TERRORIST"
+        },
+        "weapon": "m4a1_silencer",
+        "headshot": true
+      }
+    },
+    {
+      "v": 1,
+      "id": "ev-95",
+      "timestamp": 1793050096000,
+      "source": "logs",
+      "kind": "primary",
+      "serverId": "srv-a",
+      "matchId": "m-sandbox-1",
+      "map": "de_inferno",
+      "round": 32,
+      "type": "team_round_win",
+      "payload": {
+        "winner": "CT",
+        "team": "CT",
+        "reason": "elim",
+        "scoreCT": 17,
+        "scoreT": 14
+      }
+    },
+    {
+      "v": 1,
+      "id": "ev-96",
+      "timestamp": 1793050097000,
+      "source": "logs",
+      "kind": "primary",
+      "serverId": "srv-a",
+      "matchId": "m-sandbox-1",
+      "map": "de_inferno",
+      "round": 33,
+      "type": "round_start",
+      "payload": {}
+    },
+    {
+      "v": 1,
+      "id": "ev-97",
+      "timestamp": 1793050098000,
+      "source": "logs",
+      "kind": "primary",
+      "serverId": "srv-a",
+      "matchId": "m-sandbox-1",
+      "map": "de_inferno",
+      "round": 33,
+      "type": "kill",
+      "payload": {
+        "kind": "player",
+        "killer": {
+          "name": "Alpha_Romeo",
+          "steamId": "[U:1:10000001]",
+          "team": "CT"
+        },
+        "victim": {
+          "name": "Bravo_Kilo",
+          "steamId": "[U:1:20000002]",
+          "team": "TERRORIST"
+        },
+        "weapon": "m4a1_silencer",
+        "headshot": true
+      }
+    },
+    {
+      "v": 1,
+      "id": "ev-98",
+      "timestamp": 1793050099000,
+      "source": "logs",
+      "kind": "primary",
+      "serverId": "srv-a",
+      "matchId": "m-sandbox-1",
+      "map": "de_inferno",
+      "round": 33,
+      "type": "team_round_win",
+      "payload": {
+        "winner": "CT",
+        "team": "CT",
+        "reason": "defused",
+        "scoreCT": 18,
+        "scoreT": 14
+      }
+    },
+    {
+      "v": 1,
+      "id": "ev-99",
+      "timestamp": 1793050100000,
+      "source": "logs",
+      "kind": "primary",
+      "serverId": "srv-a",
+      "matchId": "m-sandbox-1",
+      "map": "de_inferno",
+      "round": 34,
+      "type": "round_start",
+      "payload": {}
+    },
+    {
+      "v": 1,
+      "id": "ev-100",
+      "timestamp": 1793050101000,
+      "source": "logs",
+      "kind": "primary",
+      "serverId": "srv-a",
+      "matchId": "m-sandbox-1",
+      "map": "de_inferno",
+      "round": 34,
+      "type": "kill",
+      "payload": {
+        "kind": "player",
+        "killer": {
+          "name": "Bravo_Sierra",
+          "steamId": "[U:1:20000001]",
+          "team": "TERRORIST"
+        },
+        "victim": {
+          "name": "Alpha_Bravo",
+          "steamId": "[U:1:10000002]",
+          "team": "CT"
+        },
+        "weapon": "ak47",
+        "headshot": true
+      }
+    },
+    {
+      "v": 1,
+      "id": "ev-101",
+      "timestamp": 1793050102000,
+      "source": "logs",
+      "kind": "primary",
+      "serverId": "srv-a",
+      "matchId": "m-sandbox-1",
+      "map": "de_inferno",
+      "round": 34,
+      "type": "team_round_win",
+      "payload": {
+        "winner": "T",
+        "team": "T",
+        "reason": "target_bombed",
+        "scoreCT": 18,
+        "scoreT": 15
+      }
+    },
+    {
+      "v": 1,
+      "id": "ev-102",
+      "timestamp": 1793050103000,
+      "source": "logs",
+      "kind": "primary",
+      "serverId": "srv-a",
+      "matchId": "m-sandbox-1",
+      "map": "de_inferno",
+      "round": 35,
+      "type": "round_start",
+      "payload": {}
+    },
+    {
+      "v": 1,
+      "id": "ev-103",
+      "timestamp": 1793050104000,
+      "source": "logs",
+      "kind": "primary",
+      "serverId": "srv-a",
+      "matchId": "m-sandbox-1",
+      "map": "de_inferno",
+      "round": 35,
+      "type": "kill",
+      "payload": {
+        "kind": "player",
+        "killer": {
+          "name": "Alpha_Romeo",
+          "steamId": "[U:1:10000001]",
+          "team": "TERRORIST"
+        },
+        "victim": {
+          "name": "Bravo_Kilo",
+          "steamId": "[U:1:20000002]",
+          "team": "CT"
+        },
+        "weapon": "ak47",
+        "headshot": true
+      }
+    },
+    {
+      "v": 1,
+      "id": "ev-104",
+      "timestamp": 1793050105000,
+      "source": "logs",
+      "kind": "primary",
+      "serverId": "srv-a",
+      "matchId": "m-sandbox-1",
+      "map": "de_inferno",
+      "round": 35,
+      "type": "team_round_win",
+      "payload": {
+        "winner": "T",
+        "team": "T",
+        "reason": "elim",
+        "scoreCT": 18,
+        "scoreT": 16
+      }
+    },
+    {
+      "v": 1,
+      "id": "ev-105",
+      "timestamp": 1793050106000,
+      "source": "logs",
+      "kind": "primary",
+      "serverId": "srv-a",
+      "matchId": "m-sandbox-1",
+      "map": "de_inferno",
+      "round": 36,
+      "type": "round_start",
+      "payload": {}
+    },
+    {
+      "v": 1,
+      "id": "ev-106",
+      "timestamp": 1793050107000,
+      "source": "logs",
+      "kind": "primary",
+      "serverId": "srv-a",
+      "matchId": "m-sandbox-1",
+      "map": "de_inferno",
+      "round": 36,
+      "type": "kill",
+      "payload": {
+        "kind": "player",
+        "killer": {
+          "name": "Alpha_Romeo",
+          "steamId": "[U:1:10000001]",
+          "team": "TERRORIST"
+        },
+        "victim": {
+          "name": "Bravo_Kilo",
+          "steamId": "[U:1:20000002]",
+          "team": "CT"
+        },
+        "weapon": "ak47",
+        "headshot": true
+      }
+    },
+    {
+      "v": 1,
+      "id": "ev-107",
+      "timestamp": 1793050108000,
+      "source": "logs",
+      "kind": "primary",
+      "serverId": "srv-a",
+      "matchId": "m-sandbox-1",
+      "map": "de_inferno",
+      "round": 36,
+      "type": "team_round_win",
+      "payload": {
+        "winner": "T",
+        "team": "T",
+        "reason": "target_bombed",
+        "scoreCT": 18,
+        "scoreT": 17
+      }
+    },
+    {
+      "v": 1,
+      "id": "ev-108",
+      "timestamp": 1793050109000,
+      "source": "logs",
+      "kind": "primary",
+      "serverId": "srv-a",
+      "matchId": "m-sandbox-1",
+      "map": "de_inferno",
+      "round": 37,
+      "type": "round_start",
+      "payload": {}
+    },
+    {
+      "v": 1,
+      "id": "ev-109",
+      "timestamp": 1793050110000,
+      "source": "logs",
+      "kind": "primary",
+      "serverId": "srv-a",
+      "matchId": "m-sandbox-1",
+      "map": "de_inferno",
+      "round": 37,
+      "type": "kill",
+      "payload": {
+        "kind": "player",
+        "killer": {
+          "name": "Alpha_Romeo",
+          "steamId": "[U:1:10000001]",
+          "team": "TERRORIST"
+        },
+        "victim": {
+          "name": "Bravo_Kilo",
+          "steamId": "[U:1:20000002]",
+          "team": "CT"
+        },
+        "weapon": "ak47",
+        "headshot": true
+      }
+    },
+    {
+      "v": 1,
+      "id": "ev-110",
+      "timestamp": 1793050111000,
+      "source": "logs",
+      "kind": "primary",
+      "serverId": "srv-a",
+      "matchId": "m-sandbox-1",
+      "map": "de_inferno",
+      "round": 37,
+      "type": "team_round_win",
+      "payload": {
+        "winner": "T",
+        "team": "T",
+        "reason": "elim",
+        "scoreCT": 18,
+        "scoreT": 18
+      }
+    }
+  ]
+}

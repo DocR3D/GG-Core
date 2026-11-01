@@ -1,0 +1,152 @@
+L 10/25/2026 - 11:00:00: Loading map "de_ancient"
+L 10/25/2026 - 11:00:01: MatchStatus: Score: 0:0 on map "de_ancient" RoundsPlayed: 0
+L 10/25/2026 - 11:00:01: Team playing "CT": Team Phoenix
+L 10/25/2026 - 11:00:01: Team playing "TERRORIST": Team Hydra
+L 10/25/2026 - 11:00:01: World triggered "Match_Start" on "de_ancient"
+L 10/25/2026 - 11:00:04: "Phoenix_Lead<1><[U:1:10000001]><CT>" say "!ready"
+L 10/25/2026 - 11:00:05: "Hydra_Lead<6><[U:1:20000001]><TERRORIST>" say "!ready"
+L 10/25/2026 - 11:00:15: World triggered "Round_Start"
+L 10/25/2026 - 11:00:35: "Phoenix_Lead<1><[U:1:10000001]><CT>" [120 -450 100] killed "Hydra_Two<7><[U:1:20000002]><TERRORIST>" [300 -200 110] with "m4a1_silencer" (headshot)
+L 10/25/2026 - 11:01:05: World triggered "Round_End"
+L 10/25/2026 - 11:01:06: Team "CT" triggered "SFUI_Notice_CTs_Win" (CT "1") (T "0")
+L 10/25/2026 - 11:01:07: Team "CT" scored "1" with "5" players
+L 10/25/2026 - 11:01:07: Team "TERRORIST" scored "0" with "5" players
+L 10/25/2026 - 11:01:17: World triggered "Round_Start"
+L 10/25/2026 - 11:01:37: "Phoenix_Lead<1><[U:1:10000001]><CT>" [120 -450 100] killed "Hydra_Two<7><[U:1:20000002]><TERRORIST>" [300 -200 110] with "m4a1_silencer" (headshot)
+L 10/25/2026 - 11:02:07: World triggered "Round_End"
+L 10/25/2026 - 11:02:08: Team "CT" triggered "SFUI_Notice_CTs_Win" (CT "2") (T "0")
+L 10/25/2026 - 11:02:09: Team "CT" scored "2" with "5" players
+L 10/25/2026 - 11:02:09: Team "TERRORIST" scored "0" with "5" players
+L 10/25/2026 - 11:02:19: World triggered "Round_Start"
+L 10/25/2026 - 11:02:39: "Hydra_Lead<6><[U:1:20000001]><TERRORIST>" [120 -450 100] killed "Phoenix_Two<2><[U:1:10000002]><CT>" [300 -200 110] with "ak47" (headshot)
+L 10/25/2026 - 11:02:54: "Hydra_Three<8><[U:1:20000003]><TERRORIST>" triggered "Planted_The_Bomb" at [150 -100 80]
+L 10/25/2026 - 11:03:34: World triggered "Round_End"
+L 10/25/2026 - 11:03:35: Team "TERRORIST" triggered "SFUI_Notice_Target_Bombed" (CT "2") (T "1")
+L 10/25/2026 - 11:03:36: Team "CT" scored "2" with "5" players
+L 10/25/2026 - 11:03:36: Team "TERRORIST" scored "1" with "5" players
+L 10/25/2026 - 11:03:46: World triggered "Round_Start"
+L 10/25/2026 - 11:04:06: "Phoenix_Lead<1><[U:1:10000001]><CT>" [120 -450 100] killed "Hydra_Two<7><[U:1:20000002]><TERRORIST>" [300 -200 110] with "m4a1_silencer" (headshot)
+L 10/25/2026 - 11:04:21: "Hydra_Three<8><[U:1:20000003]><TERRORIST>" triggered "Planted_The_Bomb" at [150 -100 80]
+L 10/25/2026 - 11:04:46: "Phoenix_Three<3><[U:1:10000003]><CT>" triggered "Defused_The_Bomb"
+L 10/25/2026 - 11:04:47: World triggered "Round_End"
+L 10/25/2026 - 11:04:48: Team "CT" triggered "SFUI_Notice_Bomb_Defused" (CT "3") (T "1")
+L 10/25/2026 - 11:04:49: Team "CT" scored "3" with "5" players
+L 10/25/2026 - 11:04:49: Team "TERRORIST" scored "1" with "5" players
+L 10/25/2026 - 11:04:51: "Phoenix_Two<2><[U:1:10000002]><CT>" say "!pause"
+L 10/25/2026 - 11:05:06: [Pause] Pause tactique observée
+L 10/25/2026 - 11:05:16: World triggered "Round_Start"
+L 10/25/2026 - 11:05:36: "Phoenix_Lead<1><[U:1:10000001]><CT>" [120 -450 100] killed "Hydra_Two<7><[U:1:20000002]><TERRORIST>" [300 -200 110] with "m4a1_silencer" (headshot)
+L 10/25/2026 - 11:06:06: World triggered "Round_End"
+L 10/25/2026 - 11:06:07: Team "CT" triggered "SFUI_Notice_CTs_Win" (CT "4") (T "1")
+L 10/25/2026 - 11:06:08: Team "CT" scored "4" with "5" players
+L 10/25/2026 - 11:06:08: Team "TERRORIST" scored "1" with "5" players
+L 10/25/2026 - 11:06:18: World triggered "Round_Start"
+L 10/25/2026 - 11:06:38: "Hydra_Lead<6><[U:1:20000001]><TERRORIST>" [120 -450 100] killed "Phoenix_Two<2><[U:1:10000002]><CT>" [300 -200 110] with "ak47" (headshot)
+L 10/25/2026 - 11:07:08: World triggered "Round_End"
+L 10/25/2026 - 11:07:09: Team "TERRORIST" triggered "SFUI_Notice_Terrorists_Win" (CT "4") (T "2")
+L 10/25/2026 - 11:07:10: Team "CT" scored "4" with "5" players
+L 10/25/2026 - 11:07:10: Team "TERRORIST" scored "2" with "5" players
+L 10/25/2026 - 11:07:20: World triggered "Round_Start"
+L 10/25/2026 - 11:07:40: "Phoenix_Lead<1><[U:1:10000001]><CT>" [120 -450 100] killed "Hydra_Two<7><[U:1:20000002]><TERRORIST>" [300 -200 110] with "m4a1_silencer" (headshot)
+L 10/25/2026 - 11:08:10: World triggered "Round_End"
+L 10/25/2026 - 11:08:11: Team "CT" triggered "SFUI_Notice_CTs_Win" (CT "5") (T "2")
+L 10/25/2026 - 11:08:12: Team "CT" scored "5" with "5" players
+L 10/25/2026 - 11:08:12: Team "TERRORIST" scored "2" with "5" players
+L 10/25/2026 - 11:08:14: "Hydra_Two<7><[U:1:20000002]><TERRORIST>" say "!tech"
+L 10/25/2026 - 11:08:39: [Pause] Pause technique observée
+L 10/25/2026 - 11:08:41: "Hydra_Two<7><[U:1:20000002]><TERRORIST>" say "!unpause"
+L 10/25/2026 - 11:08:51: World triggered "Round_Start"
+L 10/25/2026 - 11:09:11: "Hydra_Lead<6><[U:1:20000001]><TERRORIST>" [120 -450 100] killed "Phoenix_Two<2><[U:1:10000002]><CT>" [300 -200 110] with "ak47" (headshot)
+L 10/25/2026 - 11:09:26: "Hydra_Three<8><[U:1:20000003]><TERRORIST>" triggered "Planted_The_Bomb" at [150 -100 80]
+L 10/25/2026 - 11:10:06: World triggered "Round_End"
+L 10/25/2026 - 11:10:07: Team "TERRORIST" triggered "SFUI_Notice_Target_Bombed" (CT "5") (T "3")
+L 10/25/2026 - 11:10:08: Team "CT" scored "5" with "5" players
+L 10/25/2026 - 11:10:08: Team "TERRORIST" scored "3" with "5" players
+L 10/25/2026 - 11:10:18: World triggered "Round_Start"
+L 10/25/2026 - 11:10:38: "Phoenix_Lead<1><[U:1:10000001]><CT>" [120 -450 100] killed "Hydra_Two<7><[U:1:20000002]><TERRORIST>" [300 -200 110] with "m4a1_silencer" (headshot)
+L 10/25/2026 - 11:10:53: "Hydra_Three<8><[U:1:20000003]><TERRORIST>" triggered "Planted_The_Bomb" at [150 -100 80]
+L 10/25/2026 - 11:11:18: "Phoenix_Three<3><[U:1:10000003]><CT>" triggered "Defused_The_Bomb"
+L 10/25/2026 - 11:11:19: World triggered "Round_End"
+L 10/25/2026 - 11:11:20: Team "CT" triggered "SFUI_Notice_Bomb_Defused" (CT "6") (T "3")
+L 10/25/2026 - 11:11:21: Team "CT" scored "6" with "5" players
+L 10/25/2026 - 11:11:21: Team "TERRORIST" scored "3" with "5" players
+L 10/25/2026 - 11:11:31: World triggered "Round_Start"
+L 10/25/2026 - 11:11:51: "Hydra_Lead<6><[U:1:20000001]><TERRORIST>" [120 -450 100] killed "Phoenix_Two<2><[U:1:10000002]><CT>" [300 -200 110] with "ak47" (headshot)
+L 10/25/2026 - 11:12:21: World triggered "Round_End"
+L 10/25/2026 - 11:12:22: Team "TERRORIST" triggered "SFUI_Notice_Terrorists_Win" (CT "6") (T "4")
+L 10/25/2026 - 11:12:23: Team "CT" scored "6" with "5" players
+L 10/25/2026 - 11:12:23: Team "TERRORIST" scored "4" with "5" players
+L 10/25/2026 - 11:12:33: World triggered "Round_Start"
+L 10/25/2026 - 11:12:53: "Phoenix_Lead<1><[U:1:10000001]><CT>" [120 -450 100] killed "Hydra_Two<7><[U:1:20000002]><TERRORIST>" [300 -200 110] with "m4a1_silencer" (headshot)
+L 10/25/2026 - 11:13:23: World triggered "Round_End"
+L 10/25/2026 - 11:13:24: Team "CT" triggered "SFUI_Notice_CTs_Win" (CT "7") (T "4")
+L 10/25/2026 - 11:13:25: Team "CT" scored "7" with "5" players
+L 10/25/2026 - 11:13:25: Team "TERRORIST" scored "4" with "5" players
+L 10/25/2026 - 11:13:35: World triggered "Round_Start"
+L 10/25/2026 - 11:13:55: "Hydra_Lead<6><[U:1:20000001]><TERRORIST>" [120 -450 100] killed "Phoenix_Two<2><[U:1:10000002]><CT>" [300 -200 110] with "ak47" (headshot)
+L 10/25/2026 - 11:14:10: "Hydra_Three<8><[U:1:20000003]><TERRORIST>" triggered "Planted_The_Bomb" at [150 -100 80]
+L 10/25/2026 - 11:14:50: World triggered "Round_End"
+L 10/25/2026 - 11:14:51: Team "TERRORIST" triggered "SFUI_Notice_Target_Bombed" (CT "7") (T "5")
+L 10/25/2026 - 11:14:52: Team "CT" scored "7" with "5" players
+L 10/25/2026 - 11:14:52: Team "TERRORIST" scored "5" with "5" players
+L 10/25/2026 - 11:15:02: World triggered "Round_Start"
+L 10/25/2026 - 11:15:22: "Phoenix_Lead<1><[U:1:10000001]><TERRORIST>" [120 -450 100] killed "Hydra_Two<7><[U:1:20000002]><CT>" [300 -200 110] with "ak47" (headshot)
+L 10/25/2026 - 11:15:52: World triggered "Round_End"
+L 10/25/2026 - 11:15:53: Team "TERRORIST" triggered "SFUI_Notice_Terrorists_Win" (CT "7") (T "6")
+L 10/25/2026 - 11:15:54: Team "CT" scored "7" with "5" players
+L 10/25/2026 - 11:15:54: Team "TERRORIST" scored "6" with "5" players
+L 10/25/2026 - 11:16:04: World triggered "Round_Start"
+L 10/25/2026 - 11:16:24: "Phoenix_Lead<1><[U:1:10000001]><TERRORIST>" [120 -450 100] killed "Hydra_Two<7><[U:1:20000002]><CT>" [300 -200 110] with "ak47" (headshot)
+L 10/25/2026 - 11:16:39: "Phoenix_Three<3><[U:1:10000003]><TERRORIST>" triggered "Planted_The_Bomb" at [150 -100 80]
+L 10/25/2026 - 11:17:19: World triggered "Round_End"
+L 10/25/2026 - 11:17:20: Team "TERRORIST" triggered "SFUI_Notice_Target_Bombed" (CT "7") (T "7")
+L 10/25/2026 - 11:17:21: Team "CT" scored "7" with "5" players
+L 10/25/2026 - 11:17:21: Team "TERRORIST" scored "7" with "5" players
+L 10/25/2026 - 11:17:31: World triggered "Round_Start"
+L 10/25/2026 - 11:17:51: "Hydra_Lead<6><[U:1:20000001]><CT>" [120 -450 100] killed "Phoenix_Two<2><[U:1:10000002]><TERRORIST>" [300 -200 110] with "m4a1_silencer" (headshot)
+L 10/25/2026 - 11:18:06: "Phoenix_Three<3><[U:1:10000003]><TERRORIST>" triggered "Planted_The_Bomb" at [150 -100 80]
+L 10/25/2026 - 11:18:31: "Hydra_Three<8><[U:1:20000003]><CT>" triggered "Defused_The_Bomb"
+L 10/25/2026 - 11:18:32: World triggered "Round_End"
+L 10/25/2026 - 11:18:33: Team "CT" triggered "SFUI_Notice_Bomb_Defused" (CT "8") (T "7")
+L 10/25/2026 - 11:18:34: Team "CT" scored "8" with "5" players
+L 10/25/2026 - 11:18:34: Team "TERRORIST" scored "7" with "5" players
+L 10/25/2026 - 11:18:44: World triggered "Round_Start"
+L 10/25/2026 - 11:19:04: "Phoenix_Lead<1><[U:1:10000001]><TERRORIST>" [120 -450 100] killed "Hydra_Two<7><[U:1:20000002]><CT>" [300 -200 110] with "ak47" (headshot)
+L 10/25/2026 - 11:19:34: World triggered "Round_End"
+L 10/25/2026 - 11:19:35: Team "TERRORIST" triggered "SFUI_Notice_Terrorists_Win" (CT "8") (T "8")
+L 10/25/2026 - 11:19:36: Team "CT" scored "8" with "5" players
+L 10/25/2026 - 11:19:36: Team "TERRORIST" scored "8" with "5" players
+L 10/25/2026 - 11:19:46: World triggered "Round_Start"
+L 10/25/2026 - 11:20:06: "Phoenix_Lead<1><[U:1:10000001]><TERRORIST>" [120 -450 100] killed "Hydra_Two<7><[U:1:20000002]><CT>" [300 -200 110] with "ak47" (headshot)
+L 10/25/2026 - 11:20:21: "Phoenix_Three<3><[U:1:10000003]><TERRORIST>" triggered "Planted_The_Bomb" at [150 -100 80]
+L 10/25/2026 - 11:21:01: World triggered "Round_End"
+L 10/25/2026 - 11:21:02: Team "TERRORIST" triggered "SFUI_Notice_Target_Bombed" (CT "8") (T "9")
+L 10/25/2026 - 11:21:03: Team "CT" scored "8" with "5" players
+L 10/25/2026 - 11:21:03: Team "TERRORIST" scored "9" with "5" players
+L 10/25/2026 - 11:21:13: World triggered "Round_Start"
+L 10/25/2026 - 11:21:33: "Phoenix_Lead<1><[U:1:10000001]><TERRORIST>" [120 -450 100] killed "Hydra_Two<7><[U:1:20000002]><CT>" [300 -200 110] with "ak47" (headshot)
+L 10/25/2026 - 11:22:03: World triggered "Round_End"
+L 10/25/2026 - 11:22:04: Team "TERRORIST" triggered "SFUI_Notice_Terrorists_Win" (CT "8") (T "10")
+L 10/25/2026 - 11:22:05: Team "CT" scored "8" with "5" players
+L 10/25/2026 - 11:22:05: Team "TERRORIST" scored "10" with "5" players
+L 10/25/2026 - 11:22:15: World triggered "Round_Start"
+L 10/25/2026 - 11:22:35: "Phoenix_Lead<1><[U:1:10000001]><TERRORIST>" [120 -450 100] killed "Hydra_Two<7><[U:1:20000002]><CT>" [300 -200 110] with "ak47" (headshot)
+L 10/25/2026 - 11:22:50: "Phoenix_Three<3><[U:1:10000003]><TERRORIST>" triggered "Planted_The_Bomb" at [150 -100 80]
+L 10/25/2026 - 11:23:15: "Hydra_Three<8><[U:1:20000003]><CT>" triggered "Defused_The_Bomb"
+L 10/25/2026 - 11:23:16: World triggered "Round_End"
+L 10/25/2026 - 11:23:17: Team "CT" triggered "SFUI_Notice_Bomb_Defused" (CT "8") (T "11")
+L 10/25/2026 - 11:23:18: Team "CT" scored "8" with "5" players
+L 10/25/2026 - 11:23:18: Team "TERRORIST" scored "11" with "5" players
+L 10/25/2026 - 11:23:28: World triggered "Round_Start"
+L 10/25/2026 - 11:23:48: "Phoenix_Lead<1><[U:1:10000001]><TERRORIST>" [120 -450 100] killed "Hydra_Two<7><[U:1:20000002]><CT>" [300 -200 110] with "ak47" (headshot)
+L 10/25/2026 - 11:24:18: World triggered "Round_End"
+L 10/25/2026 - 11:24:19: Team "TERRORIST" triggered "SFUI_Notice_Terrorists_Win" (CT "8") (T "12")
+L 10/25/2026 - 11:24:20: Team "CT" scored "8" with "5" players
+L 10/25/2026 - 11:24:20: Team "TERRORIST" scored "12" with "5" players
+L 10/25/2026 - 11:24:30: World triggered "Round_Start"
+L 10/25/2026 - 11:24:50: "Phoenix_Lead<1><[U:1:10000001]><TERRORIST>" [120 -450 100] killed "Hydra_Two<7><[U:1:20000002]><CT>" [300 -200 110] with "ak47" (headshot)
+L 10/25/2026 - 11:25:05: "Phoenix_Three<3><[U:1:10000003]><TERRORIST>" triggered "Planted_The_Bomb" at [150 -100 80]
+L 10/25/2026 - 11:25:45: World triggered "Round_End"
+L 10/25/2026 - 11:25:46: Team "TERRORIST" triggered "SFUI_Notice_Target_Bombed" (CT "8") (T "13")
+L 10/25/2026 - 11:25:47: Team "CT" scored "8" with "5" players
+L 10/25/2026 - 11:25:47: Team "TERRORIST" scored "13" with "5" players

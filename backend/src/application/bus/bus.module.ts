@@ -1,4 +1,3 @@
-import { AdaptersBusModule } from '@adapters/bus/bus.module';
 // application/bus/bus.module.ts
 import { Module } from '@nestjs/common';
 import { RedisModule } from '@adapters/redis/redis.module';

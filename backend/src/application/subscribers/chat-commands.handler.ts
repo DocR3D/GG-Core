@@ -4,9 +4,10 @@ import { RuleContextFactory } from '@app/rules/rule-context.factory';
 import { RuleRegistry } from '@app/match/rules/rule.registry';
 import { MatchPhaseService } from '@app/match/phase/match-phase.service';
 import { MatchCommandsService } from '@app/commands/match-commands.service';
-import { MatchPhase } from '@domain/phase.types';
 import type { CommandEvent } from '@domain/events/command.event';
 
+import { isNonPlayingSide } from '@domain/side.types';
+import { CS2_CHAT_COMMANDS, normalizeChatCommand } from '@domain/rules/rules.constants';
 type GameSide = 'CT' | 'T' | 'SPECTATOR';
 type Channel  = 'say' | 'say_team';
 
@@ -83,10 +84,12 @@ private ensureGlobalInit() {
       this.logger.warn(`[COMMAND] ignored: missing matchId (serverId=${ev?.serverId ?? '∅'})`);
       return;
     }
-    if ((ev as any).kind && (ev as any).kind !== 'primary') return;
+    const kind = (ev as { kind?: string }).kind;
+    if (kind && kind !== 'primary') return;
 
     const sender = ev.payload?.sender;
-    const command = (ev.payload?.command || '').toLowerCase();
+    const command = normalizeChatCommand(ev.payload?.command);
+    if (ev.payload) ev.payload.command = command;
     const params  = ev.payload?.parameters ?? [];
     if (!sender || !command) {
       this.logger.warn('[COMMAND] ignored: bad payload');
@@ -108,7 +111,7 @@ private ensureGlobalInit() {
     this.lastByPlayer.set(k, now);
 
     // 2) guard spectateur
-    if (side === 'SPECTATOR' && command !== 'init') {
+    if (isNonPlayingSide(side) && command !== CS2_CHAT_COMMANDS.INIT) {
       this.logger.debug(`[COMMAND] ignored from spectator: ${who} cmd=${command}`);
       return;
     }

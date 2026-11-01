@@ -5,15 +5,21 @@ import { MatchOrchestrator } from '@app/match/match-orchestrator.service';
 import { MatchCommandsService } from '@app/commands/match-commands.service';
 import { REDIS_PUB } from '@adapters/redis/redis.tokens';
 import type Redis from 'ioredis';
+import { REDIS_CHANNELS } from '@app/match/state/redis.keys';
 
 @Injectable()
 export class RuleContextFactory {
   constructor(
     private readonly mss: MatchStateService,
-    private readonly orch: MatchOrchestrator,
+    @Inject(forwardRef(() => MatchOrchestrator)) private readonly orch: MatchOrchestrator,
     @Inject(forwardRef(() => MatchCommandsService)) private readonly cmds: MatchCommandsService, // pour say()
     @Inject(REDIS_PUB) private readonly pub: Redis,
   ) {}
+
+  /** The full orchestrator, for the event pipeline (not the rules, which only see RuleContext). */
+  get orchestrator(): MatchOrchestrator {
+    return this.orch;
+  }
 
   make(params: { matchId: string; serverId?: string }): RuleContext {
     const { matchId, serverId } = params;
@@ -24,6 +30,17 @@ export class RuleContextFactory {
       getServerIdFromMatchId: this.mss.getServerIdFromMatchId.bind(this.mss),
       getMatchIdFromServerId: this.mss.getMatchIdFromServerId.bind(this.mss),
       getPlayers: this.mss.getPlayers.bind(this.mss),
+      getSettings: this.mss.getSettings.bind(this.mss),
+      setSettings: this.mss.setSettings.bind(this.mss),
+      getLastScoredRound: this.mss.getLastScoredRound.bind(this.mss),
+      setLastScoredRound: this.mss.setLastScoredRound.bind(this.mss),
+      isHalftimePlayed: this.mss.isHalftimePlayed.bind(this.mss),
+      setHalftimePlayed: this.mss.setHalftimePlayed.bind(this.mss),
+      getOvertimeCount: this.mss.getOvertimeCount.bind(this.mss),
+      setOvertimeCount: this.mss.setOvertimeCount.bind(this.mss),
+      reconcileScore: this.mss.reconcileScore.bind(this.mss),
+      resetStreaks: this.mss.resetStreaks.bind(this.mss),
+      resetPlayerStats: this.mss.resetPlayerStats.bind(this.mss),
     } as const;
 
     return {
@@ -38,9 +55,9 @@ export class RuleContextFactory {
         await this.cmds.say(srv, msg);
       },
 
-      pubEvent: async (type: string, payload: any) => {
+      pubEvent: async (type: string, payload: unknown) => {
         await this.pub.publish(
-          'ggbot:events',
+          REDIS_CHANNELS.EVENTS,
           JSON.stringify({
             v: 1,
             type,

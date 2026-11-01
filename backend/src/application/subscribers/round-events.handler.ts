@@ -12,13 +12,14 @@ export class RoundEventsHandler {
   async handle(ev: AnyEvent & { matchId: string }): Promise<boolean> {
     switch (ev.type) {
       case EventTypes.ROUND_START:
-        this.orchestrator.onRoundStart(ev);
+        await this.orchestrator.onRoundStart(ev);
         return false;
       case EventTypes.TEAM_ROUND_WIN:
-        this.orchestrator.onRoundEnd(ev);
+      case EventTypes.SFUI_TARGET_BOMBED:
+        await this.orchestrator.onRoundEnd(ev);
         return false;
       case EventTypes.ROUND_FREEZE_START:
-        this.orchestrator.onFreezeTimeStart(ev);
+        await this.orchestrator.onFreezeTimeStart(ev);
         return false;
       default:
         return false;

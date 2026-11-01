@@ -2,6 +2,7 @@
 import type Redis from 'ioredis';
 import { fmtMmSs } from './periodic-messenger.service';
 import { redisConst } from '@app/match/state/redis.keys';
+import { DEFAULT_TAC_BANK_SEC } from '@domain/rules/rules.constants';
 
 // Helpers ID/lock
 const tacId = (m: string) => `pause:tac:${m}`;
@@ -30,11 +31,7 @@ export function buildTacPauseSpec(opts: {
       const key = redisConst.pause(matchId);
       const h = await redis.hgetall(key);
 
-      // DEBUG
-      console.log(`[preset:tac] match=${matchId} state=${h.state} reason=${h.reason} team=${h.team} started_at=${h.started_at}`);
-
       if (h.state !== 'paused' || h.reason !== 'tactical') {
-        console.log('[preset:tac] stop (not paused/tactical)');
         return { stop: true as const };
       }
 
@@ -42,15 +39,13 @@ export function buildTacPauseSpec(opts: {
       const startedAt = h.started_at ? parseInt(h.started_at, 10) : 0;
       const elapsed = startedAt ? Math.max(0, Math.floor((Date.now() - startedAt) / 1000)) : 0;
 
-      const bankHome = parseInt(h.tac_bank_home ?? '0', 10);
-      const bankAway = parseInt(h.tac_bank_away ?? '0', 10);
+      const bankHome = h.tac_bank_home !== undefined ? parseInt(h.tac_bank_home, 10) : DEFAULT_TAC_BANK_SEC;
+      const bankAway = h.tac_bank_away !== undefined ? parseInt(h.tac_bank_away, 10) : DEFAULT_TAC_BANK_SEC;
 
       const remaining =
         team === 'home'
           ? Math.max(0, bankHome - elapsed)
           : Math.max(0, bankAway - elapsed);
-
-      console.log(`[preset:tac] elapsed=${elapsed}s remaining=${remaining}s bankH=${bankHome} bankA=${bankAway}`);
 
       return { text: `⏸ Tac ${team} - banque restante: ${fmtMmSs(remaining)}` };
     },
@@ -77,11 +72,7 @@ export function buildTecPauseSpec(opts: {
       const key = redisConst.pause(matchId);
       const h = await redis.hgetall(key);
 
-      // DEBUG
-      console.log(`[preset:tec] match=${matchId} state=${h.state} reason=${h.reason} team=${h.team}`);
-
       if (h.state !== 'paused' || h.reason !== 'technical') {
-        console.log('[preset:tec] stop (not paused/technical)');
         return { stop: true as const };
       }
 
@@ -113,7 +104,6 @@ export function buildWarmupReadySpec(opts: {
       const away = rh.away === '1';
 
       if (home && away) {
-        console.log('[preset:warmup] stop (both ready)');
         return { stop: true as const }; // les deux sont prêts → on arrête
       }
 
@@ -146,7 +136,6 @@ export function buildKnifeChoiceSpec(opts: {
     compute: async () => {
       const phase = await redis.get(redisConst.phase(matchId));
       if (phase && phase !== 'knife_choice') {
-        console.log('[preset:knife] stop (phase changed)');
         return { stop: true as const };
       }
 

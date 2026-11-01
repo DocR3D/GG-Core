@@ -1,4 +1,6 @@
 export const EventTypes = {
+  MATCH_START:        'match_start',
+  GAME_OVER:          'game_over',
   ROUND_START:        'round_start',
   BOMB_PLANTED:       'bomb_planted',
   BEGIN_BOMB_PLANT:   'begin_bomb_plant',
@@ -7,9 +9,11 @@ export const EventTypes = {
   BOMB_DEFUSED:       'bomb_defused',
 
   KILL:               'kill',
+  ASSIST:             'assist',
 
   PLAYER_CONNECTED:    'player_connected',    // corrigé
   PLAYER_DISCONNECTED: 'player_disconnected', // corrigé
+  PLAYER_SWITCHED_TEAM: 'player_switched_team', // { player: { name, steamId, userId }, from, to } (CT, TERRORIST, Spectator, Unassigned)
   PLAYER_NAME_CHANGE:  'player_name_change',  // plus explicite
 
   DEFUSE_BEGIN:   'defuse_begin',

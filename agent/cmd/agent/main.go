@@ -34,6 +34,7 @@ import (
 	// ...
 	"ggbot/internal/parser"
 
+	"ggbot/internal/config"
 	"ggbot/internal/execfg"
 	myrcon "ggbot/internal/rcon"
 
@@ -115,12 +116,15 @@ type heartbeat struct {
 	RCON struct {
 		Connected bool   `json:"connected"`
 		Addr      string `json:"addr"`
+		Error     string `json:"error,omitempty"`
 	} `json:"rcon"`
 	Logs struct {
-		Bind    string `json:"bind"`
-		OK      bool   `json:"ok"`
-		Queue   int64  `json:"queue"`
-		Dropped int64  `json:"dropped"`
+		Bind           string `json:"bind"`
+		OK             bool   `json:"ok"`
+		Queue          int64  `json:"queue"`
+		Dropped        int64  `json:"dropped"`
+		LastAt         int64  `json:"lastAt"`
+		LastBadTokenAt int64  `json:"lastBadTokenAt,omitempty"`
 	} `json:"logs"`
 	CurrentMatchID string `json:"currentMatchId,omitempty"`
 }
@@ -150,6 +154,10 @@ var (
 	logQueue      = make(chan string, 10000)
 	droppedLogs   int64
 	logHTTPServer *http.Server
+	// unix seconds of the last accepted log batch / of the last batch refused for a bad token (0 = never):
+	// shown in the heartbeat to check a server's logaddress_add_http line
+	lastLogAt      int64
+	lastBadTokenAt int64
 )
 
 // rcon executor
@@ -157,6 +165,7 @@ var (
 	rconMu   sync.Mutex
 	rconCli  *myrcon.Client
 	rconAddr string
+	rconErr  string // last connection error, "" when connected
 )
 
 func main() {
@@ -169,7 +178,7 @@ func main() {
 		log.Fatalf("read config: %v", err)
 	}
 	var cfg AgentConfig
-	if err := yaml.Unmarshal(b, &cfg); err != nil {
+	if err := yaml.Unmarshal(config.ExpandEnv(b), &cfg); err != nil {
 		log.Fatalf("yaml: %v", err)
 	}
 	if *flServerID != "" {
@@ -247,6 +256,7 @@ func runLogsHTTP(ctx context.Context, cfg AgentConfig) {
 		if tok == "" || tok != cfg.Logs.Token {
 			log.Printf("[agent:%s] /logs 401 (bad token) from %s ct=%s len=%d",
 				cfg.ServerID, r.RemoteAddr, r.Header.Get("Content-Type"), r.ContentLength)
+			atomic.StoreInt64(&lastBadTokenAt, time.Now().Unix())
 			w.WriteHeader(http.StatusUnauthorized)
 			return
 		}
@@ -255,6 +265,7 @@ func runLogsHTTP(ctx context.Context, cfg AgentConfig) {
 		body, _ := io.ReadAll(r.Body)
 		_ = r.Body.Close()
 
+		atomic.StoreInt64(&lastLogAt, time.Now().Unix())
 		lines := splitLines(string(body))
 		for _, line := range lines {
 			select {
@@ -397,6 +408,9 @@ func execAction(ctx context.Context, cfg AgentConfig, act *AgentAction) error {
 		log.Printf("[agent:%s] RCON Say -> %q err=%v", cfg.ServerID, out, err)
 		return err
 
+	case "kick_all":
+		return kickAllPlayers(ctx, cfg, act.Payload.Message)
+
 	case "exec_cfg":
 		name := strings.TrimSpace(act.Payload.Name)
 		if name == "" {
@@ -429,7 +443,7 @@ func execAction(ctx context.Context, cfg AgentConfig, act *AgentAction) error {
 			Resolver:         resolver,
 			Vars:             act.Payload.Vars, // peut être nil
 			Logger: func(format string, args ...any) {
-				log.Printf("[agent:%s] execCfg "+format, append([]any{}, args...)...)
+				log.Printf("[agent:%s] execCfg %s", cfg.ServerID, fmt.Sprintf(format, args...))
 			},
 		}
 
@@ -450,18 +464,7 @@ func withRcon(ctx context.Context, cfg AgentConfig, fn func(context.Context, *my
 	rconMu.Lock()
 	defer rconMu.Unlock()
 
-	if rconCli == nil {
-		host, port := splitHostPort(cfg.CS2.Addr)
-		rconAddr = cfg.CS2.Addr
-		log.Printf("[agent:%s] RCON new client host=%s port=%d", cfg.ServerID, host, port)
-		rconCli = myrcon.New(myrcon.Config{
-			Host:      host,
-			Port:      port,
-			Password:  cfg.CS2.RconPassword,
-			Timeout:   time.Duration(max(500, cfg.CS2.Rcon.CommandTimeoutMs)) * time.Millisecond,
-			RateLimit: time.Second / time.Duration(max(1, cfg.CS2.Rcon.RateLimitPerSec)),
-		})
-	}
+	newRconClientLocked(cfg)
 	if err := ensureRcon(ctx, rconCli); err != nil {
 		log.Printf("[agent:%s] RCON connect error: %v", cfg.ServerID, err)
 		return "", err
@@ -474,6 +477,47 @@ func withRcon(ctx context.Context, cfg AgentConfig, fn func(context.Context, *my
 		rconCli = nil
 	}
 	return out, err
+}
+
+// newRconClientLocked creates the RCON client if there is none (rconMu held).
+func newRconClientLocked(cfg AgentConfig) {
+	if rconCli != nil {
+		return
+	}
+	host, port := splitHostPort(cfg.CS2.Addr)
+	rconAddr = cfg.CS2.Addr
+	log.Printf("[agent:%s] RCON new client host=%s port=%d", cfg.ServerID, host, port)
+	rconCli = myrcon.New(myrcon.Config{
+		Host:      host,
+		Port:      port,
+		Password:  cfg.CS2.RconPassword,
+		Timeout:   time.Duration(max(500, cfg.CS2.Rcon.CommandTimeoutMs)) * time.Millisecond,
+		RateLimit: rconInterval(cfg.CS2.Rcon.RateLimitPerSec),
+	})
+}
+
+// probeRcon opens the RCON connection if it is not open (dial + auth, no command sent: the rate limit is
+// untouched), so the heartbeat tells whether the server is reachable with this password before any match.
+// An open connection is trusted until a command fails on it (withRcon then closes it).
+func probeRcon(ctx context.Context, cfg AgentConfig) (bool, string) {
+	rconMu.Lock()
+	defer rconMu.Unlock()
+	newRconClientLocked(cfg)
+	prev := rconErr
+	if err := rconCli.Connect(ctx); err != nil {
+		_ = rconCli.Close()
+		rconErr = err.Error()
+	} else {
+		rconErr = ""
+	}
+	if rconErr != prev {
+		if rconErr == "" {
+			log.Printf("[agent:%s] RCON connected to %s", cfg.ServerID, rconAddr)
+		} else {
+			log.Printf("[agent:%s] RCON unreachable (%s): %s", cfg.ServerID, rconAddr, rconErr)
+		}
+	}
+	return rconErr == "", rconErr
 }
 
 func ensureRcon(ctx context.Context, c *myrcon.Client) error {
@@ -508,10 +552,12 @@ func runHeartbeat(ctx context.Context, cfg AgentConfig, rdb *redis.Client) {
 			return
 		case <-time.After(interval):
 			hb := heartbeat{TS: time.Now().Unix()}
-			hb.RCON.Connected = rconCli != nil
-			hb.RCON.Addr = rconAddr
+			hb.RCON.Connected, hb.RCON.Error = probeRcon(ctx, cfg)
+			hb.RCON.Addr = cfg.CS2.Addr
 			hb.Logs.Bind = cfg.Logs.Bind
 			hb.Logs.OK = true
+			hb.Logs.LastAt = atomic.LoadInt64(&lastLogAt)
+			hb.Logs.LastBadTokenAt = atomic.LoadInt64(&lastBadTokenAt)
 			hb.Logs.Queue = int64(len(logQueue))
 			hb.Logs.Dropped = atomic.LoadInt64(&droppedLogs)
 			b, _ := json.Marshal(&hb)
@@ -540,6 +586,17 @@ func splitHostPort(addr string) (string, int) {
 	var port int
 	fmt.Sscanf(p[1], "%d", &port)
 	return p[0], port
+}
+
+// maxRconPerSec is GG-Core's hard limit (AGENTS.md rule 3): more freezes the CS2 server.
+const maxRconPerSec = 6
+
+// rconInterval is the minimum spacing between two RCON commands, whatever the config asks for.
+func rconInterval(perSec int) time.Duration {
+	if perSec <= 0 || perSec > maxRconPerSec {
+		perSec = maxRconPerSec
+	}
+	return time.Second / time.Duration(perSec)
 }
 
 func max(a, b int) int {
@@ -650,7 +707,8 @@ func runEventsPusher(ctx context.Context, cfg AgentConfig, rdb *redis.Client) {
 				continue
 			}
 
-			if typ, payloadJSON, ok := parser.TryParse(line); ok {
+			for _, pe := range parser.Parse(line) {
+				typ, payloadJSON := pe.Type, pe.Payload
 				// ⬅️ récupère le matchId courant
 				matchID := resolveMatchID()
 
@@ -689,7 +747,6 @@ func runEventsPusher(ctx context.Context, cfg AgentConfig, rdb *redis.Client) {
 				if len(batch) >= maxBatch {
 					flush()
 				}
-				continue
 			}
 		}
 	}

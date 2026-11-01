@@ -1,6 +1,8 @@
 // src/application/match/match-orchestrator.module.ts
 import { Module, forwardRef } from '@nestjs/common';
 import { MatchOrchestrator } from './match-orchestrator.service';
+import { MatchAccessService } from './access/match-access.service';
+import { TeamPlacementService } from './access/team-placement.service';
 import { MatchStateModule } from '@app/match-state.module';
 import { PhaseModule } from '@app/match/phase/phase.module';
 import { RulesModule } from '@app/match/rules/rules.module';
@@ -16,7 +18,7 @@ import { WsModule } from '@adapters/ws/ws.module';   // 👈 ajoute ça
     forwardRef(() => RulesModule),
     WsModule,   // 👈 ajoute ça pour exposer WsBroadcaster
   ],
-  providers: [MatchOrchestrator],
-  exports: [MatchOrchestrator],
+  providers: [MatchOrchestrator, MatchAccessService, TeamPlacementService],
+  exports: [MatchOrchestrator, MatchAccessService, TeamPlacementService],
 })
 export class MatchOrchestratorModule {}

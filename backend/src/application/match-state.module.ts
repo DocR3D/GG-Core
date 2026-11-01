@@ -5,9 +5,10 @@ import { MatchStateService } from '@app/match/state/match-state.service';
 import { SidesScoreService } from '@app/match/state/sides-score.service';
 import { TimeoutsService } from '@app/match/state/timeouts.service';
 import { TeamsRosterService } from '@app/match/state/rosters.service';
+import { PlayerStatsService } from '@app/match/state/player-stats.service';
 import { EconomyService } from '@app/match/state/economy.service';
 import { SnapshotQuery } from '@app/match/state/snapshot.query';
-import { SeqService } from '@app/match/state/sequence.service';   // 👈
+import { SeqService } from '@app/match/state/sequence.service';
 
 @Module({
   imports: [RedisModule],
@@ -16,18 +17,20 @@ import { SeqService } from '@app/match/state/sequence.service';   // 👈
     SidesScoreService,
     TimeoutsService,
     TeamsRosterService,
+    PlayerStatsService,
     EconomyService,
     SnapshotQuery,
-    SeqService,   // 👈
+    SeqService,
   ],
   exports: [
     MatchStateService,
     SidesScoreService,
     TimeoutsService,
     TeamsRosterService,
+    PlayerStatsService,
     EconomyService,
     SnapshotQuery,
-    SeqService,   // 👈
+    SeqService,
   ],
 })
 export class MatchStateModule {}

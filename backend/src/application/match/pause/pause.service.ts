@@ -7,6 +7,7 @@ import { Logical } from '../state';
 
 import { PeriodicMessenger } from '@app/shared/periodic/periodic-messenger.service';
 import { buildTacPauseSpec, buildTecPauseSpec } from '@app/shared/periodic/messages-presets.types';
+import { DEFAULT_TAC_BANK_SEC } from '@domain/rules/rules.constants';
 
 export type PauseReason = 'tactical' | 'technical' | 'admin';
 
@@ -60,9 +61,9 @@ export class PauseMatchService {
   async getPauseState(matchId: string): Promise<PauseState> {
     const h = await this.redis.hgetall(this.key(matchId));
     return {
-      state: (h.state as any) || 'none',
-      reason: (h.reason as any) || undefined,
-      team: (h.team as any) || undefined,
+      state: (h.state as PauseState['state']) || 'none',
+      reason: (h.reason as PauseState['reason']) || undefined,
+      team: (h.team as PauseState['team']) || undefined,
       startedAt: h.started_at ? parseInt(h.started_at, 10) : undefined,
       tacBankHome: h.tac_bank_home ? parseInt(h.tac_bank_home, 10) : undefined,
       tacBankAway: h.tac_bank_away ? parseInt(h.tac_bank_away, 10) : undefined,
@@ -73,9 +74,9 @@ export class PauseMatchService {
    * Phase courante ('live' | 'freeze' | 'end' | null)
    * Lit la clé de phase déjà présente dans ton state.
    */
-  async getPhase(matchId: string): Promise<'live' | 'freeze' | 'end' | null> {
-    const v = await this.redis.get(redisConst.phase(matchId));
-    return v === 'live' || v === 'freeze' || v === 'end' ? v : null;
+  async getPhase(matchId: string): Promise<'live' | 'bomb_planted' | 'freeze' | 'end' | null> {
+    const v = await this.redis.get(redisConst.roundPhase(matchId));
+    return v === 'live' || v === 'bomb_planted' || v === 'freeze' || v === 'end' ? v : null;
   }
 
   // -----------------------------------------------------
@@ -181,7 +182,7 @@ export class PauseMatchService {
       // applique l'état "paused" (messages périodiques inclus), sans RCON
       await this.pause(matchId, /* serverId */ 'n/a', {
         reason: pick.req.reason,
-        team: pick.team === 'system' ? 'system' : (pick.team as Logical),
+        team: pick.team === 'system' ? 'system' : (pick.team),
         durationSec: duration,
         armOnly: false,
         by: pick.req.by,
@@ -190,11 +191,11 @@ export class PauseMatchService {
       return {
         activated: true,
         reason: pick.req.reason,
-        team: pick.team === 'system' ? 'system' : (pick.team as Logical),
+        team: pick.team === 'system' ? 'system' : (pick.team),
         durationSec: duration,
       };
     } catch (err) {
-      this.logger.error(`[tryActivateAtFreeze] match=${matchId} error`, err as any);
+      this.logger.error(`[tryActivateAtFreeze] match=${matchId} error`, err);
       return { activated: false };
     } finally {
       await this.redis.del(activateLock(matchId));
@@ -217,9 +218,10 @@ export class PauseMatchService {
         return { consumed: false };
       }
 
-      const home = h.arm_home_json ? JSON.parse(h.arm_home_json) : null;
-      const away = h.arm_away_json ? JSON.parse(h.arm_away_json) : null;
-      const system = h.arm_system_json ? JSON.parse(h.arm_system_json) : null;
+      const read = (json?: string) => (json ? (JSON.parse(json) as ArmedPick['req']) : null);
+      const home = read(h.arm_home_json);
+      const away = read(h.arm_away_json);
+      const system = read(h.arm_system_json);
 
       const candidates = [
         home && { team: 'home' as const, req: home },
@@ -245,7 +247,7 @@ export class PauseMatchService {
       // Ne PAS lancer la pause ici - on laisse l’appelant décider
       return { consumed: true, pick };
     } catch (err) {
-      this.logger.error(`[consumeArmed] error match=${matchId}`, err as any);
+      this.logger.error(`[consumeArmed] error match=${matchId}`, err);
       return { consumed: false };
     }
   }
@@ -270,7 +272,8 @@ export class PauseMatchService {
       const startedAt = parseInt(h.started_at, 10);
       const elapsedSec = Math.floor((Date.now() - startedAt) / 1000);
       const field = team === 'home' ? 'tac_bank_home' : 'tac_bank_away';
-      const bank = parseInt(h[field] ?? '0', 10);
+      const defaultBank = DEFAULT_TAC_BANK_SEC;
+      const bank = h[field] !== undefined ? parseInt(h[field], 10) : defaultBank;
       const debit = Math.min(elapsedSec, bank);
       const newBank = Math.max(0, bank - debit);
       await this.redis.hset(key, { [field]: String(newBank) });
@@ -287,7 +290,7 @@ export class PauseMatchService {
   // -----------------------------------------------------
   // Banks
   // -----------------------------------------------------
-  async initTacBanks(matchId: string, secondsPerTeam = 300): Promise<void> {
+  async initTacBanks(matchId: string, secondsPerTeam = DEFAULT_TAC_BANK_SEC): Promise<void> {
     await this.redis.hset(this.key(matchId), {
       tac_bank_home: String(secondsPerTeam),
       tac_bank_away: String(secondsPerTeam),
@@ -297,7 +300,10 @@ export class PauseMatchService {
   async getTacBank(matchId: string, team: Logical): Promise<number> {
     const field = team === 'home' ? 'tac_bank_home' : 'tac_bank_away';
     const v = await this.redis.hget(this.key(matchId), field);
-    return parseInt(v ?? '0', 10);
+    if (v === null || v === undefined) {
+      return DEFAULT_TAC_BANK_SEC;
+    }
+    return parseInt(v, 10);
   }
 
   async setTacBank(matchId: string, team: Logical, seconds: number): Promise<void> {
@@ -317,7 +323,8 @@ export class PauseMatchService {
 
     if (reason === 'tactical' && team) {
       const field = team === 'home' ? 'tac_bank_home' : 'tac_bank_away';
-      const bank = parseInt(h[field] ?? '0', 10);
+      const defaultBank = DEFAULT_TAC_BANK_SEC;
+      const bank = h[field] !== undefined ? parseInt(h[field], 10) : defaultBank;
       return { allowed: bank >= minSec, remainingSec: bank, why: bank >= minSec ? 'ok' : 'no_bank' };
     }
 

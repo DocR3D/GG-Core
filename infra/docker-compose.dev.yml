@@ -1,7 +1,28 @@
+# GG-Core - stack de développement complète (plug & play).
+# Pilotée par le Makefile à la racine : `make up`, `make up-cs2`, `make test`, `make logs`…
+#
+# Services :
+#   redis, postgres         infrastructure
+#   backend                 NestJS (hot-reload, schéma Prisma appliqué au démarrage)
+#   manager                 Go : lance 1 agent par fichier agents.d/*.yaml
+#   cs2      [profil cs2]   serveur CS2 dédié vanilla (Zero Plugin), ~73 Go téléchargés au 1er lancement
+#   log-drain [profil debug] copie le bus Redis dans infra/logs/redis-events.jsonl
+#
+# Toutes les valeurs ont un défaut : un fichier infra/.env (optionnel) permet de les surcharger.
+
+networks:
+  ggcore:
+    ipam:
+      config:
+        # IP fixe pour le manager : CS2 envoie ses logs (logaddress_add_http) à une adresse IP
+        - subnet: 172.30.0.0/24
+
 services:
   redis:
     image: redis:7-alpine
     container_name: ggcore-redis-dev
+    restart: unless-stopped
+    networks: [ggcore]
     ports:
       - "6379:6379"
     healthcheck:
@@ -10,66 +31,148 @@ services:
       timeout: 1s
       retries: 10
 
+  postgres:
+    image: postgres:16-alpine
+    container_name: ggcore-postgres-dev
+    restart: unless-stopped
+    networks: [ggcore]
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: ggcore
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d ggcore"]
+      interval: 3s
+      timeout: 2s
+      retries: 10
+
   backend:
     build:
-      context: ../backend            # chemins relatifs au fichier compose (infra/)
+      context: ../backend
       dockerfile: Dockerfile.nest.dev
+    container_name: ggcore-backend-dev
+    restart: unless-stopped
+    networks: [ggcore]
+    # Client Prisma régénéré + schéma appliqué à chaque démarrage (base neuve = prête à l'emploi).
+    # --no-install : jamais de téléchargement npm au runtime (LAN-first), on utilise la version du package.json
+    command: ["sh", "-c", "npx --no-install prisma generate && npx --no-install prisma db push --skip-generate && npm run start:dev"]
     volumes:
       - ../backend:/app
-      - /app/node_modules            # volume anonyme pour ne pas écraser les deps
+      - /app/node_modules # deps Linux du conteneur, jamais celles de l'hôte
+      - ../test:/test:ro # fixtures pour la Sandbox et les tests Golden Master
+      - ../frontend/dist:/front:ro # front React compilé (make front), servi par le backend
     environment:
       PORT: "8081"
+      FRONT_DIST: "/front"
       WS_PATH: "/ws"
-      JWT_SECRET: "dev-change-me"
+      # Secrets come from .env, generated with random values by the Makefile (infra/gen-secrets.sh): no public
+      # default - the stack refuses to start without them.
+      JWT_SECRET: "${JWT_SECRET:?missing: run make up (generates .env)}"
+      # Authentication (V1): Steam sign-in, admins = these SteamID64 (comma separated); offline admin password and
+      # admin token for scripts / curl.
+      GG_ADMIN_STEAMIDS: "${GG_ADMIN_STEAMIDS:-}"
+      GG_ADMIN_PASSWORD: "${GG_ADMIN_PASSWORD:?missing: run make up (generates .env)}"
+      GG_ADMIN_TOKEN: "${GG_ADMIN_TOKEN:?missing: run make up (generates .env)}"
+      AUTH_PUBLIC_URL: "${AUTH_PUBLIC_URL:-}"
       REDIS_URL: "redis://redis:6379"
+      DATABASE_URL: "postgresql://postgres:postgres@postgres:5432/ggcore?schema=public"
       SERVER_IDS: "srv-a"
       USE_HTTP_PARSE: "false"
-      CORS_ORIGIN: "http://localhost:3000"
+      CORS_ORIGIN: "${CORS_ORIGIN:-http://localhost:3000}"
       CHOKIDAR_USEPOLLING: "1"
       WATCHPACK_POLLING: "true"
+      # Replays Sandbox envoyés à l'agent Go (parsing réel) plutôt qu'au parser de secours
+      AGENT_LOGS_URL: "http://manager:8082/logs?token=${GG_LOGS_TOKEN:?missing: run make up (generates .env)}"
     depends_on:
       redis:
         condition: service_healthy
+      postgres:
+        condition: service_healthy
     ports:
       - "8081:8081"
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:8081/api/health"]
+      interval: 5s
+      timeout: 3s
+      retries: 60
+      start_period: 20s
 
   manager:
     build:
       context: ..
       dockerfile: infra/Dockerfile
     container_name: ggbot-manager
+    networks:
+      ggcore:
+        ipv4_address: 172.30.0.10
+    environment:
+      # le backend demande "knife.cfg", "warmup.cfg"… : ils sont dans agent/cfg/ggbot/
+      CFG_BASE: /app/cfg/ggbot
+      # Expansés dans agents.d/*.yaml (${GG_…:-défaut natif})
+      GG_REDIS_URL: "redis://redis:6379"
+      GG_BACKEND_URL: "http://backend:8081"
+      GG_CS2_HOST: "${GG_CS2_HOST:-cs2}"
+      GG_CS2_PORT: "${GG_CS2_PORT:-27015}"
+      GG_RCON_PASSWORD: "${GG_RCON_PASSWORD:?missing: run make up (generates .env)}"
+      GG_LOGS_TOKEN: "${GG_LOGS_TOKEN:?missing: run make up (generates .env)}"
+    volumes:
+      - ../agents.d:/etc/ggbot/agents.d:ro
+      - ../agent/cfg:/app/cfg:ro
+    command: ["-agents-dir", "/etc/ggbot/agents.d", "-agent-bin", "/app/agentd", "-redis", "redis://redis:6379"]
     depends_on:
       redis:
         condition: service_healthy
-    environment:
-      - CFG_BASE=/app/cfg
-    volumes:
-    # Mount your agents directory from host → container
-      - ../agents.d:/etc/ggbot/agents.d:ro
-      - ../agent/cfg:/app/cfg:ro
-    command: ["-agents-dir","/etc/ggbot/agents.d",
-      "-agent-bin","/app/agentd",
-      "-redis","redis://redis:6379"]
-    # Expose the agents' /logs ports on the host. Adjust to match your YAMLs.
     ports:
-      - "8082:8082" # srv-a logs.bind must be 0.0.0.0:8082
-      - "8083:8083" # srv-b logs.bind must be 0.0.0.0:8083 (example)
+      # un port de logs par serveur CS2 (logs.bind de agents.d/*.yaml) : srv-a = 8082, puis ceux de `make server`
+      - "8082-8113:8082-8113"
     restart: unless-stopped
 
+  cs2:
+    image: cm2network/cs2:latest
+    container_name: ggcore-cs2-dev
+    profiles: ["cs2"]
+    networks: [ggcore]
+    environment:
+      CS2_SERVERNAME: "GG-Core Dev"
+      CS2_PORT: "27015"
+      CS2_RCONPW: "${GG_RCON_PASSWORD:?missing: run make up (generates .env)}"
+      CS2_STARTMAP: "de_inferno"
+      CS2_LAN: "1"
+      # The image writes server.cfg from these variables (executed after the launch args): setting
+      # +tv_enable / +mp_logdetail on the command line alone is overridden (tv_enable 0 → no demo).
+      TV_ENABLE: "1"
+      CS2_LOG_DETAIL: "3"
+      # Zero Plugin : uniquement logaddress_add_http + RCON natif
+      CS2_ADDITIONAL_ARGS: "-allow_round_backup_files +log on +logaddress_add_http \"http://172.30.0.10:8082/logs?token=${GG_LOGS_TOKEN:?missing: run make up (generates .env)}\""
+    volumes:
+      - cs2data:/home/steam/cs2-dedicated
+    ports:
+      - "27015:27015/tcp"
+      - "27015:27015/udp"
+      - "27020:27020/udp"
+    restart: unless-stopped
 
   log-drain:
     build:
-      context: ../tools/log-drain   # <- vérifie le chemin depuis le dossier du compose
+      context: ../tools/log-drain
       dockerfile: Dockerfile
+    profiles: ["debug"]
+    networks: [ggcore]
     environment:
       REDIS_URL: redis://redis:6379
       REDIS_PATTERN: ggbot:*
       LOG_FILE: /var/log/ggbot/redis-events.jsonl
     volumes:
-      - ./logs:/var/log/ggbot       # ./logs relatif au fichier compose
+      - ./logs:/var/log/ggbot
     depends_on:
       redis:
         condition: service_healthy
     restart: unless-stopped
 
-
+volumes:
+  pgdata:
+  cs2data:

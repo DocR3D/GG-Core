@@ -4,13 +4,15 @@ import { CommandEvent } from '@domain/events/command.event';
 import { RuleContext } from '@domain/rules';
 import { MatchCommandsService } from '@app/commands/match-commands.service';
 import { PauseMatchService, PauseReason } from '@app/match/pause/pause.service';
-import { Logical } from '@app/match/state';
+import { isNonPlayingSide, GameSide } from '@domain/side.types';
+import { CS2_CHAT_COMMANDS } from '@domain/rules/rules.constants';
 
 @Injectable()
 export class PauseCommand extends BaseCommand {
   private readonly logger = new Logger(PauseCommand.name);
 
   constructor(
+    @Inject(forwardRef(() => PauseMatchService))
     private readonly pauseService: PauseMatchService,
     @Inject(forwardRef(() => MatchCommandsService))
     private readonly rconService: MatchCommandsService,
@@ -20,9 +22,9 @@ export class PauseCommand extends BaseCommand {
 
   async canHandle(event: CommandEvent, ctx: RuleContext): Promise<boolean> {
     const isPauseRequest =
-      event.payload.command === 'pause' ||
+      event.payload.command === CS2_CHAT_COMMANDS.PAUSE ||
       event.payload.command === 'tac' ||
-      event.payload.command === 'tech';
+      event.payload.command === CS2_CHAT_COMMANDS.TECH;
     const isUnpauseRequest = event.payload.command === 'unpause';
 
     if (!isPauseRequest && !isUnpauseRequest) {
@@ -50,23 +52,22 @@ export class PauseCommand extends BaseCommand {
 
   async handle(event: CommandEvent, ctx: RuleContext): Promise<boolean> {
     const isPauseRequest =
-      event.payload.command === 'pause' ||
+      event.payload.command === CS2_CHAT_COMMANDS.PAUSE ||
       event.payload.command === 'tac' ||
-      event.payload.command === 'tech';
+      event.payload.command === CS2_CHAT_COMMANDS.TECH;
 
     this.logCommand(event.payload.command, event);
 
     if (isPauseRequest) {
       // Garde-fous: seuls les joueurs affectés à une équipe peuvent pauser
-      if (event.payload.sender.team === 'SPECTATOR') return false;
-      if (event.payload.sender.team === 'Unassigned') return false;
+      if (isNonPlayingSide(event.payload.sender.team)) return false;
 
       // Résolution de l'équipe logique (home/away) depuis CT/T
-      const team = await ctx.orch.sideToLogical(event.matchId, event.payload.sender.team);
+      const team = await ctx.orch.sideToLogical(event.matchId, event.payload.sender.team as GameSide);
       if (!team) return false;
 
       const reason: PauseReason =
-        event.payload.command === 'tech' ? 'technical' : 'tactical';
+        event.payload.command === CS2_CHAT_COMMANDS.TECH ? 'technical' : 'tactical';
 
       // Politique d'autorisation (banque tactique, etc.)
       const isAllowed = await this.pauseService.isPauseAllowed(event.matchId, {
@@ -79,11 +80,12 @@ export class PauseCommand extends BaseCommand {
       }
 
       // Phase courante
-      const phase = await this.pauseService.getPhase(event.matchId); // 'live' | 'freeze' | 'end' | null
+      const phase = await this.pauseService.getPhase(event.matchId); // 'live' | 'bomb_planted' | 'freeze' | 'end' | null
       const durationSec = reason === 'tactical' ? 30 : 60;
 
-      // En LIVE → on ARME (pas de RCON, pas de timers)
-      if (phase === 'live') {
+      // Round en cours (y compris bombe posée et fin de round) → on ARME (pas de RCON, pas de timers) :
+      // la pause démarre au prochain freeze, comme mp_pause_match natif.
+      if (phase === 'live' || phase === 'bomb_planted' || phase === 'end') {
         await this.pauseService.pause(event.matchId, event.serverId, {
           reason,
           team,
@@ -96,7 +98,7 @@ export class PauseCommand extends BaseCommand {
           },
         });
         await ctx.say(
-          `[GG] Pause ${reason} de ${team.toUpperCase()} armée — elle débutera au prochain freeze.`,
+          `[GG] Pause ${reason} de ${team.toUpperCase()} armée - elle débutera au prochain freeze.`,
         );
         return true;
       }
@@ -119,13 +121,18 @@ export class PauseCommand extends BaseCommand {
           serverId: event.serverId,
         });
         await ctx.say(
-          `[GG] Pause ${reason} de ${team.toUpperCase()} — ${durationSec}s.`,
+          `[GG] Pause ${reason} de ${team.toUpperCase()} - ${durationSec}s.`,
         );
         return true;
       }
 
-      // Match terminé → on refuse
-      await ctx.say('Impossible de mettre en pause : le match est terminé.');
+      // Hors round (warmup, knife, fin de match) → on refuse avec le bon motif
+      const matchPhase = (await ctx.state.getSnapshot(event.matchId))?.phase;
+      await ctx.say(
+        matchPhase === 'postgame'
+          ? 'Impossible de mettre en pause : le match est terminé.'
+          : "Impossible de mettre en pause : aucun round n'est en cours.",
+      );
       return false;
     }
 

@@ -1,10 +1,10 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { BusPublisher } from '@adapters/bus/publisher';
-import { MatchIdResolver } from '@app/match/state/match-id.resolver';
-import type { LogCtx } from '@app/shared/logging/logctx';
 import { MatchStateService } from '@app/match/state/match-state.service';
+import { REDIS_CHANNELS } from '@app/match/state/redis.keys';
 
-type IncomingEvent = {
+/** An event as the agent posts it (already parsed, no regex here). */
+export type IncomingEvent = {
   v?: number;
   id?: string;
   ts?: number;
@@ -35,12 +35,15 @@ export class Cs2LogsService {
         continue;
       }
       // ⬇ fallback si l’agent n’a pas mis matchId
-      if (!ev.matchId && ev.serverId) {
+      if ((!ev.matchId || ev.matchId === 'unknown') && ev.serverId) {
         try {
-          ev.matchId = await this.matchStateService.getMatchIdFromServerId(ev.serverId) ?? undefined;
+          const resolved = await this.matchStateService.getMatchIdFromServerId(ev.serverId);
+          if (resolved) {
+            ev.matchId = resolved;
+          }
         } catch { /* ignore */ }
       }
-      await this.publisher.publish('ggbot:events', ev);
+      await this.publisher.publish(REDIS_CHANNELS.EVENTS, ev);
     }
   }
 }

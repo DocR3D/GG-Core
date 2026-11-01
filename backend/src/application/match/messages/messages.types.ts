@@ -1,25 +1,10 @@
-export enum MessageMode {
-  Chain = 'chain',
-  Rotate = 'rotate',
-  Random = 'random',
-}
-
-export interface ChainSay {
-  mode: MessageMode.Chain;
-  items: { text: string; intervalMs: number }[];
-}
-
-export interface RotateSay {
-  mode: MessageMode.Rotate;
-  intervalMs: number;
-  items: string[];
-}
-
-export interface RandomSay {
-  mode: MessageMode.Random;
-  intervalMs: number;
-  items: string[];
-}
-
-export type SayUnit = ChainSay | RotateSay | RandomSay;
-export type SaySpec = SayUnit | SayUnit[];
+export {
+  MessageMode,
+} from '@domain/rules/message-spec.types';
+export type {
+  ChainSay,
+  RotateSay,
+  RandomSay,
+  SayUnit,
+  SaySpec,
+} from '@domain/rules/message-spec.types';

@@ -27,16 +27,23 @@ func New(cfg Config) *Client { return &Client{cfg: cfg} }
 
 func (c *Client) Addr() string { return fmt.Sprintf("%s:%d", c.cfg.Host, c.cfg.Port) }
 
+// Connect opens the RCON connection, or does nothing if it is already open: the agent calls it
+// before every command, and re-dialing each time leaked a TCP connection per command and reset the
+// rate limiter (exec_cfg went out at ~8 commands/s).
 func (c *Client) Connect(ctx context.Context) error {
+	if c.conn != nil {
+		return nil
+	}
 	// deadline global
 	d := c.cfg.Timeout
-	if d <= 0 { d = 3 * time.Second }
+	if d <= 0 {
+		d = 3 * time.Second
+	}
 	done := make(chan error, 1)
 	go func() {
 		conn, err := rcon.Dial(c.Addr(), c.cfg.Password)
 		if err == nil {
 			c.conn = conn
-			c.last = time.Now().Add(-c.cfg.RateLimit)
 		}
 		done <- err
 	}()
@@ -52,7 +59,9 @@ func (c *Client) Connect(ctx context.Context) error {
 
 func (c *Client) Close() error {
 	if c.conn != nil {
-		return c.conn.Close()
+		err := c.conn.Close()
+		c.conn = nil
+		return err
 	}
 	return nil
 }
@@ -80,6 +89,9 @@ func (c *Client) Send(ctx context.Context, cmd string) (string, error) {
 		err error
 	}
 	ch := make(chan res, 1)
+	// Spacing is measured between SENDS, failed commands included: only updating it after a
+	// successful reply let errors (and slow replies) through faster than the limit.
+	c.last = time.Now()
 	go func() {
 		out, err := c.conn.Execute(cmd)
 		ch <- res{out, err}
@@ -87,11 +99,12 @@ func (c *Client) Send(ctx context.Context, cmd string) (string, error) {
 
 	// timeout par commande
 	cmdTimeout := c.cfg.Timeout
-	if cmdTimeout <= 0 { cmdTimeout = 3 * time.Second }
+	if cmdTimeout <= 0 {
+		cmdTimeout = 3 * time.Second
+	}
 
 	select {
 	case r := <-ch:
-		if r.err == nil { c.last = time.Now() }
 		return r.out, r.err
 	case <-time.After(cmdTimeout):
 		return "", errors.New("rcon command timeout")

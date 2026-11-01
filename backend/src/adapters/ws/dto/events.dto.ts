@@ -16,10 +16,18 @@ export type WsEventType =
   | 'phase:changed'
   | 'phase:cancelled'
   | 'match:state'
+  | 'match:ended'
+  | 'match:review_required'
+  | 'match:review_resolved'
+  | 'access:not_allowed'
+  | 'sides:misplaced'
+  | 'sides:unchecked'
+  | 'admin:action'
   | 'score:update'
   | 'round:start'
   | 'round:end'
   | 'kill'
+  | 'assist'
   | 'pause:update'
   | 'sides:swapped'
   | 'chat:public'
@@ -33,14 +41,20 @@ export type WsEventType =
   // NEW (grenades & round win)
   | 'grenade_throw'
   | 'bomb:planted'
+  | 'bomb_defused'
   | 'bomb:begin'
   | 'defuse:begin'
   | 'defuse:abort'
   | 'team_round_win'   // ← remplace 'round:win'
   | 'player_blinded'
-  | 'knife:result';
+  | 'knife:result'
+  | 'player:connected'
+  | 'player:disconnected'
+  | 'player:name_change'
+  | 'item:purchase'
+  // Véto des maps d'une série (room du match de la série, pas d'un game)
+  | 'veto:updated';
 //  | 'grenade_landed'  // activer quand prêt
-//  | 'bomb:planted' | 'bomb:begin' | 'defuse:begin' | 'defuse:abort' // si tu exposes ces events
 
 export interface BaseWsEvent<TType extends WsEventType, TPayload> {
   type: TType;
@@ -219,7 +233,7 @@ export type LobbyRemove = {
 };
 export type LobbyAdminDebug = {
   type: 'matches:debug';
-  payload: any;
+  payload: unknown;
 };
 
 export type LobbyEvent = LobbyUpsert | LobbyRemove;
@@ -241,10 +255,38 @@ export interface PlayerBlindedPayload {
   victim: PlayerRef;
   attacker: PlayerRef;
   grenade: 'flashbang';
-  duration: number | string; // le parser envoie pour l’instant une string
+  duration: number | string; // le parser envoie pour l'instant une string
   entindex?: string;
 }
 export type PlayerBlindedEvent = BaseWsEvent<'player_blinded', PlayerBlindedPayload>;
+
+/**
+ * Véto mis à jour (choix PFC, équipe qui commence, ban / pick / side, annulation, remise à zéro). `payload` =
+ * l'état public du véto (`GET /api/tournament/matches/:id/veto` sans session : le choix PFC de la manche en cours
+ * n'y figure pas). Un client connecté relit l'état avec sa session pour savoir s'il peut jouer.
+ * `seq` = nombre d'actions enregistrées (choix PFC, équipe qui commence, étapes) : peut baisser après une annulation.
+ */
+export type VetoUpdatedWsEvent = BaseWsEvent<'veto:updated', import('@app/tournament/veto.service').VetoView>;
+
+export type PlayerConnectedWsEvent = BaseWsEvent<'player:connected', {
+  player: PlayerRef;
+}>;
+
+export type PlayerDisconnectedWsEvent = BaseWsEvent<'player:disconnected', {
+  player: { name: string; steamId: string };
+  reason?: string;
+}>;
+
+export type PlayerNameChangeWsEvent = BaseWsEvent<'player:name_change', {
+  steamId: string;
+  oldName: string;
+  newName: string;
+}>;
+
+export type ItemPurchaseWsEvent = BaseWsEvent<'item:purchase', {
+  player: PlayerRef;
+  weapon: string;
+}>;
 
 // // grenade_landed (optionnel, plus tard)
 // export interface GrenadeLandedPayload {
@@ -276,7 +318,11 @@ export type MatchWsEvent =
   | KnifeResult
   | GrenadeThrowEvent
   | PlayerBlindedEvent
-  | TeamRoundWinEvent; // ← ajouté ici
+  | TeamRoundWinEvent
+  | PlayerConnectedWsEvent
+  | PlayerDisconnectedWsEvent
+  | PlayerNameChangeWsEvent
+  | ItemPurchaseWsEvent;
 
 /* ====== Admin / Agent / Debug ====== */
 
@@ -298,7 +344,7 @@ export type RawLogEvent = BaseWsEvent<'log:raw', RawLogPayload>;
 export interface AgentActionPayload {
   action: 'pause'|'unpause'|'knife'|'restart'|'tac_timeout'|'tech_timeout'|'start';
   source: { via: 'chat'|'api'|'system'; player?: { name:string; steamId?:string; team?:TeamSide; channel?: 'say'|'say_team' } };
-  payload?: any;
+  payload?: unknown;
 }
 export type AgentActionEvent = BaseWsEvent<'agent:action', AgentActionPayload>;
 
@@ -312,7 +358,7 @@ export type AgentResultEvent = BaseWsEvent<'agent:result', AgentResultPayload>;
 /* ===================== Helpers de mapping parser → WS ===================== */
 
 // Mappe les valeurs team issues des logs parser (PlayerRefLogs.team)
-// vers un TeamSide court ou 'spec' pour l’UI.
+// vers un TeamSide court ou 'spec' pour l'UI.
 export const toTeamSide = (t: TeamFromLogs | TeamSide | undefined): TeamSide | 'spec' => {
   if (!t) return 'spec';
   if (t === 'CT' || t === 'T') return t;

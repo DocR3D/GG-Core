@@ -1,10 +1,12 @@
 // src/app.module.ts
 import { Module } from '@nestjs/common';
+import { APP_INTERCEPTOR } from '@nestjs/core';
+import { RequestErrorsInterceptor } from './adapters/http/request-errors.interceptor';
 
 import { RedisModule } from '@adapters/redis/redis.module';
+import { DatabaseModule } from '@adapters/database/database.module';
 import { WsModule } from '@adapters/ws/ws.module';
 import { HttpModule } from './adapters/http/http.module';
-// Si HttpModule importe déjà Cs2LogsModule, tu peux retirer l'import direct de Cs2LogsModule.
 import { Cs2LogsModule } from './adapters/http/cs2-logs/cs2-logs.module';
 
 import { BusModule } from './application/bus/bus.module';
@@ -13,28 +15,30 @@ import { MatchStateModule } from './application/match-state.module';
 import { PhaseModule } from '@app/match/phase/phase.module';
 import { RulesModule } from './application/match/rules/rules.module';
 import { SubscribersModule } from './application/subscribers/subscribers.module';
-import { AdminModule } from './application/admin.module';
 
-// HealthController est normalement déclaré dans HttpModule.
-// Tu peux l’omettre ici si HttpModule le fournit déjà.
 import { HealthController } from './adapters/http/health/health.controller';
+import { AuthModule } from './adapters/http/auth/auth.module';
 
 @Module({
   imports: [
     // adapters
-    RedisModule, WsModule, HttpModule, Cs2LogsModule,
+    AuthModule,
+    RedisModule,
+    DatabaseModule,
+    WsModule,
+    HttpModule,
+    Cs2LogsModule,
 
     // application
     BusModule,
     CommandsModule,
     MatchStateModule,
     PhaseModule,
-    RulesModule,         // ← fournit RuleRegistry + règles
+    RulesModule,
     SubscribersModule,
-    AdminModule,
   ],
   controllers: [HealthController],
+  // every refused request is logged (method, address, reason)
+  providers: [{ provide: APP_INTERCEPTOR, useClass: RequestErrorsInterceptor }],
 })
 export class AppModule {}
-
-

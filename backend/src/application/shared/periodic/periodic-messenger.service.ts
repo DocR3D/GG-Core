@@ -44,9 +44,9 @@ export class PeriodicMessenger implements OnModuleInit {
     this.scheduler.startEvery(id, intervalMs, async () => {
       // 1) Acquire lock (par tick)
       if (lockKey) {
-        let ok: any;
+        let ok: string | null;
         try {
-          ok = await (this.redis as any).set(lockKey, String(Date.now()), 'NX', 'EX', lockTtlSec);
+          ok = await this.redis.set(lockKey, String(Date.now()), 'EX', lockTtlSec, 'NX');
         } catch (e) {
           this.logger.error(`[lock] id=${id} SET NX EX failed: ${(e as Error)?.message}`);
           return;
@@ -74,7 +74,7 @@ export class PeriodicMessenger implements OnModuleInit {
         await this.commands.say( serverId,  res.text);
         this.logger.debug(`[say] id=${id} OK`);
       } catch (e) {
-        this.logger.error(`[tick] id=${id} error: ${(e as Error)?.message}`, e as any);
+        this.logger.error(`[tick] id=${id} error: ${(e as Error)?.message}`, e);
       } finally {
         // 4) Release lock pour laisser le prochain tick repartir
         if (lockKey) {

@@ -5,6 +5,7 @@ import { REDIS_SUB } from '@adapters/redis/redis.tokens';
 import { RealtimeEmitter } from './ws-emitter.internal';
 import { SeqService } from '@app/match/state/sequence.service';
 import { MatchStateService } from '@app/match/state/match-state.service';
+import { REDIS_CHANNELS } from '@app/match/state/redis.keys';
 
 import type { Audience, InternalEvent } from '@domain/events/internal-events';
 import type {
@@ -23,7 +24,7 @@ type RawBusEvent = {
   serverId?: string;
   source?: 'logs' | 'api' | 'system' | 'agent';
   kind?: 'primary' | 'telemetry';
-  payload?: any;
+  payload?: unknown;
   audience?: Audience;
   // si c'est déjà un InternalEvent:
   name?: InternalEvent['name'];
@@ -43,8 +44,8 @@ export class WsBroadcaster implements OnModuleInit {
   ) {}
 
   async onModuleInit() {
-    await this.sub.subscribe('ggbot:events');
-    this.logger.log('✅ Subscribed to Redis channel: ggbot:events');
+    await this.sub.subscribe(REDIS_CHANNELS.EVENTS);
+    this.logger.log(`✅ Subscribed to Redis channel: ${REDIS_CHANNELS.EVENTS}`);
 
     // mappe bus.type -> InternalEvent.name
     const mapTypeToName = (t?: string): InternalEvent['name'] | undefined => {
@@ -58,13 +59,15 @@ export class WsBroadcaster implements OnModuleInit {
         case 'sides_swapped':       return 'SIDES_SWAPPED';
         case 'match_state':         return 'MATCH_STATE';
         case 'kill':                return 'KILL';
+        case 'assist':              return 'ASSIST';
         case 'agent:action':        return 'AGENT_ACTION';
         case 'agent:result':        return 'AGENT_RESULT';
         case 'log:raw':             return 'LOG_RAW';
 
-        // Nouveaux événements “primaires” du parser Go
+        // Nouveaux événements "primaires" du parser Go
         case 'team_round_win':      return 'TEAM_ROUND_WIN';
         case 'bomb_planted':        return 'BOMB_PLANTED';
+        case 'bomb_defused':        return 'BOMB_DEFUSED';
         case 'begin_bomb_plant':    return 'BEGIN_BOMB_PLANT';
         case 'defuse_begin':        return 'DEFUSE_BEGIN';
         case 'defuse_abort':        return 'DEFUSE_ABORT';
@@ -75,17 +78,25 @@ export class WsBroadcaster implements OnModuleInit {
         case 'player_name_change':  return 'PLAYER_NAME_CHANGE';
         case 'item_purchase':       return 'ITEM_PURCHASE';
         case 'grenade_throw':       return 'GRENADE_THROW';
+        case 'grenade_land':
         case 'grenade_landed':      return 'GRENADE_LAND';
         case 'player_blinded':      return 'PLAYER_BLINDED';
         case 'sfui_target_bombed':  return 'SFUI_TARGET_BOMBED';
 
         //Changement de phase
-        case 'phase_countdown':  return 'PHASE_COUNTDOWN';
-        case 'phase_changed':    return 'PHASE_CHANGED';
-        case 'phase_cancelled':  return 'PHASE_CANCELLED';
+        // (MatchPhaseService publie avec ':' - sans ce mapping, le front n'avait pas de compte à rebours)
+        case 'phase_countdown':
+        case 'phase:countdown':  return 'PHASE_COUNTDOWN';
+        case 'phase_changed':
+        case 'phase:changed':    return 'PHASE_CHANGED';
+        case 'phase_cancelled':
+        case 'phase:cancelled':  return 'PHASE_CANCELLED';
         default:                    return undefined;
       }
     };
+
+    // Événements du bus consommés par le backend uniquement : pas d'équivalent WS, pas de warning.
+    const busOnlyTypes = new Set(['round_freeze_start', 'match_start']);
 
     // audience par défaut par type interne
     const defaultAudience = (name: InternalEvent['name']): Audience =>
@@ -94,18 +105,19 @@ export class WsBroadcaster implements OnModuleInit {
         ? 'admin'
         : 'both';
 
-    this.sub.on('message', async (_channel, raw) => {
+    const onMessage = async (_channel: string, raw: string) => {
       const recvAt = Date.now();
 
       let base: RawBusEvent;
       try {
-        base = JSON.parse(raw);
+        base = JSON.parse(raw) as RawBusEvent;
       } catch (e) {
         this.logger.warn(`⚠️ Invalid JSON: ${(e as Error).message}`);
         return;
       }
 
-      if (!base?.type && ((base as any).rcon || (base as any).logs)) {
+      const heartbeat = base as { rcon?: unknown; logs?: unknown };
+      if (!base?.type && (heartbeat.rcon || heartbeat.logs)) {
         //this.logger.debug('ignored agent heartbeat on ggbot:events');
         return;
       }
@@ -117,9 +129,11 @@ export class WsBroadcaster implements OnModuleInit {
           const sid = typeof base.serverId === 'string' && base.serverId.trim() ? base.serverId : null;
           if ((!base.matchId || base.matchId === 'unknown') && sid) {
             try {
-              const mid = await this.matchState.getMatchIdFromServerId(sid); // sid est string ici
-              if (mid) base.matchId = mid; // getServerMatch: Promise<string | null>
-            } catch {}
+              const mid = await this.matchState.getMatchIdFromServerId(sid);
+              if (mid) base.matchId = mid;
+            } catch {
+              // no match known for this server: the event goes out with "unknown"
+            }
           }
       }
       this.logger.debug(`📩 RX on ${_channel}: ${raw.slice(0, 240)}${raw.length > 240 ? '…' : ''}`);
@@ -133,6 +147,7 @@ export class WsBroadcaster implements OnModuleInit {
         ev.audience = ev.audience ?? defaultAudience(ev.name);
       } else {
         const name = mapTypeToName(base.type);
+        if (!name && base.type && busOnlyTypes.has(base.type)) return;
         if (!name) {
           this.logger.warn(`❓ Unmapped bus event type="${base.type ?? '∅'}"`);
           return;
@@ -151,25 +166,32 @@ export class WsBroadcaster implements OnModuleInit {
           source: base.source ?? 'agent',
           kind: base.kind ?? 'primary',
           payload: base.payload,
-        } as InternalEvent;
+        };
       }
 
-      // assure l’ordre & l’horodatage
+      // assure l'ordre & l'horodatage
       ev.seq = ev.seq ?? await this.seq.next(ev.matchId);
       ev.ts = ev.ts ?? Date.now();
 
       const toPublic = ev.audience === 'public' || ev.audience === 'both';
       const toAdmin  = ev.audience === 'admin'  || ev.audience === 'both';
 
-      const send = (eventName: WsEventType, payload: any = ev) => {
-        if (toPublic) this.logger.verbose(`🛰️  → WS public[${ev!.matchId}] "${eventName}"`);
-        if (toAdmin)  this.logger.verbose(`🛰️  → WS admin [${ev!.matchId}] "${eventName}"`);
-        if (toPublic) this.emitter.emitPublic(ev!.matchId, eventName, payload);
-        if (toAdmin)  this.emitter.emitAdmin (ev!.matchId, eventName, payload);
+      const send = (eventName: WsEventType, payload: unknown = ev) => {
+        if (toPublic && toAdmin) {
+          this.logger.verbose(`🛰️  → WS both[${ev.matchId}] "${eventName}"`);
+          this.emitter.emitBoth(ev.matchId, eventName, payload);
+        } else if (toPublic) {
+          this.logger.verbose(`🛰️  → WS public[${ev.matchId}] "${eventName}"`);
+          this.emitter.emitPublic(ev.matchId, eventName, payload);
+        } else if (toAdmin) {
+          this.logger.verbose(`🛰️  → WS admin [${ev.matchId}] "${eventName}"`);
+          this.emitter.emitAdmin(ev.matchId, eventName, payload);
+        }
       };
 
       switch (ev.name) {
         case 'KILL':              send('kill'); break;
+        case 'ASSIST':            send('assist'); break;
         case 'ROUND_START':       send('round:start'); break;
         case 'ROUND_END':         send('round:end'); break;
         case 'SCORE_UPDATE':      send('score:update'); break;
@@ -177,43 +199,46 @@ export class WsBroadcaster implements OnModuleInit {
         case 'SIDES_SWAPPED':     send('sides:swapped'); break;
         case 'MATCH_STATE':       send('match:state'); break;
 
-        // ✅ corriger l’event WS pour coller à events.dto.ts
+        // ✅ corriger l'event WS pour coller à events.dto.ts
         case 'TEAM_ROUND_WIN':    send('team_round_win'); break;
 
         // Bomb / defuse
-        case 'BOMB_PLANTED':      send('bomb:planted', asWs('bomb:planted' as WsEventType, ev, ev.payload, ev.seq!, ev.ts!)); break;
-        case 'BEGIN_BOMB_PLANT':  send('bomb:begin',    asWs('bomb:begin'    as WsEventType, ev, ev.payload, ev.seq!, ev.ts!)); break;
-        case 'DEFUSE_BEGIN':      send('defuse:begin',  asWs('defuse:begin'  as WsEventType, ev, ev.payload, ev.seq!, ev.ts!)); break;
-        case 'DEFUSE_ABORT':      send('defuse:abort',  asWs('defuse:abort'  as WsEventType, ev, ev.payload, ev.seq!, ev.ts!)); break;
+        case 'BOMB_PLANTED':      send('bomb:planted', asWs('bomb:planted', ev, ev.payload, ev.seq, ev.ts)); break;
+        case 'BOMB_DEFUSED':      send('bomb_defused'); break;
+        case 'BEGIN_BOMB_PLANT':  send('bomb:begin',    asWs('bomb:begin', ev, ev.payload, ev.seq, ev.ts)); break;
+        case 'DEFUSE_BEGIN':      send('defuse:begin',  asWs('defuse:begin', ev, ev.payload, ev.seq, ev.ts)); break;
+        case 'DEFUSE_ABORT':      send('defuse:abort',  asWs('defuse:abort', ev, ev.payload, ev.seq, ev.ts)); break;
 
-        // Pause explicite (si l’agent envoie match_paused/unpaused)
-        case 'MATCH_PAUSED':      send('pause:update',  asWs('pause:update'  as WsEventType, ev, { state: 'paused' },   ev.seq!, ev.ts!)); break;
-        case 'MATCH_UNPAUSED':    send('pause:update',  asWs('pause:update'  as WsEventType, ev, { state: 'unpaused' }, ev.seq!, ev.ts!)); break;
+        // Pause explicite (si l'agent envoie match_paused/unpaused)
+        case 'MATCH_PAUSED':      send('pause:update',  asWs('pause:update', ev, { state: 'paused' },   ev.seq, ev.ts)); break;
+        case 'MATCH_UNPAUSED':    send('pause:update',  asWs('pause:update', ev, { state: 'unpaused' }, ev.seq, ev.ts)); break;
 
         // Grenades / blinded
         case 'GRENADE_THROW':     send('grenade_throw'); break;
-        case 'GRENADE_LAND':      send('grenade_landed' as any /* ajoute-le si tu l’as dans WsEventType */); break;
+        // grenade_landed non exposé côté WS pour l'instant (type commenté dans events.dto.ts)
+        case 'GRENADE_LAND':      break;
         case 'PLAYER_BLINDED':    send('player_blinded'); break;
 
         // Divers joueurs / achats
-        case 'PLAYER_CONNECTED':    send('player:connected'  as any); break;
-        case 'PLAYER_DISCONNECTED': send('player:disconnected' as any); break;
-        case 'PLAYER_NAME_CHANGE':  send('player:name_change' as any); break;
-        case 'ITEM_PURCHASE':       send('item:purchase'      as any); break;
+        case 'PLAYER_CONNECTED':    send('player:connected'); break;
+        case 'PLAYER_DISCONNECTED': send('player:disconnected'); break;
+        case 'PLAYER_NAME_CHANGE':  send('player:name_change'); break;
+        case 'ITEM_PURCHASE':       send('item:purchase'); break;
         case 'PHASE_COUNTDOWN':
-          send('phase:countdown', asWs('phase:countdown' as WsEventType, ev, ev.payload, ev.seq!, ev.ts!));
+          send('phase:countdown', asWs('phase:countdown', ev, ev.payload, ev.seq, ev.ts));
           break;
 
         case 'PHASE_CHANGED':
-          send('phase:changed', asWs('phase:changed' as WsEventType, ev, ev.payload, ev.seq!, ev.ts!));
+          send('phase:changed', asWs('phase:changed', ev, ev.payload, ev.seq, ev.ts));
           break;
 
         case 'PHASE_CANCELLED':
-          send('phase:cancelled', asWs('phase:cancelled' as WsEventType, ev, ev.payload, ev.seq!, ev.ts!));
+          send('phase:cancelled', asWs('phase:cancelled', ev, ev.payload, ev.seq, ev.ts));
           break;
 
         // SFUI bombed (fallback rare, utile overlay)
-        case 'SFUI_TARGET_BOMBED':  send('sfui:target_bombed' as any); break;
+        // sfui:target_bombed non exposé côté WS (pas dans WsEventType)
+        case 'SFUI_TARGET_BOMBED':  break;
 
         case 'CHAT_PUBLIC': {
           if (!toAdmin) break;
@@ -230,7 +255,7 @@ export class WsBroadcaster implements OnModuleInit {
               steamId: p.player.steamId ?? undefined,
               team: toTeamSide(p.player.team),
             },
-          }, ev.seq!, ev.ts!);
+          }, ev.seq, ev.ts);
           this.emitter.emitAdmin(ev.matchId, 'chat:public', dto);
           break;
         }
@@ -250,7 +275,7 @@ export class WsBroadcaster implements OnModuleInit {
               team: toTeamSide(p.sender.team),
               channel: p.sender.channel,
             },
-          }, ev.seq!, ev.ts!);
+          }, ev.seq, ev.ts);
           this.emitter.emitAdmin(ev.matchId, 'command', dto);
           break;
         }
@@ -264,23 +289,27 @@ export class WsBroadcaster implements OnModuleInit {
       }
 
       this.logger.debug(`✅ Handled ${ev.name}#${ev.seq} (match=${ev.matchId}) in ${Date.now()-recvAt}ms`);
+    };
+    this.sub.on('message', (channel: string, raw: string) => {
+      onMessage(channel, raw).catch((e) => this.logger.error(`bus message to WS failed: ${String(e)}`));
     });
   }
   // ws-broadcaster.ts
 async push(
   matchId: string,
   type: WsEventType,
-  payload: any,
+  payload: unknown,
   audience: Audience = 'both',
 ) {
   const seq = await this.seq.next(matchId);
   const ts  = Date.now();
   const dto = { type, matchId, seq, ts, payload };
 
-  if (audience === 'both' || audience === 'public') {
+  if (audience === 'both') {
+    this.emitter.emitBoth(matchId, type, dto);
+  } else if (audience === 'public') {
     this.emitter.emitPublic(matchId, type, dto);
-  }
-  if (audience === 'both' || audience === 'admin') {
+  } else if (audience === 'admin') {
     this.emitter.emitAdmin(matchId, type, dto);
   }
 }

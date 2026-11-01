@@ -31,6 +31,8 @@ import (
 	"syscall"
 	"time"
 
+	"ggbot/internal/config"
+
 	fsnotify "github.com/fsnotify/fsnotify"
 	redis "github.com/redis/go-redis/v9"
 	"gopkg.in/yaml.v3"
@@ -45,6 +47,9 @@ var (
 	flLogLevel   = flag.String("log-level", "info", "Log level: debug|info|warn|error")
 	flBackoffMax = flag.Duration("restart-backoff-max", 30*time.Second, "Max backoff when restarting a crashed agent")
 )
+
+// heartbeatRecheck: how often a heartbeat seen at startup is re-checked (agent heartbeat TTL is ~10 s).
+const heartbeatRecheck = 5 * time.Second
 
 // ---- Config minimal parsing (we only need serverId here)
 
@@ -69,6 +74,10 @@ type Manager struct {
 	files   map[string]string      // path -> fileHash
 	bySrv   map[string]string      // serverId -> path
 	debOnce map[string]*debouncer  // path -> debounce helper
+
+	// serializes the handling of config files (watcher events and periodic rescan) so one file never
+	// starts two agents
+	fileMu sync.Mutex
 }
 
 type procHandle struct {
@@ -120,7 +129,7 @@ func loadAgentYAML(path string) (AgentYAML, error) {
 	if err != nil {
 		return a, err
 	}
-	if err := yaml.Unmarshal(b, &a); err != nil {
+	if err := yaml.Unmarshal(config.ExpandEnv(b), &a); err != nil {
 		return a, err
 	}
 	if a.ServerID == "" {
@@ -346,13 +355,56 @@ func (m *Manager) handleFileCreateOrWrite(path string, alive map[string]bool) er
 		return nil
 	}
 
-	// If agent heartbeat says alive → do not start duplicate
+	// If agent heartbeat says alive → do not start duplicate, but keep watching: the heartbeat may be
+	// stale (agent killed < TTL ago, e.g. container/WSL restart) or the external agent may die later.
 	if alive[serverId] {
-		log.Printf("[manager] %s present and heartbeat alive → skip start (external agent assumed)", serverId)
+		log.Printf("[manager] %s present and heartbeat alive → skip start (external agent assumed), watching heartbeat", serverId)
+		go m.startWhenHeartbeatGone(serverId, path, h)
 		return nil
 	}
 
 	return m.startAgent(serverId, path, h)
+}
+
+// startWhenHeartbeatGone polls the agent heartbeat and starts our own agent as soon as it is gone,
+// unless an agent for this serverId has been started meanwhile.
+func (m *Manager) startWhenHeartbeatGone(serverId, path, fileHash string) {
+	ticker := time.NewTicker(heartbeatRecheck)
+	defer ticker.Stop()
+	for {
+		select {
+		case <-m.ctx.Done():
+			return
+		case <-ticker.C:
+		}
+		m.mu.Lock()
+		_, running := m.procs[serverId]
+		currentPath := m.bySrv[serverId]
+		m.mu.Unlock()
+		if running || currentPath != path {
+			return // started by another path, or config file removed/replaced
+		}
+		if m.heartbeatAlive(serverId) {
+			continue
+		}
+		log.Printf("[manager] %s heartbeat gone → starting agent", serverId)
+		if err := m.startAgent(serverId, path, fileHash); err != nil {
+			log.Printf("[manager] start %s after heartbeat loss: %v", serverId, err)
+		}
+		return
+	}
+}
+
+// heartbeatAlive reports whether ggbot:agent:<serverId>:state still has a TTL (agent refreshing it).
+func (m *Manager) heartbeatAlive(serverId string) bool {
+	if m.rdb == nil {
+		return false
+	}
+	ttl, err := m.rdb.TTL(m.ctx, "ggbot:agent:"+serverId+":state").Result()
+	if err != nil {
+		return true // Redis unreachable: stay safe, never start a duplicate agent
+	}
+	return ttl > 0
 }
 
 func (m *Manager) handleFileRemove(path string) {
@@ -401,6 +453,8 @@ func (m *Manager) watchDir() error {
 				}
 				d := m.getDebouncer(ev.Name)
 				d.Do(func() {
+					m.fileMu.Lock()
+					defer m.fileMu.Unlock()
 					alive, _ := m.aliveAgentsFromRedis(m.ctx)
 					if err := m.handleFileCreateOrWrite(ev.Name, alive); err != nil {
 						log.Printf("[manager] file write err: %v", err)
@@ -408,13 +462,83 @@ func (m *Manager) watchDir() error {
 				})
 			}
 			if ev.Op&(fsnotify.Remove|fsnotify.Rename) != 0 {
+				m.fileMu.Lock()
 				m.handleFileRemove(ev.Name)
+				m.fileMu.Unlock()
 			}
 		case err := <-w.Errors:
 			log.Printf("[manager] watcher error: %v", err)
 		case <-m.ctx.Done():
 			return nil
 		}
+	}
+}
+
+// rescanLoop compares the directory with the known files every `every`: new or changed files are applied,
+// missing ones stop their agent. Watcher events are not enough on every filesystem: on a Windows drive
+// mounted in WSL (/mnt/d, bind-mounted into the container) a file deleted from Windows is never notified,
+// and a new one not always - checked on the dev stack.
+func (m *Manager) rescanLoop(every time.Duration) {
+	ticker := time.NewTicker(every)
+	defer ticker.Stop()
+	for {
+		select {
+		case <-m.ctx.Done():
+			return
+		case <-ticker.C:
+			m.rescan()
+		}
+	}
+}
+
+func (m *Manager) rescan() {
+	entries, err := os.ReadDir(m.agentsDir)
+	if err != nil {
+		log.Printf("[manager] rescan: %v", err)
+		return
+	}
+	m.fileMu.Lock()
+	defer m.fileMu.Unlock()
+
+	present := map[string]bool{}
+	for _, e := range entries {
+		name := e.Name()
+		if e.IsDir() || !yamlFileRe.MatchString(name) || strings.HasSuffix(strings.ToLower(name), ".disabled.yaml") {
+			continue
+		}
+		path := filepath.Join(m.agentsDir, name)
+		present[path] = true
+		h, err := hashFile(path)
+		if err != nil {
+			continue
+		}
+		m.mu.Lock()
+		known := m.files[path]
+		m.mu.Unlock()
+		if known == h {
+			continue // unchanged: nothing to do (also avoids re-arming the heartbeat watch of an external agent)
+		}
+		alive, _ := m.aliveAgentsFromRedis(m.ctx)
+		log.Printf("[manager] rescan: %s new or changed", name)
+		if err := m.handleFileCreateOrWrite(path, alive); err != nil {
+			log.Printf("[manager] rescan err for %s: %v", path, err)
+			m.mu.Lock()
+			m.files[path] = h // invalid file: logged once, tried again when it changes
+			m.mu.Unlock()
+		}
+	}
+
+	m.mu.Lock()
+	var gone []string
+	for path := range m.files {
+		if !present[path] {
+			gone = append(gone, path)
+		}
+	}
+	m.mu.Unlock()
+	for _, path := range gone {
+		log.Printf("[manager] rescan: %s removed", filepath.Base(path))
+		m.handleFileRemove(path)
 	}
 }
 
@@ -484,6 +608,7 @@ func main() {
 	if err := mgr.initialScan(alive); err != nil {
 		log.Fatalf("initial scan: %v", err)
 	}
+	go mgr.rescanLoop(5 * time.Second)
 	if err := mgr.watchDir(); err != nil {
 		log.Fatalf("watch: %v", err)
 	}

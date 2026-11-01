@@ -1,7 +1,7 @@
 import type { BaseEvent } from './base.event';
 import { EventType, EventTypes } from './event.types';
 import type { CommandEvent } from './command.event';
-import { GameSide } from '@app/match/state';
+import type { GameSide } from '../side.types';
 
 export type EventKind = 'primary' | 'telemetry';
 export type Team = 'T' | 'CT';
@@ -16,9 +16,12 @@ export type PlayerRefLogs = {
 // ----------------------------
 // Core match events
 // ----------------------------
-export type RoundStartEvent = BaseEvent<typeof EventTypes.ROUND_START, {}>;
-export type MatchPausedEvent = BaseEvent<typeof EventTypes.MATCH_PAUSED, {}>;
-export type MatchUnpausedEvent = BaseEvent<typeof EventTypes.MATCH_UNPAUSED, {}>;
+/** An event that carries nothing in its payload. */
+type NoPayload = Record<string, never>;
+
+export type RoundStartEvent = BaseEvent<typeof EventTypes.ROUND_START, NoPayload>;
+export type MatchPausedEvent = BaseEvent<typeof EventTypes.MATCH_PAUSED, NoPayload>;
+export type MatchUnpausedEvent = BaseEvent<typeof EventTypes.MATCH_UNPAUSED, NoPayload>;
 
 export type DefuseBeginEvent = BaseEvent<typeof EventTypes.DEFUSE_BEGIN, {
   player: PlayerRefLogs;
@@ -29,7 +32,8 @@ export type DefuseAbortEvent = BaseEvent<typeof EventTypes.DEFUSE_ABORT, {
 }>;
 
 export type PlayerConnectedEvent = BaseEvent<typeof EventTypes.PLAYER_CONNECTED, {
-  player: PlayerRefLogs;
+  /** userId: the server's connection id (kickid) */
+  player: PlayerRefLogs & { userId?: number };
 }>;
 export type PlayerDisconnectedEvent = BaseEvent<typeof EventTypes.PLAYER_DISCONNECTED, {
   player: { name: string; steamId: string };
@@ -93,6 +97,12 @@ export type KillEvent = BaseEvent<typeof EventTypes.KILL,
 >;
 
 // ----------------------------
+
+export type AssistEvent = BaseEvent<typeof EventTypes.ASSIST, {
+  player: PlayerRefLogs;
+  victim: PlayerRefLogs;
+  flashAssist?: boolean;
+}>;
 // Nouveaux events (agent Go)
 // ----------------------------
 export type ItemPurchaseEvent = BaseEvent<typeof EventTypes.ITEM_PURCHASE, {
@@ -126,12 +136,12 @@ export type PhaseChangeEvent = BaseEvent<typeof EventTypes.PHASE_CHANGED, {
   newPhase: string; at?: number;
 }>;
 
-export type RoundFreezeStartEvent = BaseEvent<
-  typeof EventTypes.ROUND_FREEZE_START,
-  {}
->;
+export type RoundFreezeStartEvent = BaseEvent<typeof EventTypes.ROUND_FREEZE_START, NoPayload>;
 
 // ----------------------------
+// Catch-all of AnyEvent: an event type without its own payload type above. Its `any` payload is why the engine's
+// handlers read payloads untyped (the legacy files of eslint.config.mjs); typing every payload removes it.
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 export type GenericMatchEvent = BaseEvent<EventType, Record<string, any>>;
 
 export type AnyEvent =
@@ -148,6 +158,7 @@ export type AnyEvent =
   | TeamRoundWinEvent
   | SfuiTargetBombedEvent
   | KillEvent
+  | AssistEvent
   | RoundStatsEvent
   | ItemPurchaseEvent
   | GrenadeThrowEvent
@@ -192,6 +203,9 @@ export const isBombPlanted = (e: AnyEvent): e is BombPlantedEvent =>
   e.type === EventTypes.BOMB_PLANTED;
 export const isSfuiTargetBombed = (e: AnyEvent): e is SfuiTargetBombedEvent =>
   e.type === EventTypes.SFUI_TARGET_BOMBED;
+export const isAssist = (e: AnyEvent): e is AssistEvent =>
+  e.type === EventTypes.ASSIST;
+
 export const isKill = (e: AnyEvent): e is KillEvent =>
   e.type === EventTypes.KILL;
 export const isPlayerConnected = (e: AnyEvent): e is PlayerConnectedEvent =>

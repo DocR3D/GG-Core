@@ -7,16 +7,24 @@ import { isCommand, AnyEvent } from '@domain/events/match.event';
 import { MatchEventsHandler } from './match-events.handler';
 import { ChatCommandHandler } from './chat-commands.handler';
 import { MatchStateService } from '@app/match/state/match-state.service';
+import { REDIS_CHANNELS } from '@app/match/state/redis.keys';
+import { errorMessage } from '@app/shared/error-message';
 
 @Injectable()
 export class EventsRouterSubscriber implements OnModuleInit, OnModuleDestroy {
   private readonly logger = new Logger(EventsRouterSubscriber.name);
 
   // Aligne-toi sur ce que publient tes producteurs (agent/logs/etc.)
-  private readonly channels = ['ggbot:events'] as const;
+  private readonly channels = [REDIS_CHANNELS.EVENTS] as const;
 
-  private onMessageBound = (channel: string, message: string) =>
-    this.onMessage(channel, message);
+  // File de traitement séquentielle par canal pour garantir l'ordre strict des événements CS2
+  private processingQueue: Promise<void> = Promise.resolve();
+
+  private onMessageBound = (channel: string, message: string) => {
+    this.processingQueue = this.processingQueue
+      .then(() => this.onMessage(channel, message))
+      .catch((err) => this.logger.error(`Queue processing error: ${errorMessage(err)}`));
+  };
 
   constructor(
     @Inject(REDIS_SUB) private readonly sub: Redis,
@@ -36,6 +44,21 @@ export class EventsRouterSubscriber implements OnModuleInit, OnModuleDestroy {
     try { await this.sub.unsubscribe(...this.channels); } catch {}
   }
 
+  /**
+   * Attend que tous les événements actuellement dans la file (ainsi que ceux en transit sur Pub/Sub) aient été traités.
+   */
+  async drain(): Promise<void> {
+    let current = this.processingQueue;
+    while (true) {
+      await current;
+      await new Promise((resolve) => setTimeout(resolve, 25));
+      if (this.processingQueue === current) {
+        break;
+      }
+      current = this.processingQueue;
+    }
+  }
+
   // =========================================================================
   // Routing
   // =========================================================================
@@ -43,7 +66,7 @@ export class EventsRouterSubscriber implements OnModuleInit, OnModuleDestroy {
     // 1) Parse JSON
     let ev: AnyEvent | null = null;
     try {
-      ev = JSON.parse(msg);
+      ev = JSON.parse(msg) as AnyEvent;
     } catch {
       this.logger.warn(`Invalid JSON on ${channel}`);
       return;
@@ -52,13 +75,14 @@ export class EventsRouterSubscriber implements OnModuleInit, OnModuleDestroy {
 
     // 2) Filtre "kind" (ne traite que le flux principal)
     //    (garde ta convention: kind: 'primary' | 'telemetry' | ...)
-    if ((ev as any).kind && (ev as any).kind !== 'primary') return;
+    const kind = (ev as { kind?: string }).kind;
+    if (kind && kind !== 'primary') return;
 
     // 3) Résoudre matchId s'il manque mais qu'on a serverId
     if ((!ev.matchId || ev.matchId === 'unknown') && !!ev.serverId) {
       try {
         const mid = await this.matchState.getMatchIdFromServerId(ev.serverId);
-        if (mid) (ev as any).matchId = mid;
+        if (mid) ev.matchId = mid;
       } catch {
         // ignore, on garde le matchId tel quel
       }
@@ -78,7 +102,7 @@ export class EventsRouterSubscriber implements OnModuleInit, OnModuleDestroy {
       }
     } catch (e) {
       this.logger.error(
-        `Routing failed: type=${(ev as any).type} match=${ev.matchId} err=${(e as Error)?.message}`,
+        `Routing failed: type=${ev.type} match=${ev.matchId} err=${errorMessage(e)}`,
       );
     }
   }

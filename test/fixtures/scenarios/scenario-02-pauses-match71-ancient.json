@@ -1,0 +1,4585 @@
+{
+  "metadata": {
+    "generatedAt": "2026-10-26T11:19:22.460Z",
+    "sourceLog": "gglan19_match71_ancient_pauses_anonymized.log",
+    "matchId": "m-gglan19-71",
+    "map": "de_ancient",
+    "totalEvents": 178,
+    "totalRounds": 12,
+    "eventSummary": {
+      "kill": 136,
+      "command": 15,
+      "round_start": 12,
+      "team_round_win": 13,
+      "bomb_planted": 2
+    }
+  },
+  "events": [
+    {
+      "v": 1,
+      "id": "ev-1278",
+      "timestamp": 1793013562450,
+      "source": "logs",
+      "kind": "primary",
+      "serverId": "srv-lan-01",
+      "matchId": "m-gglan19-71",
+      "map": "de_ancient",
+      "round": 0,
+      "type": "kill",
+      "payload": {
+        "kind": "player",
+        "killer": {
+          "name": "Player_01",
+          "steamId": "[U:1:10000001]",
+          "team": "CT"
+        },
+        "victim": {
+          "name": "Player_03",
+          "steamId": "[U:1:10000003]",
+          "team": "TERRORIST"
+        },
+        "weapon": "usp_silencer",
+        "headshot": false,
+        "wallbang": false
+      }
+    },
+    {
+      "v": 1,
+      "id": "ev-1281",
+      "timestamp": 1793013562450,
+      "source": "logs",
+      "kind": "primary",
+      "serverId": "srv-lan-01",
+      "matchId": "m-gglan19-71",
+      "map": "de_ancient",
+      "round": 0,
+      "type": "kill",
+      "payload": {
+        "kind": "player",
+        "killer": {
+          "name": "Player_04",
+          "steamId": "[U:1:10000004]",
+          "team": "TERRORIST"
+        },
+        "victim": {
+          "name": "Player_01",
+          "steamId": "[U:1:10000001]",
+          "team": "CT"
+        },
+        "weapon": "ak47",
+        "headshot": true,
+        "wallbang": false
+      }
+    },
+    {
+      "v": 1,
+      "id": "ev-1345",
+      "timestamp": 1793013562450,
+      "source": "logs",
+      "kind": "primary",
+      "serverId": "srv-lan-01",
+      "matchId": "m-gglan19-71",
+      "map": "de_ancient",
+      "round": 0,
+      "type": "kill",
+      "payload": {
+        "kind": "player",
+        "killer": {
+          "name": "Player_04",
+          "steamId": "[U:1:10000004]",
+          "team": "TERRORIST"
+        },
+        "victim": {
+          "name": "Player_05",
+          "steamId": "[U:1:10000005]",
+          "team": "CT"
+        },
+        "weapon": "ak47",
+        "headshot": true,
+        "wallbang": false
+      }
+    },
+    {
+      "v": 1,
+      "id": "ev-1348",
+      "timestamp": 1793013562450,
+      "source": "logs",
+      "kind": "primary",
+      "serverId": "srv-lan-01",
+      "matchId": "m-gglan19-71",
+      "map": "de_ancient",
+      "round": 0,
+      "type": "kill",
+      "payload": {
+        "kind": "player",
+        "killer": {
+          "name": "Player_01",
+          "steamId": "[U:1:10000001]",
+          "team": "CT"
+        },
+        "victim": {
+          "name": "Player_04",
+          "steamId": "[U:1:10000004]",
+          "team": "TERRORIST"
+        },
+        "weapon": "m4a1",
+        "headshot": false,
+        "wallbang": false
+      }
+    },
+    {
+      "v": 1,
+      "id": "ev-1394",
+      "timestamp": 1793013562451,
+      "source": "logs",
+      "kind": "primary",
+      "serverId": "srv-lan-01",
+      "matchId": "m-gglan19-71",
+      "map": "de_ancient",
+      "round": 0,
+      "type": "kill",
+      "payload": {
+        "kind": "player",
+        "killer": {
+          "name": "Player_03",
+          "steamId": "[U:1:10000003]",
+          "team": "TERRORIST"
+        },
+        "victim": {
+          "name": "Player_01",
+          "steamId": "[U:1:10000001]",
+          "team": "CT"
+        },
+        "weapon": "deagle",
+        "headshot": true,
+        "wallbang": false
+      }
+    },
+    {
+      "v": 1,
+      "id": "ev-1419",
+      "timestamp": 1793013562451,
+      "source": "logs",
+      "kind": "primary",
+      "serverId": "srv-lan-01",
+      "matchId": "m-gglan19-71",
+      "map": "de_ancient",
+      "round": 0,
+      "type": "kill",
+      "payload": {
+        "kind": "player",
+        "killer": {
+          "name": "Player_05",
+          "steamId": "[U:1:10000005]",
+          "team": "CT"
+        },
+        "victim": {
+          "name": "Player_03",
+          "steamId": "[U:1:10000003]",
+          "team": "TERRORIST"
+        },
+        "weapon": "m4a1_silencer",
+        "headshot": true,
+        "wallbang": true
+      }
+    },
+    {
+      "v": 1,
+      "id": "ev-1438",
+      "timestamp": 1793013562451,
+      "source": "logs",
+      "kind": "primary",
+      "serverId": "srv-lan-01",
+      "matchId": "m-gglan19-71",
+      "map": "de_ancient",
+      "round": 0,
+      "type": "kill",
+      "payload": {
+        "kind": "player",
+        "killer": {
+          "name": "Player_05",
+          "steamId": "[U:1:10000005]",
+          "team": "CT"
+        },
+        "victim": {
+          "name": "Player_04",
+          "steamId": "[U:1:10000004]",
+          "team": "TERRORIST"
+        },
+        "weapon": "m4a1",
+        "headshot": true,
+        "wallbang": false
+      }
+    },
+    {
+      "v": 1,
+      "id": "ev-1460",
+      "timestamp": 1793013562451,
+      "source": "logs",
+      "kind": "primary",
+      "serverId": "srv-lan-01",
+      "matchId": "m-gglan19-71",
+      "map": "de_ancient",
+      "round": 0,
+      "type": "kill",
+      "payload": {
+        "kind": "player",
+        "killer": {
+          "name": "Player_06",
+          "steamId": "[U:1:10000006]",
+          "team": "TERRORIST"
+        },
+        "victim": {
+          "name": "Player_05",
+          "steamId": "[U:1:10000005]",
+          "team": "CT"
+        },
+        "weapon": "deagle",
+        "headshot": false,
+        "wallbang": false
+      }
+    },
+    {
+      "v": 1,
+      "id": "ev-1486",
+      "timestamp": 1793013562451,
+      "source": "logs",
+      "kind": "primary",
+      "serverId": "srv-lan-01",
+      "matchId": "m-gglan19-71",
+      "map": "de_ancient",
+      "round": 0,
+      "type": "kill",
+      "payload": {
+        "kind": "player",
+        "killer": {
+          "name": "Player_01",
+          "steamId": "[U:1:10000001]",
+          "team": "CT"
+        },
+        "victim": {
+          "name": "Player_06",
+          "steamId": "[U:1:10000006]",
+          "team": "TERRORIST"
+        },
+        "weapon": "m4a1",
+        "headshot": false,
+        "wallbang": false
+      }
+    },
+    {
+      "v": 1,
+      "id": "ev-1495",
+      "timestamp": 1793013562451,
+      "source": "logs",
+      "kind": "primary",
+      "serverId": "srv-lan-01",
+      "matchId": "m-gglan19-71",
+      "map": "de_ancient",
+      "round": 0,
+      "type": "kill",
+      "payload": {
+        "kind": "player",
+        "killer": {
+          "name": "Player_03",
+          "steamId": "[U:1:10000003]",
+          "team": "TERRORIST"
+        },
+        "victim": {
+          "name": "Player_01",
+          "steamId": "[U:1:10000001]",
+          "team": "CT"
+        },
+        "weapon": "ak47",
+        "headshot": true,
+        "wallbang": false
+      }
+    },
+    {
+      "v": 1,
+      "id": "ev-1509",
+      "timestamp": 1793013562451,
+      "source": "logs",
+      "kind": "primary",
+      "serverId": "srv-lan-01",
+      "matchId": "m-gglan19-71",
+      "map": "de_ancient",
+      "round": 0,
+      "type": "kill",
+      "payload": {
+        "kind": "player",
+        "killer": {
+          "name": "Player_03",
+          "steamId": "[U:1:10000003]",
+          "team": "TERRORIST"
+        },
+        "victim": {
+          "name": "Player_07",
+          "steamId": "[U:1:10000007]",
+          "team": "CT"
+        },
+        "weapon": "ak47",
+        "headshot": false,
+        "wallbang": false
+      }
+    },
+    {
+      "v": 1,
+      "id": "ev-1529",
+      "timestamp": 1793013562451,
+      "source": "logs",
+      "kind": "primary",
+      "serverId": "srv-lan-01",
+      "matchId": "m-gglan19-71",
+      "map": "de_ancient",
+      "round": 0,
+      "type": "kill",
+      "payload": {
+        "kind": "player",
+        "killer": {
+          "name": "Player_03",
+          "steamId": "[U:1:10000003]",
+          "team": "TERRORIST"
+        },
+        "victim": {
+          "name": "Player_05",
+          "steamId": "[U:1:10000005]",
+          "team": "CT"
+        },
+        "weapon": "ak47",
+        "headshot": true,
+        "wallbang": false
+      }
+    },
+    {
+      "v": 1,
+      "id": "ev-1549",
+      "timestamp": 1793013562451,
+      "source": "logs",
+      "kind": "primary",
+      "serverId": "srv-lan-01",
+      "matchId": "m-gglan19-71",
+      "map": "de_ancient",
+      "round": 0,
+      "type": "kill",
+      "payload": {
+        "kind": "player",
+        "killer": {
+          "name": "Player_06",
+          "steamId": "[U:1:10000006]",
+          "team": "TERRORIST"
+        },
+        "victim": {
+          "name": "Player_01",
+          "steamId": "[U:1:10000001]",
+          "team": "CT"
+        },
+        "weapon": "ak47",
+        "headshot": false,
+        "wallbang": false
+      }
+    },
+    {
+      "v": 1,
+      "id": "ev-1563",
+      "timestamp": 1793013562451,
+      "source": "logs",
+      "kind": "primary",
+      "serverId": "srv-lan-01",
+      "matchId": "m-gglan19-71",
+      "map": "de_ancient",
+      "round": 0,
+      "type": "kill",
+      "payload": {
+        "kind": "player",
+        "killer": {
+          "name": "Player_05",
+          "steamId": "[U:1:10000005]",
+          "team": "CT"
+        },
+        "victim": {
+          "name": "Player_03",
+          "steamId": "[U:1:10000003]",
+          "team": "TERRORIST"
+        },
+        "weapon": "awp",
+        "headshot": true,
+        "wallbang": false
+      }
+    },
+    {
+      "v": 1,
+      "id": "ev-1583",
+      "timestamp": 1793013562451,
+      "source": "logs",
+      "kind": "primary",
+      "serverId": "srv-lan-01",
+      "matchId": "m-gglan19-71",
+      "map": "de_ancient",
+      "round": 0,
+      "type": "kill",
+      "payload": {
+        "kind": "player",
+        "killer": {
+          "name": "Player_04",
+          "steamId": "[U:1:10000004]",
+          "team": "TERRORIST"
+        },
+        "victim": {
+          "name": "Player_05",
+          "steamId": "[U:1:10000005]",
+          "team": "CT"
+        },
+        "weapon": "ak47",
+        "headshot": false,
+        "wallbang": false
+      }
+    },
+    {
+      "v": 1,
+      "id": "ev-1588",
+      "timestamp": 1793013562451,
+      "source": "logs",
+      "kind": "primary",
+      "serverId": "srv-lan-01",
+      "matchId": "m-gglan19-71",
+      "map": "de_ancient",
+      "round": 0,
+      "type": "command",
+      "payload": {
+        "command": "switch",
+        "parameters": [],
+        "sender": {
+          "name": "Player_07",
+          "steamId": "[U:1:10000007]",
+          "team": "CT",
+          "uid": 8
+        }
+      }
+    },
+    {
+      "v": 1,
+      "id": "ev-1593",
+      "timestamp": 1793013562451,
+      "source": "logs",
+      "kind": "primary",
+      "serverId": "srv-lan-01",
+      "matchId": "m-gglan19-71",
+      "map": "de_ancient",
+      "round": 0,
+      "type": "kill",
+      "payload": {
+        "kind": "player",
+        "killer": {
+          "name": "Player_06",
+          "steamId": "[U:1:10000006]",
+          "team": "TERRORIST"
+        },
+        "victim": {
+          "name": "Player_01",
+          "steamId": "[U:1:10000001]",
+          "team": "CT"
+        },
+        "weapon": "ak47",
+        "headshot": false,
+        "wallbang": false
+      }
+    },
+    {
+      "v": 1,
+      "id": "ev-1596",
+      "timestamp": 1793013562451,
+      "source": "logs",
+      "kind": "primary",
+      "serverId": "srv-lan-01",
+      "matchId": "m-gglan19-71",
+      "map": "de_ancient",
+      "round": 0,
+      "type": "kill",
+      "payload": {
+        "kind": "player",
+        "killer": {
+          "name": "Player_11",
+          "steamId": "[U:1:10000011]",
+          "team": "CT"
+        },
+        "victim": {
+          "name": "Player_06",
+          "steamId": "[U:1:10000006]",
+          "team": "TERRORIST"
+        },
+        "weapon": "deagle",
+        "headshot": true,
+        "wallbang": false
+      }
+    },
+    {
+      "v": 1,
+      "id": "ev-1599",
+      "timestamp": 1793013562451,
+      "source": "logs",
+      "kind": "primary",
+      "serverId": "srv-lan-01",
+      "matchId": "m-gglan19-71",
+      "map": "de_ancient",
+      "round": 0,
+      "type": "kill",
+      "payload": {
+        "kind": "player",
+        "killer": {
+          "name": "Player_11",
+          "steamId": "[U:1:10000011]",
+          "team": "CT"
+        },
+        "victim": {
+          "name": "Player_04",
+          "steamId": "[U:1:10000004]",
+          "team": "TERRORIST"
+        },
+        "weapon": "deagle",
+        "headshot": true,
+        "wallbang": false
+      }
+    },
+    {
+      "v": 1,
+      "id": "ev-1644",
+      "timestamp": 1793013562451,
+      "source": "logs",
+      "kind": "primary",
+      "serverId": "srv-lan-01",
+      "matchId": "m-gglan19-71",
+      "map": "de_ancient",
+      "round": 0,
+      "type": "kill",
+      "payload": {
+        "kind": "player",
+        "killer": {
+          "name": "Player_03",
+          "steamId": "[U:1:10000003]",
+          "team": "CT"
+        },
+        "victim": {
+          "name": "Player_06",
+          "steamId": "[U:1:10000006]",
+          "team": "TERRORIST"
+        },
+        "weapon": "ak47",
+        "headshot": true,
+        "wallbang": false
+      }
+    },
+    {
+      "v": 1,
+      "id": "ev-1661",
+      "timestamp": 1793013562451,
+      "source": "logs",
+      "kind": "primary",
+      "serverId": "srv-lan-01",
+      "matchId": "m-gglan19-71",
+      "map": "de_ancient",
+      "round": 0,
+      "type": "kill",
+      "payload": {
+        "kind": "player",
+        "killer": {
+          "name": "Player_05",
+          "steamId": "[U:1:10000005]",
+          "team": "CT"
+        },
+        "victim": {
+          "name": "Player_07",
+          "steamId": "[U:1:10000007]",
+          "team": "TERRORIST"
+        },
+        "weapon": "ak47",
+        "headshot": false,
+        "wallbang": false
+      }
+    },
+    {
+      "v": 1,
+      "id": "ev-1666",
+      "timestamp": 1793013562451,
+      "source": "logs",
+      "kind": "primary",
+      "serverId": "srv-lan-01",
+      "matchId": "m-gglan19-71",
+      "map": "de_ancient",
+      "round": 0,
+      "type": "kill",
+      "payload": {
+        "kind": "player",
+        "killer": {
+          "name": "Player_03",
+          "steamId": "[U:1:10000003]",
+          "team": "CT"
+        },
+        "victim": {
+          "name": "Player_06",
+          "steamId": "[U:1:10000006]",
+          "team": "TERRORIST"
+        },
+        "weapon": "ak47",
+        "headshot": true,
+        "wallbang": false
+      }
+    },
+    {
+      "v": 1,
+      "id": "ev-1679",
+      "timestamp": 1793013562451,
+      "source": "logs",
+      "kind": "primary",
+      "serverId": "srv-lan-01",
+      "matchId": "m-gglan19-71",
+      "map": "de_ancient",
+      "round": 0,
+      "type": "kill",
+      "payload": {
+        "kind": "player",
+        "killer": {
+          "name": "Player_06",
+          "steamId": "[U:1:10000006]",
+          "team": "TERRORIST"
+        },
+        "victim": {
+          "name": "Player_05",
+          "steamId": "[U:1:10000005]",
+          "team": "CT"
+        },
+        "weapon": "ak47",
+        "headshot": true,
+        "wallbang": false
+      }
+    },
+    {
+      "v": 1,
+      "id": "ev-1683",
+      "timestamp": 1793013562451,
+      "source": "logs",
+      "kind": "primary",
+      "serverId": "srv-lan-01",
+      "matchId": "m-gglan19-71",
+      "map": "de_ancient",
+      "round": 0,
+      "type": "kill",
+      "payload": {
+        "kind": "player",
+        "killer": {
+          "name": "Player_03",
+          "steamId": "[U:1:10000003]",
+          "team": "CT"
+        },
+        "victim": {
+          "name": "Player_07",
+          "steamId": "[U:1:10000007]",
+          "team": "TERRORIST"
+        },
+        "weapon": "ak47",
+        "headshot": true,
+        "wallbang": false
+      }
+    },
+    {
+      "v": 1,
+      "id": "ev-1695",
+      "timestamp": 1793013562451,
+      "source": "logs",
+      "kind": "primary",
+      "serverId": "srv-lan-01",
+      "matchId": "m-gglan19-71",
+      "map": "de_ancient",
+      "round": 0,
+      "type": "kill",
+      "payload": {
+        "kind": "player",
+        "killer": {
+          "name": "Player_11",
+          "steamId": "[U:1:10000011]",
+          "team": "CT"
+        },
+        "victim": {
+          "name": "Player_10",
+          "steamId": "[U:1:10000010]",
+          "team": "TERRORIST"
+        },
+        "weapon": "ak47",
+        "headshot": true,
+        "wallbang": false
+      }
+    },
+    {
+      "v": 1,
+      "id": "ev-1706",
+      "timestamp": 1793013562451,
+      "source": "logs",
+      "kind": "primary",
+      "serverId": "srv-lan-01",
+      "matchId": "m-gglan19-71",
+      "map": "de_ancient",
+      "round": 0,
+      "type": "kill",
+      "payload": {
+        "kind": "player",
+        "killer": {
+          "name": "Player_03",
+          "steamId": "[U:1:10000003]",
+          "team": "CT"
+        },
+        "victim": {
+          "name": "Player_06",
+          "steamId": "[U:1:10000006]",
+          "team": "TERRORIST"
+        },
+        "weapon": "ak47",
+        "headshot": true,
+        "wallbang": false
+      }
+    },
+    {
+      "v": 1,
+      "id": "ev-1722",
+      "timestamp": 1793013562451,
+      "source": "logs",
+      "kind": "primary",
+      "serverId": "srv-lan-01",
+      "matchId": "m-gglan19-71",
+      "map": "de_ancient",
+      "round": 0,
+      "type": "kill",
+      "payload": {
+        "kind": "player",
+        "killer": {
+          "name": "Player_11",
+          "steamId": "[U:1:10000011]",
+          "team": "CT"
+        },
+        "victim": {
+          "name": "Player_10",
+          "steamId": "[U:1:10000010]",
+          "team": "TERRORIST"
+        },
+        "weapon": "ak47",
+        "headshot": false,
+        "wallbang": false
+      }
+    },
+    {
+      "v": 1,
+      "id": "ev-1737",
+      "timestamp": 1793013562451,
+      "source": "logs",
+      "kind": "primary",
+      "serverId": "srv-lan-01",
+      "matchId": "m-gglan19-71",
+      "map": "de_ancient",
+      "round": 0,
+      "type": "kill",
+      "payload": {
+        "kind": "player",
+        "killer": {
+          "name": "Player_06",
+          "steamId": "[U:1:10000006]",
+          "team": "TERRORIST"
+        },
+        "victim": {
+          "name": "Player_03",
+          "steamId": "[U:1:10000003]",
+          "team": "CT"
+        },
+        "weapon": "hegrenade",
+        "headshot": false,
+        "wallbang": false
+      }
+    },
+    {
+      "v": 1,
+      "id": "ev-1743",
+      "timestamp": 1793013562451,
+      "source": "logs",
+      "kind": "primary",
+      "serverId": "srv-lan-01",
+      "matchId": "m-gglan19-71",
+      "map": "de_ancient",
+      "round": 0,
+      "type": "command",
+      "payload": {
+        "command": "ready",
+        "parameters": [],
+        "sender": {
+          "name": "Player_01",
+          "steamId": "[U:1:10000001]",
+          "team": "CT",
+          "uid": 0
+        }
+      }
+    },
+    {
+      "v": 1,
+      "id": "ev-1763",
+      "timestamp": 1793013562451,
+      "source": "logs",
+      "kind": "primary",
+      "serverId": "srv-lan-01",
+      "matchId": "m-gglan19-71",
+      "map": "de_ancient",
+      "round": 0,
+      "type": "kill",
+      "payload": {
+        "kind": "player",
+        "killer": {
+          "name": "Player_06",
+          "steamId": "[U:1:10000006]",
+          "team": "TERRORIST"
+        },
+        "victim": {
+          "name": "Player_11",
+          "steamId": "[U:1:10000011]",
+          "team": "CT"
+        },
+        "weapon": "ak47",
+        "headshot": false,
+        "wallbang": false
+      }
+    },
+    {
+      "v": 1,
+      "id": "ev-1776",
+      "timestamp": 1793013562451,
+      "source": "logs",
+      "kind": "primary",
+      "serverId": "srv-lan-01",
+      "matchId": "m-gglan19-71",
+      "map": "de_ancient",
+      "round": 0,
+      "type": "kill",
+      "payload": {
+        "kind": "player",
+        "killer": {
+          "name": "Player_06",
+          "steamId": "[U:1:10000006]",
+          "team": "TERRORIST"
+        },
+        "victim": {
+          "name": "Player_01",
+          "steamId": "[U:1:10000001]",
+          "team": "CT"
+        },
+        "weapon": "ak47",
+        "headshot": false,
+        "wallbang": false
+      }
+    },
+    {
+      "v": 1,
+      "id": "ev-1781",
+      "timestamp": 1793013562451,
+      "source": "logs",
+      "kind": "primary",
+      "serverId": "srv-lan-01",
+      "matchId": "m-gglan19-71",
+      "map": "de_ancient",
+      "round": 0,
+      "type": "kill",
+      "payload": {
+        "kind": "player",
+        "killer": {
+          "name": "Player_03",
+          "steamId": "[U:1:10000003]",
+          "team": "CT"
+        },
+        "victim": {
+          "name": "Player_06",
+          "steamId": "[U:1:10000006]",
+          "team": "TERRORIST"
+        },
+        "weapon": "m4a1_silencer",
+        "headshot": false,
+        "wallbang": false
+      }
+    },
+    {
+      "v": 1,
+      "id": "ev-1800",
+      "timestamp": 1793013562451,
+      "source": "logs",
+      "kind": "primary",
+      "serverId": "srv-lan-01",
+      "matchId": "m-gglan19-71",
+      "map": "de_ancient",
+      "round": 0,
+      "type": "kill",
+      "payload": {
+        "kind": "player",
+        "killer": {
+          "name": "Player_10",
+          "steamId": "[U:1:10000010]",
+          "team": "TERRORIST"
+        },
+        "victim": {
+          "name": "Player_03",
+          "steamId": "[U:1:10000003]",
+          "team": "CT"
+        },
+        "weapon": "ak47",
+        "headshot": true,
+        "wallbang": false
+      }
+    },
+    {
+      "v": 1,
+      "id": "ev-1812",
+      "timestamp": 1793013562451,
+      "source": "logs",
+      "kind": "primary",
+      "serverId": "srv-lan-01",
+      "matchId": "m-gglan19-71",
+      "map": "de_ancient",
+      "round": 0,
+      "type": "kill",
+      "payload": {
+        "kind": "player",
+        "killer": {
+          "name": "Player_06",
+          "steamId": "[U:1:10000006]",
+          "team": "TERRORIST"
+        },
+        "victim": {
+          "name": "Player_01",
+          "steamId": "[U:1:10000001]",
+          "team": "CT"
+        },
+        "weapon": "ak47",
+        "headshot": false,
+        "wallbang": false
+      }
+    },
+    {
+      "v": 1,
+      "id": "ev-1823",
+      "timestamp": 1793013562451,
+      "source": "logs",
+      "kind": "primary",
+      "serverId": "srv-lan-01",
+      "matchId": "m-gglan19-71",
+      "map": "de_ancient",
+      "round": 0,
+      "type": "kill",
+      "payload": {
+        "kind": "player",
+        "killer": {
+          "name": "Player_05",
+          "steamId": "[U:1:10000005]",
+          "team": "CT"
+        },
+        "victim": {
+          "name": "Player_06",
+          "steamId": "[U:1:10000006]",
+          "team": "TERRORIST"
+        },
+        "weapon": "xm1014",
+        "headshot": true,
+        "wallbang": false
+      }
+    },
+    {
+      "v": 1,
+      "id": "ev-1839",
+      "timestamp": 1793013562451,
+      "source": "logs",
+      "kind": "primary",
+      "serverId": "srv-lan-01",
+      "matchId": "m-gglan19-71",
+      "map": "de_ancient",
+      "round": 0,
+      "type": "kill",
+      "payload": {
+        "kind": "player",
+        "killer": {
+          "name": "Player_05",
+          "steamId": "[U:1:10000005]",
+          "team": "CT"
+        },
+        "victim": {
+          "name": "Player_07",
+          "steamId": "[U:1:10000007]",
+          "team": "TERRORIST"
+        },
+        "weapon": "ak47",
+        "headshot": true,
+        "wallbang": false
+      }
+    },
+    {
+      "v": 1,
+      "id": "ev-1855",
+      "timestamp": 1793013562451,
+      "source": "logs",
+      "kind": "primary",
+      "serverId": "srv-lan-01",
+      "matchId": "m-gglan19-71",
+      "map": "de_ancient",
+      "round": 0,
+      "type": "kill",
+      "payload": {
+        "kind": "player",
+        "killer": {
+          "name": "Player_10",
+          "steamId": "[U:1:10000010]",
+          "team": "TERRORIST"
+        },
+        "victim": {
+          "name": "Player_05",
+          "steamId": "[U:1:10000005]",
+          "team": "CT"
+        },
+        "weapon": "ak47",
+        "headshot": true,
+        "wallbang": false
+      }
+    },
+    {
+      "v": 1,
+      "id": "ev-1857",
+      "timestamp": 1793013562451,
+      "source": "logs",
+      "kind": "primary",
+      "serverId": "srv-lan-01",
+      "matchId": "m-gglan19-71",
+      "map": "de_ancient",
+      "round": 0,
+      "type": "kill",
+      "payload": {
+        "kind": "player",
+        "killer": {
+          "name": "Player_03",
+          "steamId": "[U:1:10000003]",
+          "team": "CT"
+        },
+        "victim": {
+          "name": "Player_10",
+          "steamId": "[U:1:10000010]",
+          "team": "TERRORIST"
+        },
+        "weapon": "ak47",
+        "headshot": true,
+        "wallbang": false
+      }
+    },
+    {
+      "v": 1,
+      "id": "ev-1870",
+      "timestamp": 1793013562451,
+      "source": "logs",
+      "kind": "primary",
+      "serverId": "srv-lan-01",
+      "matchId": "m-gglan19-71",
+      "map": "de_ancient",
+      "round": 0,
+      "type": "kill",
+      "payload": {
+        "kind": "player",
+        "killer": {
+          "name": "Player_11",
+          "steamId": "[U:1:10000011]",
+          "team": "CT"
+        },
+        "victim": {
+          "name": "Player_09",
+          "steamId": "[U:1:10000009]",
+          "team": "TERRORIST"
+        },
+        "weapon": "m4a1_silencer",
+        "headshot": false,
+        "wallbang": false
+      }
+    },
+    {
+      "v": 1,
+      "id": "ev-1883",
+      "timestamp": 1793013562451,
+      "source": "logs",
+      "kind": "primary",
+      "serverId": "srv-lan-01",
+      "matchId": "m-gglan19-71",
+      "map": "de_ancient",
+      "round": 0,
+      "type": "kill",
+      "payload": {
+        "kind": "player",
+        "killer": {
+          "name": "Player_06",
+          "steamId": "[U:1:10000006]",
+          "team": "TERRORIST"
+        },
+        "victim": {
+          "name": "Player_03",
+          "steamId": "[U:1:10000003]",
+          "team": "CT"
+        },
+        "weapon": "ak47",
+        "headshot": false,
+        "wallbang": false
+      }
+    },
+    {
+      "v": 1,
+      "id": "ev-1899",
+      "timestamp": 1793013562451,
+      "source": "logs",
+      "kind": "primary",
+      "serverId": "srv-lan-01",
+      "matchId": "m-gglan19-71",
+      "map": "de_ancient",
+      "round": 0,
+      "type": "kill",
+      "payload": {
+        "kind": "player",
+        "killer": {
+          "name": "Player_01",
+          "steamId": "[U:1:10000001]",
+          "team": "CT"
+        },
+        "victim": {
+          "name": "Player_06",
+          "steamId": "[U:1:10000006]",
+          "team": "TERRORIST"
+        },
+        "weapon": "ak47",
+        "headshot": true,
+        "wallbang": false
+      }
+    },
+    {
+      "v": 1,
+      "id": "ev-1901",
+      "timestamp": 1793013562451,
+      "source": "logs",
+      "kind": "primary",
+      "serverId": "srv-lan-01",
+      "matchId": "m-gglan19-71",
+      "map": "de_ancient",
+      "round": 0,
+      "type": "kill",
+      "payload": {
+        "kind": "player",
+        "killer": {
+          "name": "Player_10",
+          "steamId": "[U:1:10000010]",
+          "team": "TERRORIST"
+        },
+        "victim": {
+          "name": "Player_01",
+          "steamId": "[U:1:10000001]",
+          "team": "CT"
+        },
+        "weapon": "ak47",
+        "headshot": true,
+        "wallbang": false
+      }
+    },
+    {
+      "v": 1,
+      "id": "ev-1905",
+      "timestamp": 1793013562451,
+      "source": "logs",
+      "kind": "primary",
+      "serverId": "srv-lan-01",
+      "matchId": "m-gglan19-71",
+      "map": "de_ancient",
+      "round": 0,
+      "type": "kill",
+      "payload": {
+        "kind": "player",
+        "killer": {
+          "name": "Player_11",
+          "steamId": "[U:1:10000011]",
+          "team": "CT"
+        },
+        "victim": {
+          "name": "Player_09",
+          "steamId": "[U:1:10000009]",
+          "team": "TERRORIST"
+        },
+        "weapon": "ak47",
+        "headshot": true,
+        "wallbang": false
+      }
+    },
+    {
+      "v": 1,
+      "id": "ev-1926",
+      "timestamp": 1793013562451,
+      "source": "logs",
+      "kind": "primary",
+      "serverId": "srv-lan-01",
+      "matchId": "m-gglan19-71",
+      "map": "de_ancient",
+      "round": 0,
+      "type": "kill",
+      "payload": {
+        "kind": "player",
+        "killer": {
+          "name": "Player_11",
+          "steamId": "[U:1:10000011]",
+          "team": "CT"
+        },
+        "victim": {
+          "name": "Player_10",
+          "steamId": "[U:1:10000010]",
+          "team": "TERRORIST"
+        },
+        "weapon": "ak47",
+        "headshot": true,
+        "wallbang": false
+      }
+    },
+    {
+      "v": 1,
+      "id": "ev-1939",
+      "timestamp": 1793013562451,
+      "source": "logs",
+      "kind": "primary",
+      "serverId": "srv-lan-01",
+      "matchId": "m-gglan19-71",
+      "map": "de_ancient",
+      "round": 0,
+      "type": "kill",
+      "payload": {
+        "kind": "player",
+        "killer": {
+          "name": "Player_06",
+          "steamId": "[U:1:10000006]",
+          "team": "TERRORIST"
+        },
+        "victim": {
+          "name": "Player_11",
+          "steamId": "[U:1:10000011]",
+          "team": "CT"
+        },
+        "weapon": "ak47",
+        "headshot": true,
+        "wallbang": false
+      }
+    },
+    {
+      "v": 1,
+      "id": "ev-1960",
+      "timestamp": 1793013562451,
+      "source": "logs",
+      "kind": "primary",
+      "serverId": "srv-lan-01",
+      "matchId": "m-gglan19-71",
+      "map": "de_ancient",
+      "round": 0,
+      "type": "kill",
+      "payload": {
+        "kind": "player",
+        "killer": {
+          "name": "Player_10",
+          "steamId": "[U:1:10000010]",
+          "team": "TERRORIST"
+        },
+        "victim": {
+          "name": "Player_03",
+          "steamId": "[U:1:10000003]",
+          "team": "CT"
+        },
+        "weapon": "ak47",
+        "headshot": true,
+        "wallbang": false
+      }
+    },
+    {
+      "v": 1,
+      "id": "ev-1967",
+      "timestamp": 1793013562451,
+      "source": "logs",
+      "kind": "primary",
+      "serverId": "srv-lan-01",
+      "matchId": "m-gglan19-71",
+      "map": "de_ancient",
+      "round": 0,
+      "type": "kill",
+      "payload": {
+        "kind": "player",
+        "killer": {
+          "name": "Player_04",
+          "steamId": "[U:1:10000004]",
+          "team": "CT"
+        },
+        "victim": {
+          "name": "Player_10",
+          "steamId": "[U:1:10000010]",
+          "team": "TERRORIST"
+        },
+        "weapon": "m4a1",
+        "headshot": false,
+        "wallbang": false
+      }
+    },
+    {
+      "v": 1,
+      "id": "ev-1973",
+      "timestamp": 1793013562451,
+      "source": "logs",
+      "kind": "primary",
+      "serverId": "srv-lan-01",
+      "matchId": "m-gglan19-71",
+      "map": "de_ancient",
+      "round": 0,
+      "type": "kill",
+      "payload": {
+        "kind": "player",
+        "killer": {
+          "name": "Player_06",
+          "steamId": "[U:1:10000006]",
+          "team": "TERRORIST"
+        },
+        "victim": {
+          "name": "Player_01",
+          "steamId": "[U:1:10000001]",
+          "team": "CT"
+        },
+        "weapon": "ak47",
+        "headshot": false,
+        "wallbang": false
+      }
+    },
+    {
+      "v": 1,
+      "id": "ev-1986",
+      "timestamp": 1793013562451,
+      "source": "logs",
+      "kind": "primary",
+      "serverId": "srv-lan-01",
+      "matchId": "m-gglan19-71",
+      "map": "de_ancient",
+      "round": 0,
+      "type": "kill",
+      "payload": {
+        "kind": "player",
+        "killer": {
+          "name": "Player_05",
+          "steamId": "[U:1:10000005]",
+          "team": "CT"
+        },
+        "victim": {
+          "name": "Player_06",
+          "steamId": "[U:1:10000006]",
+          "team": "TERRORIST"
+        },
+        "weapon": "xm1014",
+        "headshot": true,
+        "wallbang": false
+      }
+    },
+    {
+      "v": 1,
+      "id": "ev-1993",
+      "timestamp": 1793013562451,
+      "source": "logs",
+      "kind": "primary",
+      "serverId": "srv-lan-01",
+      "matchId": "m-gglan19-71",
+      "map": "de_ancient",
+      "round": 0,
+      "type": "kill",
+      "payload": {
+        "kind": "player",
+        "killer": {
+          "name": "Player_04",
+          "steamId": "[U:1:10000004]",
+          "team": "CT"
+        },
+        "victim": {
+          "name": "Player_07",
+          "steamId": "[U:1:10000007]",
+          "team": "TERRORIST"
+        },
+        "weapon": "m4a1",
+        "headshot": true,
+        "wallbang": false
+      }
+    },
+    {
+      "v": 1,
+      "id": "ev-2010",
+      "timestamp": 1793013562451,
+      "source": "logs",
+      "kind": "primary",
+      "serverId": "srv-lan-01",
+      "matchId": "m-gglan19-71",
+      "map": "de_ancient",
+      "round": 0,
+      "type": "kill",
+      "payload": {
+        "kind": "player",
+        "killer": {
+          "name": "Player_07",
+          "steamId": "[U:1:10000007]",
+          "team": "TERRORIST"
+        },
+        "victim": {
+          "name": "Player_05",
+          "steamId": "[U:1:10000005]",
+          "team": "CT"
+        },
+        "weapon": "ak47",
+        "headshot": false,
+        "wallbang": false
+      }
+    },
+    {
+      "v": 1,
+      "id": "ev-2012",
+      "timestamp": 1793013562451,
+      "source": "logs",
+      "kind": "primary",
+      "serverId": "srv-lan-01",
+      "matchId": "m-gglan19-71",
+      "map": "de_ancient",
+      "round": 0,
+      "type": "command",
+      "payload": {
+        "command": "ready",
+        "parameters": [],
+        "sender": {
+          "name": "Player_01",
+          "steamId": "[U:1:10000001]",
+          "team": "CT",
+          "uid": 0
+        }
+      }
+    },
+    {
+      "v": 1,
+      "id": "ev-2014",
+      "timestamp": 1793013562451,
+      "source": "logs",
+      "kind": "primary",
+      "serverId": "srv-lan-01",
+      "matchId": "m-gglan19-71",
+      "map": "de_ancient",
+      "round": 0,
+      "type": "command",
+      "payload": {
+        "command": "ready",
+        "parameters": [],
+        "sender": {
+          "name": "Player_09",
+          "steamId": "[U:1:10000009]",
+          "team": "TERRORIST",
+          "uid": 10
+        }
+      }
+    },
+    {
+      "v": 1,
+      "id": "ev-2024",
+      "timestamp": 1793013562451,
+      "source": "logs",
+      "kind": "primary",
+      "serverId": "srv-lan-01",
+      "matchId": "m-gglan19-71",
+      "map": "de_ancient",
+      "round": 0,
+      "type": "kill",
+      "payload": {
+        "kind": "player",
+        "killer": {
+          "name": "Player_04",
+          "steamId": "[U:1:10000004]",
+          "team": "CT"
+        },
+        "victim": {
+          "name": "Player_10",
+          "steamId": "[U:1:10000010]",
+          "team": "TERRORIST"
+        },
+        "weapon": "deagle",
+        "headshot": true,
+        "wallbang": false
+      }
+    },
+    {
+      "v": 1,
+      "id": "ev-2031",
+      "timestamp": 1793013562451,
+      "source": "logs",
+      "kind": "primary",
+      "serverId": "srv-lan-01",
+      "matchId": "m-gglan19-71",
+      "map": "de_ancient",
+      "round": 0,
+      "type": "kill",
+      "payload": {
+        "kind": "player",
+        "killer": {
+          "name": "Player_04",
+          "steamId": "[U:1:10000004]",
+          "team": "CT"
+        },
+        "victim": {
+          "name": "Player_08",
+          "steamId": "[U:1:10000008]",
+          "team": "TERRORIST"
+        },
+        "weapon": "deagle",
+        "headshot": true,
+        "wallbang": false
+      }
+    },
+    {
+      "v": 1,
+      "id": "ev-2042",
+      "timestamp": 1793013562451,
+      "source": "logs",
+      "kind": "primary",
+      "serverId": "srv-lan-01",
+      "matchId": "m-gglan19-71",
+      "map": "de_ancient",
+      "round": 0,
+      "type": "kill",
+      "payload": {
+        "kind": "player",
+        "killer": {
+          "name": "Player_07",
+          "steamId": "[U:1:10000007]",
+          "team": "TERRORIST"
+        },
+        "victim": {
+          "name": "Player_03",
+          "steamId": "[U:1:10000003]",
+          "team": "CT"
+        },
+        "weapon": "ak47",
+        "headshot": true,
+        "wallbang": false
+      }
+    },
+    {
+      "v": 1,
+      "id": "ev-2047",
+      "timestamp": 1793013562451,
+      "source": "logs",
+      "kind": "primary",
+      "serverId": "srv-lan-01",
+      "matchId": "m-gglan19-71",
+      "map": "de_ancient",
+      "round": 0,
+      "type": "kill",
+      "payload": {
+        "kind": "player",
+        "killer": {
+          "name": "Player_04",
+          "steamId": "[U:1:10000004]",
+          "team": "CT"
+        },
+        "victim": {
+          "name": "Player_07",
+          "steamId": "[U:1:10000007]",
+          "team": "TERRORIST"
+        },
+        "weapon": "deagle",
+        "headshot": false,
+        "wallbang": false
+      }
+    },
+    {
+      "v": 1,
+      "id": "ev-2060",
+      "timestamp": 1793013562451,
+      "source": "logs",
+      "kind": "primary",
+      "serverId": "srv-lan-01",
+      "matchId": "m-gglan19-71",
+      "map": "de_ancient",
+      "round": 0,
+      "type": "kill",
+      "payload": {
+        "kind": "player",
+        "killer": {
+          "name": "Player_06",
+          "steamId": "[U:1:10000006]",
+          "team": "TERRORIST"
+        },
+        "victim": {
+          "name": "Player_01",
+          "steamId": "[U:1:10000001]",
+          "team": "CT"
+        },
+        "weapon": "glock",
+        "headshot": true,
+        "wallbang": false
+      }
+    },
+    {
+      "v": 1,
+      "id": "ev-2084",
+      "timestamp": 1793013562451,
+      "source": "logs",
+      "kind": "primary",
+      "serverId": "srv-lan-01",
+      "matchId": "m-gglan19-71",
+      "map": "de_ancient",
+      "round": 0,
+      "type": "kill",
+      "payload": {
+        "kind": "player",
+        "killer": {
+          "name": "Player_04",
+          "steamId": "[U:1:10000004]",
+          "team": "CT"
+        },
+        "victim": {
+          "name": "Player_10",
+          "steamId": "[U:1:10000010]",
+          "team": "TERRORIST"
+        },
+        "weapon": "deagle",
+        "headshot": true,
+        "wallbang": false
+      }
+    },
+    {
+      "v": 1,
+      "id": "ev-2100",
+      "timestamp": 1793013562452,
+      "source": "logs",
+      "kind": "primary",
+      "serverId": "srv-lan-01",
+      "matchId": "m-gglan19-71",
+      "map": "de_ancient",
+      "round": 0,
+      "type": "kill",
+      "payload": {
+        "kind": "player",
+        "killer": {
+          "name": "Player_06",
+          "steamId": "[U:1:10000006]",
+          "team": "TERRORIST"
+        },
+        "victim": {
+          "name": "Player_05",
+          "steamId": "[U:1:10000005]",
+          "team": "CT"
+        },
+        "weapon": "glock",
+        "headshot": false,
+        "wallbang": false
+      }
+    },
+    {
+      "v": 1,
+      "id": "ev-2265",
+      "timestamp": 1793013562452,
+      "source": "logs",
+      "kind": "primary",
+      "serverId": "srv-lan-01",
+      "matchId": "m-gglan19-71",
+      "map": "de_ancient",
+      "round": 1,
+      "type": "round_start",
+      "payload": {
+        "round": 1
+      }
+    },
+    {
+      "v": 1,
+      "id": "ev-2280",
+      "timestamp": 1793013562452,
+      "source": "logs",
+      "kind": "primary",
+      "serverId": "srv-lan-01",
+      "matchId": "m-gglan19-71",
+      "map": "de_ancient",
+      "round": 1,
+      "type": "kill",
+      "payload": {
+        "kind": "player",
+        "killer": {
+          "name": "Player_07",
+          "steamId": "[U:1:10000007]",
+          "team": "TERRORIST"
+        },
+        "victim": {
+          "name": "Player_03",
+          "steamId": "[U:1:10000003]",
+          "team": "CT"
+        },
+        "weapon": "bayonet",
+        "headshot": false,
+        "wallbang": false
+      }
+    },
+    {
+      "v": 1,
+      "id": "ev-2283",
+      "timestamp": 1793013562452,
+      "source": "logs",
+      "kind": "primary",
+      "serverId": "srv-lan-01",
+      "matchId": "m-gglan19-71",
+      "map": "de_ancient",
+      "round": 1,
+      "type": "kill",
+      "payload": {
+        "kind": "player",
+        "killer": {
+          "name": "Player_05",
+          "steamId": "[U:1:10000005]",
+          "team": "CT"
+        },
+        "victim": {
+          "name": "Player_06",
+          "steamId": "[U:1:10000006]",
+          "team": "TERRORIST"
+        },
+        "weapon": "knife",
+        "headshot": false,
+        "wallbang": false
+      }
+    },
+    {
+      "v": 1,
+      "id": "ev-2289",
+      "timestamp": 1793013562452,
+      "source": "logs",
+      "kind": "primary",
+      "serverId": "srv-lan-01",
+      "matchId": "m-gglan19-71",
+      "map": "de_ancient",
+      "round": 1,
+      "type": "kill",
+      "payload": {
+        "kind": "player",
+        "killer": {
+          "name": "Player_01",
+          "steamId": "[U:1:10000001]",
+          "team": "CT"
+        },
+        "victim": {
+          "name": "Player_10",
+          "steamId": "[U:1:10000010]",
+          "team": "TERRORIST"
+        },
+        "weapon": "knife",
+        "headshot": false,
+        "wallbang": false
+      }
+    },
+    {
+      "v": 1,
+      "id": "ev-2293",
+      "timestamp": 1793013562452,
+      "source": "logs",
+      "kind": "primary",
+      "serverId": "srv-lan-01",
+      "matchId": "m-gglan19-71",
+      "map": "de_ancient",
+      "round": 1,
+      "type": "kill",
+      "payload": {
+        "kind": "player",
+        "killer": {
+          "name": "Player_04",
+          "steamId": "[U:1:10000004]",
+          "team": "CT"
+        },
+        "victim": {
+          "name": "Player_08",
+          "steamId": "[U:1:10000008]",
+          "team": "TERRORIST"
+        },
+        "weapon": "bayonet",
+        "headshot": false,
+        "wallbang": false
+      }
+    },
+    {
+      "v": 1,
+      "id": "ev-2296",
+      "timestamp": 1793013562452,
+      "source": "logs",
+      "kind": "primary",
+      "serverId": "srv-lan-01",
+      "matchId": "m-gglan19-71",
+      "map": "de_ancient",
+      "round": 1,
+      "type": "kill",
+      "payload": {
+        "kind": "player",
+        "killer": {
+          "name": "Player_01",
+          "steamId": "[U:1:10000001]",
+          "team": "CT"
+        },
+        "victim": {
+          "name": "Player_09",
+          "steamId": "[U:1:10000009]",
+          "team": "TERRORIST"
+        },
+        "weapon": "knife",
+        "headshot": false,
+        "wallbang": false
+      }
+    },
+    {
+      "v": 1,
+      "id": "ev-2298",
+      "timestamp": 1793013562452,
+      "source": "logs",
+      "kind": "primary",
+      "serverId": "srv-lan-01",
+      "matchId": "m-gglan19-71",
+      "map": "de_ancient",
+      "round": 1,
+      "type": "kill",
+      "payload": {
+        "kind": "player",
+        "killer": {
+          "name": "Player_05",
+          "steamId": "[U:1:10000005]",
+          "team": "CT"
+        },
+        "victim": {
+          "name": "Player_07",
+          "steamId": "[U:1:10000007]",
+          "team": "TERRORIST"
+        },
+        "weapon": "knife",
+        "headshot": false,
+        "wallbang": false
+      }
+    },
+    {
+      "v": 1,
+      "id": "ev-2300",
+      "timestamp": 1793013562452,
+      "source": "logs",
+      "kind": "primary",
+      "serverId": "srv-lan-01",
+      "matchId": "m-gglan19-71",
+      "map": "de_ancient",
+      "round": 1,
+      "type": "team_round_win",
+      "payload": {
+        "winner": "CT",
+        "sfuiNotice": "SFUI_Notice_CTs_Win"
+      }
+    },
+    {
+      "v": 1,
+      "id": "ev-2357",
+      "timestamp": 1793013562452,
+      "source": "logs",
+      "kind": "primary",
+      "serverId": "srv-lan-01",
+      "matchId": "m-gglan19-71",
+      "map": "de_ancient",
+      "round": 1,
+      "type": "command",
+      "payload": {
+        "command": "stay",
+        "parameters": [],
+        "sender": {
+          "name": "Player_05",
+          "steamId": "[U:1:10000005]",
+          "team": "CT",
+          "uid": 6
+        }
+      }
+    },
+    {
+      "v": 1,
+      "id": "ev-2431",
+      "timestamp": 1793013562452,
+      "source": "logs",
+      "kind": "primary",
+      "serverId": "srv-lan-01",
+      "matchId": "m-gglan19-71",
+      "map": "de_ancient",
+      "round": 1,
+      "type": "command",
+      "payload": {
+        "command": "ready",
+        "parameters": [],
+        "sender": {
+          "name": "Player_09",
+          "steamId": "[U:1:10000009]",
+          "team": "TERRORIST",
+          "uid": 10
+        }
+      }
+    },
+    {
+      "v": 1,
+      "id": "ev-2437",
+      "timestamp": 1793013562452,
+      "source": "logs",
+      "kind": "primary",
+      "serverId": "srv-lan-01",
+      "matchId": "m-gglan19-71",
+      "map": "de_ancient",
+      "round": 1,
+      "type": "command",
+      "payload": {
+        "command": "ready",
+        "parameters": [],
+        "sender": {
+          "name": "Player_10",
+          "steamId": "[U:1:10000010]",
+          "team": "TERRORIST",
+          "uid": 11
+        }
+      }
+    },
+    {
+      "v": 1,
+      "id": "ev-2447",
+      "timestamp": 1793013562452,
+      "source": "logs",
+      "kind": "primary",
+      "serverId": "srv-lan-01",
+      "matchId": "m-gglan19-71",
+      "map": "de_ancient",
+      "round": 1,
+      "type": "command",
+      "payload": {
+        "command": "ready",
+        "parameters": [],
+        "sender": {
+          "name": "Player_05",
+          "steamId": "[U:1:10000005]",
+          "team": "CT",
+          "uid": 6
+        }
+      }
+    },
+    {
+      "v": 1,
+      "id": "ev-2638",
+      "timestamp": 1793013562452,
+      "source": "logs",
+      "kind": "primary",
+      "serverId": "srv-lan-01",
+      "matchId": "m-gglan19-71",
+      "map": "de_ancient",
+      "round": 2,
+      "type": "round_start",
+      "payload": {
+        "round": 2
+      }
+    },
+    {
+      "v": 1,
+      "id": "ev-2675",
+      "timestamp": 1793013562452,
+      "source": "logs",
+      "kind": "primary",
+      "serverId": "srv-lan-01",
+      "matchId": "m-gglan19-71",
+      "map": "de_ancient",
+      "round": 2,
+      "type": "kill",
+      "payload": {
+        "kind": "player",
+        "killer": {
+          "name": "Player_04",
+          "steamId": "[U:1:10000004]",
+          "team": "CT"
+        },
+        "victim": {
+          "name": "Player_09",
+          "steamId": "[U:1:10000009]",
+          "team": "TERRORIST"
+        },
+        "weapon": "hkp2000",
+        "headshot": true,
+        "wallbang": false
+      }
+    },
+    {
+      "v": 1,
+      "id": "ev-2684",
+      "timestamp": 1793013562452,
+      "source": "logs",
+      "kind": "primary",
+      "serverId": "srv-lan-01",
+      "matchId": "m-gglan19-71",
+      "map": "de_ancient",
+      "round": 2,
+      "type": "kill",
+      "payload": {
+        "kind": "player",
+        "killer": {
+          "name": "Player_10",
+          "steamId": "[U:1:10000010]",
+          "team": "TERRORIST"
+        },
+        "victim": {
+          "name": "Player_03",
+          "steamId": "[U:1:10000003]",
+          "team": "CT"
+        },
+        "weapon": "glock",
+        "headshot": true,
+        "wallbang": false
+      }
+    },
+    {
+      "v": 1,
+      "id": "ev-2687",
+      "timestamp": 1793013562452,
+      "source": "logs",
+      "kind": "primary",
+      "serverId": "srv-lan-01",
+      "matchId": "m-gglan19-71",
+      "map": "de_ancient",
+      "round": 2,
+      "type": "kill",
+      "payload": {
+        "kind": "player",
+        "killer": {
+          "name": "Player_04",
+          "steamId": "[U:1:10000004]",
+          "team": "CT"
+        },
+        "victim": {
+          "name": "Player_06",
+          "steamId": "[U:1:10000006]",
+          "team": "TERRORIST"
+        },
+        "weapon": "hkp2000",
+        "headshot": true,
+        "wallbang": false
+      }
+    },
+    {
+      "v": 1,
+      "id": "ev-2690",
+      "timestamp": 1793013562452,
+      "source": "logs",
+      "kind": "primary",
+      "serverId": "srv-lan-01",
+      "matchId": "m-gglan19-71",
+      "map": "de_ancient",
+      "round": 2,
+      "type": "kill",
+      "payload": {
+        "kind": "player",
+        "killer": {
+          "name": "Player_01",
+          "steamId": "[U:1:10000001]",
+          "team": "CT"
+        },
+        "victim": {
+          "name": "Player_07",
+          "steamId": "[U:1:10000007]",
+          "team": "TERRORIST"
+        },
+        "weapon": "usp_silencer",
+        "headshot": true,
+        "wallbang": false
+      }
+    },
+    {
+      "v": 1,
+      "id": "ev-2713",
+      "timestamp": 1793013562452,
+      "source": "logs",
+      "kind": "primary",
+      "serverId": "srv-lan-01",
+      "matchId": "m-gglan19-71",
+      "map": "de_ancient",
+      "round": 2,
+      "type": "kill",
+      "payload": {
+        "kind": "player",
+        "killer": {
+          "name": "Player_04",
+          "steamId": "[U:1:10000004]",
+          "team": "CT"
+        },
+        "victim": {
+          "name": "Player_08",
+          "steamId": "[U:1:10000008]",
+          "team": "TERRORIST"
+        },
+        "weapon": "hkp2000",
+        "headshot": false,
+        "wallbang": false
+      }
+    },
+    {
+      "v": 1,
+      "id": "ev-2719",
+      "timestamp": 1793013562452,
+      "source": "logs",
+      "kind": "primary",
+      "serverId": "srv-lan-01",
+      "matchId": "m-gglan19-71",
+      "map": "de_ancient",
+      "round": 2,
+      "type": "kill",
+      "payload": {
+        "kind": "player",
+        "killer": {
+          "name": "Player_11",
+          "steamId": "[U:1:10000011]",
+          "team": "CT"
+        },
+        "victim": {
+          "name": "Player_10",
+          "steamId": "[U:1:10000010]",
+          "team": "TERRORIST"
+        },
+        "weapon": "usp_silencer",
+        "headshot": true,
+        "wallbang": false
+      }
+    },
+    {
+      "v": 1,
+      "id": "ev-2720",
+      "timestamp": 1793013562452,
+      "source": "logs",
+      "kind": "primary",
+      "serverId": "srv-lan-01",
+      "matchId": "m-gglan19-71",
+      "map": "de_ancient",
+      "round": 2,
+      "type": "team_round_win",
+      "payload": {
+        "winner": "CT",
+        "sfuiNotice": "SFUI_Notice_CTs_Win"
+      }
+    },
+    {
+      "v": 1,
+      "id": "ev-2899",
+      "timestamp": 1793013562453,
+      "source": "logs",
+      "kind": "primary",
+      "serverId": "srv-lan-01",
+      "matchId": "m-gglan19-71",
+      "map": "de_ancient",
+      "round": 3,
+      "type": "round_start",
+      "payload": {
+        "round": 3
+      }
+    },
+    {
+      "v": 1,
+      "id": "ev-2928",
+      "timestamp": 1793013562453,
+      "source": "logs",
+      "kind": "primary",
+      "serverId": "srv-lan-01",
+      "matchId": "m-gglan19-71",
+      "map": "de_ancient",
+      "round": 3,
+      "type": "kill",
+      "payload": {
+        "kind": "player",
+        "killer": {
+          "name": "Player_03",
+          "steamId": "[U:1:10000003]",
+          "team": "CT"
+        },
+        "victim": {
+          "name": "Player_09",
+          "steamId": "[U:1:10000009]",
+          "team": "TERRORIST"
+        },
+        "weapon": "mp9",
+        "headshot": true,
+        "wallbang": false
+      }
+    },
+    {
+      "v": 1,
+      "id": "ev-2944",
+      "timestamp": 1793013562453,
+      "source": "logs",
+      "kind": "primary",
+      "serverId": "srv-lan-01",
+      "matchId": "m-gglan19-71",
+      "map": "de_ancient",
+      "round": 3,
+      "type": "kill",
+      "payload": {
+        "kind": "player",
+        "killer": {
+          "name": "Player_03",
+          "steamId": "[U:1:10000003]",
+          "team": "CT"
+        },
+        "victim": {
+          "name": "Player_06",
+          "steamId": "[U:1:10000006]",
+          "team": "TERRORIST"
+        },
+        "weapon": "mp9",
+        "headshot": false,
+        "wallbang": false
+      }
+    },
+    {
+      "v": 1,
+      "id": "ev-2950",
+      "timestamp": 1793013562453,
+      "source": "logs",
+      "kind": "primary",
+      "serverId": "srv-lan-01",
+      "matchId": "m-gglan19-71",
+      "map": "de_ancient",
+      "round": 3,
+      "type": "kill",
+      "payload": {
+        "kind": "player",
+        "killer": {
+          "name": "Player_03",
+          "steamId": "[U:1:10000003]",
+          "team": "CT"
+        },
+        "victim": {
+          "name": "Player_10",
+          "steamId": "[U:1:10000010]",
+          "team": "TERRORIST"
+        },
+        "weapon": "mp9",
+        "headshot": true,
+        "wallbang": false
+      }
+    },
+    {
+      "v": 1,
+      "id": "ev-2958",
+      "timestamp": 1793013562453,
+      "source": "logs",
+      "kind": "primary",
+      "serverId": "srv-lan-01",
+      "matchId": "m-gglan19-71",
+      "map": "de_ancient",
+      "round": 3,
+      "type": "kill",
+      "payload": {
+        "kind": "player",
+        "killer": {
+          "name": "Player_05",
+          "steamId": "[U:1:10000005]",
+          "team": "CT"
+        },
+        "victim": {
+          "name": "Player_08",
+          "steamId": "[U:1:10000008]",
+          "team": "TERRORIST"
+        },
+        "weapon": "famas",
+        "headshot": false,
+        "wallbang": false
+      }
+    },
+    {
+      "v": 1,
+      "id": "ev-2962",
+      "timestamp": 1793013562453,
+      "source": "logs",
+      "kind": "primary",
+      "serverId": "srv-lan-01",
+      "matchId": "m-gglan19-71",
+      "map": "de_ancient",
+      "round": 3,
+      "type": "kill",
+      "payload": {
+        "kind": "player",
+        "killer": {
+          "name": "Player_07",
+          "steamId": "[U:1:10000007]",
+          "team": "TERRORIST"
+        },
+        "victim": {
+          "name": "Player_03",
+          "steamId": "[U:1:10000003]",
+          "team": "CT"
+        },
+        "weapon": "glock",
+        "headshot": false,
+        "wallbang": false
+      }
+    },
+    {
+      "v": 1,
+      "id": "ev-2967",
+      "timestamp": 1793013562453,
+      "source": "logs",
+      "kind": "primary",
+      "serverId": "srv-lan-01",
+      "matchId": "m-gglan19-71",
+      "map": "de_ancient",
+      "round": 3,
+      "type": "kill",
+      "payload": {
+        "kind": "player",
+        "killer": {
+          "name": "Player_07",
+          "steamId": "[U:1:10000007]",
+          "team": "TERRORIST"
+        },
+        "victim": {
+          "name": "Player_05",
+          "steamId": "[U:1:10000005]",
+          "team": "CT"
+        },
+        "weapon": "glock",
+        "headshot": true,
+        "wallbang": false
+      }
+    },
+    {
+      "v": 1,
+      "id": "ev-2976",
+      "timestamp": 1793013562453,
+      "source": "logs",
+      "kind": "primary",
+      "serverId": "srv-lan-01",
+      "matchId": "m-gglan19-71",
+      "map": "de_ancient",
+      "round": 3,
+      "type": "kill",
+      "payload": {
+        "kind": "player",
+        "killer": {
+          "name": "Player_01",
+          "steamId": "[U:1:10000001]",
+          "team": "CT"
+        },
+        "victim": {
+          "name": "Player_07",
+          "steamId": "[U:1:10000007]",
+          "team": "TERRORIST"
+        },
+        "weapon": "xm1014",
+        "headshot": true,
+        "wallbang": false
+      }
+    },
+    {
+      "v": 1,
+      "id": "ev-2977",
+      "timestamp": 1793013562453,
+      "source": "logs",
+      "kind": "primary",
+      "serverId": "srv-lan-01",
+      "matchId": "m-gglan19-71",
+      "map": "de_ancient",
+      "round": 3,
+      "type": "team_round_win",
+      "payload": {
+        "winner": "CT",
+        "sfuiNotice": "SFUI_Notice_CTs_Win"
+      }
+    },
+    {
+      "v": 1,
+      "id": "ev-3165",
+      "timestamp": 1793013562453,
+      "source": "logs",
+      "kind": "primary",
+      "serverId": "srv-lan-01",
+      "matchId": "m-gglan19-71",
+      "map": "de_ancient",
+      "round": 4,
+      "type": "round_start",
+      "payload": {
+        "round": 4
+      }
+    },
+    {
+      "v": 1,
+      "id": "ev-3369",
+      "timestamp": 1793013562453,
+      "source": "logs",
+      "kind": "primary",
+      "serverId": "srv-lan-01",
+      "matchId": "m-gglan19-71",
+      "map": "de_ancient",
+      "round": 4,
+      "type": "kill",
+      "payload": {
+        "kind": "player",
+        "killer": {
+          "name": "Player_06",
+          "steamId": "[U:1:10000006]",
+          "team": "TERRORIST"
+        },
+        "victim": {
+          "name": "Player_01",
+          "steamId": "[U:1:10000001]",
+          "team": "CT"
+        },
+        "weapon": "ak47",
+        "headshot": true,
+        "wallbang": false
+      }
+    },
+    {
+      "v": 1,
+      "id": "ev-3379",
+      "timestamp": 1793013562453,
+      "source": "logs",
+      "kind": "primary",
+      "serverId": "srv-lan-01",
+      "matchId": "m-gglan19-71",
+      "map": "de_ancient",
+      "round": 4,
+      "type": "kill",
+      "payload": {
+        "kind": "player",
+        "killer": {
+          "name": "Player_06",
+          "steamId": "[U:1:10000006]",
+          "team": "TERRORIST"
+        },
+        "victim": {
+          "name": "Player_11",
+          "steamId": "[U:1:10000011]",
+          "team": "CT"
+        },
+        "weapon": "ak47",
+        "headshot": false,
+        "wallbang": true
+      }
+    },
+    {
+      "v": 1,
+      "id": "ev-3395",
+      "timestamp": 1793013562453,
+      "source": "logs",
+      "kind": "primary",
+      "serverId": "srv-lan-01",
+      "matchId": "m-gglan19-71",
+      "map": "de_ancient",
+      "round": 4,
+      "type": "kill",
+      "payload": {
+        "kind": "player",
+        "killer": {
+          "name": "Player_03",
+          "steamId": "[U:1:10000003]",
+          "team": "CT"
+        },
+        "victim": {
+          "name": "Player_08",
+          "steamId": "[U:1:10000008]",
+          "team": "TERRORIST"
+        },
+        "weapon": "famas",
+        "headshot": false,
+        "wallbang": true
+      }
+    },
+    {
+      "v": 1,
+      "id": "ev-3400",
+      "timestamp": 1793013562453,
+      "source": "logs",
+      "kind": "primary",
+      "serverId": "srv-lan-01",
+      "matchId": "m-gglan19-71",
+      "map": "de_ancient",
+      "round": 4,
+      "type": "kill",
+      "payload": {
+        "kind": "player",
+        "killer": {
+          "name": "Player_09",
+          "steamId": "[U:1:10000009]",
+          "team": "TERRORIST"
+        },
+        "victim": {
+          "name": "Player_04",
+          "steamId": "[U:1:10000004]",
+          "team": "CT"
+        },
+        "weapon": "ak47",
+        "headshot": true,
+        "wallbang": false
+      }
+    },
+    {
+      "v": 1,
+      "id": "ev-3407",
+      "timestamp": 1793013562453,
+      "source": "logs",
+      "kind": "primary",
+      "serverId": "srv-lan-01",
+      "matchId": "m-gglan19-71",
+      "map": "de_ancient",
+      "round": 4,
+      "type": "kill",
+      "payload": {
+        "kind": "player",
+        "killer": {
+          "name": "Player_03",
+          "steamId": "[U:1:10000003]",
+          "team": "CT"
+        },
+        "victim": {
+          "name": "Player_07",
+          "steamId": "[U:1:10000007]",
+          "team": "TERRORIST"
+        },
+        "weapon": "famas",
+        "headshot": false,
+        "wallbang": false
+      }
+    },
+    {
+      "v": 1,
+      "id": "ev-3415",
+      "timestamp": 1793013562453,
+      "source": "logs",
+      "kind": "primary",
+      "serverId": "srv-lan-01",
+      "matchId": "m-gglan19-71",
+      "map": "de_ancient",
+      "round": 4,
+      "type": "kill",
+      "payload": {
+        "kind": "player",
+        "killer": {
+          "name": "Player_03",
+          "steamId": "[U:1:10000003]",
+          "team": "CT"
+        },
+        "victim": {
+          "name": "Player_06",
+          "steamId": "[U:1:10000006]",
+          "team": "TERRORIST"
+        },
+        "weapon": "galilar",
+        "headshot": false,
+        "wallbang": false
+      }
+    },
+    {
+      "v": 1,
+      "id": "ev-3425",
+      "timestamp": 1793013562453,
+      "source": "logs",
+      "kind": "primary",
+      "serverId": "srv-lan-01",
+      "matchId": "m-gglan19-71",
+      "map": "de_ancient",
+      "round": 4,
+      "type": "kill",
+      "payload": {
+        "kind": "player",
+        "killer": {
+          "name": "Player_05",
+          "steamId": "[U:1:10000005]",
+          "team": "CT"
+        },
+        "victim": {
+          "name": "Player_10",
+          "steamId": "[U:1:10000010]",
+          "team": "TERRORIST"
+        },
+        "weapon": "awp",
+        "headshot": true,
+        "wallbang": false
+      }
+    },
+    {
+      "v": 1,
+      "id": "ev-3441",
+      "timestamp": 1793013562453,
+      "source": "logs",
+      "kind": "primary",
+      "serverId": "srv-lan-01",
+      "matchId": "m-gglan19-71",
+      "map": "de_ancient",
+      "round": 4,
+      "type": "kill",
+      "payload": {
+        "kind": "player",
+        "killer": {
+          "name": "Player_09",
+          "steamId": "[U:1:10000009]",
+          "team": "TERRORIST"
+        },
+        "victim": {
+          "name": "Player_05",
+          "steamId": "[U:1:10000005]",
+          "team": "CT"
+        },
+        "weapon": "ak47",
+        "headshot": false,
+        "wallbang": false
+      }
+    },
+    {
+      "v": 1,
+      "id": "ev-3457",
+      "timestamp": 1793013562453,
+      "source": "logs",
+      "kind": "primary",
+      "serverId": "srv-lan-01",
+      "matchId": "m-gglan19-71",
+      "map": "de_ancient",
+      "round": 4,
+      "type": "kill",
+      "payload": {
+        "kind": "player",
+        "killer": {
+          "name": "Player_03",
+          "steamId": "[U:1:10000003]",
+          "team": "CT"
+        },
+        "victim": {
+          "name": "Player_09",
+          "steamId": "[U:1:10000009]",
+          "team": "TERRORIST"
+        },
+        "weapon": "galilar",
+        "headshot": true,
+        "wallbang": false
+      }
+    },
+    {
+      "v": 1,
+      "id": "ev-3459",
+      "timestamp": 1793013562453,
+      "source": "logs",
+      "kind": "primary",
+      "serverId": "srv-lan-01",
+      "matchId": "m-gglan19-71",
+      "map": "de_ancient",
+      "round": 4,
+      "type": "team_round_win",
+      "payload": {
+        "winner": "CT",
+        "sfuiNotice": "SFUI_Notice_CTs_Win"
+      }
+    },
+    {
+      "v": 1,
+      "id": "ev-3675",
+      "timestamp": 1793013562453,
+      "source": "logs",
+      "kind": "primary",
+      "serverId": "srv-lan-01",
+      "matchId": "m-gglan19-71",
+      "map": "de_ancient",
+      "round": 5,
+      "type": "round_start",
+      "payload": {
+        "round": 5
+      }
+    },
+    {
+      "v": 1,
+      "id": "ev-3706",
+      "timestamp": 1793013562453,
+      "source": "logs",
+      "kind": "primary",
+      "serverId": "srv-lan-01",
+      "matchId": "m-gglan19-71",
+      "map": "de_ancient",
+      "round": 5,
+      "type": "kill",
+      "payload": {
+        "kind": "player",
+        "killer": {
+          "name": "Player_11",
+          "steamId": "[U:1:10000011]",
+          "team": "CT"
+        },
+        "victim": {
+          "name": "Player_09",
+          "steamId": "[U:1:10000009]",
+          "team": "TERRORIST"
+        },
+        "weapon": "hegrenade",
+        "headshot": false,
+        "wallbang": false
+      }
+    },
+    {
+      "v": 1,
+      "id": "ev-3730",
+      "timestamp": 1793013562453,
+      "source": "logs",
+      "kind": "primary",
+      "serverId": "srv-lan-01",
+      "matchId": "m-gglan19-71",
+      "map": "de_ancient",
+      "round": 5,
+      "type": "kill",
+      "payload": {
+        "kind": "player",
+        "killer": {
+          "name": "Player_05",
+          "steamId": "[U:1:10000005]",
+          "team": "CT"
+        },
+        "victim": {
+          "name": "Player_10",
+          "steamId": "[U:1:10000010]",
+          "team": "TERRORIST"
+        },
+        "weapon": "m4a1_silencer",
+        "headshot": false,
+        "wallbang": false
+      }
+    },
+    {
+      "v": 1,
+      "id": "ev-3735",
+      "timestamp": 1793013562453,
+      "source": "logs",
+      "kind": "primary",
+      "serverId": "srv-lan-01",
+      "matchId": "m-gglan19-71",
+      "map": "de_ancient",
+      "round": 5,
+      "type": "kill",
+      "payload": {
+        "kind": "player",
+        "killer": {
+          "name": "Player_06",
+          "steamId": "[U:1:10000006]",
+          "team": "TERRORIST"
+        },
+        "victim": {
+          "name": "Player_05",
+          "steamId": "[U:1:10000005]",
+          "team": "CT"
+        },
+        "weapon": "tec9",
+        "headshot": false,
+        "wallbang": false
+      }
+    },
+    {
+      "v": 1,
+      "id": "ev-3743",
+      "timestamp": 1793013562453,
+      "source": "logs",
+      "kind": "primary",
+      "serverId": "srv-lan-01",
+      "matchId": "m-gglan19-71",
+      "map": "de_ancient",
+      "round": 5,
+      "type": "kill",
+      "payload": {
+        "kind": "player",
+        "killer": {
+          "name": "Player_11",
+          "steamId": "[U:1:10000011]",
+          "team": "CT"
+        },
+        "victim": {
+          "name": "Player_06",
+          "steamId": "[U:1:10000006]",
+          "team": "TERRORIST"
+        },
+        "weapon": "m4a1_silencer",
+        "headshot": false,
+        "wallbang": false
+      }
+    },
+    {
+      "v": 1,
+      "id": "ev-3747",
+      "timestamp": 1793013562453,
+      "source": "logs",
+      "kind": "primary",
+      "serverId": "srv-lan-01",
+      "matchId": "m-gglan19-71",
+      "map": "de_ancient",
+      "round": 5,
+      "type": "kill",
+      "payload": {
+        "kind": "player",
+        "killer": {
+          "name": "Player_08",
+          "steamId": "[U:1:10000008]",
+          "team": "TERRORIST"
+        },
+        "victim": {
+          "name": "Player_11",
+          "steamId": "[U:1:10000011]",
+          "team": "CT"
+        },
+        "weapon": "deagle",
+        "headshot": true,
+        "wallbang": false
+      }
+    },
+    {
+      "v": 1,
+      "id": "ev-3758",
+      "timestamp": 1793013562453,
+      "source": "logs",
+      "kind": "primary",
+      "serverId": "srv-lan-01",
+      "matchId": "m-gglan19-71",
+      "map": "de_ancient",
+      "round": 5,
+      "type": "kill",
+      "payload": {
+        "kind": "player",
+        "killer": {
+          "name": "Player_01",
+          "steamId": "[U:1:10000001]",
+          "team": "CT"
+        },
+        "victim": {
+          "name": "Player_08",
+          "steamId": "[U:1:10000008]",
+          "team": "TERRORIST"
+        },
+        "weapon": "xm1014",
+        "headshot": false,
+        "wallbang": false
+      }
+    },
+    {
+      "v": 1,
+      "id": "ev-3786",
+      "timestamp": 1793013562453,
+      "source": "logs",
+      "kind": "primary",
+      "serverId": "srv-lan-01",
+      "matchId": "m-gglan19-71",
+      "map": "de_ancient",
+      "round": 5,
+      "type": "kill",
+      "payload": {
+        "kind": "player",
+        "killer": {
+          "name": "Player_03",
+          "steamId": "[U:1:10000003]",
+          "team": "CT"
+        },
+        "victim": {
+          "name": "Player_07",
+          "steamId": "[U:1:10000007]",
+          "team": "TERRORIST"
+        },
+        "weapon": "ak47",
+        "headshot": false,
+        "wallbang": false
+      }
+    },
+    {
+      "v": 1,
+      "id": "ev-3787",
+      "timestamp": 1793013562453,
+      "source": "logs",
+      "kind": "primary",
+      "serverId": "srv-lan-01",
+      "matchId": "m-gglan19-71",
+      "map": "de_ancient",
+      "round": 5,
+      "type": "team_round_win",
+      "payload": {
+        "winner": "CT",
+        "sfuiNotice": "SFUI_Notice_CTs_Win"
+      }
+    },
+    {
+      "v": 1,
+      "id": "ev-3978",
+      "timestamp": 1793013562454,
+      "source": "logs",
+      "kind": "primary",
+      "serverId": "srv-lan-01",
+      "matchId": "m-gglan19-71",
+      "map": "de_ancient",
+      "round": 6,
+      "type": "round_start",
+      "payload": {
+        "round": 6
+      }
+    },
+    {
+      "v": 1,
+      "id": "ev-4070",
+      "timestamp": 1793013562454,
+      "source": "logs",
+      "kind": "primary",
+      "serverId": "srv-lan-01",
+      "matchId": "m-gglan19-71",
+      "map": "de_ancient",
+      "round": 6,
+      "type": "kill",
+      "payload": {
+        "kind": "player",
+        "killer": {
+          "name": "Player_04",
+          "steamId": "[U:1:10000004]",
+          "team": "CT"
+        },
+        "victim": {
+          "name": "Player_06",
+          "steamId": "[U:1:10000006]",
+          "team": "TERRORIST"
+        },
+        "weapon": "m4a1_silencer",
+        "headshot": true,
+        "wallbang": false
+      }
+    },
+    {
+      "v": 1,
+      "id": "ev-4095",
+      "timestamp": 1793013562454,
+      "source": "logs",
+      "kind": "primary",
+      "serverId": "srv-lan-01",
+      "matchId": "m-gglan19-71",
+      "map": "de_ancient",
+      "round": 6,
+      "type": "kill",
+      "payload": {
+        "kind": "player",
+        "killer": {
+          "name": "Player_11",
+          "steamId": "[U:1:10000011]",
+          "team": "CT"
+        },
+        "victim": {
+          "name": "Player_10",
+          "steamId": "[U:1:10000010]",
+          "team": "TERRORIST"
+        },
+        "weapon": "m4a1_silencer",
+        "headshot": false,
+        "wallbang": false
+      }
+    },
+    {
+      "v": 1,
+      "id": "ev-4111",
+      "timestamp": 1793013562454,
+      "source": "logs",
+      "kind": "primary",
+      "serverId": "srv-lan-01",
+      "matchId": "m-gglan19-71",
+      "map": "de_ancient",
+      "round": 6,
+      "type": "bomb_planted",
+      "payload": {
+        "planter": {
+          "name": "Player_08",
+          "steamId": "[U:1:10000008]",
+          "team": "TERRORIST"
+        },
+        "site": "unknown"
+      }
+    },
+    {
+      "v": 1,
+      "id": "ev-4122",
+      "timestamp": 1793013562454,
+      "source": "logs",
+      "kind": "primary",
+      "serverId": "srv-lan-01",
+      "matchId": "m-gglan19-71",
+      "map": "de_ancient",
+      "round": 6,
+      "type": "kill",
+      "payload": {
+        "kind": "player",
+        "killer": {
+          "name": "Player_07",
+          "steamId": "[U:1:10000007]",
+          "team": "TERRORIST"
+        },
+        "victim": {
+          "name": "Player_04",
+          "steamId": "[U:1:10000004]",
+          "team": "CT"
+        },
+        "weapon": "ak47",
+        "headshot": true,
+        "wallbang": false
+      }
+    },
+    {
+      "v": 1,
+      "id": "ev-4126",
+      "timestamp": 1793013562454,
+      "source": "logs",
+      "kind": "primary",
+      "serverId": "srv-lan-01",
+      "matchId": "m-gglan19-71",
+      "map": "de_ancient",
+      "round": 6,
+      "type": "kill",
+      "payload": {
+        "kind": "player",
+        "killer": {
+          "name": "Player_01",
+          "steamId": "[U:1:10000001]",
+          "team": "CT"
+        },
+        "victim": {
+          "name": "Player_08",
+          "steamId": "[U:1:10000008]",
+          "team": "TERRORIST"
+        },
+        "weapon": "m4a1",
+        "headshot": false,
+        "wallbang": false
+      }
+    },
+    {
+      "v": 1,
+      "id": "ev-4129",
+      "timestamp": 1793013562454,
+      "source": "logs",
+      "kind": "primary",
+      "serverId": "srv-lan-01",
+      "matchId": "m-gglan19-71",
+      "map": "de_ancient",
+      "round": 6,
+      "type": "kill",
+      "payload": {
+        "kind": "player",
+        "killer": {
+          "name": "Player_07",
+          "steamId": "[U:1:10000007]",
+          "team": "TERRORIST"
+        },
+        "victim": {
+          "name": "Player_01",
+          "steamId": "[U:1:10000001]",
+          "team": "CT"
+        },
+        "weapon": "ak47",
+        "headshot": true,
+        "wallbang": false
+      }
+    },
+    {
+      "v": 1,
+      "id": "ev-4139",
+      "timestamp": 1793013562454,
+      "source": "logs",
+      "kind": "primary",
+      "serverId": "srv-lan-01",
+      "matchId": "m-gglan19-71",
+      "map": "de_ancient",
+      "round": 6,
+      "type": "kill",
+      "payload": {
+        "kind": "player",
+        "killer": {
+          "name": "Player_09",
+          "steamId": "[U:1:10000009]",
+          "team": "TERRORIST"
+        },
+        "victim": {
+          "name": "Player_11",
+          "steamId": "[U:1:10000011]",
+          "team": "CT"
+        },
+        "weapon": "ak47",
+        "headshot": false,
+        "wallbang": false
+      }
+    },
+    {
+      "v": 1,
+      "id": "ev-4148",
+      "timestamp": 1793013562454,
+      "source": "logs",
+      "kind": "primary",
+      "serverId": "srv-lan-01",
+      "matchId": "m-gglan19-71",
+      "map": "de_ancient",
+      "round": 6,
+      "type": "kill",
+      "payload": {
+        "kind": "player",
+        "killer": {
+          "name": "Player_05",
+          "steamId": "[U:1:10000005]",
+          "team": "CT"
+        },
+        "victim": {
+          "name": "Player_09",
+          "steamId": "[U:1:10000009]",
+          "team": "TERRORIST"
+        },
+        "weapon": "awp",
+        "headshot": false,
+        "wallbang": false
+      }
+    },
+    {
+      "v": 1,
+      "id": "ev-4151",
+      "timestamp": 1793013562454,
+      "source": "logs",
+      "kind": "primary",
+      "serverId": "srv-lan-01",
+      "matchId": "m-gglan19-71",
+      "map": "de_ancient",
+      "round": 6,
+      "type": "kill",
+      "payload": {
+        "kind": "player",
+        "killer": {
+          "name": "Player_07",
+          "steamId": "[U:1:10000007]",
+          "team": "TERRORIST"
+        },
+        "victim": {
+          "name": "Player_03",
+          "steamId": "[U:1:10000003]",
+          "team": "CT"
+        },
+        "weapon": "ak47",
+        "headshot": false,
+        "wallbang": false
+      }
+    },
+    {
+      "v": 1,
+      "id": "ev-4158",
+      "timestamp": 1793013562454,
+      "source": "logs",
+      "kind": "primary",
+      "serverId": "srv-lan-01",
+      "matchId": "m-gglan19-71",
+      "map": "de_ancient",
+      "round": 6,
+      "type": "kill",
+      "payload": {
+        "kind": "player",
+        "killer": {
+          "name": "Player_07",
+          "steamId": "[U:1:10000007]",
+          "team": "TERRORIST"
+        },
+        "victim": {
+          "name": "Player_05",
+          "steamId": "[U:1:10000005]",
+          "team": "CT"
+        },
+        "weapon": "ak47",
+        "headshot": true,
+        "wallbang": false
+      }
+    },
+    {
+      "v": 1,
+      "id": "ev-4160",
+      "timestamp": 1793013562454,
+      "source": "logs",
+      "kind": "primary",
+      "serverId": "srv-lan-01",
+      "matchId": "m-gglan19-71",
+      "map": "de_ancient",
+      "round": 6,
+      "type": "team_round_win",
+      "payload": {
+        "winner": "TERRORIST",
+        "sfuiNotice": "SFUI_Notice_Terrorists_Win"
+      }
+    },
+    {
+      "v": 1,
+      "id": "ev-4384",
+      "timestamp": 1793013562454,
+      "source": "logs",
+      "kind": "primary",
+      "serverId": "srv-lan-01",
+      "matchId": "m-gglan19-71",
+      "map": "de_ancient",
+      "round": 7,
+      "type": "round_start",
+      "payload": {
+        "round": 7
+      }
+    },
+    {
+      "v": 1,
+      "id": "ev-4423",
+      "timestamp": 1793013562454,
+      "source": "logs",
+      "kind": "primary",
+      "serverId": "srv-lan-01",
+      "matchId": "m-gglan19-71",
+      "map": "de_ancient",
+      "round": 7,
+      "type": "kill",
+      "payload": {
+        "kind": "player",
+        "killer": {
+          "name": "Player_03",
+          "steamId": "[U:1:10000003]",
+          "team": "CT"
+        },
+        "victim": {
+          "name": "Player_07",
+          "steamId": "[U:1:10000007]",
+          "team": "TERRORIST"
+        },
+        "weapon": "m4a1",
+        "headshot": false,
+        "wallbang": false
+      }
+    },
+    {
+      "v": 1,
+      "id": "ev-4433",
+      "timestamp": 1793013562454,
+      "source": "logs",
+      "kind": "primary",
+      "serverId": "srv-lan-01",
+      "matchId": "m-gglan19-71",
+      "map": "de_ancient",
+      "round": 7,
+      "type": "kill",
+      "payload": {
+        "kind": "player",
+        "killer": {
+          "name": "Player_08",
+          "steamId": "[U:1:10000008]",
+          "team": "TERRORIST"
+        },
+        "victim": {
+          "name": "Player_01",
+          "steamId": "[U:1:10000001]",
+          "team": "CT"
+        },
+        "weapon": "galilar",
+        "headshot": true,
+        "wallbang": false
+      }
+    },
+    {
+      "v": 1,
+      "id": "ev-4440",
+      "timestamp": 1793013562454,
+      "source": "logs",
+      "kind": "primary",
+      "serverId": "srv-lan-01",
+      "matchId": "m-gglan19-71",
+      "map": "de_ancient",
+      "round": 7,
+      "type": "kill",
+      "payload": {
+        "kind": "player",
+        "killer": {
+          "name": "Player_05",
+          "steamId": "[U:1:10000005]",
+          "team": "CT"
+        },
+        "victim": {
+          "name": "Player_08",
+          "steamId": "[U:1:10000008]",
+          "team": "TERRORIST"
+        },
+        "weapon": "m4a1_silencer",
+        "headshot": true,
+        "wallbang": false
+      }
+    },
+    {
+      "v": 1,
+      "id": "ev-4467",
+      "timestamp": 1793013562454,
+      "source": "logs",
+      "kind": "primary",
+      "serverId": "srv-lan-01",
+      "matchId": "m-gglan19-71",
+      "map": "de_ancient",
+      "round": 7,
+      "type": "kill",
+      "payload": {
+        "kind": "player",
+        "killer": {
+          "name": "Player_04",
+          "steamId": "[U:1:10000004]",
+          "team": "CT"
+        },
+        "victim": {
+          "name": "Player_10",
+          "steamId": "[U:1:10000010]",
+          "team": "TERRORIST"
+        },
+        "weapon": "m4a1",
+        "headshot": false,
+        "wallbang": false
+      }
+    },
+    {
+      "v": 1,
+      "id": "ev-4473",
+      "timestamp": 1793013562454,
+      "source": "logs",
+      "kind": "primary",
+      "serverId": "srv-lan-01",
+      "matchId": "m-gglan19-71",
+      "map": "de_ancient",
+      "round": 7,
+      "type": "kill",
+      "payload": {
+        "kind": "player",
+        "killer": {
+          "name": "Player_11",
+          "steamId": "[U:1:10000011]",
+          "team": "CT"
+        },
+        "victim": {
+          "name": "Player_06",
+          "steamId": "[U:1:10000006]",
+          "team": "TERRORIST"
+        },
+        "weapon": "deagle",
+        "headshot": true,
+        "wallbang": false
+      }
+    },
+    {
+      "v": 1,
+      "id": "ev-4479",
+      "timestamp": 1793013562454,
+      "source": "logs",
+      "kind": "primary",
+      "serverId": "srv-lan-01",
+      "matchId": "m-gglan19-71",
+      "map": "de_ancient",
+      "round": 7,
+      "type": "kill",
+      "payload": {
+        "kind": "player",
+        "killer": {
+          "name": "Player_05",
+          "steamId": "[U:1:10000005]",
+          "team": "CT"
+        },
+        "victim": {
+          "name": "Player_09",
+          "steamId": "[U:1:10000009]",
+          "team": "TERRORIST"
+        },
+        "weapon": "m4a1_silencer",
+        "headshot": false,
+        "wallbang": false
+      }
+    },
+    {
+      "v": 1,
+      "id": "ev-4481",
+      "timestamp": 1793013562454,
+      "source": "logs",
+      "kind": "primary",
+      "serverId": "srv-lan-01",
+      "matchId": "m-gglan19-71",
+      "map": "de_ancient",
+      "round": 7,
+      "type": "team_round_win",
+      "payload": {
+        "winner": "CT",
+        "sfuiNotice": "SFUI_Notice_CTs_Win"
+      }
+    },
+    {
+      "v": 1,
+      "id": "ev-4686",
+      "timestamp": 1793013562455,
+      "source": "logs",
+      "kind": "primary",
+      "serverId": "srv-lan-01",
+      "matchId": "m-gglan19-71",
+      "map": "de_ancient",
+      "round": 8,
+      "type": "round_start",
+      "payload": {
+        "round": 8
+      }
+    },
+    {
+      "v": 1,
+      "id": "ev-4762",
+      "timestamp": 1793013562455,
+      "source": "logs",
+      "kind": "primary",
+      "serverId": "srv-lan-01",
+      "matchId": "m-gglan19-71",
+      "map": "de_ancient",
+      "round": 8,
+      "type": "kill",
+      "payload": {
+        "kind": "player",
+        "killer": {
+          "name": "Player_05",
+          "steamId": "[U:1:10000005]",
+          "team": "CT"
+        },
+        "victim": {
+          "name": "Player_10",
+          "steamId": "[U:1:10000010]",
+          "team": "TERRORIST"
+        },
+        "weapon": "ak47",
+        "headshot": false,
+        "wallbang": false
+      }
+    },
+    {
+      "v": 1,
+      "id": "ev-4770",
+      "timestamp": 1793013562455,
+      "source": "logs",
+      "kind": "primary",
+      "serverId": "srv-lan-01",
+      "matchId": "m-gglan19-71",
+      "map": "de_ancient",
+      "round": 8,
+      "type": "kill",
+      "payload": {
+        "kind": "player",
+        "killer": {
+          "name": "Player_01",
+          "steamId": "[U:1:10000001]",
+          "team": "CT"
+        },
+        "victim": {
+          "name": "Player_07",
+          "steamId": "[U:1:10000007]",
+          "team": "TERRORIST"
+        },
+        "weapon": "xm1014",
+        "headshot": true,
+        "wallbang": false
+      }
+    },
+    {
+      "v": 1,
+      "id": "ev-4780",
+      "timestamp": 1793013562455,
+      "source": "logs",
+      "kind": "primary",
+      "serverId": "srv-lan-01",
+      "matchId": "m-gglan19-71",
+      "map": "de_ancient",
+      "round": 8,
+      "type": "kill",
+      "payload": {
+        "kind": "player",
+        "killer": {
+          "name": "Player_03",
+          "steamId": "[U:1:10000003]",
+          "team": "CT"
+        },
+        "victim": {
+          "name": "Player_06",
+          "steamId": "[U:1:10000006]",
+          "team": "TERRORIST"
+        },
+        "weapon": "ak47",
+        "headshot": false,
+        "wallbang": false
+      }
+    },
+    {
+      "v": 1,
+      "id": "ev-4787",
+      "timestamp": 1793013562455,
+      "source": "logs",
+      "kind": "primary",
+      "serverId": "srv-lan-01",
+      "matchId": "m-gglan19-71",
+      "map": "de_ancient",
+      "round": 8,
+      "type": "kill",
+      "payload": {
+        "kind": "player",
+        "killer": {
+          "name": "Player_01",
+          "steamId": "[U:1:10000001]",
+          "team": "CT"
+        },
+        "victim": {
+          "name": "Player_08",
+          "steamId": "[U:1:10000008]",
+          "team": "TERRORIST"
+        },
+        "weapon": "xm1014",
+        "headshot": false,
+        "wallbang": false
+      }
+    },
+    {
+      "v": 1,
+      "id": "ev-4799",
+      "timestamp": 1793013562455,
+      "source": "logs",
+      "kind": "primary",
+      "serverId": "srv-lan-01",
+      "matchId": "m-gglan19-71",
+      "map": "de_ancient",
+      "round": 8,
+      "type": "kill",
+      "payload": {
+        "kind": "player",
+        "killer": {
+          "name": "Player_09",
+          "steamId": "[U:1:10000009]",
+          "team": "TERRORIST"
+        },
+        "victim": {
+          "name": "Player_11",
+          "steamId": "[U:1:10000011]",
+          "team": "CT"
+        },
+        "weapon": "ak47",
+        "headshot": true,
+        "wallbang": false
+      }
+    },
+    {
+      "v": 1,
+      "id": "ev-4809",
+      "timestamp": 1793013562455,
+      "source": "logs",
+      "kind": "primary",
+      "serverId": "srv-lan-01",
+      "matchId": "m-gglan19-71",
+      "map": "de_ancient",
+      "round": 8,
+      "type": "kill",
+      "payload": {
+        "kind": "player",
+        "killer": {
+          "name": "Player_09",
+          "steamId": "[U:1:10000009]",
+          "team": "TERRORIST"
+        },
+        "victim": {
+          "name": "Player_01",
+          "steamId": "[U:1:10000001]",
+          "team": "CT"
+        },
+        "weapon": "ak47",
+        "headshot": true,
+        "wallbang": false
+      }
+    },
+    {
+      "v": 1,
+      "id": "ev-4824",
+      "timestamp": 1793013562455,
+      "source": "logs",
+      "kind": "primary",
+      "serverId": "srv-lan-01",
+      "matchId": "m-gglan19-71",
+      "map": "de_ancient",
+      "round": 8,
+      "type": "team_round_win",
+      "payload": {
+        "winner": "CT",
+        "sfuiNotice": "SFUI_Notice_Target_Saved"
+      }
+    },
+    {
+      "v": 1,
+      "id": "ev-5041",
+      "timestamp": 1793013562455,
+      "source": "logs",
+      "kind": "primary",
+      "serverId": "srv-lan-01",
+      "matchId": "m-gglan19-71",
+      "map": "de_ancient",
+      "round": 9,
+      "type": "round_start",
+      "payload": {
+        "round": 9
+      }
+    },
+    {
+      "v": 1,
+      "id": "ev-5081",
+      "timestamp": 1793013562455,
+      "source": "logs",
+      "kind": "primary",
+      "serverId": "srv-lan-01",
+      "matchId": "m-gglan19-71",
+      "map": "de_ancient",
+      "round": 9,
+      "type": "kill",
+      "payload": {
+        "kind": "player",
+        "killer": {
+          "name": "Player_11",
+          "steamId": "[U:1:10000011]",
+          "team": "CT"
+        },
+        "victim": {
+          "name": "Player_09",
+          "steamId": "[U:1:10000009]",
+          "team": "TERRORIST"
+        },
+        "weapon": "hegrenade",
+        "headshot": false,
+        "wallbang": false
+      }
+    },
+    {
+      "v": 1,
+      "id": "ev-5110",
+      "timestamp": 1793013562455,
+      "source": "logs",
+      "kind": "primary",
+      "serverId": "srv-lan-01",
+      "matchId": "m-gglan19-71",
+      "map": "de_ancient",
+      "round": 9,
+      "type": "kill",
+      "payload": {
+        "kind": "player",
+        "killer": {
+          "name": "Player_08",
+          "steamId": "[U:1:10000008]",
+          "team": "TERRORIST"
+        },
+        "victim": {
+          "name": "Player_01",
+          "steamId": "[U:1:10000001]",
+          "team": "CT"
+        },
+        "weapon": "ak47",
+        "headshot": false,
+        "wallbang": false
+      }
+    },
+    {
+      "v": 1,
+      "id": "ev-5112",
+      "timestamp": 1793013562455,
+      "source": "logs",
+      "kind": "primary",
+      "serverId": "srv-lan-01",
+      "matchId": "m-gglan19-71",
+      "map": "de_ancient",
+      "round": 9,
+      "type": "kill",
+      "payload": {
+        "kind": "player",
+        "killer": {
+          "name": "Player_03",
+          "steamId": "[U:1:10000003]",
+          "team": "CT"
+        },
+        "victim": {
+          "name": "Player_08",
+          "steamId": "[U:1:10000008]",
+          "team": "TERRORIST"
+        },
+        "weapon": "ak47",
+        "headshot": false,
+        "wallbang": false
+      }
+    },
+    {
+      "v": 1,
+      "id": "ev-5115",
+      "timestamp": 1793013562455,
+      "source": "logs",
+      "kind": "primary",
+      "serverId": "srv-lan-01",
+      "matchId": "m-gglan19-71",
+      "map": "de_ancient",
+      "round": 9,
+      "type": "kill",
+      "payload": {
+        "kind": "player",
+        "killer": {
+          "name": "Player_03",
+          "steamId": "[U:1:10000003]",
+          "team": "CT"
+        },
+        "victim": {
+          "name": "Player_06",
+          "steamId": "[U:1:10000006]",
+          "team": "TERRORIST"
+        },
+        "weapon": "ak47",
+        "headshot": true,
+        "wallbang": false
+      }
+    },
+    {
+      "v": 1,
+      "id": "ev-5121",
+      "timestamp": 1793013562455,
+      "source": "logs",
+      "kind": "primary",
+      "serverId": "srv-lan-01",
+      "matchId": "m-gglan19-71",
+      "map": "de_ancient",
+      "round": 9,
+      "type": "kill",
+      "payload": {
+        "kind": "player",
+        "killer": {
+          "name": "Player_07",
+          "steamId": "[U:1:10000007]",
+          "team": "TERRORIST"
+        },
+        "victim": {
+          "name": "Player_03",
+          "steamId": "[U:1:10000003]",
+          "team": "CT"
+        },
+        "weapon": "ak47",
+        "headshot": false,
+        "wallbang": false
+      }
+    },
+    {
+      "v": 1,
+      "id": "ev-5123",
+      "timestamp": 1793013562455,
+      "source": "logs",
+      "kind": "primary",
+      "serverId": "srv-lan-01",
+      "matchId": "m-gglan19-71",
+      "map": "de_ancient",
+      "round": 9,
+      "type": "kill",
+      "payload": {
+        "kind": "player",
+        "killer": {
+          "name": "Player_11",
+          "steamId": "[U:1:10000011]",
+          "team": "CT"
+        },
+        "victim": {
+          "name": "Player_10",
+          "steamId": "[U:1:10000010]",
+          "team": "TERRORIST"
+        },
+        "weapon": "m4a1_silencer",
+        "headshot": true,
+        "wallbang": false
+      }
+    },
+    {
+      "v": 1,
+      "id": "ev-5131",
+      "timestamp": 1793013562455,
+      "source": "logs",
+      "kind": "primary",
+      "serverId": "srv-lan-01",
+      "matchId": "m-gglan19-71",
+      "map": "de_ancient",
+      "round": 9,
+      "type": "bomb_planted",
+      "payload": {
+        "planter": {
+          "name": "Player_07",
+          "steamId": "[U:1:10000007]",
+          "team": "TERRORIST"
+        },
+        "site": "unknown"
+      }
+    },
+    {
+      "v": 1,
+      "id": "ev-5878",
+      "timestamp": 1793013562456,
+      "source": "logs",
+      "kind": "primary",
+      "serverId": "srv-lan-01",
+      "matchId": "m-gglan19-71",
+      "map": "de_ancient",
+      "round": 9,
+      "type": "team_round_win",
+      "payload": {
+        "winner": "TERRORIST",
+        "sfuiNotice": "SFUI_Notice_Terrorists_Win"
+      }
+    },
+    {
+      "v": 1,
+      "id": "ev-6735",
+      "timestamp": 1793013562456,
+      "source": "logs",
+      "kind": "primary",
+      "serverId": "srv-lan-01",
+      "matchId": "m-gglan19-71",
+      "map": "de_ancient",
+      "round": 10,
+      "type": "round_start",
+      "payload": {
+        "round": 10
+      }
+    },
+    {
+      "v": 1,
+      "id": "ev-6739",
+      "timestamp": 1793013562456,
+      "source": "logs",
+      "kind": "primary",
+      "serverId": "srv-lan-01",
+      "matchId": "m-gglan19-71",
+      "map": "de_ancient",
+      "round": 10,
+      "type": "command",
+      "payload": {
+        "command": "pause",
+        "parameters": [],
+        "sender": {
+          "name": "Player_04",
+          "steamId": "[U:1:10000004]",
+          "team": "CT",
+          "uid": 5
+        }
+      }
+    },
+    {
+      "v": 1,
+      "id": "ev-6808",
+      "timestamp": 1793013562456,
+      "source": "logs",
+      "kind": "primary",
+      "serverId": "srv-lan-01",
+      "matchId": "m-gglan19-71",
+      "map": "de_ancient",
+      "round": 10,
+      "type": "kill",
+      "payload": {
+        "kind": "player",
+        "killer": {
+          "name": "Player_06",
+          "steamId": "[U:1:10000006]",
+          "team": "TERRORIST"
+        },
+        "victim": {
+          "name": "Player_04",
+          "steamId": "[U:1:10000004]",
+          "team": "CT"
+        },
+        "weapon": "ak47",
+        "headshot": true,
+        "wallbang": false
+      }
+    },
+    {
+      "v": 1,
+      "id": "ev-6811",
+      "timestamp": 1793013562456,
+      "source": "logs",
+      "kind": "primary",
+      "serverId": "srv-lan-01",
+      "matchId": "m-gglan19-71",
+      "map": "de_ancient",
+      "round": 10,
+      "type": "kill",
+      "payload": {
+        "kind": "player",
+        "killer": {
+          "name": "Player_06",
+          "steamId": "[U:1:10000006]",
+          "team": "TERRORIST"
+        },
+        "victim": {
+          "name": "Player_05",
+          "steamId": "[U:1:10000005]",
+          "team": "CT"
+        },
+        "weapon": "ak47",
+        "headshot": true,
+        "wallbang": false
+      }
+    },
+    {
+      "v": 1,
+      "id": "ev-6813",
+      "timestamp": 1793013562456,
+      "source": "logs",
+      "kind": "primary",
+      "serverId": "srv-lan-01",
+      "matchId": "m-gglan19-71",
+      "map": "de_ancient",
+      "round": 10,
+      "type": "kill",
+      "payload": {
+        "kind": "player",
+        "killer": {
+          "name": "Player_01",
+          "steamId": "[U:1:10000001]",
+          "team": "CT"
+        },
+        "victim": {
+          "name": "Player_03",
+          "steamId": "[U:1:10000003]",
+          "team": "CT"
+        },
+        "weapon": "m4a1",
+        "headshot": true,
+        "wallbang": false
+      }
+    },
+    {
+      "v": 1,
+      "id": "ev-6815",
+      "timestamp": 1793013562456,
+      "source": "logs",
+      "kind": "primary",
+      "serverId": "srv-lan-01",
+      "matchId": "m-gglan19-71",
+      "map": "de_ancient",
+      "round": 10,
+      "type": "kill",
+      "payload": {
+        "kind": "player",
+        "killer": {
+          "name": "Player_01",
+          "steamId": "[U:1:10000001]",
+          "team": "CT"
+        },
+        "victim": {
+          "name": "Player_11",
+          "steamId": "[U:1:10000011]",
+          "team": "CT"
+        },
+        "weapon": "m4a1",
+        "headshot": true,
+        "wallbang": false
+      }
+    },
+    {
+      "v": 1,
+      "id": "ev-6817",
+      "timestamp": 1793013562456,
+      "source": "logs",
+      "kind": "primary",
+      "serverId": "srv-lan-01",
+      "matchId": "m-gglan19-71",
+      "map": "de_ancient",
+      "round": 10,
+      "type": "kill",
+      "payload": {
+        "kind": "player",
+        "killer": {
+          "name": "Player_06",
+          "steamId": "[U:1:10000006]",
+          "team": "TERRORIST"
+        },
+        "victim": {
+          "name": "Player_01",
+          "steamId": "[U:1:10000001]",
+          "team": "CT"
+        },
+        "weapon": "ak47",
+        "headshot": true,
+        "wallbang": false
+      }
+    },
+    {
+      "v": 1,
+      "id": "ev-6818",
+      "timestamp": 1793013562456,
+      "source": "logs",
+      "kind": "primary",
+      "serverId": "srv-lan-01",
+      "matchId": "m-gglan19-71",
+      "map": "de_ancient",
+      "round": 10,
+      "type": "team_round_win",
+      "payload": {
+        "winner": "TERRORIST",
+        "sfuiNotice": "SFUI_Notice_Terrorists_Win"
+      }
+    },
+    {
+      "v": 1,
+      "id": "ev-7088",
+      "timestamp": 1793013562457,
+      "source": "logs",
+      "kind": "primary",
+      "serverId": "srv-lan-01",
+      "matchId": "m-gglan19-71",
+      "map": "de_ancient",
+      "round": 10,
+      "type": "command",
+      "payload": {
+        "command": "tac",
+        "parameters": [],
+        "sender": {
+          "name": "Player_03",
+          "steamId": "[U:1:10000003]",
+          "team": "CT",
+          "uid": 4
+        }
+      }
+    },
+    {
+      "v": 1,
+      "id": "ev-7274",
+      "timestamp": 1793013562457,
+      "source": "logs",
+      "kind": "primary",
+      "serverId": "srv-lan-01",
+      "matchId": "m-gglan19-71",
+      "map": "de_ancient",
+      "round": 10,
+      "type": "command",
+      "payload": {
+        "command": "tech",
+        "parameters": [],
+        "sender": {
+          "name": "Player_04",
+          "steamId": "[U:1:10000004]",
+          "team": "CT",
+          "uid": 5
+        }
+      }
+    },
+    {
+      "v": 1,
+      "id": "ev-7276",
+      "timestamp": 1793013562457,
+      "source": "logs",
+      "kind": "primary",
+      "serverId": "srv-lan-01",
+      "matchId": "m-gglan19-71",
+      "map": "de_ancient",
+      "round": 10,
+      "type": "command",
+      "payload": {
+        "command": "tac",
+        "parameters": [],
+        "sender": {
+          "name": "Player_04",
+          "steamId": "[U:1:10000004]",
+          "team": "CT",
+          "uid": 5
+        }
+      }
+    },
+    {
+      "v": 1,
+      "id": "ev-7730",
+      "timestamp": 1793013562457,
+      "source": "logs",
+      "kind": "primary",
+      "serverId": "srv-lan-01",
+      "matchId": "m-gglan19-71",
+      "map": "de_ancient",
+      "round": 10,
+      "type": "team_round_win",
+      "payload": {
+        "winner": "CT",
+        "sfuiNotice": "SFUI_Notice_CTs_Win"
+      }
+    },
+    {
+      "v": 1,
+      "id": "ev-8701",
+      "timestamp": 1793013562458,
+      "source": "logs",
+      "kind": "primary",
+      "serverId": "srv-lan-01",
+      "matchId": "m-gglan19-71",
+      "map": "de_ancient",
+      "round": 10,
+      "type": "command",
+      "payload": {
+        "command": "tec",
+        "parameters": [],
+        "sender": {
+          "name": "Player_04",
+          "steamId": "[U:1:10000004]",
+          "team": "CT",
+          "uid": 5
+        }
+      }
+    },
+    {
+      "v": 1,
+      "id": "ev-8716",
+      "timestamp": 1793013562458,
+      "source": "logs",
+      "kind": "primary",
+      "serverId": "srv-lan-01",
+      "matchId": "m-gglan19-71",
+      "map": "de_ancient",
+      "round": 10,
+      "type": "command",
+      "payload": {
+        "command": "tac",
+        "parameters": [],
+        "sender": {
+          "name": "Player_04",
+          "steamId": "[U:1:10000004]",
+          "team": "CT",
+          "uid": 5
+        }
+      }
+    },
+    {
+      "v": 1,
+      "id": "ev-8765",
+      "timestamp": 1793013562458,
+      "source": "logs",
+      "kind": "primary",
+      "serverId": "srv-lan-01",
+      "matchId": "m-gglan19-71",
+      "map": "de_ancient",
+      "round": 10,
+      "type": "command",
+      "payload": {
+        "command": "tech",
+        "parameters": [],
+        "sender": {
+          "name": "Player_05",
+          "steamId": "[U:1:10000005]",
+          "team": "CT",
+          "uid": 6
+        }
+      }
+    },
+    {
+      "v": 1,
+      "id": "ev-8830",
+      "timestamp": 1793013562458,
+      "source": "logs",
+      "kind": "primary",
+      "serverId": "srv-lan-01",
+      "matchId": "m-gglan19-71",
+      "map": "de_ancient",
+      "round": 11,
+      "type": "round_start",
+      "payload": {
+        "round": 11
+      }
+    },
+    {
+      "v": 1,
+      "id": "ev-8876",
+      "timestamp": 1793013562458,
+      "source": "logs",
+      "kind": "primary",
+      "serverId": "srv-lan-01",
+      "matchId": "m-gglan19-71",
+      "map": "de_ancient",
+      "round": 11,
+      "type": "kill",
+      "payload": {
+        "kind": "player",
+        "killer": {
+          "name": "Player_03",
+          "steamId": "[U:1:10000003]",
+          "team": "CT"
+        },
+        "victim": {
+          "name": "Player_08",
+          "steamId": "[U:1:10000008]",
+          "team": "TERRORIST"
+        },
+        "weapon": "ak47",
+        "headshot": false,
+        "wallbang": false
+      }
+    },
+    {
+      "v": 1,
+      "id": "ev-8883",
+      "timestamp": 1793013562458,
+      "source": "logs",
+      "kind": "primary",
+      "serverId": "srv-lan-01",
+      "matchId": "m-gglan19-71",
+      "map": "de_ancient",
+      "round": 11,
+      "type": "kill",
+      "payload": {
+        "kind": "player",
+        "killer": {
+          "name": "Player_07",
+          "steamId": "[U:1:10000007]",
+          "team": "TERRORIST"
+        },
+        "victim": {
+          "name": "Player_03",
+          "steamId": "[U:1:10000003]",
+          "team": "CT"
+        },
+        "weapon": "ak47",
+        "headshot": true,
+        "wallbang": false
+      }
+    },
+    {
+      "v": 1,
+      "id": "ev-8886",
+      "timestamp": 1793013562458,
+      "source": "logs",
+      "kind": "primary",
+      "serverId": "srv-lan-01",
+      "matchId": "m-gglan19-71",
+      "map": "de_ancient",
+      "round": 11,
+      "type": "kill",
+      "payload": {
+        "kind": "player",
+        "killer": {
+          "name": "Player_05",
+          "steamId": "[U:1:10000005]",
+          "team": "CT"
+        },
+        "victim": {
+          "name": "Player_09",
+          "steamId": "[U:1:10000009]",
+          "team": "TERRORIST"
+        },
+        "weapon": "ak47",
+        "headshot": true,
+        "wallbang": false
+      }
+    },
+    {
+      "v": 1,
+      "id": "ev-8889",
+      "timestamp": 1793013562458,
+      "source": "logs",
+      "kind": "primary",
+      "serverId": "srv-lan-01",
+      "matchId": "m-gglan19-71",
+      "map": "de_ancient",
+      "round": 11,
+      "type": "kill",
+      "payload": {
+        "kind": "player",
+        "killer": {
+          "name": "Player_05",
+          "steamId": "[U:1:10000005]",
+          "team": "CT"
+        },
+        "victim": {
+          "name": "Player_06",
+          "steamId": "[U:1:10000006]",
+          "team": "TERRORIST"
+        },
+        "weapon": "ak47",
+        "headshot": false,
+        "wallbang": false
+      }
+    },
+    {
+      "v": 1,
+      "id": "ev-8895",
+      "timestamp": 1793013562458,
+      "source": "logs",
+      "kind": "primary",
+      "serverId": "srv-lan-01",
+      "matchId": "m-gglan19-71",
+      "map": "de_ancient",
+      "round": 11,
+      "type": "kill",
+      "payload": {
+        "kind": "player",
+        "killer": {
+          "name": "Player_07",
+          "steamId": "[U:1:10000007]",
+          "team": "TERRORIST"
+        },
+        "victim": {
+          "name": "Player_05",
+          "steamId": "[U:1:10000005]",
+          "team": "CT"
+        },
+        "weapon": "ak47",
+        "headshot": false,
+        "wallbang": false
+      }
+    },
+    {
+      "v": 1,
+      "id": "ev-8906",
+      "timestamp": 1793013562458,
+      "source": "logs",
+      "kind": "primary",
+      "serverId": "srv-lan-01",
+      "matchId": "m-gglan19-71",
+      "map": "de_ancient",
+      "round": 11,
+      "type": "kill",
+      "payload": {
+        "kind": "player",
+        "killer": {
+          "name": "Player_01",
+          "steamId": "[U:1:10000001]",
+          "team": "CT"
+        },
+        "victim": {
+          "name": "Player_10",
+          "steamId": "[U:1:10000010]",
+          "team": "TERRORIST"
+        },
+        "weapon": "m4a1",
+        "headshot": false,
+        "wallbang": false
+      }
+    },
+    {
+      "v": 1,
+      "id": "ev-8925",
+      "timestamp": 1793013562458,
+      "source": "logs",
+      "kind": "primary",
+      "serverId": "srv-lan-01",
+      "matchId": "m-gglan19-71",
+      "map": "de_ancient",
+      "round": 11,
+      "type": "kill",
+      "payload": {
+        "kind": "player",
+        "killer": {
+          "name": "Player_11",
+          "steamId": "[U:1:10000011]",
+          "team": "CT"
+        },
+        "victim": {
+          "name": "Player_07",
+          "steamId": "[U:1:10000007]",
+          "team": "TERRORIST"
+        },
+        "weapon": "m4a1_silencer",
+        "headshot": true,
+        "wallbang": false
+      }
+    },
+    {
+      "v": 1,
+      "id": "ev-8927",
+      "timestamp": 1793013562458,
+      "source": "logs",
+      "kind": "primary",
+      "serverId": "srv-lan-01",
+      "matchId": "m-gglan19-71",
+      "map": "de_ancient",
+      "round": 11,
+      "type": "team_round_win",
+      "payload": {
+        "winner": "CT",
+        "sfuiNotice": "SFUI_Notice_CTs_Win"
+      }
+    },
+    {
+      "v": 1,
+      "id": "ev-9148",
+      "timestamp": 1793013562458,
+      "source": "logs",
+      "kind": "primary",
+      "serverId": "srv-lan-01",
+      "matchId": "m-gglan19-71",
+      "map": "de_ancient",
+      "round": 12,
+      "type": "round_start",
+      "payload": {
+        "round": 12
+      }
+    },
+    {
+      "v": 1,
+      "id": "ev-9244",
+      "timestamp": 1793013562458,
+      "source": "logs",
+      "kind": "primary",
+      "serverId": "srv-lan-01",
+      "matchId": "m-gglan19-71",
+      "map": "de_ancient",
+      "round": 12,
+      "type": "kill",
+      "payload": {
+        "kind": "player",
+        "killer": {
+          "name": "Player_08",
+          "steamId": "[U:1:10000008]",
+          "team": "TERRORIST"
+        },
+        "victim": {
+          "name": "Player_03",
+          "steamId": "[U:1:10000003]",
+          "team": "CT"
+        },
+        "weapon": "ak47",
+        "headshot": true,
+        "wallbang": false
+      }
+    },
+    {
+      "v": 1,
+      "id": "ev-9248",
+      "timestamp": 1793013562458,
+      "source": "logs",
+      "kind": "primary",
+      "serverId": "srv-lan-01",
+      "matchId": "m-gglan19-71",
+      "map": "de_ancient",
+      "round": 12,
+      "type": "kill",
+      "payload": {
+        "kind": "player",
+        "killer": {
+          "name": "Player_01",
+          "steamId": "[U:1:10000001]",
+          "team": "CT"
+        },
+        "victim": {
+          "name": "Player_09",
+          "steamId": "[U:1:10000009]",
+          "team": "TERRORIST"
+        },
+        "weapon": "ak47",
+        "headshot": true,
+        "wallbang": false
+      }
+    },
+    {
+      "v": 1,
+      "id": "ev-9284",
+      "timestamp": 1793013562458,
+      "source": "logs",
+      "kind": "primary",
+      "serverId": "srv-lan-01",
+      "matchId": "m-gglan19-71",
+      "map": "de_ancient",
+      "round": 12,
+      "type": "kill",
+      "payload": {
+        "kind": "player",
+        "killer": {
+          "name": "Player_05",
+          "steamId": "[U:1:10000005]",
+          "team": "CT"
+        },
+        "victim": {
+          "name": "Player_06",
+          "steamId": "[U:1:10000006]",
+          "team": "TERRORIST"
+        },
+        "weapon": "awp",
+        "headshot": false,
+        "wallbang": false
+      }
+    },
+    {
+      "v": 1,
+      "id": "ev-9295",
+      "timestamp": 1793013562458,
+      "source": "logs",
+      "kind": "primary",
+      "serverId": "srv-lan-01",
+      "matchId": "m-gglan19-71",
+      "map": "de_ancient",
+      "round": 12,
+      "type": "kill",
+      "payload": {
+        "kind": "player",
+        "killer": {
+          "name": "Player_10",
+          "steamId": "[U:1:10000010]",
+          "team": "TERRORIST"
+        },
+        "victim": {
+          "name": "Player_11",
+          "steamId": "[U:1:10000011]",
+          "team": "CT"
+        },
+        "weapon": "ak47",
+        "headshot": false,
+        "wallbang": false
+      }
+    },
+    {
+      "v": 1,
+      "id": "ev-9297",
+      "timestamp": 1793013562458,
+      "source": "logs",
+      "kind": "primary",
+      "serverId": "srv-lan-01",
+      "matchId": "m-gglan19-71",
+      "map": "de_ancient",
+      "round": 12,
+      "type": "kill",
+      "payload": {
+        "kind": "player",
+        "killer": {
+          "name": "Player_01",
+          "steamId": "[U:1:10000001]",
+          "team": "CT"
+        },
+        "victim": {
+          "name": "Player_08",
+          "steamId": "[U:1:10000008]",
+          "team": "TERRORIST"
+        },
+        "weapon": "ak47",
+        "headshot": true,
+        "wallbang": false
+      }
+    },
+    {
+      "v": 1,
+      "id": "ev-9304",
+      "timestamp": 1793013562458,
+      "source": "logs",
+      "kind": "primary",
+      "serverId": "srv-lan-01",
+      "matchId": "m-gglan19-71",
+      "map": "de_ancient",
+      "round": 12,
+      "type": "kill",
+      "payload": {
+        "kind": "player",
+        "killer": {
+          "name": "Player_04",
+          "steamId": "[U:1:10000004]",
+          "team": "CT"
+        },
+        "victim": {
+          "name": "Player_10",
+          "steamId": "[U:1:10000010]",
+          "team": "TERRORIST"
+        },
+        "weapon": "ak47",
+        "headshot": false,
+        "wallbang": false
+      }
+    },
+    {
+      "v": 1,
+      "id": "ev-10186",
+      "timestamp": 1793013562459,
+      "source": "logs",
+      "kind": "primary",
+      "serverId": "srv-lan-01",
+      "matchId": "m-gglan19-71",
+      "map": "de_ancient",
+      "round": 12,
+      "type": "team_round_win",
+      "payload": {
+        "winner": "TERRORIST",
+        "sfuiNotice": "SFUI_Notice_Terrorists_Win"
+      }
+    }
+  ]
+}

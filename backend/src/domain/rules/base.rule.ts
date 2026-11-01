@@ -2,7 +2,8 @@ import { AnyEvent } from '@domain/events/match.event';
 import { CommandEvent } from '@domain/events/command.event';
 import { EventType } from '@domain/events/event.types';
 import { RuleContext } from './rule-context';
-import { SaySpec } from '@app/match/messages/messages.types';
+import { SaySpec } from './message-spec.types';
+import { normalizeChatCommand } from './rules.constants';
 
 export interface PhaseRule {
   say?(rct: RuleContext): Promise<SaySpec>;
@@ -10,7 +11,6 @@ export interface PhaseRule {
   handle(ev: AnyEvent, ctx: RuleContext): Promise<void>;
   canHandleCommand?(cmd: string): boolean;
   handleCommand?(cmd: CommandEvent, ctx: RuleContext): Promise<void>;
-  publicTypes?: ReadonlySet<EventType>;
   onEnter?(ctx: RuleContext): Promise<void>;
   onExit?(ctx: RuleContext): Promise<void>;
 }
@@ -20,9 +20,16 @@ export abstract class BaseRule implements PhaseRule {
   protected readonly commands = new Map<string, (cmd: CommandEvent, ctx: RuleContext) => Promise<void>>();
   async say?(rct: RuleContext): Promise<SaySpec>;
   canHandle(t: EventType) { return this.events.has(t); }
-  async handle(ev: AnyEvent, ctx: RuleContext) { const f = this.events.get(ev.type); if (f) await f(ev as any, ctx); }
-  canHandleCommand(cmd: string) { return this.commands.has(cmd); }
-  async handleCommand(cmd: CommandEvent, ctx: RuleContext) { const f = this.commands.get(cmd.payload.command); if (f) await f(cmd, ctx); }
+  async handle(ev: AnyEvent, ctx: RuleContext) { const f = this.events.get(ev.type); if (f) await f(ev, ctx); }
+  canHandleCommand(cmd: string) {
+    const clean = normalizeChatCommand(cmd);
+    return this.commands.has(clean) || this.commands.has(cmd);
+  }
+  async handleCommand(cmd: CommandEvent, ctx: RuleContext) {
+    const clean = normalizeChatCommand(cmd?.payload?.command);
+    const f = this.commands.get(clean) || this.commands.get(cmd?.payload?.command);
+    if (f) await f(cmd, ctx);
+  }
 
   async onEnter(_: RuleContext) {}
   async onExit(_: RuleContext) {}

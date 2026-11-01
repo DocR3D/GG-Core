@@ -2,8 +2,34 @@ import { Injectable, Inject, Logger } from '@nestjs/common';
 import type Redis from 'ioredis';
 import { REDIS_CMD } from '@adapters/redis/redis.tokens';
 import { redisConst } from './redis.keys';
-import { SidesScoreService} from './sides-score.service';
-import { Phase } from '@domain/phase.types';
+import { SidesScoreService } from './sides-score.service';
+import { Phase, MatchPhase, RoundPhase } from '@domain/phase.types';
+import { DEFAULT_TAC_BANK_SEC } from '@domain/rules/rules.constants';
+
+export type PlayerScoreboardEntry = {
+  steamId: string;
+  name: string;
+  side: 'CT' | 'T';
+  logical: 'home' | 'away';
+  kills: number;
+  deaths: number;
+  assists: number;
+  flashAssists: number;
+  headshots: number;
+  hsPercent: number;
+  plants: number;
+  defuses: number;
+  score: number;
+  money: number;
+  equip: number;
+};
+
+export type ScoreboardSnapshot = {
+  ct: PlayerScoreboardEntry[];
+  t: PlayerScoreboardEntry[];
+  home: PlayerScoreboardEntry[];
+  away: PlayerScoreboardEntry[];
+};
 
 type TeamsDoc = {
   ct_id?: string | null;
@@ -48,6 +74,12 @@ export class SnapshotQuery {
       pauseHash,
       homeIds,
       awayIds,
+      matchPhaseRaw,
+      roundPhaseRaw,
+      rawPlayerStats,
+      rawPlayersRoster,
+      halftimePlayed,
+      overtimeCount,
     ] = await Promise.all([
       this.sidesScore.getSides(matchId),
       this.redis.hgetall(redisConst.score(matchId)),
@@ -58,6 +90,12 @@ export class SnapshotQuery {
       this.redis.hgetall(redisConst.pause(matchId)),
       this.redis.lrange(redisConst.lineupHome(matchId), 0, -1),
       this.redis.lrange(redisConst.lineupAway(matchId), 0, -1),
+      this.redis.get(redisConst.phase(matchId)),
+      this.redis.get(redisConst.roundPhase(matchId)),
+      this.redis.hgetall(redisConst.playerStatsHash(matchId)),
+      this.redis.hgetall(redisConst.playersHash(matchId)),
+      typeof this.sidesScore.isHalftimePlayed === 'function' ? this.sidesScore.isHalftimePlayed(matchId) : Promise.resolve(false),
+      typeof this.sidesScore.getOvertimeCount === 'function' ? this.sidesScore.getOvertimeCount(matchId) : Promise.resolve(0),
     ]);
 
     // Résolution ct_id / t_id si non fournis explicitement
@@ -94,8 +132,8 @@ export class SnapshotQuery {
     const startedAtMs = toInt(pauseHash?.started_at) || 0;
 
     // Banques tactiques persistées
-    const tacHomeSec = toInt(pauseHash?.tac_bank_home) || 0;
-    const tacAwaySec = toInt(pauseHash?.tac_bank_away) || 0;
+    const tacHomeSec = pauseHash?.tac_bank_home !== undefined ? toInt(pauseHash.tac_bank_home) : DEFAULT_TAC_BANK_SEC;
+    const tacAwaySec = pauseHash?.tac_bank_away !== undefined ? toInt(pauseHash.tac_bank_away) : DEFAULT_TAC_BANK_SEC;
 
     // Vue effective pendant pause tactique
     const now = Date.now();
@@ -110,8 +148,109 @@ export class SnapshotQuery {
       if (pauseTeam === 'away') effectiveAwayTacSec = Math.max(0, tacAwaySec - elapsedSec);
     }
 
+    const matchPhase = (matchPhaseRaw as MatchPhase) || MatchPhase.WARMUP_MAIN;
+    const roundPhase = (roundPhaseRaw as RoundPhase) || (scoreHash?.phase as RoundPhase) || RoundPhase.FREEZE;
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // Scoreboard (TAB CS2) : fusion stats combat + rosters + économie
+    // ─────────────────────────────────────────────────────────────────────────
+    const allPlayerIds = new Set<string>([
+      ...homeIds,
+      ...awayIds,
+      ...Object.keys(rawPlayersRoster || {}),
+      ...Object.keys(rawPlayerStats || {}),
+      ...Object.keys(playersMoney || {}),
+      ...Object.keys(playersEquip || {}),
+    ]);
+
+    const scoreboardEntries: PlayerScoreboardEntry[] = [];
+
+    for (const pId of allPlayerIds) {
+      let rosterInfo: { name?: string; logical?: 'home' | 'away' } = {};
+      if (rawPlayersRoster?.[pId]) {
+        try {
+          rosterInfo = JSON.parse(rawPlayersRoster[pId]);
+        } catch {}
+      }
+
+      let stats: {
+        name?: string;
+        kills?: number;
+        deaths?: number;
+        assists?: number;
+        flashAssists?: number;
+        headshots?: number;
+        plants?: number;
+        defuses?: number;
+        score?: number;
+      } = {};
+      if (rawPlayerStats?.[pId]) {
+        try {
+          stats = JSON.parse(rawPlayerStats[pId]);
+        } catch {}
+      }
+
+      const name = rosterInfo.name || stats.name || pId;
+      const logical: 'home' | 'away' =
+        homeIds.includes(pId) ? 'home' :
+        awayIds.includes(pId) ? 'away' :
+        (rosterInfo.logical || 'home');
+
+      const resolvedSide = sides ? (logical === 'home' ? sides.home : sides.away) : (logical === 'home' ? 'CT' : 'T');
+      const side: 'CT' | 'T' = (resolvedSide === 'T' || resolvedSide === 'TERRORIST') ? 'T' : 'CT';
+
+      const kills = stats.kills || 0;
+      const deaths = stats.deaths || 0;
+      const assists = stats.assists || 0;
+      const flashAssists = stats.flashAssists || 0;
+      const headshots = stats.headshots || 0;
+      const hsPercent = kills > 0 ? Math.round((headshots / kills) * 100) : 0;
+      const plants = stats.plants || 0;
+      const defuses = stats.defuses || 0;
+      const score = stats.score !== undefined ? stats.score : (kills * 2 + assists);
+      const money = toInt(playersMoney?.[pId]);
+      const equip = toInt(playersEquip?.[pId]);
+
+      scoreboardEntries.push({
+        steamId: pId,
+        name,
+        side,
+        logical,
+        kills,
+        deaths,
+        assists,
+        flashAssists,
+        headshots,
+        hsPercent,
+        plants,
+        defuses,
+        score,
+        money,
+        equip,
+      });
+    }
+
+    const sortByScore = (a: PlayerScoreboardEntry, b: PlayerScoreboardEntry) =>
+      b.score - a.score || b.kills - a.kills || a.deaths - b.deaths;
+
+    const ctList = scoreboardEntries.filter(e => e.side === 'CT').sort(sortByScore);
+    const tList = scoreboardEntries.filter(e => e.side === 'T').sort(sortByScore);
+    const homeList = scoreboardEntries.filter(e => e.logical === 'home').sort(sortByScore);
+    const awayList = scoreboardEntries.filter(e => e.logical === 'away').sort(sortByScore);
+
+    const scoreboard: ScoreboardSnapshot = {
+      ct: ctList,
+      t: tList,
+      home: homeList,
+      away: awayList,
+    };
+
     return {
+      phase: matchPhase,
+      roundPhase,
       matchId,
+      halftimePlayed: Boolean(halftimePlayed),
+      overtimeCount: Number(overtimeCount || 0),
       sides,
       score: {
         t: toInt(scoreHash?.t),
@@ -153,32 +292,56 @@ export class SnapshotQuery {
         away_loss_streak: toInt(econTeam?.away_loss_streak),
         home_loss_bonus: toInt(econTeam?.home_loss_bonus),
         away_loss_bonus: toInt(econTeam?.away_loss_bonus),
+        home_win_streak: toInt(econTeam?.home_win_streak),
+        away_win_streak: toInt(econTeam?.away_win_streak),
         home_bank: homeBank,
         away_bank: awayBank,
         players,
       },
+      streaks: {
+        home: {
+          win: toInt(econTeam?.home_win_streak),
+          loss: toInt(econTeam?.home_loss_streak),
+          lossBonus: toInt(econTeam?.home_loss_bonus) || 1400,
+        },
+        away: {
+          win: toInt(econTeam?.away_win_streak),
+          loss: toInt(econTeam?.away_loss_streak),
+          lossBonus: toInt(econTeam?.away_loss_bonus) || 1400,
+        },
+      },
+      scoreboard,
     };
   }
 
   /**
-   * Lit le hash teams. Si vide, tente de lire l’ancienne String JSON
+   * Lit le hash teams. Si vide, tente de lire l'ancienne String JSON
    * et migre automatiquement vers le hash.
    */
   private async readTeamsHashWithAutoMigrate(matchId: string): Promise<TeamsHash> {
     const key = redisConst.teams(matchId);
 
-    // 1) Essayer en Hash
-    const h = await this.redis.hgetall(key);
-    if (Object.keys(h).length > 0) {
-      return h as TeamsHash;
+    // 1) Essayer en Hash (protégé contre WRONGTYPE si ancienne String JSON)
+    try {
+      const h = await this.redis.hgetall(key);
+      if (Object.keys(h).length > 0) {
+        return h;
+      }
+    } catch {
+      // Clé stockée en String JSON -> on passe au fallback migration ci-dessous
     }
 
     // 2) Fallback migration depuis ancienne String JSON
-    const raw = await this.redis.get(key);
+    let raw: string | null = null;
+    try {
+      raw = await this.redis.get(key);
+    } catch {
+      return {};
+    }
     if (!raw) return {};
 
     try {
-      const o = JSON.parse(raw) as any;
+      const o = JSON.parse(raw);
       const mapped: TeamsHash = {
         ct_id: o.ct_id ?? o.ct?.id,
         t_id: o.t_id ?? o.t?.id,
@@ -190,13 +353,12 @@ export class SnapshotQuery {
         t_name: o.t_name ?? o.t?.name,
       };
 
-      // Ecrire le Hash et supprimer l’ancienne String
-      const flatEntries = Object.entries(mapped)
-        .filter(([, v]) => v != null) as [string, string][];
+      // Supprimer l'ancienne String AVANT d'écrire le Hash (même clé)
+      await this.redis.del(key);
+      const flatEntries = Object.entries(mapped).filter((e): e is [string, string] => e[1] != null);
       if (flatEntries.length > 0) {
         await this.redis.hset(key, Object.fromEntries(flatEntries));
       }
-      await this.redis.del(key); // supprime l'ancienne String (même nom de clé)
 
       this.logger.log(`[teams:migrate] Migrated JSON→Hash for ${key}`);
       return mapped;

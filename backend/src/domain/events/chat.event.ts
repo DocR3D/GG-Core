@@ -8,7 +8,7 @@ export type ChatEvent = BaseEvent<typeof EventTypes.CHAT_MESSAGE,{
     name: string;
     userId: number | null;
     steamId: string | null;   // peut être STEAM_X:Y:Z ou un autre format
-    team: 'CT' | 'TERRORIST' | 'Spectator' | 'Unassigned' | string;
+    team: string; // as logged: CT, TERRORIST, Spectator, Unassigned
   };
   message: string;
 }>;

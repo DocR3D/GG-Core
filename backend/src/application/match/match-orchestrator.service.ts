@@ -1,5 +1,5 @@
 // src/application/match/match-orchestrator.service.ts
-import { Injectable, Logger, Inject, forwardRef } from '@nestjs/common';
+import { Injectable, Logger, Inject, forwardRef, Optional } from '@nestjs/common';
 import type Redis from 'ioredis';
 import { REDIS_PUB } from '@adapters/redis/redis.tokens';
 
@@ -12,23 +12,21 @@ import { Audience } from '@domain/events/internal-events';
 import { SidesScoreService } from './state';
 import { MatchPhase, Phase, RoundPhase } from '@domain/phase.types';
 import { MatchPhaseService } from './phase/match-phase.service';
-import { match } from 'assert';
 import { RoundStartEvent, GenericMatchEvent, BombPlantedEvent, TeamRoundWinEvent, RoundFreezeStartEvent } from '@domain/events/match.event';
-import { WarmupRule } from './rules/warmup.rule';
-import { eventNames } from 'process';
-import { checkServerIdentity } from 'tls';
-import { ContextIdFactory } from '@nestjs/core';
 import { RuleContextFactory } from '@app/rules/rule-context.factory';
-
+import { MatchSettings, MatchReview, DEFAULT_MATCH_SETTINGS } from '@domain/match-settings.types';
+import { CS2_CFG } from '@domain/rules/rules.constants';
+import { REDIS_CHANNELS } from './state/redis.keys';
+import { RuleContext } from '@domain/rules';
+import { TournamentPersistenceService, isUuid } from '@adapters/database/tournament-persistence.service';
+import { MatchAccess, MatchAccessService } from './access/match-access.service';
+import { TeamPlacementService } from './access/team-placement.service';
+import { errorMessage } from '@app/shared/error-message';
 
 type ResumeMeta = { source?: 'expired' | 'admin' | 'chat'; reason?: 'tactical'|'technical'|'admin' };
 
 @Injectable()
 export class MatchOrchestrator {
-
-
-
-
   private readonly log = new Logger(MatchOrchestrator.name);
   // 1 timer par match (auto-unpause des temps-morts tactiques)
   private autoTimers = new Map<string, NodeJS.Timeout>();
@@ -45,9 +43,20 @@ export class MatchOrchestrator {
     private readonly sides: SidesScoreService,   // optionnel mais idéal
     @Inject(forwardRef(() => RuleContextFactory))
     private readonly ctxFactory: RuleContextFactory,
-
     @Inject(REDIS_PUB) private readonly pub: Redis,
+    @Optional() private readonly tournamentPersistence?: TournamentPersistenceService,
+    @Optional() private readonly access?: MatchAccessService,
+    @Optional() private readonly placement?: TeamPlacementService,
   ) {}
+
+  /**
+   * Both teams ready, before the countdown to the live: with sides chosen in the veto, are the players on their
+   * side? false = the live waits (players told in the chat). Always true for other matches.
+   */
+  async checkTeamPlacement(matchId: string, serverId: string): Promise<boolean> {
+    if (!this.placement || !serverId) return true;
+    return this.placement.checkBeforeLive(matchId, serverId);
+  }
 
   // ---------------------------------------------------------------------------
   // Helpers
@@ -60,13 +69,13 @@ export class MatchOrchestrator {
     return { serverId, matchId };
   }
 
-    // programme un timer; à l’échéance on re-vérifie l’état et on resume si la banque est à 0
-    private armAutoUnpause(matchId: string, serverId: string, seconds: number) {
+  // programme un timer; à l'échéance on re-vérifie l'état et on resume si la banque est à 0
+  private armAutoUnpause(matchId: string, serverId: string, seconds: number) {
     this.disarmAutoUnpause(matchId); // idempotent
     const delayMs = Math.max(0, Math.floor(seconds)) * 1000;
 
-    const t = setTimeout(async () => {
-        try {
+    const t = setTimeout(() => void (async () => {
+      try {
         const st = await this.pause.getPauseState(matchId); // { state, reason, team, startedAt, tacBankHome, tacBankAway }
 
         // Toujours vérifier qu'on est encore en pause tactique
@@ -77,29 +86,30 @@ export class MatchOrchestrator {
         const remaining = Math.max(0, bank - elapsed);
 
         if (remaining > 0) {
-            // Drift ou banque ajustée : on réarme pour le restant
-            this.armAutoUnpause(matchId, serverId, remaining);
-            return;
+          // Drift ou banque ajustée : on réarme pour le restant
+          this.armAutoUnpause(matchId, serverId, remaining);
+          return;
         }
 
         // Banque à 0 → orchestrer la reprise (annule périodiques via PauseMatchService.resume)
         await this.resume({ matchId, serverId }, { source: 'expired', reason: 'tactical' });
-        } catch (e) {
-        // log si tu veux; on ne relance pas pour éviter boucle en échec
-        }
-    }, delayMs);
+      } catch (e) {
+        // not re-armed: a failing resume would loop
+        this.log.warn(`auto-unpause failed match=${matchId}: ${String(e)}`);
+      }
+    })(), delayMs).unref();
 
     this.autoTimers.set(matchId, t);
-    }
+  }
 
-    private disarmAutoUnpause(matchId: string) {
+  private disarmAutoUnpause(matchId: string) {
     const t = this.autoTimers.get(matchId);
     if (t) clearTimeout(t);
     this.autoTimers.delete(matchId);
-    }
+  }
 
-  private async notify(type: string, payload: any) {
-    await this.pub.publish('ggbot:events', JSON.stringify({ v: 1, type, timestamp: Date.now(), ...payload }));
+  private async notify(type: string, payload: Record<string, unknown>) {
+    await this.pub.publish(REDIS_CHANNELS.EVENTS, JSON.stringify({ v: 1, type, timestamp: Date.now(), ...payload }));
   }
 
   // ---------------------------------------------------------------------------
@@ -116,89 +126,68 @@ export class MatchOrchestrator {
     // Autorisation (banque dispo, pas déjà en pause…)
     const chk = await this.pause.isPauseAllowed(matchId, { reason: 'tactical', team });
     if (!chk.allowed) return { ok: false, why: chk.why };
-    if(await this.phase.getRoundPhase(matchId) != RoundPhase.FREEZE){
-      this.cmds.say(serverId, "La demande de pause a été enregistré ! ");
-      this.pause.pause(matchId,serverId,{reason:'tactical',team,armOnly:true});
+
+    const roundPhase = await this.phase.getRoundPhase(matchId);
+    if (roundPhase !== RoundPhase.FREEZE) {
+      // Pas en freeze : on arme la pause pour la prochaine freeze time
+      await this.cmds.say(serverId, 'La demande de pause a ete enregistree !');
+      await this.pause.pause(matchId, serverId, { reason: 'tactical', team, armOnly: true });
       return { ok: true };
-    }else{
+    }
+
+    // En freeze : pause immédiate
+    await this.cmds.pause({ serverId, matchId });
+    await this.pause.pause(matchId, serverId, { reason: 'tactical', team });
+    const bank = await this.pause.getTacBank(matchId, team);
+    this.armAutoUnpause(matchId, serverId, bank);
+
+    await this.notify('pause:started', { matchId, serverId, reason: 'tactical', team });
+    return { ok: true };
+  }
+
+  async applyPauseIfArmed(
+    ev: (GenericMatchEvent & { serverId?: string }) | (RoundFreezeStartEvent & { serverId?: string })
+  ) {
+    const res = await this.pause.consumeArmed(ev.matchId);
+    if (res.consumed && res.pick) {
+      const reason = res.pick.req.reason;
+      const duration = res.pick.req.durationSec ?? (reason === 'tactical' ? 30 : 60);
+
+      // 1) Appliquer la pause côté état + messages périodiques
+      await this.pause.pause(ev.matchId, ev.serverId, {
+        reason,
+        team: res.pick.team,
+        durationSec: duration,
+        armOnly: false,
+        by: res.pick.req.by,
+      });
+
+      // 2) Demander la pause à l'agent (ingame)
+      await this.cmds.pause(ev);
+
+      // 3) Auto-unpause si pause tactique
+      if (reason === 'tactical' && res.pick.team !== 'system') {
+        const bank = await this.pause.getTacBank(ev.matchId, res.pick.team);
+        this.armAutoUnpause(ev.matchId, ev.serverId, bank);
+      }
+    }
+  }
+
+  /** Pause technique (admin ou commande) : illimitée par défaut, pas de timer auto */
+  async requestPauseTechnical(
+    ids: { serverId?: string | null; matchId?: string | null },
+    team: Logical | 'system' = 'home'
+  ): Promise<{ ok: true }> {
     const { serverId, matchId } = await this.resolve(ids);
 
-    // Autorisation (banque dispo, pas déjà en pause…)
-    const chk = await this.pause.isPauseAllowed(matchId, { reason: 'tactical', team });
-    if (!chk.allowed) return { ok: false, why: chk.why };
-      // Côté in-game + état pause: laisse faire la commande haut-niveau existante
-      // (elle publie l'action agent + pose l'état pause) :contentReference[oaicite:0]{index=0}
-      await this.cmds.pause({ serverId, matchId});
-
-      // Armer le timer auto-unpause depuis l’orchestrateur (V1 “solution 2”)
-      // 👉 IMPORTANT : enlève le setTimeout interne actuel dans PauseMatchService.startTactical
-      // pour éviter un double timer. :contentReference[oaicite:1]{index=1}
-      this.pause.pause(matchId,serverId,{reason:'tactical',team})
-      const bank = await this.pause.getTacBank(matchId, team);
-      this.armAutoUnpause(matchId, serverId, bank);
-
-      await this.notify('pause:started', { matchId, serverId, reason: 'tactical', team });
-      return { ok: true };
-    }
-  }
-  // src/application/match/match-orchestrator.service.ts (extrait)
-
-async applyPauseIfArmed(
-  ev: (GenericMatchEvent & { serverId?: string }) | (RoundFreezeStartEvent & { serverId?: string })
-) {
-  const res = await this.pause.consumeArmed(ev.matchId);
-  if (res.consumed && res.pick) {
-    const reason = res.pick.req.reason;
-    const duration = res.pick.req.durationSec ?? (reason === 'tactical' ? 30 : 60);
-
-    // 1) Appliquer la pause côté état + messages périodiques
-    await this.pause.pause(ev.matchId, ev.serverId!, {
-      reason,
-      team: res.pick.team,
-      durationSec: duration,
+    await this.pause.pause(matchId, serverId, {
+      reason: 'technical',
+      team,
       armOnly: false,
-      by: res.pick.req.by,
     });
-
-    // 2) Demander la pause à l'agent (ingame)
-    await this.cmds.pause(ev);
-
-    // 3) Auto-unpause si pause tactique
-    if (reason === 'tactical' && res.pick.team !== 'system') {
-      const bank = await this.pause.getTacBank(ev.matchId, res.pick.team);
-      this.armAutoUnpause(ev.matchId, ev.serverId!, bank);
-    }
-  }
-}
-
-
-  async execCfg(
-    ids: { matchId?: string; serverId?: string },
-    cfgName: string,
-    ) {
-        const { serverId, matchId } = await this.resolve(ids); // résout ce qui manque
-        await this.cmds.exec({ serverId, cfgName, matchId}); // appelle le service I/O
-    }
-
-    // (optionnel) version séquencée, utile pour enchaîner plusieurs cfgs proprement
-    async execCfgs(
-    ids: { matchId?: string; serverId?: string },
-    cfgs: string[],
-    gapMs = 300
-    ) {
-    for (const name of cfgs) {
-        await this.execCfg(ids, name);
-        if (gapMs) await new Promise(r => setTimeout(r, gapMs));
-    }
-  }
-
-
-    // pauseTechnical (Logical only en V1)
-  async pauseTechnical(ids: { serverId?: string|null; matchId?: string|null }, team: Logical) {
-      const { serverId, matchId } = await this.resolve(ids);
-      await this.cmds.pause({ serverId, matchId});
-      await this.notify('pause:started', { matchId, serverId, reason: 'technical', team });
-      return { ok: true as const };
+    await this.cmds.pause({ serverId, matchId });
+    await this.notify('pause:started', { matchId, serverId, reason: 'technical', team });
+    return { ok: true as const };
   }
 
   /** Resume (manuel ou auto-expire) : reset règles + unpause in-game + notify */
@@ -210,8 +199,8 @@ async applyPauseIfArmed(
 
     this.disarmAutoUnpause(matchId); // stoppe un éventuel timer
 
-    await this.pause.resume(matchId);        // débit banque + stop périodiques + reset état :contentReference[oaicite:3]{index=3}
-    await this.cmds.unpause({ serverId, matchId }); // agent “unpause” + phase=live côté state existant :contentReference[oaicite:4]{index=4}
+    await this.pause.resume(matchId);        // débit banque + stop périodiques + reset état
+    await this.cmds.unpause({ serverId, matchId }); // agent "unpause" + phase=live côté state existant
 
     await this.notify('pause:resumed', {
       matchId,
@@ -223,16 +212,90 @@ async applyPauseIfArmed(
     return { ok: true };
   }
 
-    async push(
-        matchId: string,
-        wsEventType: WsEventType,
-        payload: any,
-        audience?: Audience, // optionnel si ton WsBroadcaster le supporte
-    ) {
-        await this.ws.push(matchId,wsEventType, payload, audience);
+  async push(
+    matchId: string,
+    wsEventType: WsEventType,
+    payload: unknown,
+    audience?: Audience,
+  ) {
+    await this.ws.push(matchId, wsEventType, payload, audience);
+  }
+
+  // ---------------------------------------------------------------------------
+  // Server Game Over vs GG-Core: the server is the truth for what was PLAYED (score), GG-Core for what the
+  // RULES decide (MR, overtimes, no draw). When they disagree nothing is decided silently: the result is
+  // frozen (events ignored, see MatchEventsHandler) until an admin accepts the server result or dismisses.
+  // ---------------------------------------------------------------------------
+
+  /** The Game Over line arrives in the same second as the last round's events: let GG-Core process them first. */
+  static GAME_OVER_SETTLE_MS = 5000;
+
+  onServerGameOver(matchId: string, serverId: string | undefined, serverScore: { ct: number; t: number }) {
+    setTimeout(() => {
+      this.checkServerGameOver(matchId, serverId, serverScore).catch((e) =>
+        this.log.warn(`[gameOver] check failed for ${matchId}: ${errorMessage(e)}`),
+      );
+    }, MatchOrchestrator.GAME_OVER_SETTLE_MS).unref(); // unref: a pending timer alone does not keep the process up
+  }
+
+  async checkServerGameOver(matchId: string, serverId: string | undefined, serverScore: { ct: number; t: number }) {
+    if (await this.state.getReview(matchId)) return;
+    const phase = await this.state.getPhase(matchId);
+    const snapshot = await this.state.getSnapshot(matchId);
+    const ggScore = { ct: snapshot.score.ct, t: snapshot.score.t };
+
+    if (phase === MatchPhase.POSTGAME && ggScore.ct === serverScore.ct && ggScore.t === serverScore.t) {
+      this.log.log(`[gameOver] ${matchId}: server Game Over ${serverScore.ct}:${serverScore.t} confirms GG-Core`);
+      return;
     }
 
-  /** Push le snapshot de match courant (convenience) */
+    const review: MatchReview = {
+      reason: phase === MatchPhase.POSTGAME ? 'final_score_mismatch' : 'server_ended_match',
+      serverScore,
+      ggScore,
+      ggPhase: String(phase),
+      openedAt: Date.now(),
+    };
+    await this.state.setReview(matchId, review);
+    this.log.warn(
+      `[gameOver] ${matchId}: REVIEW REQUIRED (${review.reason}) server ${serverScore.ct}:${serverScore.t} / GG-Core ${ggScore.ct}:${ggScore.t} phase=${phase}`,
+    );
+    await this.push(matchId, 'match:review_required', { matchId, ...review }, 'admin');
+    const sid = serverId ?? (await this.state.getServerIdFromMatchId(matchId));
+    if (sid) {
+      await this.cmds.say(sid, '[GG-Core] Fin de match du serveur non conforme au règlement : résultat gelé, un admin va arbitrer.');
+    }
+  }
+
+  getReview(matchId: string) {
+    return this.state.getReview(matchId);
+  }
+
+  /**
+   * accept_server: GG-Core takes the server score and ends the match with it (a draw stays a draw).
+   * dismiss: the freeze is lifted, GG-Core keeps its own state (e.g. the admin restored a backup to play on).
+   */
+  async resolveReview(matchId: string, decision: 'accept_server' | 'dismiss') {
+    const review = await this.state.getReview(matchId);
+    if (!review) return { ok: false as const, why: 'no_review' };
+    await this.state.setReview(matchId, null);
+
+    if (decision === 'accept_server') {
+      const { ct, t } = review.serverScore;
+      await this.state.reconcileScore(matchId, ct, t);
+      if ((await this.state.getPhase(matchId)) !== MatchPhase.POSTGAME) {
+        const winner: GameSide | null = ct > t ? 'CT' : t > ct ? 'T' : null;
+        const serverId = await this.state.getServerIdFromMatchId(matchId);
+        await this.endMatch(matchId, winner, this.ctxFactory.make({ matchId, serverId: serverId ?? undefined }));
+      } else {
+        await this.pushState(matchId);
+      }
+    }
+    this.log.log(`[gameOver] ${matchId}: review resolved (${decision})`);
+    await this.push(matchId, 'match:review_resolved', { matchId, decision, review }, 'admin');
+    return { ok: true as const, decision };
+  }
+
   async pushState(matchId: string) {
     const snapshot = await this.state.getSnapshot(matchId);
     await this.ws.push(matchId, 'match:state', snapshot);
@@ -241,86 +304,288 @@ async applyPauseIfArmed(
   async sideToLogical(
     matchId: string,
     sideInput: GameSide
-    ): Promise<Logical | null> {
-        return this.state.sideToLogical(matchId, sideInput);
-    }
-
-    applyKnifeResult(matchId: string, winnerFromEvent: 'CT' | 'T') {
-        return this.state.applyKnifeResult(matchId,winnerFromEvent);
-    }
-    startPhaseCountdown(matchId: string, nextPhase: MatchPhase, seconds: number, serverId: string) {
-        return this.phase.startPhaseCountdown(matchId,nextPhase,seconds,serverId);
-    }
-    logicalToSide(matchId: string, logicalTeam: Logical) {
-       return  this.state.logicalToSide(matchId,logicalTeam)
-    }
-    rcon(opts: { serverId: string; matchId: string; command: string; }) {
-        return this.cmds.rcon(opts);
-    }
-    restartGame(opts: { serverId: string; matchId: string; delay: number; }) {
-        return this.cmds.restartGame(opts)
-    }
-
-    isBothReady(matchId: string) {
-        return this.phase.isBothReady(matchId);
-    }
-    setReady(matchId: string, team: any, ready: boolean) {
-        return this.phase.setReady(matchId,team, ready);
-    }
-    getKnifeResult(matchId: string) {
-        return this.state.getKnifeResult(matchId);
-    }
-    roundEnd(matchId: string, winner: GameSide) {
-        return this.state.roundEnd(matchId, winner);
-    }
-    swapSides(matchId: string) {
-      this.cmds.swapSides({matchId});
-        return this.state.swapSides(matchId);
-    }
-
-  async onFreezeTimeStart(ev: (GenericMatchEvent & { serverId?: string; }) | (RoundFreezeStartEvent & { serverId?: string; })) {
-    this.log.debug("Freeze time started !")
-    this.phase.setRoundPhase(ev.matchId, RoundPhase.FREEZE);
-    this.applyPauseIfArmed(ev);
-  }
-  onRoundEnd(ev: (TeamRoundWinEvent & { serverId?: string; }) | (GenericMatchEvent & { serverId?: string; })) {
-    this.phase.setRoundPhase(ev.matchId, RoundPhase.END);
-    this.log.debug("Round ended !");
-    }
-  onBombPlanted(ev: (BombPlantedEvent & { serverId?: string; }) | (GenericMatchEvent & { serverId?: string; })) {
-    this.phase.setRoundPhase(ev.matchId, RoundPhase.BOMB_PLANTED);
-    this.log.debug("Bomb planted !");
+  ): Promise<Logical | null> {
+    return this.state.sideToLogical(matchId, sideInput);
   }
 
-  async onRoundStart(ev: (RoundStartEvent & { serverId?: string; }) | (GenericMatchEvent & { serverId?: string; })) {
-        this.phase.setRoundPhase(ev.matchId, RoundPhase.LIVE);
+  applyKnifeResult(matchId: string, winnerFromEvent: 'CT' | 'T') {
+    return this.state.applyKnifeResult(matchId, winnerFromEvent);
+  }
 
+  isCountdownActive(matchId: string) {
+    return this.phase.isCountdownActive(matchId);
+  }
 
-        const ctx = this.ctxFactory.make({ matchId: ev.matchId, serverId: ev.serverId });
-        const s = await ctx.state.getSnapshot(ctx.matchId); 
-        const HCT   = s.sides?.home === 'CT';
-        const ctBank = (HCT ? s.economy.home_bank : s.economy.away_bank) ?? 0;
-        const tBank  = (HCT ? s.economy.away_bank : s.economy.home_bank) ?? 0;
-        const ctLS   = (HCT ? s.economy.home_loss_streak : s.economy.away_loss_streak) ?? 0;
-        const tLS    = (HCT ? s.economy.away_loss_streak : s.economy.home_loss_streak) ?? 0;
+  startPhaseCountdown(matchId: string, nextPhase: MatchPhase, seconds: number, serverId: string) {
+    return this.phase.startPhaseCountdown(matchId, nextPhase, seconds, serverId);
+  }
 
-        this.log.log(
-          `ROUND ${s.score.round} [${s.score.phase}] | CT:${s.teams.ct_name} ${s.score.ct} (bank=${ctBank},ls=${ctLS}) | ` +
-          `T:${s.teams.t_name} ${s.score.t} (bank=${tBank},ls=${tLS}) | match=${s.matchId}`
-        );
+  logicalToSide(matchId: string, logicalTeam: Logical) {
+    return this.state.logicalToSide(matchId, logicalTeam);
+  }
 
-        this.log.debug("Round Live !");
+  rcon(opts: { serverId: string; matchId: string; command: string }) {
+    return this.cmds.rcon(opts);
+  }
+
+  /** Applies one of GG-Core's .cfg (agent/cfg/ggbot) line by line through the agent (they do not exist on the server). */
+  async execCfg(opts: { serverId: string; matchId: string }, cfg: string) {
+    return this.cmds.exec({ serverId: opts.serverId, matchId: opts.matchId, cfgName: cfg });
+  }
+
+  restartGame(opts: { serverId: string; matchId: string; delay: number }) {
+    return this.cmds.restartGame(opts);
+  }
+
+  isBothReady(matchId: string) {
+    return this.phase.isBothReady(matchId);
+  }
+
+  setReady(matchId: string, team: Logical, ready: boolean) {
+    return this.phase.setReady(matchId, team, ready);
+  }
+
+  resetReady(matchId: string) {
+    return this.phase.resetReady(matchId);
+  }
+
+  getKnifeResult(matchId: string) {
+    return this.state.getKnifeResult(matchId);
+  }
+
+  roundEnd(matchId: string, winner: GameSide) {
+    return this.state.roundEnd(matchId, winner);
+  }
+
+  async swapSides(matchId: string) {
+    const ok = await this.state.swapSides(matchId);
+    if (ok) {
+      const sides = await this.state.getSides(matchId);
+      await this.push(matchId, 'sides:swapped', { sides });
+    }
+    return ok;
+  }
+
+  async onFreezeTimeStart(ev: (GenericMatchEvent & { serverId?: string }) | (RoundFreezeStartEvent & { serverId?: string })) {
+    this.log.debug('Freeze time started !');
+    await this.phase.setRoundPhase(ev.matchId, RoundPhase.FREEZE);
+    await this.applyPauseIfArmed(ev);
+  }
+
+  async onRoundEnd(ev: (TeamRoundWinEvent & { serverId?: string }) | (GenericMatchEvent & { serverId?: string })) {
+    await this.phase.setRoundPhase(ev.matchId, RoundPhase.END);
+    this.log.debug('Round ended !');
+  }
+
+  async onBombPlanted(ev: (BombPlantedEvent & { serverId?: string }) | (GenericMatchEvent & { serverId?: string })) {
+    await this.phase.setRoundPhase(ev.matchId, RoundPhase.BOMB_PLANTED);
+    this.log.debug('Bomb planted !');
+  }
+
+  async onRoundStart(ev: (RoundStartEvent & { serverId?: string }) | (GenericMatchEvent & { serverId?: string })) {
+    await this.phase.setRoundPhase(ev.matchId, RoundPhase.LIVE);
+
+    const s = await this.state.getSnapshot(ev.matchId);
+    const HCT = s.sides?.home === 'CT';
+    const ctBank = (HCT ? s.economy.home_bank : s.economy.away_bank) ?? 0;
+    const tBank = (HCT ? s.economy.away_bank : s.economy.home_bank) ?? 0;
+    const ctLS = (HCT ? s.economy.home_loss_streak : s.economy.away_loss_streak) ?? 0;
+    const tLS = (HCT ? s.economy.away_loss_streak : s.economy.home_loss_streak) ?? 0;
+
+    this.log.log(
+      `ROUND ${s.score.round} [${s.score.phase}] | CT:${s.teams.ct_name} ${s.score.ct} (bank=${ctBank},ls=${ctLS}) | ` +
+      `T:${s.teams.t_name} ${s.score.t} (bank=${tBank},ls=${tLS}) | match=${s.matchId}`
+    );
+
+    this.log.debug('Round Live !');
   }
 
   startWarmup(serverId: string) {
-    this.cmds.rcon({serverId,command: "mp_warmup_start"})
+    return this.cmds.rcon({ serverId, command: 'mp_warmup_start' });
   }
 
   setPhase(matchId: string, phase: Phase) {
-    this.sides.setPhase(matchId,phase)
+    return this.sides.setPhase(matchId, phase);
   }
+
   async getPhase(matchId: string) {
-    return this.sides.getPhase(matchId)
+    return this.sides.getPhase(matchId);
   }
-  
+
+  // ---------------------------------------------------------------------------
+  // Lifecycle: Match Start & End Automation
+  // ---------------------------------------------------------------------------
+
+  async startMatch(opts: {
+    serverId: string;
+    matchId: string;
+    mapName?: string;
+    settings?: Partial<MatchSettings>;
+    /** Server password and players allowed; none = server without password nor whitelist (Sandbox, tests) */
+    access?: MatchAccess;
+  }) {
+    const { serverId, matchId } = opts;
+    const mapName = opts.mapName ?? 'de_mirage';
+    const settings = { ...DEFAULT_MATCH_SETTINGS, ...(opts.settings ?? {}) };
+
+    await this.state.setSettings(matchId, settings);
+    await this.state.setServerIdToMatchId(serverId, matchId);
+    await this.pause.initTacBanks(matchId, settings.tacticalPauseBankSec);
+
+    // 1) GOTV must be enabled BEFORE the map loads, otherwise tv_record answers "GOTV not active"
+    //    and no demo is recorded (observed on a real server).
+    await this.cmds.rcon({ serverId, matchId, command: 'tv_enable 1' }).catch(() => {});
+
+    // 2) Change map if needed
+    try {
+      await this.cmds.changeLevel({ serverId, map: mapName });
+    } catch (err) {
+      this.log.debug(`changelevel: ${errorMessage(err)}`);
+    }
+
+    // 3) Warmup config (applied by the agent) & start GOTV demo recording
+    await this.execCfg({ serverId, matchId }, CS2_CFG.WARMUP).catch(() => {});
+    // Access (sv_password, public GOTV) AFTER the map change: CS2 runs server.cfg at each map load, and a
+    // server.cfg with `sv_password ""` wiped a password set before changelevel (seen on the dev server). Commands
+    // sent after changelevel reach the server once the map is loaded, like the warmup cfg above.
+    const access = await this.access?.apply(matchId, serverId, opts.access);
+    await this.cmds.rcon({ serverId, matchId, command: `tv_record "${matchId}_${mapName}"` }).catch(() => {});
+
+    // 3) Initial phase
+    const initialPhase = settings.knifeEnabled ? MatchPhase.KNIFE_WARMUP : MatchPhase.WARMUP_MAIN;
+    await this.setPhase(matchId, initialPhase);
+
+    // 4) In-game announcement & WS broadcast
+    await this.cmds.say(serverId, `[GG-Core] Match configuré sur ${mapName} ! Tapez !ready quand vous êtes prêts.`);
+    await this.push(matchId, 'match:state', await this.state.getSnapshot(matchId));
+
+    return { ok: true, matchId, serverId, map: mapName, phase: initialPhase, access };
+  }
+
+  async endMatch(matchId: string, winnerSide: GameSide | null, ctx: RuleContext) {
+    const serverId = ctx.serverId ?? (await this.state.getServerIdFromMatchId(matchId));
+    const snapshot = await this.state.getSnapshot(matchId);
+    const settings = await this.state.getSettings(matchId);
+
+    // 1. Transition phase to POSTGAME
+    await this.setPhase(matchId, MatchPhase.POSTGAME);
+
+    // 2. Announce winner
+    let winnerLogical: Logical | null = null;
+    let winnerName = 'Match nul';
+    let winnerId: string | undefined = undefined;
+
+    if (winnerSide) {
+      winnerLogical = await this.state.sideToLogical(matchId, winnerSide);
+      const configuredName = winnerLogical === 'home' ? snapshot.teams.home_name : snapshot.teams.away_name;
+      const defaultSideName = winnerSide === 'CT' ? 'Counter-Terrorists' : 'Terrorists';
+      winnerName = configuredName?.trim() || defaultSideName;
+      winnerId = (winnerLogical === 'home' ? snapshot.teams.home_id : snapshot.teams.away_id) ?? undefined;
+      await ctx.say(`[GG-Core] MATCH TERMINÉ ! Victoire de ${winnerName} (${snapshot.score.ct}-${snapshot.score.t}) !`);
+    } else {
+      await ctx.say(`[GG-Core] MATCH TERMINÉ ! Égalité (${snapshot.score.ct}-${snapshot.score.t}) !`);
+    }
+
+    // 3. Stop GOTV recording via RCON
+    if (serverId) {
+      try {
+        await this.cmds.rcon({ serverId, matchId, command: 'tv_stoprecord' });
+        this.log.log(`[endMatch] tv_stoprecord executed on server ${serverId}`);
+      } catch (err) {
+        this.log.warn(`[endMatch] tv_stoprecord failed: ${errorMessage(err)}`);
+      }
+    }
+
+    // 4. Broadcast match:ended via WebSocket
+    await this.push(matchId, 'match:ended', {
+      matchId,
+      winner: winnerName,
+      winnerSide,
+      winnerLogical,
+      score: snapshot.score,
+      teams: snapshot.teams,
+      sides: snapshot.sides,
+    });
+
+    // 5. Tournament model (only for maps linked to the relational model): the game result (automatic, confirmed),
+    //    then the series - BO1 / BO3 / BO5 advance the bracket through the same path as an admin entry.
+    if (this.tournamentPersistence) {
+      try {
+        const homeSide = snapshot.sides?.home === 'T' ? 't' : 'ct';
+        const awaySide = homeSide === 'ct' ? 't' : 'ct';
+        const linkedMap = await this.state.getDbMatchMapId(matchId);
+        const game = await this.tournamentPersistence.recordGameResult({
+          matchMapId: linkedMap ?? (isUuid(matchId) ? matchId : null),
+          scoreHome: snapshot.score[homeSide] ?? 0,
+          scoreAway: snapshot.score[awaySide] ?? 0,
+          winnerTeamId: winnerId ?? null,
+          source: 'AUTOMATIC',
+          status: 'CONFIRMED',
+          reportedBy: 'cs2',
+        });
+        if (game) {
+          await this.tournamentPersistence.updateSeries(game.matchId);
+        } else if (winnerId && isUuid(winnerId)) {
+          // No game row: the real-time id may directly be the UUID of a Match
+          const dbMatchId = await this.tournamentPersistence.resolveBracketMatchId(matchId, null);
+          if (dbMatchId) await this.tournamentPersistence.advanceBracketMatch(dbMatchId, winnerId);
+        } else {
+          this.log.debug(`[endMatch] match ${matchId} not linked to the tournament model: nothing recorded`);
+        }
+      } catch (err) {
+        this.log.warn(`[endMatch] tournament result not recorded: ${errorMessage(err)}`);
+      }
+    }
+
+    // 6. Server cleanup action (soft_reset vs restart), DELAYED: right after Game Over CS2 shows the end
+    //    screen / scoreboard during its intermission. Resetting at once cut it and left players frozen
+    //    (warmup started during the intermission) - observed on a real server.
+    if (serverId) {
+      const delaySec = settings.postgameResetDelaySec ?? DEFAULT_MATCH_SETTINGS.postgameResetDelaySec;
+      this.log.log(`[endMatch] server ${serverId} reset (${settings.postgameAction}) in ${delaySec}s`);
+      setTimeout(() => {
+        this.resetServerAfterMatch(serverId, matchId, settings.postgameAction).catch((e) =>
+          this.log.warn(`[endMatch] server reset failed: ${errorMessage(e)}`),
+        );
+      }, delaySec * 1000).unref();
+
+      // 7. Free the server: at the LAN people stay connected long after their match. 'restart' quits anyway.
+      const kickSec = settings.postgameKickDelaySec ?? DEFAULT_MATCH_SETTINGS.postgameKickDelaySec;
+      if (kickSec > 0 && settings.postgameAction !== 'restart') {
+        this.log.log(`[endMatch] players of server ${serverId} kicked in ${kickSec}s`);
+        setTimeout(() => {
+          this.kickPlayersAfterMatch(serverId, matchId).catch((e) =>
+            this.log.warn(`[endMatch] kick failed: ${errorMessage(e)}`),
+          );
+        }, kickSec * 1000).unref();
+      }
+    }
+  }
+
+  /** True when a new match was started on this server since `matchId` ended: postgame actions must not touch it. */
+  private async serverMovedOn(serverId: string, matchId: string): Promise<boolean> {
+    const current = await this.state.getMatchIdFromServerId(serverId);
+    if (current && current !== matchId) {
+      this.log.log(`[endMatch] server ${serverId} now runs ${current}: postgame action skipped`);
+      return true;
+    }
+    return false;
+  }
+
+  private async kickPlayersAfterMatch(serverId: string, matchId: string) {
+    if (await this.serverMovedOn(serverId, matchId)) return;
+    await this.cmds.kickAll({ serverId, message: "Match terminé, merci d'avoir joué ! Le serveur est libéré." });
+  }
+
+  private async resetServerAfterMatch(serverId: string, matchId: string, action: MatchSettings['postgameAction']) {
+    // A new match may have been started on this server during the delay: never reset it.
+    if (await this.serverMovedOn(serverId, matchId)) return;
+    if (action === 'restart') {
+      this.log.log(`[endMatch] Executing RCON quit to purge RAM and restart server ${serverId}`);
+      await this.cmds.rcon({ serverId, matchId, command: 'quit' });
+      return;
+    }
+    await this.cmds.rcon({ serverId, matchId, command: 'mp_warmup_start 1' });
+    await this.execCfg({ serverId, matchId }, CS2_CFG.WARMUP);
+  }
 }

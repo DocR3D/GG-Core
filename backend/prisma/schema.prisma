@@ -1,0 +1,477 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// =============================================================================
+// ENUMS
+// =============================================================================
+
+enum TournamentStatus {
+  UPCOMING
+  ACTIVE
+  COMPLETED
+  ARCHIVED
+}
+
+enum RosterRole {
+  STARTER
+  SUBSTITUTE
+  COACH
+}
+
+enum ServerStatus {
+  IDLE
+  BUSY
+  OFFLINE
+}
+
+enum MatchFormat {
+  BO1
+  BO3
+  BO5
+}
+
+enum MatchStage {
+  GROUP
+  PLAYOFFS
+  AMATEUR
+  SHOWMATCH
+}
+
+/// Moteur d'une phase : poules (chacun contre chacun) ou double élimination.
+enum StageType {
+  ROUND_ROBIN
+  DOUBLE_ELIM
+}
+
+/// Place d'une équipe dans un match (domicile / extérieur). En grande finale, HOME = finaliste du bracket supérieur.
+enum BracketSlot {
+  HOME
+  AWAY
+}
+
+enum BracketType {
+  UPPER
+  LOWER
+  ROUND_ROBIN
+  FINAL
+}
+
+enum MatchStatus {
+  PENDING
+  VETO
+  LIVE
+  FINISHED
+  CANCELLED
+}
+
+/// Où vient le résultat d'un game : moteur de jeu (CS2) ou saisie humaine (admin, plus tard capitaine).
+enum ResultSource {
+  AUTOMATIC
+  MANUAL
+}
+
+/// Cycle de vie d'un résultat : déclaré → confirmé, ou contesté (arbitrage admin).
+enum ResultStatus {
+  REPORTED
+  CONFIRMED
+  DISPUTED
+}
+
+enum MapStatus {
+  PENDING
+  WARMUP
+  LIVE
+  PAUSED
+  FINISHED
+  CANCELLED
+}
+
+enum VetoAction {
+  BAN
+  PICK
+  DECIDER
+  /// Choix du side de départ sur une map pickée (mode de side « pick »)
+  SIDE
+}
+
+enum TeamSide {
+  CT
+  T
+}
+
+enum VetoStatus {
+  COMPLETED
+  EXPIRED
+}
+
+// =============================================================================
+// TOURNAMENT & TEAMS
+// =============================================================================
+
+model Tournament {
+  id          String           @id @default(uuid()) @db.Uuid
+  name        String           @db.VarChar(128)
+  slug        String           @unique @db.VarChar(64)
+  /// Jeu du tournoi (identifiant libre, ex. "cs2") : le cœur tournoi est agnostique du jeu (docs/architecture-multi-jeux.md)
+  game        String           @default("cs2") @db.VarChar(32)
+  status      TournamentStatus @default(UPCOMING)
+  settings    Json?            @db.JsonB
+  startDate   DateTime?        @map("start_date")
+  endDate     DateTime?        @map("end_date")
+  createdAt   DateTime         @default(now()) @map("created_at")
+  updatedAt   DateTime         @updatedAt @map("updated_at")
+
+  matches     Match[]
+  rosters     TeamRoster[]
+  stages      Stage[]
+
+  @@map("tournaments")
+}
+
+model Team {
+  id          String       @id @default(uuid()) @db.Uuid
+  name        String       @db.VarChar(128)
+  tag         String?      @db.VarChar(32)
+  logoUrl     String?      @map("logo_url") @db.VarChar(255)
+  createdAt   DateTime     @default(now()) @map("created_at")
+  updatedAt   DateTime     @updatedAt @map("updated_at")
+
+  rosters          TeamRoster[]
+  matchesHome      Match[]           @relation("TeamHomeMatches")
+  matchesAway      Match[]           @relation("TeamAwayMatches")
+  matchesWon       Match[]           @relation("TeamWinnerMatches")
+  mapsWon          MatchMap[]        @relation("TeamWinnerMapMatches")
+  vetoActions      MatchVeto[]       @relation("TeamVetoActions")
+  playerMapStats   PlayerMapStats[]
+  stageEntries     StageTeam[]
+
+  @@map("teams")
+}
+
+model Player {
+  id          String       @id @default(uuid()) @db.Uuid
+  // steamId is NULLABLE to allow full offline LAN play when Steam is down
+  steamId     String?      @unique @map("steam_id") @db.VarChar(32)
+  username    String       @db.VarChar(64)
+  avatarUrl   String?      @map("avatar_url") @db.VarChar(255)
+  seatNumber  String?      @map("seat_number") @db.VarChar(32)
+  createdAt   DateTime     @default(now()) @map("created_at")
+  updatedAt   DateTime     @updatedAt @map("updated_at")
+
+  rosters     TeamRoster[]
+  mapStats    PlayerMapStats[]
+
+  @@map("players")
+}
+
+model TeamRoster {
+  id           String     @id @default(uuid()) @db.Uuid
+  tournamentId String     @map("tournament_id") @db.Uuid
+  teamId       String     @map("team_id") @db.Uuid
+  playerId     String     @map("player_id") @db.Uuid
+  role         RosterRole @default(STARTER)
+  /// Capitaine de l'équipe pour ce tournoi (PFC et véto) - désigné par l'admin
+  isCaptain    Boolean    @default(false) @map("is_captain")
+  createdAt    DateTime   @default(now()) @map("created_at")
+  updatedAt    DateTime   @default(now()) @updatedAt @map("updated_at")
+
+  tournament   Tournament @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
+  team         Team       @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  player       Player     @relation(fields: [playerId], references: [id], onDelete: Cascade)
+
+  @@unique([tournamentId, playerId])
+  @@index([tournamentId])
+  @@index([teamId])
+  @@index([playerId])
+  @@map("team_rosters")
+}
+
+// =============================================================================
+// INFRASTRUCTURE
+// =============================================================================
+
+model Server {
+  id           String       @id @default(uuid()) @db.Uuid
+  name         String       @unique @db.VarChar(64)
+  /// Jeu servi par ce serveur (ex. "cs2")
+  game         String       @default("cs2") @db.VarChar(32)
+  ip           String       @db.VarChar(64)
+  port         Int          @default(27015)
+  /// Port GOTV (tv_port) : bouton « Regarder » de la page d'un match
+  tvPort       Int          @default(27020) @map("tv_port")
+  rconPort     Int?         @map("rcon_port")
+  rconPassword String?      @map("rcon_password") @db.VarChar(128)
+  status       ServerStatus @default(IDLE)
+  createdAt    DateTime     @default(now()) @map("created_at")
+  updatedAt    DateTime     @updatedAt @map("updated_at")
+
+  matchMaps    MatchMap[]
+
+  @@map("servers")
+}
+
+// =============================================================================
+// MATCHES & BRACKET ENGINE
+// =============================================================================
+
+model Match {
+  id                String       @id @default(uuid()) @db.Uuid
+  tournamentId      String       @map("tournament_id") @db.Uuid
+  teamHomeId        String?      @map("team_home_id") @db.Uuid
+  teamAwayId        String?      @map("team_away_id") @db.Uuid
+  nextMatchId       String?      @map("next_match_id") @db.Uuid
+  loserNextMatchId  String?      @map("loser_next_match_id") @db.Uuid
+  /// Place du vainqueur / du perdant dans le match suivant (null = première place libre, ancien comportement)
+  nextMatchSlot     BracketSlot? @map("next_match_slot")
+  loserNextMatchSlot BracketSlot? @map("loser_next_match_slot")
+  stage             MatchStage   @default(PLAYOFFS)
+  bracketType       BracketType  @default(UPPER) @map("bracket_type")
+  roundNumber       Int          @default(1) @map("round_number")
+  format            MatchFormat  @default(BO1)
+  scoreHome         Int          @default(0) @map("score_home")
+  scoreAway         Int          @default(0) @map("score_away")
+  status            MatchStatus  @default(PENDING)
+  winnerId          String?      @map("winner_id") @db.Uuid
+  scheduledAt       DateTime?    @map("scheduled_at")
+  /// Phase et poule du match (null = match hors arbre : bonus / showmatch, ou ancien modèle)
+  stageId           String?      @map("stage_id") @db.Uuid
+  groupId           String?      @map("group_id") @db.Uuid
+  /// Position du match dans son round (ordre d'affichage / câblage de l'arbre)
+  bracketPosition   Int?         @map("bracket_position")
+  /// Avance de départ en games (grande finale : une map d'avance pour le finaliste du bracket supérieur)
+  advantageHome     Int          @default(0) @map("advantage_home")
+  advantageAway     Int          @default(0) @map("advantage_away")
+  /// Victoire administrative (équipe absente)
+  isForfeit         Boolean      @default(false) @map("is_forfeit")
+  /// Les stats de ce match comptent-elles dans les classements officiels ? (non pour un match bonus « fun »)
+  countsInStats     Boolean      @default(true) @map("counts_in_stats")
+  /// Match de classement : le vainqueur termine à cette place, le perdant à la suivante (ex. 7 → 7e / 8e)
+  placement         Int?
+  /// Équipe qui commence le véto (choisie par le gagnant du pierre-feuille-ciseaux, ou par l'admin)
+  vetoStartTeamId   String?      @map("veto_start_team_id") @db.Uuid
+  /// Véto ouvert par l'admin avant son tour (sinon : ouvert quand les tours précédents des poules sont finis)
+  vetoOpenedAt      DateTime?    @map("veto_opened_at")
+  createdAt         DateTime     @default(now()) @map("created_at")
+  updatedAt         DateTime     @updatedAt @map("updated_at")
+
+  tournament        Tournament   @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
+  stageRef          Stage?       @relation(fields: [stageId], references: [id], onDelete: Cascade)
+  group             StageGroup?  @relation(fields: [groupId], references: [id], onDelete: SetNull)
+  teamHome          Team?        @relation("TeamHomeMatches", fields: [teamHomeId], references: [id], onDelete: SetNull)
+  teamAway          Team?        @relation("TeamAwayMatches", fields: [teamAwayId], references: [id], onDelete: SetNull)
+  winner            Team?        @relation("TeamWinnerMatches", fields: [winnerId], references: [id], onDelete: SetNull)
+
+  // Progression relations (Tree / Bracket)
+  nextMatch         Match?       @relation("MatchWinnerProgression", fields: [nextMatchId], references: [id], onDelete: SetNull)
+  previousMatchesWon Match[]     @relation("MatchWinnerProgression")
+
+  loserNextMatch    Match?       @relation("MatchLoserProgression", fields: [loserNextMatchId], references: [id], onDelete: SetNull)
+  previousMatchesLost Match[]    @relation("MatchLoserProgression")
+
+  maps              MatchMap[]
+  vetos             MatchVeto[]
+  rps               MatchRps[]
+
+  @@index([tournamentId])
+  @@index([teamHomeId])
+  @@index([teamAwayId])
+  @@index([stageId])
+  @@map("matches")
+}
+
+// =============================================================================
+// STAGES (phases du tournoi : poules, double élimination)
+// =============================================================================
+
+/// Une phase du tournoi (ex. « Poules », « Élite », « Amateur »). Les réglages (nombre de poules, formats par
+/// round, règles de qualification…) sont en JSON : ils varient par type de phase.
+model Stage {
+  id           String     @id @default(uuid()) @db.Uuid
+  tournamentId String     @map("tournament_id") @db.Uuid
+  name         String     @db.VarChar(64)
+  type         StageType
+  order        Int
+  settings     Json?      @db.JsonB
+  createdAt    DateTime   @default(now()) @map("created_at")
+  updatedAt    DateTime   @updatedAt @map("updated_at")
+
+  tournament   Tournament   @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
+  groups       StageGroup[]
+  teams        StageTeam[]
+  matches      Match[]
+
+  @@unique([tournamentId, order])
+  @@map("stages")
+}
+
+/// Une poule d'une phase ROUND_ROBIN (ex. « A »).
+model StageGroup {
+  id        String     @id @default(uuid()) @db.Uuid
+  stageId   String     @map("stage_id") @db.Uuid
+  name      String     @db.VarChar(32)
+  createdAt DateTime   @default(now()) @map("created_at")
+  updatedAt DateTime   @updatedAt @map("updated_at")
+
+  stage     Stage      @relation(fields: [stageId], references: [id], onDelete: Cascade)
+  teams     StageTeam[]
+  matches   Match[]
+
+  @@unique([stageId, name])
+  @@map("stage_groups")
+}
+
+/// Participant d'une phase : seed, et poule pour une phase ROUND_ROBIN.
+model StageTeam {
+  id        String      @id @default(uuid()) @db.Uuid
+  stageId   String      @map("stage_id") @db.Uuid
+  teamId    String      @map("team_id") @db.Uuid
+  groupId   String?     @map("group_id") @db.Uuid
+  seed      Int
+  createdAt DateTime    @default(now()) @map("created_at")
+  updatedAt DateTime    @updatedAt @map("updated_at")
+
+  stage     Stage       @relation(fields: [stageId], references: [id], onDelete: Cascade)
+  team      Team        @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  group     StageGroup? @relation(fields: [groupId], references: [id], onDelete: SetNull)
+
+  @@unique([stageId, teamId])
+  @@index([groupId])
+  @@map("stage_teams")
+}
+
+// =============================================================================
+// VETO SYSTEM
+// =============================================================================
+
+model MatchVeto {
+  id          String      @id @default(uuid()) @db.Uuid
+  matchId     String      @map("match_id") @db.Uuid
+  stepOrder   Int         @map("step_order")
+  teamId      String?     @map("team_id") @db.Uuid
+  action      VetoAction
+  mapName     String      @map("map_name") @db.VarChar(64)
+  sidePick    TeamSide?   @map("side_pick")
+  status      VetoStatus  @default(COMPLETED)
+  /// Auteur de l'étape : SteamID64 du capitaine, ou "admin:<nom>" quand l'admin a joué à sa place
+  actedBy     String?     @map("acted_by") @db.VarChar(64)
+  createdAt   DateTime    @default(now()) @map("created_at")
+
+  match       Match       @relation(fields: [matchId], references: [id], onDelete: Cascade)
+  team        Team?       @relation("TeamVetoActions", fields: [teamId], references: [id], onDelete: SetNull)
+
+  @@unique([matchId, stepOrder])
+  @@index([matchId])
+  @@map("match_vetos")
+}
+
+/// Pierre-feuille-ciseaux avant le véto : un choix par équipe et par manche (nouvelle manche sur égalité).
+/// Une ligne par équipe : les deux capitaines peuvent jouer en même temps sans s'écraser.
+model MatchRps {
+  id        String   @id @default(uuid()) @db.Uuid
+  matchId   String   @map("match_id") @db.Uuid
+  round     Int
+  teamId    String   @map("team_id") @db.Uuid
+  /// rock | paper | scissors
+  choice    String   @db.VarChar(16)
+  actedBy   String?  @map("acted_by") @db.VarChar(64)
+  createdAt DateTime @default(now()) @map("created_at")
+
+  match     Match    @relation(fields: [matchId], references: [id], onDelete: Cascade)
+
+  @@unique([matchId, round, teamId])
+  @@map("match_rps")
+}
+
+// =============================================================================
+// MAP INSTANCES & STATS
+// =============================================================================
+
+model MatchMap {
+  id          String         @id @default(uuid()) @db.Uuid
+  matchId     String         @map("match_id") @db.Uuid
+  serverId    String?        @map("server_id") @db.Uuid
+  mapOrder    Int            @default(1) @map("map_order")
+  mapName     String         @map("map_name") @db.VarChar(64)
+  scoreHome   Int            @default(0) @map("score_home")
+  scoreAway   Int            @default(0) @map("score_away")
+  status      MapStatus      @default(PENDING)
+  winnerId    String?        @map("winner_id") @db.Uuid
+  /// Résultat générique du game : source, statut, auteur (ex. "cs2" pour le moteur, nom de l'admin) et date
+  resultSource ResultSource? @map("result_source")
+  resultStatus ResultStatus? @map("result_status")
+  reportedBy   String?       @map("reported_by") @db.VarChar(64)
+  reportedAt   DateTime?     @map("reported_at")
+  demoFile    String?        @map("demo_file") @db.VarChar(255)
+  startedAt   DateTime?      @map("started_at")
+  endedAt     DateTime?      @map("ended_at")
+  createdAt   DateTime       @default(now()) @map("created_at")
+  updatedAt   DateTime       @updatedAt @map("updated_at")
+
+  match       Match          @relation(fields: [matchId], references: [id], onDelete: Cascade)
+  server      Server?        @relation(fields: [serverId], references: [id], onDelete: SetNull)
+  winner      Team?          @relation("TeamWinnerMapMatches", fields: [winnerId], references: [id], onDelete: SetNull)
+
+  playerStats PlayerMapStats[]
+  events      EventPrimary[]
+
+  @@unique([matchId, mapOrder])
+  @@index([matchId])
+  @@index([serverId])
+  @@map("match_maps")
+}
+
+model PlayerMapStats {
+  id          String    @id @default(uuid()) @db.Uuid
+  matchMapId  String    @map("match_map_id") @db.Uuid
+  playerId    String    @map("player_id") @db.Uuid
+  teamId      String    @map("team_id") @db.Uuid
+  kills       Int       @default(0)
+  deaths      Int       @default(0)
+  assists     Int       @default(0)
+  headshots   Int       @default(0)
+  mvps        Int       @default(0)
+  score       Int       @default(0)
+  damageDealt Int       @default(0) @map("damage_dealt")
+  adr         Float     @default(0.0)
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
+
+  matchMap    MatchMap  @relation(fields: [matchMapId], references: [id], onDelete: Cascade)
+  player      Player    @relation(fields: [playerId], references: [id], onDelete: Cascade)
+  team        Team      @relation(fields: [teamId], references: [id], onDelete: Cascade)
+
+  @@unique([matchMapId, playerId])
+  @@index([matchMapId])
+  @@index([playerId])
+  @@index([teamId])
+  @@map("player_map_stats")
+}
+
+// =============================================================================
+// RAW EVENT SOURCING (TIMELINE)
+// =============================================================================
+
+model EventPrimary {
+  id          BigInt    @id @default(autoincrement())
+  matchMapId  String?   @map("match_map_id") @db.Uuid
+  // Identifiant de match côté moteur temps réel (clé Redis, ex: "m-7ef15f093f") : toujours renseigné,
+  // même quand le match n'est pas (encore) rattaché à un MatchMap relationnel.
+  matchId     String?   @map("match_id") @db.VarChar(64)
+  serverId    String?   @map("server_id") @db.VarChar(64)
+  timestamp   BigInt
+  type        String    @db.VarChar(64)
+  payload     Json      @db.JsonB
+  createdAt   DateTime  @default(now()) @map("created_at")
+
+  matchMap    MatchMap? @relation(fields: [matchMapId], references: [id], onDelete: Cascade)
+
+  @@index([matchMapId, timestamp])
+  @@index([matchId, timestamp])
+  @@map("events_primary")
+}

@@ -11,6 +11,8 @@ export type TeamEconomyMeta = {
   away_loss_streak: number;
   home_loss_bonus: number;
   away_loss_bonus: number;
+  home_win_streak: number;
+  away_win_streak: number;
 };
 
 const LOSS_BONUS_TABLE = [1400, 1900, 2400, 2900, 3400];
@@ -30,13 +32,42 @@ export class EconomyService {
   ) {}
 
   async initEconomy(matchId: string) {
+    await this.redis.del(redisConst.economyTeamHistory(matchId));
     await this.redis.hset(redisConst.economyTeam(matchId), {
       round: '1',
       home_loss_streak: '0',
       away_loss_streak: '0',
       home_loss_bonus: '0',
       away_loss_bonus: '0',
+      home_win_streak: '0',
+      away_win_streak: '0',
     });
+  }
+
+  async resetStreaks(matchId: string) {
+    await this.redis.hset(redisConst.economyTeam(matchId), {
+      home_loss_streak: '0',
+      away_loss_streak: '0',
+      home_loss_bonus: '0',
+      away_loss_bonus: '0',
+      home_win_streak: '0',
+      away_win_streak: '0',
+    });
+  }
+
+  /** Photographie séries / loss bonus des équipes pour `roundsPlayed` rounds joués (début de round). */
+  async snapshotTeamEconomy(matchId: string, roundsPlayed: number) {
+    const h = await this.redis.hgetall(redisConst.economyTeam(matchId));
+    await this.redis.hset(redisConst.economyTeamHistory(matchId), String(roundsPlayed), JSON.stringify(h ?? {}));
+  }
+
+  /** Backup restore CS2 : remet séries / loss bonus dans l'état photographié. Retourne false sans photo. */
+  async restoreTeamEconomy(matchId: string, roundsPlayed: number): Promise<boolean> {
+    const snap = await this.redis.hget(redisConst.economyTeamHistory(matchId), String(roundsPlayed));
+    if (!snap) return false;
+    const fields = JSON.parse(snap) as Record<string, string>;
+    if (Object.keys(fields).length) await this.redis.hset(redisConst.economyTeam(matchId), fields);
+    return true;
   }
 
   async getTeamEconomyMeta(matchId: string): Promise<TeamEconomyMeta> {
@@ -47,6 +78,8 @@ export class EconomyService {
       away_loss_streak: toInt(h?.away_loss_streak),
       home_loss_bonus: toInt(h?.home_loss_bonus),
       away_loss_bonus: toInt(h?.away_loss_bonus),
+      home_win_streak: toInt(h?.home_win_streak),
+      away_win_streak: toInt(h?.away_win_streak),
     };
   }
 
@@ -67,15 +100,37 @@ export class EconomyService {
 
     const econ = await this.getTeamEconomyMeta(matchId);
 
-    const winnerStreak = Math.max(
+    // Winner: win streak + 1, loss streak - 1 (min 0)
+    const winnerLossStreak = Math.max(
       (winnerLogical === 'home' ? econ.home_loss_streak : econ.away_loss_streak) - 1,
       0,
     );
-    const loserStreak =
-      (loserLogical === 'home' ? econ.home_loss_streak : econ.away_loss_streak) + 1;
+    const winnerWinStreak =
+      (winnerLogical === 'home' ? econ.home_win_streak : econ.away_win_streak) + 1;
 
-    await this.setTeamLossStreak(matchId, winnerLogical, winnerStreak);
-    await this.setTeamLossStreak(matchId, loserLogical, loserStreak);
+    // Loser: win streak reset to 0, loss streak + 1 (max 5 crans selon LOSS_BONUS_TABLE Valve CS2)
+    const loserLossStreak = Math.min(
+      LOSS_BONUS_TABLE.length,
+      (loserLogical === 'home' ? econ.home_loss_streak : econ.away_loss_streak) + 1,
+    );
+    const loserWinStreak = 0;
+
+    const winnerLossField = winnerLogical === 'home' ? 'home_loss_streak' : 'away_loss_streak';
+    const winnerBonusField = winnerLogical === 'home' ? 'home_loss_bonus' : 'away_loss_bonus';
+    const winnerWinField = winnerLogical === 'home' ? 'home_win_streak' : 'away_win_streak';
+
+    const loserLossField = loserLogical === 'home' ? 'home_loss_streak' : 'away_loss_streak';
+    const loserBonusField = loserLogical === 'home' ? 'home_loss_bonus' : 'away_loss_bonus';
+    const loserWinField = loserLogical === 'home' ? 'home_win_streak' : 'away_win_streak';
+
+    await this.redis.hset(redisConst.economyTeam(matchId), {
+      [winnerLossField]: String(winnerLossStreak),
+      [winnerBonusField]: String(lossBonusFromStreak(winnerLossStreak)),
+      [winnerWinField]: String(winnerWinStreak),
+      [loserLossField]: String(loserLossStreak),
+      [loserBonusField]: String(lossBonusFromStreak(loserLossStreak)),
+      [loserWinField]: String(loserWinStreak),
+    });
 
     await this.redis.hincrby(redisConst.economyTeam(matchId), 'round', 1);
     return true;

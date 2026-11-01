@@ -10,46 +10,55 @@ import (
 )
 
 // Raccourci: enlève le préfixe "L 09/10/2025 - 12:06:37.924 - "
-var tsPrefix = regexp.MustCompile(`^(?:L\s+)?\d{2}/\d{2}/\d{4}\s*-\s*\d{2}:\d{2}:\d{2}(?:\.\d{3})?\s*[-:]\s*`)
+var tsPrefix = regexp.MustCompile(`^(?:\d{2}/\d{2}\s+\d{2}:\d{2}:\d{2}\s+\[[^\]]+\]\s+)?(?:L\s+)?\d{2}/\d{2}/\d{4}\s*-\s*\d{2}:\d{2}:\d{2}(?:\.\d{3})?\s*[-:]\s*`)
 
 func StripCs2Prefix(line string) string {
 	return tsPrefix.ReplaceAllString(line, "")
 }
 
 // --- Regex (miroirs de ton TS) ---
-var chatRe = regexp.MustCompile(`^"(?P<name>[^"<]+)<(?P<uid>\d+)><(?P<steam>\[U:[^]]+\]|\w+:[^>]+|)><(?P<team>[^>]+)>"\s+(?P<channel>say|say_team)\s+"(?P<msg>.*)"$`)
+var chatRe = regexp.MustCompile(`^"(?P<name>[^"<]+)<(?P<uid>\d+)><(?P<steam>[^>]*)><(?P<team>[^>]+)>"\s+(?P<channel>say|say_team)\s+"(?P<msg>.*)"$`)
 
 // --- Kills & players ---
-var worldRe = regexp.MustCompile(`^World triggered "(?P<cause>[^"]+)" on "(?P<victim>[^"]+)"`)
+// Game Over: competitive mg_active de_inferno score 5:7 after 29 min   (score is CT:T, map group optional)
+var gameOverRe = regexp.MustCompile(`^Game Over:\s+(?P<mode>\S+)\s+(?:(?P<group>\S+)\s+)?(?P<map>\S+)\s+score\s+(?P<ct>\d+):(?P<t>\d+)\s+after\s+(?P<min>\d+)\s+min`)
+
+var matchStartRe = regexp.MustCompile(`^World triggered "Match_Start"(?:\s+on\s+"(?P<map>[^"]+)")?`)
+var mapLifecycleRe = regexp.MustCompile(`^World triggered "(?:Match_Reloaded|Game_Commencing|Warmup_Start|Restart_Round_\([^)]+\))"`)
 
 // --- Round / bomb / team win ---
 var roundStartRe = regexp.MustCompile(`^World triggered "Round_Start"`)
-var teamWinRe = regexp.MustCompile(`^Team "(?P<winner>TERRORIST|CT)" triggered "(?P<sfui>SFUI_Notice_[A-Za-z_]+)"`)
-var bombPlantedRe = regexp.MustCompile(`^"(?P<planter>[^"<]+)<\d+><(?P<psteam>\[U:[^]]+\]|\w+:[^>]+|)><(?P<pteam>CT|TERRORIST)>" triggered "Planted_The_Bomb"(?: \(Site (?P<site>[AB])\))?`)
-var bombDefusedRe = regexp.MustCompile(`^L\s(\d{2}/\d{2}/\d{4})\s-\s(\d{2}:\d{2}:\d{2}):\sTeam\s"([^"]+)"\striggered\s"([^"]+)"\s\(CT\s"(\d+)"\)\s\(T\s"(\d+)"\)$`)
+var roundEndRe = regexp.MustCompile(`^World triggered "Round_End"`)
+var teamWinRe = regexp.MustCompile(`^(?:Team "(?P<winner>TERRORIST|CT)"|World)\s+triggered\s+"(?P<sfui>SFUI_Notice_[A-Za-z_]+)"(?:\s+\(CT\s+"(?P<ct>\d+)"\)\s+\(T\s+"(?P<t>\d+)"\))?`)
+var bombPlantedRe = regexp.MustCompile(`^"(?P<planter>[^"<]+)<\d+><(?P<psteam>[^>]*)><(?P<pteam>CT|TERRORIST)>"\s+triggered\s+"Planted_The_Bomb"(?:\s+(?:at\s+bombsite|\(Site\))\s+(?P<site>[AB])\)?)?`)
+var bombDefusedRe = regexp.MustCompile(`^"(?P<defuser>[^"<]+)<\d+><(?P<dsteam>[^>]*)><(?P<dteam>CT|TERRORIST)>"\s+triggered\s+"Defused_The_Bomb"`)
 
 // --- Pause / unpause ---
-var pauseRe = regexp.MustCompile(`^(?:(?:Match\s+Paused)|(?:Game\s+Paused)|(?:server_cvar:\s*mp_pause_match))`)
-var unpauseRe = regexp.MustCompile(`^(?:(?:Match\s+Unpaused)|(?:Game\s+Unpaused))`)
+var pauseRe = regexp.MustCompile(`^(?:(?:Match\s+Paused)|(?:Game\s+Paused)|(?:server_cvar:\s*"?mp_pause_match"?\s*"?[1-9]))`)
+var unpauseRe = regexp.MustCompile(`^(?:(?:Match\s+Unpaused)|(?:Game\s+Unpaused)|(?:server_cvar:\s*"?mp_unpause_match"?)|(?:server_cvar:\s*"?mp_pause_match"?\s*"0"?))`)
 
 // --- Defuse begin/abort ---
-var defuseBeginRe = regexp.MustCompile(`^"(?P<name>[^"<]+)<\d+><(?P<steam>\[U:[^]]+\]|\w+:[^>]+|)><(?P<team>CT|TERRORIST)>"\s+triggered\s+"Begin_Bomb_Defuse(?:_With_Kit)?"`)
-var defuseAbortRe = regexp.MustCompile(`^"(?P<name>[^"<]+)<\d+><(?P<steam>\[U:[^]]+\]|\w+:[^>]+|)><(?P<team>CT|TERRORIST)>"\s+triggered\s+"Aborted_Bomb_Defuse"`)
+var defuseBeginRe = regexp.MustCompile(`^"(?P<name>[^"<]+)<\d+><(?P<steam>[^>]*)><(?P<team>CT|TERRORIST)>"\s+triggered\s+"Begin_Bomb_Defuse(?:_(?:With|Without)_Kit)?"`)
+var defuseAbortRe = regexp.MustCompile(`^"(?P<name>[^"<]+)<\d+><(?P<steam>[^>]*)><(?P<team>CT|TERRORIST)>"\s+triggered\s+"Aborted_Bomb_Defuse"`)
 
 // --- Player connect/disconnect/name change ---
-var playerConnectRe = regexp.MustCompile(`^"(?P<name>[^"<]+)<\d+><(?P<steam>\[U:[^]]+\]|\w+:[^>]+|)><(?P<team>[^>]+)>"\s+connected`)
-var playerDisconnectRe = regexp.MustCompile(`^"(?P<name>[^"<]+)<\d+><(?P<steam>\[U:[^]]+\]|\w+:[^>]+|)><(?P<team>[^>]+)>"\s+disconnected(?:\s+\((?P<reason>[^)]+)\))?`)
-var nameChangeRe = regexp.MustCompile(`^"(?P<old>[^"<]+)<\d+><(?P<steam>\[U:[^]]+\]|\w+:[^>]+|)><[^>]*>"\s+changed\s+name\s+to\s+"(?P<new>[^"]+)"`)
+var playerConnectRe = regexp.MustCompile(`^"(?P<name>[^"<]+)<(?P<uid>\d+)><(?P<steam>[^>]*)><(?P<team>[^>]*)>"\s+connected`)
+// "Name<3><[U:1:x]>" switched from team <CT> to <TERRORIST> (no team bracket in this line)
+var playerTeamRe = regexp.MustCompile(`^"(?P<name>[^"<]+)<(?P<uid>\d+)><(?P<steam>[^>]*)>"\s+switched from team <(?P<from>[^>]*)> to <(?P<to>[^>]*)>`)
+var playerDisconnectRe =regexp.MustCompile(`^"(?P<name>[^"<]+)<\d+><(?P<steam>[^>]*)><(?P<team>[^>]*)>"\s+disconnected(?:\s+\((?:reason\s+)?"?(?P<reason>[^")]+)"?\))?`)
+var nameChangeRe = regexp.MustCompile(`^"(?P<old>[^"<]+)<\d+><(?P<steam>[^>]*)><[^>]*>"\s+changed\s+name\s+to\s+"(?P<new>[^"]+)"`)
 
 // --- Purchases ---
-var purchaseRe = regexp.MustCompile(`^"(?P<name>[^"<]+)<\d+><(?P<steam>\[U:[^]]+\]|\w+:[^>]+|)><(?P<team>[^>]+)>"\s+purchased\s+"(?P<weapon>[^"]+)"`)
+var purchaseRe = regexp.MustCompile(`^"(?P<name>[^"<]+)<\d+><(?P<steam>[^>]*)><(?P<team>[^>]+)>"\s+purchased\s+"(?P<weapon>[^"]+)"`)
 
 // --- Grenade throws ---
-var nadeLandRe = regexp.MustCompile(`^"(?P<name>[^"<]+)<\d+><(?P<steam>\[U:[^]]+\]|\w+:[^>]+|)><(?P<team>[^>]+)>"\s+threw\s+(?P<nade>flashbang|smokegrenade|hegrenade|molotov|incgrenade|decoy)(?:\s|$)`)
+var nadeLandRe = regexp.MustCompile(`^"(?P<name>[^"<]+)<\d+><(?P<steam>[^>]*)><(?P<team>[^>]+)>"\s+threw\s+(?P<nade>flashbang|smokegrenade|hegrenade|molotov|incgrenade|decoy)(?:\s|$)`)
 
 // --- Kills & Suicides ---
 var killRe = regexp.MustCompile(`^"(?P<killer>[^"<]+)<\d+><(?P<ksteam>[^>]*)><(?P<kteam>[^>]+)>"(?:\s+\[(?P<kpos>[-\d\s]+)\])?\s+killed\s+"(?P<victim>[^"<]+)<\d+><(?P<vsteam>[^>]*)><(?P<vteam>[^>]+)>"(?:\s+\[(?P<vpos>[-\d\s]+)\])?\s+with\s+"(?P<weapon>[^"]+)"(?P<tags>.*)$`)
+var assistRe = regexp.MustCompile(`^"(?P<player>[^"<]+)<\d+><(?P<steam>[^>]*)><(?P<team>[^>]+)>"\s+(?:(?P<flash>flash)-)?assisted\s+killing\s+"(?P<victim>[^"<]+)<\d+><(?P<vsteam>[^>]*)><(?P<vteam>[^>]+)>"`)
 var suicideRe = regexp.MustCompile(`^"(?P<player>[^"<]+)<\d+><(?P<psteam>[^>]*)><(?P<pteam>[^>]+)>"(?:\s+\[(?P<pos>[-\d\s]+)\])?\s+committed\s+suicide\s+with\s+"(?P<weapon>[^"]+)"$`)
+var killedByBombRe = regexp.MustCompile(`^"(?P<player>[^"<]+)<\d+><(?P<psteam>[^>]*)><(?P<pteam>[^>]+)>"(?:\s+\[(?P<pos>[-\d\s]+)\])?\s+was\s+killed\s+by\s+the\s+bomb\.?$`)
 
 // --- Begin bomb plant ---
 var beginPlantRe = regexp.MustCompile(`^"(?P<name>[^"<]+)<\d+><(?P<steam>[^>]*)><(?P<team>CT|TERRORIST)>"\s+triggered\s+"Bomb_Begin_Plant"\s+at\s+bombsite\s+(?P<site>A|B)$`)
@@ -98,26 +107,43 @@ type pend struct {
 }
 
 var pendingSpawnByType = map[string]pend{}
+var ignoreNextWorldSuicide = map[string]time.Time{}
 
 const pendingTTL = 2 * time.Second // ajuste si besoin
 
-// TryParse retourne (type, payloadJSON, ok)
-func TryParse(line string) (string, json.RawMessage, bool) {
-	line = StripCs2Prefix(strings.TrimSpace(line))
+// Event is one game event parsed from a log line.
+type Event struct {
+	Type    string
+	Payload json.RawMessage
+}
 
-	// NEW: si on a un event différé à sortir, on le renvoie *avant* de parser la nouvelle ligne
-	if len(deferred) > 0 {
-		ev := deferred[0]
-		deferred = deferred[1:]
-		return ev.typ, ev.payload, true
-	}
-	// NEW: on émet un landed expiré si son "threw" n'est jamais venu
+// Parse returns every event produced by a log line, in order: grenade "landed" events whose
+// "threw" never came (expired), then the line's own event, then the events it released
+// (a "threw" releases its pending "spawned" as landed, right after the throw).
+//
+// It replaces TryParse's one-event-per-line contract: releasing a deferred event used to
+// return early and silently DROP the current line (e.g. the kill right after a molotov throw).
+func Parse(line string) []Event {
+	var out []Event
 	for nade, p := range pendingSpawnByType {
 		if time.Since(p.seenAt) > pendingTTL {
 			delete(pendingSpawnByType, nade)
-			return events.EvNadeLanded, p.payload, true
+			out = append(out, Event{Type: events.EvNadeLanded, Payload: p.payload})
 		}
 	}
+	if typ, payload, ok := parseLine(line); ok {
+		out = append(out, Event{Type: typ, Payload: payload})
+	}
+	for _, q := range deferred {
+		out = append(out, Event{Type: q.typ, Payload: q.payload})
+	}
+	deferred = deferred[:0]
+	return out
+}
+
+// parseLine parses a single line into at most one event (it may queue a deferred one).
+func parseLine(line string) (string, json.RawMessage, bool) {
+	line = StripCs2Prefix(strings.TrimSpace(line))
 
 	// CHAT (et éventuellement COMMAND)
 	if chatRe.MatchString(line) {
@@ -157,30 +183,6 @@ func TryParse(line string) (string, json.RawMessage, bool) {
 		raw, _ := json.Marshal(payload)
 		return events.EvChatMessage, raw, true
 	}
-	if bombDefusedRe.MatchString(line) {
-		team := events.NormTeam(grp(bombDefusedRe, line, "team")) // "CT"
-		ctStr := grp(bombDefusedRe, line, "ct")
-		tStr := grp(bombDefusedRe, line, "t")
-
-		ct, _ := strconv.Atoi(ctStr)
-		tt, _ := strconv.Atoi(tStr)
-
-		// event est optionnel : ne le mets que si ta regex a un groupe "event"
-		evName := grp(bombDefusedRe, line, "event") // ex: "SFUI_Notice_Bomb_Defused"
-		if evName == "" {
-			evName = "SFUI_Notice_Bomb_Defused"
-		}
-
-		payload := map[string]any{
-			"kind":   "bomb",
-			"type":   "defused",
-			"winner": team, // CT
-			"score":  map[string]int{"CT": ct, "T": tt},
-			"event":  evName,
-		}
-
-		return events.EvBombDefused, mustJSON(payload), true
-	}
 
 	if killRe.MatchString(line) {
 		killer := grp(killRe, line, "killer")
@@ -193,7 +195,12 @@ func TryParse(line string) (string, json.RawMessage, bool) {
 		tags := strings.ToLower(grp(killRe, line, "tags"))
 
 		hs := strings.Contains(tags, "headshot")
-		tk := strings.Contains(tags, "friendlyfire")
+		tk := strings.Contains(tags, "friendlyfire") || (kteam != "" && kteam == vteam && (kteam == "CT" || kteam == "T"))
+		penetrated := strings.Contains(tags, "penetrated")
+		noscope := strings.Contains(tags, "noscope")
+		throughsmoke := strings.Contains(tags, "throughsmoke")
+		blind := strings.Contains(tags, "attackerblind")
+		inair := strings.Contains(tags, "attackerinair")
 
 		kx, ky, kz := parseXYZBracket(grp(killRe, line, "kpos"))
 		vx, vy, vz := parseXYZBracket(grp(killRe, line, "vpos"))
@@ -210,6 +217,58 @@ func TryParse(line string) (string, json.RawMessage, bool) {
 		if tk {
 			payload["teamkill"] = true
 		}
+		if penetrated {
+			payload["penetrated"] = true
+		}
+		if noscope {
+			payload["noscope"] = true
+		}
+		if throughsmoke {
+			payload["throughsmoke"] = true
+		}
+		if blind {
+			payload["attackerblind"] = true
+		}
+		if inair {
+			payload["attackerinair"] = true
+		}
+		return events.EvKill, mustJSON(payload), true
+	}
+
+	if assistRe.MatchString(line) {
+		player := grp(assistRe, line, "player")
+		steam := grp(assistRe, line, "steam")
+		team := events.NormTeam(grp(assistRe, line, "team"))
+		victim := grp(assistRe, line, "victim")
+		vsteam := grp(assistRe, line, "vsteam")
+		vteam := events.NormTeam(grp(assistRe, line, "vteam"))
+		flash := grp(assistRe, line, "flash") != ""
+
+		payload := map[string]any{
+			"player":      map[string]any{"name": player, "steamId": steam, "team": team},
+			"victim":      map[string]any{"name": victim, "steamId": vsteam, "team": vteam},
+			"flashAssist": flash,
+		}
+		return events.EvAssist, mustJSON(payload), true
+	}
+
+	// Bomb death: CS2 logs `was killed by the bomb.` then `committed suicide with "world"`.
+	// CS2 (round_stats) counts ONE death: emit it here and skip the twin line.
+	// (mirrored by parseCs2LineFallback in backend sandbox.service.ts)
+	if killedByBombRe.MatchString(line) {
+		player := grp(killedByBombRe, line, "player")
+		steam := grp(killedByBombRe, line, "psteam")
+		team := events.NormTeam(grp(killedByBombRe, line, "pteam"))
+		if steam != "" {
+			ignoreNextWorldSuicide[steam] = time.Now().Add(2 * time.Second)
+		}
+		vx, vy, vz := parseXYZBracket(grp(killedByBombRe, line, "pos"))
+		payload := map[string]any{
+			"kind":      "suicide",
+			"player":    map[string]any{"name": player, "steamId": steam, "team": team},
+			"weapon":    "bomb",
+			"victimPos": map[string]float64{"x": vx, "y": vy, "z": vz},
+		}
 		return events.EvKill, mustJSON(payload), true
 	}
 
@@ -218,6 +277,14 @@ func TryParse(line string) (string, json.RawMessage, bool) {
 		steam := grp(suicideRe, line, "psteam")
 		team := events.NormTeam(grp(suicideRe, line, "pteam"))
 		weapon := grp(suicideRe, line, "weapon")
+		if strings.EqualFold(weapon, "world") && steam != "" {
+			if until, ok := ignoreNextWorldSuicide[steam]; ok {
+				delete(ignoreNextWorldSuicide, steam)
+				if time.Now().Before(until) {
+					return "", nil, false
+				}
+			}
+		}
 		vx, vy, vz := parseXYZBracket(grp(suicideRe, line, "pos"))
 
 		payload := map[string]any{
@@ -229,33 +296,48 @@ func TryParse(line string) (string, json.RawMessage, bool) {
 		return events.EvKill, mustJSON(payload), true
 	}
 
-	// WORLD kill (rare)
-	if worldRe.MatchString(line) {
-		cause := grp(worldRe, line, "cause")
-		victim := grp(worldRe, line, "victim")
-		payload := map[string]any{
-			"kind":   "world",
-			"victim": map[string]any{"name": victim, "steamId": "", "team": "Unassigned"},
-			"cause":  cause,
+	if gameOverRe.MatchString(line) {
+		ct, _ := strconv.Atoi(grp(gameOverRe, line, "ct"))
+		t, _ := strconv.Atoi(grp(gameOverRe, line, "t"))
+		minutes, _ := strconv.Atoi(grp(gameOverRe, line, "min"))
+		return events.EvGameOver, mustJSON(map[string]any{
+			"mode": grp(gameOverRe, line, "mode"), "map": grp(gameOverRe, line, "map"),
+			"scoreCT": ct, "scoreT": t, "minutes": minutes,
+		}), true
+	}
+
+	if matchStartRe.MatchString(line) {
+		ignoreNextWorldSuicide = map[string]time.Time{}
+		m := grp(matchStartRe, line, "map")
+		payload := map[string]any{}
+		if m != "" {
+			payload["map"] = m
 		}
-		return events.EvKill, mustJSON(payload), true
+		return events.EvMatchStart, mustJSON(payload), true
+	}
+
+	// Map & match lifecycle (ignore, not a kill)
+	if mapLifecycleRe.MatchString(line) {
+		return "", nil, false
 	}
 
 	// ROUND_START
 	if roundStartRe.MatchString(line) {
+		ignoreNextWorldSuicide = map[string]time.Time{}
 		return events.EvRoundStart, mustJSON(map[string]any{}), true
 	}
 
-	// TEAM_ROUND_WIN + SFUI_TARGET_BOMBED
+	// ROUND_END
+	if roundEndRe.MatchString(line) {
+		return events.EvRoundEnd, mustJSON(map[string]any{}), true
+	}
+
+	// TEAM_ROUND_WIN + SFUI_TARGET_BOMBED / ROUND_DRAW
 	if teamWinRe.MatchString(line) {
 		winner := grp(teamWinRe, line, "winner")
 		sfui := strings.ToLower(grp(teamWinRe, line, "sfui"))
-
-		if strings.Contains(sfui, "target_bombed") {
-			return events.EvSfuiTargetBombed, mustJSON(map[string]any{
-				"winner": mapWinner(winner),
-			}), true
-		}
+		ctStr := grp(teamWinRe, line, "ct")
+		tStr := grp(teamWinRe, line, "t")
 
 		reason := "elim"
 		switch {
@@ -263,12 +345,23 @@ func TryParse(line string) (string, json.RawMessage, bool) {
 			reason = "bomb_exploded"
 		case strings.Contains(sfui, "target_saved"), strings.Contains(sfui, "bomb_defused"):
 			reason = "defused"
-		case strings.Contains(sfui, "wipe"), strings.Contains(sfui, "elimination"):
+		case strings.Contains(sfui, "wipe"), strings.Contains(sfui, "elimination"), strings.Contains(sfui, "win"):
 			reason = "elim"
-		case strings.Contains(sfui, "round_timed_out"), strings.Contains(sfui, "round_draw"):
+		case strings.Contains(sfui, "round_timed_out"):
 			reason = "time"
+		case strings.Contains(sfui, "round_draw"):
+			reason = "draw"
 		}
-		payload := map[string]any{"winner": mapWinner(winner), "reason": reason}
+		mappedWinner := mapWinner(winner)
+		if winner == "" && strings.Contains(sfui, "draw") {
+			mappedWinner = "none"
+		}
+		payload := map[string]any{"winner": mappedWinner, "reason": reason}
+		if ctStr != "" && tStr != "" {
+			ctScore, _ := strconv.Atoi(ctStr)
+			tScore, _ := strconv.Atoi(tStr)
+			payload["score"] = map[string]int{"ct": ctScore, "t": tScore}
+		}
 		return events.EvTeamRoundWin, mustJSON(payload), true
 	}
 
@@ -286,6 +379,18 @@ func TryParse(line string) (string, json.RawMessage, bool) {
 			p["site"] = site
 		}
 		return events.EvBombPlanted, mustJSON(p), true
+	}
+
+	// BOMB_DEFUSED
+	if bombDefusedRe.MatchString(line) {
+		defuser := grp(bombDefusedRe, line, "defuser")
+		steam := grp(bombDefusedRe, line, "dsteam")
+		team := grp(bombDefusedRe, line, "dteam")
+		p := map[string]any{}
+		if defuser != "" {
+			p["defuser"] = map[string]any{"name": defuser, "steamId": steam, "team": team}
+		}
+		return events.EvBombDefused, mustJSON(p), true
 	}
 
 	// MATCH_PAUSED / MATCH_UNPAUSED
@@ -323,8 +428,10 @@ func TryParse(line string) (string, json.RawMessage, bool) {
 		name := grp(playerConnectRe, line, "name")
 		steam := grp(playerConnectRe, line, "steam")
 		team := grp(playerConnectRe, line, "team")
+		// userId: the server's id of the connection, needed by kickid (whitelist of the match)
+		userID, _ := strconv.Atoi(grp(playerConnectRe, line, "uid"))
 		payload := map[string]any{
-			"player": map[string]any{"name": name, "steamId": steam, "team": events.NormTeam(team)},
+			"player": map[string]any{"name": name, "steamId": steam, "team": events.NormTeam(team), "userId": userID},
 		}
 		return events.EvPlayerConnected, mustJSON(payload), true
 	}
@@ -332,6 +439,8 @@ func TryParse(line string) (string, json.RawMessage, bool) {
 		name := grp(playerDisconnectRe, line, "name")
 		steam := grp(playerDisconnectRe, line, "steam")
 		reason := grp(playerDisconnectRe, line, "reason")
+		// The `committed suicide with "world"` that follows a disconnect IS a death for CS2 (round_stats):
+		// it is no longer skipped.
 		payload := map[string]any{
 			"player": map[string]any{"name": name, "steamId": steam},
 		}
@@ -339,6 +448,17 @@ func TryParse(line string) (string, json.RawMessage, bool) {
 			payload["reason"] = reason
 		}
 		return events.EvPlayerDisc, mustJSON(payload), true
+	}
+	// A player joins a side or is moved (mp_swapteams, halftime): where each player stands, to check the sides
+	// chosen in the veto before the live
+	if playerTeamRe.MatchString(line) {
+		userID, _ := strconv.Atoi(grp(playerTeamRe, line, "uid"))
+		payload := map[string]any{
+			"player": map[string]any{"name": grp(playerTeamRe, line, "name"), "steamId": grp(playerTeamRe, line, "steam"), "userId": userID},
+			"from":   events.NormTeam(grp(playerTeamRe, line, "from")),
+			"to":     events.NormTeam(grp(playerTeamRe, line, "to")),
+		}
+		return events.EvPlayerTeam, mustJSON(payload), true
 	}
 	if nameChangeRe.MatchString(line) {
 		old := grp(nameChangeRe, line, "old")
@@ -399,7 +519,7 @@ func TryParse(line string) (string, json.RawMessage, bool) {
 			payload["entindex"] = ent
 		}
 
-		// NEW: si on a un spawned récent pour ce type, on le déferre pour la prochaine ligne
+		// Un spawned récent pour ce type est émis comme landed juste après le throw (cf. Parse)
 		if p, ok := pendingSpawnByType[strings.ToLower(nade)]; ok && time.Since(p.seenAt) <= pendingTTL {
 			deferred = append(deferred, queued{typ: events.EvNadeLanded, payload: p.payload})
 			delete(pendingSpawnByType, strings.ToLower(nade))

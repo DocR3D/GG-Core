@@ -8,6 +8,7 @@ RUN npm ci
 
 # 2) copier le code (sera surchargé par le bind mount en dev)
 COPY . .
+RUN npx prisma generate
 
 ENV NODE_ENV=development \
     PORT=8081 \

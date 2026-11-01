@@ -1,26 +1,23 @@
 // src/domain/rules/knife-choice.rule.ts
 import { BaseRule, PhaseRule, RuleContext } from '@domain/rules';
 import type { CommandEvent } from '@domain/events/command.event';
-import { MatchPhase } from '@domain/phase.types';
 import { MessageMode, SaySpec } from '../messages/messages.types';
 import { KnifeChoiceCommand } from '@app/match/commands/knife-choice.command'; // NOUVEAU
 import { Injectable } from '@nestjs/common';
 
+@Injectable()
 export class KnifeChoiceRule extends BaseRule implements PhaseRule {
   name = 'knife_choice' as const;
 
-  publicTypes = new Set<string>([
-    'match:state',
-    'pause:update',
-  ]) as any;
 
   constructor(
     private readonly knifeChoiceCmd: KnifeChoiceCommand // Injection de la commande
   ) {
     super();
-    this.commands.set('stay', this.onCommand.bind(this));
-    this.commands.set('switch', this.onCommand.bind(this));
-    this.commands.set('swap', this.onCommand.bind(this));
+    const onCommand = (cmd: CommandEvent, ctx: RuleContext) => this.onCommand(cmd, ctx);
+    this.commands.set('stay', onCommand);
+    this.commands.set('switch', onCommand);
+    this.commands.set('swap', onCommand);
   }
 
   // === Lifecycle ============================================================
@@ -37,8 +34,8 @@ export class KnifeChoiceRule extends BaseRule implements PhaseRule {
   }
 
   async say(rct: RuleContext) : Promise<SaySpec> {
-    let state = await rct.state.getSnapshot(rct.matchId);
-    let winner = await rct.orch.getKnifeResult(rct.matchId);
+    const state = await rct.state.getSnapshot(rct.matchId);
+    const winner = await rct.orch.getKnifeResult(rct.matchId);
     return [
       {
         mode: MessageMode.Chain,

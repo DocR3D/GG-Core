@@ -1,14 +1,13 @@
 // src/application/services/match-phase.service.ts
-import { Injectable, Logger, Inject, forwardRef, Optional } from '@nestjs/common';
+import { Injectable, Logger, Inject, forwardRef } from '@nestjs/common';
 import type Redis from 'ioredis';
 import { REDIS_CMD, REDIS_PUB } from '@adapters/redis/redis.tokens';
-import { redisConst } from '@app/match/state/redis.keys';
+import { redisConst, REDIS_CHANNELS } from '@app/match/state/redis.keys';
 
-import { MatchPhase, Phase, RoundPhase} from '@domain/phase.types';
+import { MatchPhase, RoundPhase } from '@domain/phase.types';
 import { RuleContextFactory } from '@app/rules/rule-context.factory';
 import { EventTypes } from '@domain/events/event.types';
 import { PauseMatchService } from '../pause/pause.service';
-import { BaseRule } from '@domain/rules';
 import { MessageService } from '../messages/message.service';
 import { RuleRegistry } from '../rules/rule.registry';
 import { MatchCommandsService } from '@app/commands/match-commands.service';
@@ -26,7 +25,7 @@ export class MatchPhaseService {
     @Inject(REDIS_PUB) private readonly pub: Redis,
 @Inject(forwardRef(() => MatchCommandsService)) private readonly actions: MatchCommandsService,
     private readonly rcF: RuleContextFactory,   // OK une fois exporté + importé
-    private readonly pauseMatchService: PauseMatchService,
+    @Inject(forwardRef(() => PauseMatchService)) private readonly pauseMatchService: PauseMatchService,
     private readonly messageService: MessageService,
     private readonly registry: RuleRegistry,
   ) {}
@@ -37,6 +36,10 @@ export class MatchPhaseService {
   }
   async setReady(matchId: string, logical: 'home'|'away', ready: boolean) {
     await this.redis.hset(redisConst.ready(matchId), logical, ready ? 1 : 0);
+  }
+
+  async resetReady(matchId: string): Promise<void> {
+    await this.redis.hset(redisConst.ready(matchId), { home: '0', away: '0' });
   }
 
   public async startPhaseCountdown(
@@ -66,7 +69,7 @@ export class MatchPhaseService {
   if (serverId && shouldAnnounce(remain) && remain > 0) {
     await this.actions.say(serverId, `Début de ${nextPhase} dans ${remain}s…`);
   }
-  await this.pub.publish('ggbot:events', JSON.stringify({
+  await this.pub.publish(REDIS_CHANNELS.EVENTS, JSON.stringify({
     v: 1, type: 'phase:countdown', matchId, serverId, timestamp: Date.now(),
     source: 'system', kind: 'primary', payload: { nextPhase, remain },
   }));
@@ -99,12 +102,12 @@ export class MatchPhaseService {
       if (serverId && shouldAnnounce(remain)) {
         await this.actions.say(serverId, `Début de ${nextPhase} dans ${remain}s…`);
       }
-      await this.pub.publish('ggbot:events', JSON.stringify({
+      await this.pub.publish(REDIS_CHANNELS.EVENTS, JSON.stringify({
         v: 1, type: 'phase:countdown', matchId, serverId, timestamp: Date.now(),
         source: 'system', kind: 'primary', payload: { nextPhase, remain },
       }));
       // replanifie le tick
-      const t = setTimeout(tick, 1000);
+      const t = setTimeout(runTick, 1000);
       this.timers.set(matchId, t);
       return;
     }
@@ -117,8 +120,12 @@ export class MatchPhaseService {
     this.timers.delete(matchId);
   };
 
+  const runTick = () => {
+    tick().catch((e) => this.logger.error(`countdown tick failed match=${matchId}: ${String(e)}`));
+  };
+
   // Démarre la boucle
-  const t = setTimeout(tick, 1000);
+  const t = setTimeout(runTick, 1000);
   this.timers.set(matchId, t);
 }
 
@@ -133,7 +140,7 @@ export class MatchPhaseService {
 private clearTimersForGroup(groupId: string) {
   for (const [key, int] of this.timers.entries()) {
     if (key.startsWith(groupId)) {
-      clearInterval(int as NodeJS.Timeout);
+      clearInterval(int);
       this.timers.delete(key);
     }
   }
@@ -161,7 +168,7 @@ public async cancelPhaseCountdown(
   await this.redis.del(lockKey);
   if (!opts?.keepPending) await this.redis.del(pendingKey);
 
-  await this.pub.publish('ggbot:events', JSON.stringify({
+  await this.pub.publish(REDIS_CHANNELS.EVENTS, JSON.stringify({
     v: 1,
     type: 'phase:cancelled',
     matchId,
@@ -174,7 +181,13 @@ public async cancelPhaseCountdown(
 }
 
 
-private async applyPhase(
+public async isCountdownActive(matchId: string): Promise<boolean> {
+    const lockKey = redisConst.phaseLock(matchId);
+    const exists = await this.redis.exists(lockKey);
+    return exists === 1;
+  }
+
+  private async applyPhase(
   matchId: string,
   newPhase: MatchPhase,
   serverId: string,
@@ -186,9 +199,17 @@ private async applyPhase(
   // 0) Coup de balai global (garanti zéro fuite)
   this.messageService.stopPhaseGroups(matchId);
 
-  // 1) Écrire la nouvelle phase + nettoyer lock/pending
+  // 1) Écrire la nouvelle phase + nettoyer lock/pending + reset des états éphémères (ready, knife)
   await this.redis.set(phaseKey, newPhase);
   await this.redis.del(lockKey, pendingKey);
+  await this.resetReady(matchId);
+  await this.redis.del(
+    redisConst.knifeWinner(matchId),
+    redisConst.knifeWinnerSide(matchId),
+    redisConst.knifeWinnerLogical(matchId),
+    redisConst.knifeChoice(matchId),
+    redisConst.knifeChoiceT(matchId),
+  );
 
   // 2) Démarrer les messages de la NOUVELLE phase
   const rule = this.registry.getRule(newPhase);
@@ -197,8 +218,8 @@ private async applyPhase(
     if (spec) this.messageService.startPhase(matchId, newPhase, serverId, spec);
   }
 
-  // 3) Diffuse l’événement + feedback ingame
-  await this.pub.publish('ggbot:events', JSON.stringify({
+  // 3) Diffuse l'événement + feedback ingame
+  await this.pub.publish(REDIS_CHANNELS.EVENTS, JSON.stringify({
     v: 1,
     type: EventTypes.PHASE_CHANGED,
     matchId,
@@ -222,9 +243,6 @@ private async applyPhase(
 
 
   async getPhase(matchId: string): Promise<MatchPhase> {
-    const cached = this.cache.get(matchId);
-    if (cached) return cached;
-
     const key = redisConst.phase(matchId);
     const val = (await this.redis.get(key)) as MatchPhase | null;
     const phase = val ?? MatchPhase.WARMUP_MAIN;
@@ -233,10 +251,11 @@ private async applyPhase(
   }
 
   async setPhase(matchId: string, phase: MatchPhase): Promise<void> {
-    const key = redisConst.phase(matchId); // ⚠️ vérifie que c’est la même clé partout
+    const key = redisConst.phase(matchId); // ⚠️ vérifie que c'est la même clé partout
     await this.redis.set(key, phase);
     this.cache.set(matchId, phase);
-    this.logger.debug(`[setPhase] match=${matchId} -> ${phase}`);
+    await this.resetReady(matchId);
+    this.logger.debug(`[setPhase] match=${matchId} -> ${phase} (ready flags reset)`);
   }
   
     /** Optionnel: transitions autorisées (anti-regression vers warmup_main) */
@@ -246,12 +265,12 @@ private async applyPhase(
   }
 
   async setRoundPhase(matchId: string, roundPhase: RoundPhase) {
-    const key = redisConst.phase(matchId);
+    const key = redisConst.roundPhase(matchId);
     await this.redis.set(key, roundPhase);
   }
 
   async getRoundPhase(matchId: string): Promise<RoundPhase> {
-    const key = redisConst.phase(matchId);
+    const key = redisConst.roundPhase(matchId);
     return (await this.redis.get(key)) as RoundPhase ?? RoundPhase.WARMUP;
   }
 }
