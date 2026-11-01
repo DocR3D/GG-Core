@@ -57,6 +57,50 @@ L'arbre et les classements n'affichent que le générique (même code pour tous 
 | Consultation post-LAN | Export base + démos (stockage de fichiers, jamais dans PostgreSQL) |
 | Jeu FFA / BR | Type de match à N participants classés, barème de points |
 
+## 5 bis. Un 2ᵉ jeu : d'où viennent les données (collecteurs)
+
+Ce qui change d'un jeu à l'autre, c'est surtout **la source des données**, pas le transport. Un jeu commence en
+**saisie manuelle** (arbre, pages, véto, résultat admin : déjà génériques) ; un collecteur automatique s'ajoute
+seulement si le jeu expose de quoi le faire.
+
+**Ce qui se réutilise tel quel** : Redis (il transporte des messages et stocke des clés, il ne connaît pas le jeu),
+le WebSocket et ses audiences (`docs/architecture.md` § « Flux d'événements »), la série / l'arbre, le résultat d'un
+game avec sa source, son statut (`reported` / `confirmed` / `disputed`) et son auteur (D4).
+
+**À ajuster au 2ᵉ jeu** (quelques lignes, rien de cassé) :
+- un champ `game` dans l'enveloppe des événements, ou un canal par jeu (`gg:{game}:events`), pour que chaque module
+  ne lise que les siens ;
+- un préfixe par jeu pour les clés d'état en direct : `match:{id}:score`, `sides`, `economy`… sont des notions CS
+  (le préfixe `ggbot:` est un reste de l'ancien nom).
+
+**Sources connues** (de mémoire, à vérifier au moment de choisir) :
+
+| Jeu | Ce qu'il expose | Collecteur possible |
+|---|---|---|
+| CS2 | Serveur dédié : logs HTTP + RCON | Agent Go actuel (règle « Zero Plugin ») |
+| Valorant | Lobbies Riot, pas de serveur dédié ni de RCON ; API Riot à accès restreint pour les tournois | Saisie manuelle, puis éventuellement l'API après la partie, ou le bot Discord ci-dessous |
+| Rocket League | Parties privées sans serveur à nous ; outils côté client (plugins, API de stats locale à vérifier) | Collecteur sur un PC client : hors « Zero Plugin » (règle pensée pour CS2) |
+| Deadlock | Jeu Valve encore en évolution | À voir |
+
+**Exemple : collecteur Discord (idée de l'utilisateur, 2026-11-01).** Un agent dédié lit un salon Discord et remonte
+les scores déclarés par les équipes :
+
+```
+Discord ──commande /score──▶ collecteur « <jeu>-discord » ──Redis──▶ Backend ──▶ série / arbre (code existant)
+```
+
+- Il publie un événement générique, ex. `game_result_reported` { match, map, scores, auteur } ; un abonné du backend
+  le transforme en résultat de game **déclaré** (`reported`), confirmé par l'adversaire ou un admin (D4). Le moteur CS2
+  (rounds, règles, RCON) n'est pas concerné : un score final suffit.
+- À trancher le moment venu :
+  1. **qui peut déclarer** : relier un compte Discord à un capitaine (comptes par plateforme, §5), sinon n'importe qui
+     poste un score ;
+  2. **le format** : une commande de bot (`/score 13 9 ascent`) plutôt qu'un message libre, fragile à lire ;
+  3. **Internet** : Discord est en ligne et la règle LAN-first interdit qu'un composant critique en dépende. Il reste
+     un confort : si Discord ou la connexion tombe, l'admin saisit le score comme aujourd'hui.
+- Il n'a pas besoin d'être en Go ni de passer par Redis (il pourrait appeler l'API du backend) ; passer par Redis
+  garde tous les collecteurs bâtis pareil.
+
 ## 6. Options écartées
 
 | Option | Pourquoi |
