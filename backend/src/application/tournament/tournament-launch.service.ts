@@ -259,8 +259,10 @@ export class TournamentLaunchService {
         order: g.mapOrder,
         mapName: g.mapName,
         // the players of the match play it, they do not watch it (delayed GOTV of their own game)
-        watch: isPlayer ? undefined : `${g.server!.ip}:${g.server!.tvPort}`,
-        play: isAdmin || isPlayer ? { address: `${g.server!.ip}:${g.server!.port}`, password: await this.access.getPassword(g.id) } : undefined,
+        ...(isPlayer ? {} : { watch: `${g.server!.ip}:${g.server!.tvPort}` }),
+        ...(isAdmin || isPlayer
+          ? { play: { address: `${g.server!.ip}:${g.server!.port}`, password: await this.access.getPassword(g.id) } }
+          : {}),
       })),
     );
   }
