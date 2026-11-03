@@ -23,7 +23,15 @@ export interface RestoreProposal {
   requiresAdmin: boolean;
   opponentAgreed: boolean;
   adminApproved: boolean;
-  status: 'pending' | 'accepted' | 'rejected' | 'cancelled' | 'expired';
+  status: 'pending' | 'accepted' | 'rejected' | 'refused' | 'cancelled' | 'expired';
+  cancelledBy?: {
+    team?: 'home' | 'away';
+    name: string;
+    steamId?: string;
+    isAdmin?: boolean;
+    isRefusal?: boolean;
+    reason?: string;
+  };
 }
 
 export class ProposeRestoreDto {

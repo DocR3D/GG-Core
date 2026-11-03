@@ -31,7 +31,6 @@ export class RestoreCommand extends BaseCommand {
     const cmd = event.payload?.command;
     const sender = event.payload?.sender;
     const matchId = event.matchId;
-    const serverId = event.serverId ?? '';
     const params = event.payload?.parameters ?? [];
 
     const side = sender?.team as GameSide;

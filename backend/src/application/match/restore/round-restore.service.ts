@@ -5,6 +5,7 @@ import {
   Inject,
   BadRequestException,
   NotFoundException,
+  OnModuleDestroy,
 } from '@nestjs/common';
 import type { Redis } from 'ioredis';
 import { REDIS_CMD } from '@adapters/redis/redis.tokens';
@@ -19,10 +20,12 @@ import {
 
 const RESTORE_PROPOSAL_TTL_SEC = 60; // 60s TTL dans Redis
 const PROPOSAL_WINDOW_MS = 45_000;   // 45s de fenêtre pour répondre
+const RESUME_DELAY_MS = 5_000;       // 5s de sécurité avant reprise
 
 @Injectable()
-export class RoundRestoreService {
+export class RoundRestoreService implements OnModuleDestroy {
   private readonly logger = new Logger(RoundRestoreService.name);
+  private readonly unpauseTimers = new Map<string, NodeJS.Timeout>();
 
   constructor(
     @Inject(REDIS_CMD) private readonly redis: Redis,
@@ -30,6 +33,27 @@ export class RoundRestoreService {
     private readonly cmds: MatchCommandsService,
     private readonly emitter: RealtimeEmitter,
   ) {}
+
+  onModuleDestroy() {
+    for (const timer of this.unpauseTimers.values()) {
+      clearTimeout(timer);
+    }
+    this.unpauseTimers.clear();
+  }
+
+  hasPendingUnpause(matchId: string): boolean {
+    return this.unpauseTimers.has(matchId);
+  }
+
+  clearUnpauseTimer(matchId: string): boolean {
+    const timer = this.unpauseTimers.get(matchId);
+    if (timer) {
+      clearTimeout(timer);
+      this.unpauseTimers.delete(matchId);
+      return true;
+    }
+    return false;
+  }
 
   private proposalKey(matchId: string): string {
     return `match:${matchId}:restore_proposal`;
@@ -117,6 +141,8 @@ export class RoundRestoreService {
         `Numéro de round invalide (${targetRound}). Doit être compris entre 1 et ${currentRound}.`,
       );
     }
+
+    this.clearUnpauseTimer(matchId);
 
     // Vérifier si une proposition est déjà en cours
     const existing = await this.getProposal(matchId);
@@ -246,19 +272,58 @@ export class RoundRestoreService {
       return false;
     }
 
+    this.clearUnpauseTimer(matchId);
     await this.redis.del(this.proposalKey(matchId));
 
-    // Annoncer in-game et relancer le jeu
-    await this.cmds.say(
-      proposal.serverId,
-      `[GG-Core] Proposition de restauration du round ${proposal.targetRound} annulée/refusée. Reprise du match.`,
-    );
-    await this.cmds.unpause({ serverId: proposal.serverId, matchId });
+    const isRefusal = !by.isAdmin && !!(by.team && by.team !== proposal.proposingTeam);
+    proposal.status = isRefusal ? 'refused' : 'cancelled';
+    proposal.cancelledBy = {
+      team: by.team,
+      name: by.name,
+      steamId: by.steamId,
+      isAdmin: by.isAdmin,
+      isRefusal,
+      reason: by.reason,
+    };
 
-    proposal.status = 'cancelled';
+    if (isRefusal) {
+      // Notification in-game : refus explicite et rappel de la commande !tech
+      await this.cmds.say(
+        proposal.serverId,
+        `[GG-Core] Restauration du round ${proposal.targetRound} refusée par l'adversaire (${by.name}).`,
+      );
+      await this.cmds.say(
+        proposal.serverId,
+        `[GG-Core] Reprise dans 5s (tapez !tech si votre problème technique persiste).`,
+      );
+      // Émission d'alerte spécifique pour les admins et le match
+      this.emitter.emitBoth(matchId, 'restore:refused', proposal);
+    } else {
+      await this.cmds.say(
+        proposal.serverId,
+        `[GG-Core] Proposition de restauration du round ${proposal.targetRound} annulée (${by.name}). Reprise dans 5s.`,
+      );
+    }
+
     this.emitter.emitBoth(matchId, 'restore:cancelled', proposal);
-    this.logger.log(`[RoundRestore] Proposition annulée pour le match ${matchId} par ${by.name}`);
+    this.logger.log(
+      `[RoundRestore] Proposition ${isRefusal ? 'refusée' : 'annulée'} pour le match ${matchId} par ${by.name}`,
+    );
 
+    // Décompte de sécurité de 5 secondes avant unpause effectif
+    const timer = setTimeout(() => {
+      void (async () => {
+        this.unpauseTimers.delete(matchId);
+        try {
+          await this.cmds.unpause({ serverId: proposal.serverId, matchId });
+          await this.cmds.say(proposal.serverId, '[GG-Core] Match repris !');
+        } catch (err: unknown) {
+          this.logger.error(`[cancelRestore] Erreur lors du unpause différé match=${matchId}`, err);
+        }
+      })();
+    }, RESUME_DELAY_MS);
+
+    this.unpauseTimers.set(matchId, timer);
     return true;
   }
 }

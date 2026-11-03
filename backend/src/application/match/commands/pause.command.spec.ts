@@ -197,4 +197,19 @@ describe('TC-03 - PauseCommand : phase live_main', () => {
       expect.objectContaining({ reason: 'tactical', durationSec: 30 }),
     );
   });
+
+  it('interrompt le timer de reprise de restauration si une pause est demandée', async () => {
+    const pauseService = makePauseService({ phase: 'live' });
+    const mockRestoreService: any = {
+      hasPendingUnpause: jest.fn().mockReturnValue(true),
+      clearUnpauseTimer: jest.fn().mockReturnValue(true),
+    };
+    const cmd = new PauseCommand(pauseService as any, makeRconService() as any, mockRestoreService);
+    const ctx = makeCtx();
+
+    await cmd.handle(makePauseEvent('tech'), ctx);
+
+    expect(mockRestoreService.clearUnpauseTimer).toHaveBeenCalledWith(MATCH_ID);
+    expect(ctx.say).toHaveBeenCalledWith('[GG-Core] Reprise interrompue : pause prise en compte.');
+  });
 });

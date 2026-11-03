@@ -56,6 +56,7 @@ export type WsEventType =
   | 'veto:updated'
   | 'restore:proposed'
   | 'restore:cancelled'
+  | 'restore:refused'
   | 'restore:executed';
 //  | 'grenade_landed'  // activer quand prêt
 

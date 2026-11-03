@@ -1,4 +1,4 @@
-import { forwardRef, Inject, Injectable, Logger } from '@nestjs/common';
+import { forwardRef, Inject, Injectable, Logger, Optional } from '@nestjs/common';
 import { BaseCommand } from '@domain/commands/base.command';
 import { CommandEvent } from '@domain/events/command.event';
 import { RuleContext } from '@domain/rules';
@@ -6,6 +6,7 @@ import { MatchCommandsService } from '@app/commands/match-commands.service';
 import { PauseMatchService, PauseReason } from '@app/match/pause/pause.service';
 import { isNonPlayingSide, GameSide } from '@domain/side.types';
 import { CS2_CHAT_COMMANDS } from '@domain/rules/rules.constants';
+import { RoundRestoreService } from '../restore/round-restore.service';
 
 @Injectable()
 export class PauseCommand extends BaseCommand {
@@ -16,6 +17,9 @@ export class PauseCommand extends BaseCommand {
     private readonly pauseService: PauseMatchService,
     @Inject(forwardRef(() => MatchCommandsService))
     private readonly rconService: MatchCommandsService,
+    @Optional()
+    @Inject(forwardRef(() => RoundRestoreService))
+    private readonly restoreService?: RoundRestoreService,
   ) {
     super();
   }
@@ -59,6 +63,10 @@ export class PauseCommand extends BaseCommand {
     this.logCommand(event.payload.command, event);
 
     if (isPauseRequest) {
+      if (this.restoreService?.hasPendingUnpause(event.matchId)) {
+        this.restoreService.clearUnpauseTimer(event.matchId);
+        await ctx.say('[GG-Core] Reprise interrompue : pause prise en compte.');
+      }
       // Garde-fous: seuls les joueurs affectés à une équipe peuvent pauser
       if (isNonPlayingSide(event.payload.sender.team)) return false;
 

@@ -239,31 +239,108 @@ describe('RoundRestoreService', () => {
   });
 
   describe('cancelRestore', () => {
+    beforeEach(() => {
+      jest.useFakeTimers();
+    });
+
+    afterEach(() => {
+      service.onModuleDestroy();
+      jest.useRealTimers();
+    });
+
     it('returns false if no proposal to cancel', async () => {
       mockRedis.get.mockResolvedValueOnce(null);
       const res = await service.cancelRestore(MATCH_ID, { name: 'Bob' });
       expect(res).toBe(false);
     });
 
-    it('deletes redis key, unpauses match, announces in chat, and emits WS', async () => {
+    it('handles cancellation by proposer: announces 5s delay and unpauses after timer', async () => {
       mockRedis.get.mockResolvedValueOnce(
         JSON.stringify({
           matchId: MATCH_ID,
           serverId: SERVER_ID,
           targetRound: 9,
           backupFile: 'backup_round08.txt',
+          proposingTeam: 'home',
+        }),
+      );
+
+      const res = await service.cancelRestore(MATCH_ID, { name: 'Alice', team: 'home' });
+      expect(res).toBe(true);
+      expect(mockRedis.del).toHaveBeenCalled();
+
+      // Immediate announcement with 5s notice
+      expect(mockCmds.say).toHaveBeenCalledWith(
+        SERVER_ID,
+        expect.stringContaining('annulée (Alice). Reprise dans 5s'),
+      );
+      // Not yet unpaused immediately
+      expect(mockCmds.unpause).not.toHaveBeenCalled();
+
+      // Advance timers by 5s
+      await jest.advanceTimersByTimeAsync(5000);
+
+      expect(mockCmds.unpause).toHaveBeenCalledWith({ serverId: SERVER_ID, matchId: MATCH_ID });
+      expect(mockCmds.say).toHaveBeenCalledWith(SERVER_ID, '[GG-Core] Match repris !');
+    });
+
+    it('handles refusal by opponent: emits restore:refused, warns about !tech, and unpauses after 5s', async () => {
+      mockRedis.get.mockResolvedValueOnce(
+        JSON.stringify({
+          matchId: MATCH_ID,
+          serverId: SERVER_ID,
+          targetRound: 9,
+          backupFile: 'backup_round08.txt',
+          proposingTeam: 'home',
         }),
       );
 
       const res = await service.cancelRestore(MATCH_ID, { name: 'Bob', team: 'away' });
       expect(res).toBe(true);
       expect(mockRedis.del).toHaveBeenCalled();
-      expect(mockCmds.unpause).toHaveBeenCalledWith({ serverId: SERVER_ID, matchId: MATCH_ID });
+
+      // Notification of refusal + hint for !tech
+      expect(mockCmds.say).toHaveBeenCalledWith(
+        SERVER_ID,
+        expect.stringContaining('refusée par l\'adversaire (Bob)'),
+      );
+      expect(mockCmds.say).toHaveBeenCalledWith(
+        SERVER_ID,
+        expect.stringContaining('tapez !tech'),
+      );
+
       expect(mockEmitter.emitBoth).toHaveBeenCalledWith(
         MATCH_ID,
-        'restore:cancelled',
-        expect.objectContaining({ status: 'cancelled' }),
+        'restore:refused',
+        expect.objectContaining({ status: 'refused' }),
       );
+
+      // Advance timer
+      await jest.advanceTimersByTimeAsync(5000);
+      expect(mockCmds.unpause).toHaveBeenCalledWith({ serverId: SERVER_ID, matchId: MATCH_ID });
+    });
+
+    it('aborts unpause if clearUnpauseTimer is invoked within 5s', async () => {
+      mockRedis.get.mockResolvedValueOnce(
+        JSON.stringify({
+          matchId: MATCH_ID,
+          serverId: SERVER_ID,
+          targetRound: 9,
+          backupFile: 'backup_round08.txt',
+          proposingTeam: 'home',
+        }),
+      );
+
+      await service.cancelRestore(MATCH_ID, { name: 'Bob', team: 'away' });
+      expect(service.hasPendingUnpause(MATCH_ID)).toBe(true);
+
+      // Player calls !tech -> clearUnpauseTimer
+      const cleared = service.clearUnpauseTimer(MATCH_ID);
+      expect(cleared).toBe(true);
+      expect(service.hasPendingUnpause(MATCH_ID)).toBe(false);
+
+      await jest.advanceTimersByTimeAsync(5000);
+      expect(mockCmds.unpause).not.toHaveBeenCalled();
     });
   });
 });
