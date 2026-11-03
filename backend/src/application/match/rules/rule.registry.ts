@@ -12,6 +12,8 @@ import { PauseCommand } from '../commands/pause.command';
 import { Optional } from '@nestjs/common';
 import { CommunityMessagesService } from '@app/community-messages/community-messages.service';
 import { RestoreCommand } from '@app/match/commands/restore.command';
+import { AdminCallCommand } from '@app/match/commands/admin-call.command';
+import { InfoCommand } from '@app/match/commands/info.command';
 
 @Injectable()
 export class RuleRegistry {
@@ -23,11 +25,13 @@ export class RuleRegistry {
     private readonly pauseCmd: PauseCommand,
     @Optional() private readonly communityMessages?: CommunityMessagesService,
     @Optional() private readonly restoreCmd?: RestoreCommand,
+    @Optional() private readonly adminCallCmd?: AdminCallCommand,
+    @Optional() private readonly infoCmd?: InfoCommand,
   ) {
-    const warmupRule = new WarmupRule(this.readyCmd, this.communityMessages);
+    const warmupRule = new WarmupRule(this.readyCmd, this.communityMessages, this.adminCallCmd, this.infoCmd);
     const knifeRule = new KnifeRule();
     const knifeChoiceRule = new KnifeChoiceRule(this.knifeCmd);
-    const liveRule = new LiveRule(this.pauseCmd, this.restoreCmd);
+    const liveRule = new LiveRule(this.pauseCmd, this.restoreCmd, this.adminCallCmd, this.infoCmd);
     const postgameRule = new PostgameRule();
 
     this.rules.set(MatchPhase.WARMUP_MAIN, warmupRule);

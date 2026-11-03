@@ -54,6 +54,8 @@ function makePauseService(overrides?: {
     getPhase: jest.fn().mockResolvedValue(overrides && 'phase' in overrides ? overrides.phase : 'live'),
     pause: jest.fn().mockResolvedValue(undefined),
     resume: jest.fn().mockResolvedValue(undefined),
+    getPauseState: jest.fn().mockResolvedValue({ reason: 'none' }),
+    voteUnpause: jest.fn().mockResolvedValue({ bothReady: false }),
   };
 }
 
@@ -211,5 +213,51 @@ describe('TC-03 - PauseCommand : phase live_main', () => {
 
     expect(mockRestoreService.clearUnpauseTimer).toHaveBeenCalledWith(MATCH_ID);
     expect(ctx.say).toHaveBeenCalledWith('[GG-Core] Reprise interrompue : pause prise en compte.');
+  });
+  it('!tech accepte une raison custom et la diffuse dans le chat', async () => {
+    const pauseService = makePauseService({ phase: 'live' });
+    const cmd = makeCmd(pauseService);
+    const ctx = makeCtx();
+
+    const ev = {
+      ...makePauseEvent('tech'),
+      payload: {
+        command: 'tech',
+        parameters: ['crash', 'pc', '12'],
+        sender: { name: 'PlayerX', steamId: '1', team: 'CT' },
+      },
+    };
+
+    await cmd.handle(ev, ctx);
+
+    expect(pauseService.pause).toHaveBeenCalledWith(
+      MATCH_ID,
+      SERVER_ID,
+      expect.objectContaining({ reason: 'technical', customReason: 'crash pc 12' }),
+    );
+    expect(ctx.say).toHaveBeenCalledWith(expect.stringContaining('crash pc 12'));
+  });
+
+  it('!unpause en pause technique applique la validation mutuelle', async () => {
+    const pauseService = makePauseService({ isPaused: true });
+    pauseService.getPauseState.mockResolvedValue({ reason: 'technical' });
+    // Equipe 1 vote : pas encore bothReady
+    pauseService.voteUnpause.mockResolvedValueOnce({ bothReady: false });
+
+    const rconService = makeRconService();
+    const cmd = makeCmd(pauseService, rconService);
+    const ctx = makeCtx();
+
+    await cmd.handle(makePauseEvent('unpause'), ctx);
+
+    expect(ctx.say).toHaveBeenCalledWith(expect.stringContaining('En attente de l\'équipe adverse'));
+    expect(rconService.unpause).not.toHaveBeenCalled();
+
+    // Equipe 2 vote : bothReady devient true
+    pauseService.voteUnpause.mockResolvedValueOnce({ bothReady: true });
+    await cmd.handle(makePauseEvent('unpause'), ctx);
+
+    expect(ctx.say).toHaveBeenCalledWith(expect.stringContaining('Accord des deux équipes reçu'));
+    expect(rconService.unpause).toHaveBeenCalled();
   });
 });

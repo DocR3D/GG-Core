@@ -6,6 +6,8 @@ import type { KillEvent, RoundStartEvent, TeamRoundWinEvent } from '@domain/even
 import type { CommandEvent } from '@domain/events/command.event';
 import { PauseCommand } from '@app/match/commands/pause.command';
 import { RestoreCommand } from '@app/match/commands/restore.command';
+import { AdminCallCommand } from '@app/match/commands/admin-call.command';
+import { InfoCommand } from '@app/match/commands/info.command';
 import { MatchPhase } from '@domain/phase.types';
 import { Logger } from '@nestjs/common';
 import { GameSide } from '@app/match/state';
@@ -19,6 +21,8 @@ export class LiveRule extends BaseRule implements PhaseRule {
   constructor(
     private readonly pauseCmd: PauseCommand,
     private readonly restoreCmd?: RestoreCommand,
+    private readonly adminCallCmd?: AdminCallCommand,
+    private readonly infoCmd?: InfoCommand,
   ) {
     super();
     this.events.set(EventTypes.ROUND_START, this.onRoundStart.bind(this));
@@ -37,6 +41,14 @@ export class LiveRule extends BaseRule implements PhaseRule {
     this.commands.set('cancel', this.onRestoreCommand.bind(this));
     this.commands.set('refuse', this.onRestoreCommand.bind(this));
     this.commands.set('no', this.onRestoreCommand.bind(this));
+    this.commands.set('admin', this.onAdminCallCommand.bind(this));
+    this.commands.set('calladmin', this.onAdminCallCommand.bind(this));
+    this.commands.set('arbitre', this.onAdminCallCommand.bind(this));
+    this.commands.set('help', this.onInfoCommand.bind(this));
+    this.commands.set('commands', this.onInfoCommand.bind(this));
+    this.commands.set('aide', this.onInfoCommand.bind(this));
+    this.commands.set('pauses', this.onInfoCommand.bind(this));
+    this.commands.set('score', this.onInfoCommand.bind(this));
   }
 
   // =========================================================================
@@ -292,6 +304,18 @@ export class LiveRule extends BaseRule implements PhaseRule {
   private async onRestoreCommand(cmd: CommandEvent, ctx: RuleContext) {
     if (this.restoreCmd) {
       await this.restoreCmd.handle(cmd, ctx);
+    }
+  }
+
+  private async onAdminCallCommand(cmd: CommandEvent, ctx: RuleContext) {
+    if (this.adminCallCmd) {
+      await this.adminCallCmd.handle(cmd, ctx);
+    }
+  }
+
+  private async onInfoCommand(cmd: CommandEvent, ctx: RuleContext) {
+    if (this.infoCmd) {
+      await this.infoCmd.handle(cmd, ctx);
     }
   }
 }

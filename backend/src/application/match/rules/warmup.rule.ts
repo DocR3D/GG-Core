@@ -3,7 +3,9 @@ import { BaseRule, PhaseRule, RuleContext } from '@domain/rules';
 import type { CommandEvent } from '@domain/events/command.event';
 import { MatchPhase } from '@domain/phase.types';
 import { MessageMode, SaySpec } from '../messages/messages.types';
-import { ReadyCommand } from '@app/match/commands/ready.command'; // Import de la commande
+import { ReadyCommand } from '@app/match/commands/ready.command';
+import { AdminCallCommand } from '@app/match/commands/admin-call.command';
+import { InfoCommand } from '@app/match/commands/info.command'; // Import de la commande
 import { CS2_RULES, CS2_CHAT_COMMANDS, CS2_CFG, CS2_RCON_COMMANDS } from '@domain/rules/rules.constants';
 import { CommunityMessagesService } from '@app/community-messages/community-messages.service';
 import { DEFAULT_COMMUNITY_MESSAGES } from '@app/community-messages/community-messages.types';
@@ -15,11 +17,19 @@ export class WarmupRule extends BaseRule implements PhaseRule {
   constructor(
     private readonly readyCmd: ReadyCommand,
     private readonly communityMessages?: CommunityMessagesService,
+    private readonly adminCallCmd?: AdminCallCommand,
+    private readonly infoCmd?: InfoCommand,
   ) {
     super();
     this.commands.set(CS2_CHAT_COMMANDS.READY, this.onReadyCommand.bind(this));
     this.commands.set(CS2_CHAT_COMMANDS.NOTREADY, this.onNotReadyCommand.bind(this));
     this.commands.set(CS2_CHAT_COMMANDS.UNREADY, this.onNotReadyCommand.bind(this));
+    this.commands.set('admin', this.onAdminCallCommand.bind(this));
+    this.commands.set('calladmin', this.onAdminCallCommand.bind(this));
+    this.commands.set('arbitre', this.onAdminCallCommand.bind(this));
+    this.commands.set('help', this.onInfoCommand.bind(this));
+    this.commands.set('commands', this.onInfoCommand.bind(this));
+    this.commands.set('aide', this.onInfoCommand.bind(this));
   }
 
   async onEnter(ctx: RuleContext) {
@@ -74,6 +84,18 @@ export class WarmupRule extends BaseRule implements PhaseRule {
   private async onNotReadyCommand(cmd: CommandEvent, ctx: RuleContext) {
     // La logique est gérée par la commande ready.command.ts
     await this.readyCmd.handle(cmd, ctx);
+  }
+
+  private async onAdminCallCommand(cmd: CommandEvent, ctx: RuleContext) {
+    if (this.adminCallCmd) {
+      await this.adminCallCmd.handle(cmd, ctx);
+    }
+  }
+
+  private async onInfoCommand(cmd: CommandEvent, ctx: RuleContext) {
+    if (this.infoCmd) {
+      await this.infoCmd.handle(cmd, ctx);
+    }
   }
 
   async say(rct: RuleContext): Promise<SaySpec> {

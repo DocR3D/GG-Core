@@ -76,6 +76,11 @@ export class PauseCommand extends BaseCommand {
 
       const reason: PauseReason =
         event.payload.command === CS2_CHAT_COMMANDS.TECH ? 'technical' : 'tactical';
+      const customReason =
+        reason === 'technical' && event.payload.parameters?.length
+          ? event.payload.parameters.map(String).join(' ').trim()
+          : undefined;
+      const reasonLabel = customReason ? ` : "${customReason}"` : '';
 
       // Politique d'autorisation (banque tactique, etc.)
       const isAllowed = await this.pauseService.isPauseAllowed(event.matchId, {
@@ -99,6 +104,7 @@ export class PauseCommand extends BaseCommand {
           team,
           durationSec,
           armOnly: true,
+          customReason,
           by: {
             steamId: event.payload.sender.steamId,
             name: event.payload.sender.name,
@@ -106,7 +112,7 @@ export class PauseCommand extends BaseCommand {
           },
         });
         await ctx.say(
-          `[GG] Pause ${reason} de ${team.toUpperCase()} armée - elle débutera au prochain freeze.`,
+          `[GG] Pause ${reason} de ${team.toUpperCase()} armée${reasonLabel} - début au prochain freeze.`,
         );
         return true;
       }
@@ -118,6 +124,7 @@ export class PauseCommand extends BaseCommand {
           team,
           durationSec,
           armOnly: false,
+          customReason,
           by: {
             steamId: event.payload.sender.steamId,
             name: event.payload.sender.name,
@@ -129,7 +136,7 @@ export class PauseCommand extends BaseCommand {
           serverId: event.serverId,
         });
         await ctx.say(
-          `[GG] Pause ${reason} de ${team.toUpperCase()} - ${durationSec}s.`,
+          `[GG] Pause ${reason} de ${team.toUpperCase()} - ${durationSec}s${reasonLabel}.`,
         );
         return true;
       }
@@ -145,6 +152,20 @@ export class PauseCommand extends BaseCommand {
     }
 
     // Reprise (UNPAUSE)
+    const pauseState = await this.pauseService.getPauseState(event.matchId);
+    if (pauseState.reason === 'technical') {
+      const team = await ctx.orch.sideToLogical(event.matchId, event.payload.sender.team as GameSide);
+      if (team === 'home' || team === 'away') {
+        const { bothReady } = await this.pauseService.voteUnpause(event.matchId, team);
+        if (!bothReady) {
+          await ctx.say(
+            `[GG-Core] L'équipe ${team.toUpperCase()} est prête à reprendre. En attente de l'équipe adverse (!unpause pour valider).`,
+          );
+          return true;
+        }
+        await ctx.say('[GG-Core] Accord des deux équipes reçu ! Reprise du match...');
+      }
+    }
     await this.pauseService.resume(event.matchId);
     await this.rconService.unpause({
       matchId: event.matchId,
