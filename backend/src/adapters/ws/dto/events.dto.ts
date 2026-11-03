@@ -204,6 +204,10 @@ export type ChatAdminEvent = BaseWsEvent<'chat:admin', ChatAdminPayload>;
 
 export interface SponsorRotatePayload {
   sponsorId: string;
+  name?: string;
+  logoUrl?: string | null;
+  websiteUrl?: string | null;
+  tier?: string;
   slot?: string;
   durationMs?: number;
 }

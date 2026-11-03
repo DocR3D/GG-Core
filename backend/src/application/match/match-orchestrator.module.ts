@@ -9,6 +9,7 @@ import { RulesModule } from '@app/match/rules/rules.module';
 import { CommandsModule } from '@app/commands.module';
 import { WsModule } from '@adapters/ws/ws.module';
 import { BuytimeBroadcastModule } from '@app/broadcast/buytime-broadcast.module';
+import { SponsorModule } from '@app/sponsors/sponsor.module';
 
 @Module({
   imports: [
@@ -18,6 +19,7 @@ import { BuytimeBroadcastModule } from '@app/broadcast/buytime-broadcast.module'
     forwardRef(() => CommandsModule),
     WsModule,
     BuytimeBroadcastModule,
+    forwardRef(() => SponsorModule),
   ],
   providers: [MatchOrchestrator, MatchAccessService, TeamPlacementService],
   exports: [MatchOrchestrator, MatchAccessService, TeamPlacementService],

@@ -33,6 +33,7 @@ async function bootstrap() {
   app.use('/assets', serveStatic(path.join(process.cwd(), 'node_modules/@picocss/pico/css'), { index: false, maxAge: '1d' }));
   app.use('/assets/css', serveStatic(path.join(process.cwd(), 'public/css'), { index: false }));
   app.use('/assets/fonts', serveStatic(path.join(process.cwd(), 'node_modules/@fontsource/poppins/files'), { index: false, maxAge: '30d' }));
+  app.use('/uploads', serveStatic(path.join(process.cwd(), 'public/uploads'), { index: false, maxAge: '7d' }));
 
   // Access rules for EVERY request, at the Express level: a Nest module middleware would only cover the
   // /api-prefixed routes, not /sandbox, /view, /login, /auth (excluded from the prefix below)
