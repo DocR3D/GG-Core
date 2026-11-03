@@ -53,7 +53,10 @@ export type WsEventType =
   | 'player:name_change'
   | 'item:purchase'
   // Véto des maps d'une série (room du match de la série, pas d'un game)
-  | 'veto:updated';
+  | 'veto:updated'
+  | 'restore:proposed'
+  | 'restore:cancelled'
+  | 'restore:executed';
 //  | 'grenade_landed'  // activer quand prêt
 
 export interface BaseWsEvent<TType extends WsEventType, TPayload> {

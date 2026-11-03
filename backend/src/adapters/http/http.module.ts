@@ -32,6 +32,7 @@ import { TournamentEditService } from '@app/tournament/tournament-edit.service';
 import { VetoController } from './veto/veto.controller';
 import { MatchAdminController } from './matches/match-admin.controller';
 import { MatchAdminService } from '@app/match/admin/match-admin.service';
+import { MatchRestoreController } from './matches/match-restore.controller';
 import { BroadcastController } from './broadcast/broadcast.controller';
 import { SponsorController } from './sponsors/sponsor.controller';
 import { SponsorModule } from '@app/sponsors/sponsor.module';
@@ -42,7 +43,7 @@ import { CommunityMessagesModule } from '@app/community-messages/community-messa
   imports: [
     MatchStateModule,
     forwardRef(() => MatchOrchestratorModule),
-    forwardRef(() => CommandsModule), // match console commands (MatchAdminService)
+    forwardRef(() => CommandsModule), // match console commands (MatchAdminService, MatchRestoreController)
     BusModule,
     Cs2LogsModule, // nouvelle intégration propre du module CS2 logs
     SandboxModule,
@@ -65,6 +66,7 @@ import { CommunityMessagesModule } from '@app/community-messages/community-messa
     ViewController,
     VetoController,
     MatchAdminController,
+    MatchRestoreController,
     BroadcastController,
     SponsorController,
     CommunityMessagesController,

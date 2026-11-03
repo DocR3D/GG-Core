@@ -82,6 +82,12 @@ export const CS2_CHAT_COMMANDS = {
   SWITCH: 'switch',
   SWAP: 'swap',
   INIT: 'init',
+  RESTORE: 'restore',
+  BACKUP: 'backup',
+  BACKUPS: 'backups',
+  CANCEL: 'cancel',
+  REFUSE: 'refuse',
+  NO: 'no',
 } as const;
 
 /**

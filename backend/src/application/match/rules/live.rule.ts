@@ -5,6 +5,7 @@ import { EventTypes } from '@domain/events/event.types';
 import type { KillEvent, RoundStartEvent, TeamRoundWinEvent } from '@domain/events/match.event';
 import type { CommandEvent } from '@domain/events/command.event';
 import { PauseCommand } from '@app/match/commands/pause.command';
+import { RestoreCommand } from '@app/match/commands/restore.command';
 import { MatchPhase } from '@domain/phase.types';
 import { Logger } from '@nestjs/common';
 import { GameSide } from '@app/match/state';
@@ -15,7 +16,10 @@ export class LiveRule extends BaseRule implements PhaseRule {
   private readonly logger = new Logger(LiveRule.name);
 
 
-  constructor(private readonly pauseCmd: PauseCommand) {
+  constructor(
+    private readonly pauseCmd: PauseCommand,
+    private readonly restoreCmd?: RestoreCommand,
+  ) {
     super();
     this.events.set(EventTypes.ROUND_START, this.onRoundStart.bind(this));
     this.events.set(EventTypes.TEAM_ROUND_WIN, this.onTeamRoundWin.bind(this));
@@ -27,6 +31,12 @@ export class LiveRule extends BaseRule implements PhaseRule {
     this.commands.set('unpause', this.onCommand.bind(this));
     this.commands.set('tac', this.onCommand.bind(this));
     this.commands.set('tech', this.onCommand.bind(this));
+    this.commands.set('restore', this.onRestoreCommand.bind(this));
+    this.commands.set('backup', this.onRestoreCommand.bind(this));
+    this.commands.set('backups', this.onRestoreCommand.bind(this));
+    this.commands.set('cancel', this.onRestoreCommand.bind(this));
+    this.commands.set('refuse', this.onRestoreCommand.bind(this));
+    this.commands.set('no', this.onRestoreCommand.bind(this));
   }
 
   // =========================================================================
@@ -277,5 +287,11 @@ export class LiveRule extends BaseRule implements PhaseRule {
   // =========================================================================
   private async onCommand(cmd: CommandEvent, ctx: RuleContext) {
     await this.pauseCmd.handle(cmd, ctx);
+  }
+
+  private async onRestoreCommand(cmd: CommandEvent, ctx: RuleContext) {
+    if (this.restoreCmd) {
+      await this.restoreCmd.handle(cmd, ctx);
+    }
   }
 }
