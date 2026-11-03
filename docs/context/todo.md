@@ -162,6 +162,25 @@ Le cœur moteur de match, l'arbitrage automatisé, le calcul de scores/stats CS2
 * Une page qui montre tous les éléments (titres, tableaux, boutons, formulaires, bloc ASCII, classes du vocabulaire de
   `base.css`) dans les deux thèmes : l'équivalent léger d'un Storybook, pour juger une modification du CSS d'un coup d'œil.
 
+### 15. 📣 Message à tous les serveurs au moment de l'achat (buytime)
+* **Besoin** : l'admin écrit un message une fois et il s'affiche dans le chat de tous les serveurs (ou d'une sélection)
+  pendant la phase d'achat, quand les joueurs regardent l'écran. Exemple : « Quand vous avez fini ce match, vous pouvez
+  aller manger ! ».
+* **Pourquoi à l'achat** : c'est le seul moment où le message est lu sans gêner un round. Même principe que
+  l'armement des pauses : le message est « armé » puis envoyé au prochain freeze time de chaque serveur, pas tout de
+  suite (un serveur en plein round l'afficherait au mauvais moment, un serveur en pause ou en warmup n'a pas de
+  buytime).
+* **À prévoir** :
+  - Cible : tous les serveurs avec un match en cours, ou une sélection.
+  - Envoi unique ou répété (n rounds de suite), avec annulation tant qu'il n'est pas parti.
+  - Un serveur sans match en cours (warmup, libre) : envoi immédiat ou ignoré, à choisir.
+  - L'envoi passe par la file RCON de l'agent (6 commandes par seconde et par serveur) : sur 32 serveurs, pas de
+    problème car la limite est par serveur.
+  - Suivi : afficher à l'admin quels serveurs l'ont reçu et lesquels attendent encore.
+  - La commande « message » d'un match existe déjà (console admin) : s'en servir comme brique, ajouter l'armement.
+* **Lien avec le cahier des charges** : les messages sponsorisés dans le chat en jeu (rotation manuelle ou
+  automatique, presets) reposent sur le même mécanisme d'envoi au buytime ; à faire ensemble.
+
 ---
 
 ## ✅ Chantiers Achevés
@@ -182,3 +201,5 @@ Le cœur moteur de match, l'arbitrage automatisé, le calcul de scores/stats CS2
 - [x] **Pauses** : armement pendant tout le round (y compris bombe posée / fin de round), banque tactique réglable par match (`tacticalPauseBankSec`, 120 s par défaut).
 - [x] **Agent** : RCON ≤ 6 commandes/s sur une connexion réutilisée, plus aucune ligne de log perdue après un lancer de grenade (`Parse()` multi-événements).
 - [x] **Historique git sans données réelles de joueurs** (réécriture `filter-repo` des fixtures, 2026-10-30).
+
+- [x] **Message global aux serveurs au Buytime avec réarmement multi-rounds** (Item §15) : diffusion armée au freeze time sur N rounds consécutifs (`roundsCount`), envoi immédiat si serveur libre/warmup, réarmement et annulation via API REST `/admin/broadcasts`, suivi temps réel par serveur et persistance Redis.

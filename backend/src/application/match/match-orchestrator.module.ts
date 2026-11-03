@@ -7,7 +7,8 @@ import { MatchStateModule } from '@app/match-state.module';
 import { PhaseModule } from '@app/match/phase/phase.module';
 import { RulesModule } from '@app/match/rules/rules.module';
 import { CommandsModule } from '@app/commands.module';
-import { WsModule } from '@adapters/ws/ws.module';   // 👈 ajoute ça
+import { WsModule } from '@adapters/ws/ws.module';
+import { BuytimeBroadcastModule } from '@app/broadcast/buytime-broadcast.module';
 
 @Module({
   imports: [
@@ -15,8 +16,8 @@ import { WsModule } from '@adapters/ws/ws.module';   // 👈 ajoute ça
     forwardRef(() => PhaseModule),
     forwardRef(() => RulesModule),
     forwardRef(() => CommandsModule),
-    forwardRef(() => RulesModule),
-    WsModule,   // 👈 ajoute ça pour exposer WsBroadcaster
+    WsModule,
+    BuytimeBroadcastModule,
   ],
   providers: [MatchOrchestrator, MatchAccessService, TeamPlacementService],
   exports: [MatchOrchestrator, MatchAccessService, TeamPlacementService],

@@ -21,6 +21,7 @@ import { RuleContext } from '@domain/rules';
 import { TournamentPersistenceService, isUuid } from '@adapters/database/tournament-persistence.service';
 import { MatchAccess, MatchAccessService } from './access/match-access.service';
 import { TeamPlacementService } from './access/team-placement.service';
+import { BuytimeBroadcastService } from '@app/broadcast/buytime-broadcast.service';
 import { errorMessage } from '@app/shared/error-message';
 
 type ResumeMeta = { source?: 'expired' | 'admin' | 'chat'; reason?: 'tactical'|'technical'|'admin' };
@@ -47,6 +48,7 @@ export class MatchOrchestrator {
     @Optional() private readonly tournamentPersistence?: TournamentPersistenceService,
     @Optional() private readonly access?: MatchAccessService,
     @Optional() private readonly placement?: TeamPlacementService,
+    @Optional() private readonly buytimeBroadcast?: BuytimeBroadcastService,
   ) {}
 
   /**
@@ -370,6 +372,9 @@ export class MatchOrchestrator {
     this.log.debug('Freeze time started !');
     await this.phase.setRoundPhase(ev.matchId, RoundPhase.FREEZE);
     await this.applyPauseIfArmed(ev);
+    if (this.buytimeBroadcast) {
+      await this.buytimeBroadcast.onFreezeTime(ev.matchId, ev.serverId);
+    }
   }
 
   async onRoundEnd(ev: (TeamRoundWinEvent & { serverId?: string }) | (GenericMatchEvent & { serverId?: string })) {
@@ -384,6 +389,9 @@ export class MatchOrchestrator {
 
   async onRoundStart(ev: (RoundStartEvent & { serverId?: string }) | (GenericMatchEvent & { serverId?: string })) {
     await this.phase.setRoundPhase(ev.matchId, RoundPhase.LIVE);
+    if (this.buytimeBroadcast) {
+      await this.buytimeBroadcast.onFreezeTime(ev.matchId, ev.serverId);
+    }
 
     const s = await this.state.getSnapshot(ev.matchId);
     const HCT = s.sides?.home === 'CT';

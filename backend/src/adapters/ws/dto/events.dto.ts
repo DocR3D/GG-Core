@@ -153,7 +153,7 @@ export type KillPayload =
 
 // Événements lobby (listes de matchs)
 export type LobbyEventType = 'matches:upsert' | 'matches:remove';
-export type LobbyAdminEventType = LobbyEventType | 'matches:debug';
+export type LobbyAdminEventType = LobbyEventType | 'matches:debug' | 'broadcast:updated';
 
 export interface RoundStartPayload { round: number; }
 export type RoundStartEvent = BaseWsEvent<'round:start', RoundStartPayload>;
