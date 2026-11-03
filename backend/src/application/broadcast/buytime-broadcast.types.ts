@@ -27,7 +27,7 @@ export interface BuytimeBroadcast {
 export class CreateBroadcastDto {
   /** The message text to display in game chat. */
   message!: string;
-  /** Number of rounds to display this message at buytime (e.g. 1 for next round, 3 for 3 rounds in a row). Default: 1. */
+  /** Number of rounds to display this message at buytime (default: 1 round, configurable to N rounds). */
   roundsCount?: number;
   /** Target server names (e.g. ['srv-a', 'srv-b']), or 'all' for every server. Default: 'all'. */
   targets?: 'all' | string[];
@@ -38,6 +38,8 @@ export class CreateBroadcastDto {
 }
 
 export class RearmBroadcastDto {
-  /** How many additional rounds to arm this message for. Default: 1. */
+  /** How many additional rounds to arm this message for (default: 1 round, configurable). */
   additionalRounds?: number;
+  /** Alias for additionalRounds if caller passes roundsCount instead. */
+  roundsCount?: number;
 }

@@ -67,6 +67,25 @@ describe('BuytimeBroadcastService', () => {
       await expect(service.createBroadcast({ message: '   ' })).rejects.toThrow('Le message ne peut pas être vide');
     });
 
+    it('defaults to 1 round when roundsCount is omitted, and is configurable', async () => {
+      // 1. Omitted roundsCount -> defaults to 1 round
+      const defaultBc = await service.createBroadcast({
+        message: 'Message round 1 par défaut',
+        targets: ['srv-a'],
+      });
+      expect(defaultBc.roundsTotal).toBe(1);
+      expect(defaultBc.servers['srv-a'].roundsRemaining).toBe(1);
+
+      // 2. Configurable to 4 rounds
+      const customBc = await service.createBroadcast({
+        message: 'Message 4 rounds',
+        roundsCount: 4,
+        targets: ['srv-a'],
+      });
+      expect(customBc.roundsTotal).toBe(4);
+      expect(customBc.servers['srv-a'].roundsRemaining).toBe(4);
+    });
+
     it('sends immediately to idle servers and arms for competitive matches', async () => {
       const broadcast = await service.createBroadcast({
         message: 'Pause dîner dans 15 min !',
@@ -161,7 +180,7 @@ describe('BuytimeBroadcastService', () => {
   });
 
   describe('rearmBroadcast', () => {
-    it('re-arms an already completed broadcast for additional rounds', async () => {
+    it('defaults to +1 round when empty, and supports custom additional rounds or roundsCount alias', async () => {
       const broadcast = await service.createBroadcast({
         message: 'Message test',
         roundsCount: 1,
@@ -176,12 +195,21 @@ describe('BuytimeBroadcastService', () => {
       expect(current?.completed).toBe(true);
       expect(mockActiveIds.has(broadcast.id)).toBe(false);
 
-      // Admin re-arms for 2 additional rounds
-      const rearmed = await service.rearmBroadcast(broadcast.id, { additionalRounds: 2 });
-      expect(rearmed.completed).toBe(false);
-      expect(rearmed.roundsTotal).toBe(3);
-      expect(rearmed.servers['srv-a'].roundsRemaining).toBe(2);
-      expect(mockActiveIds.has(broadcast.id)).toBe(true);
+      // 1. Default rearm with empty body -> +1 round
+      const rearmedDefault = await service.rearmBroadcast(broadcast.id, {});
+      expect(rearmedDefault.completed).toBe(false);
+      expect(rearmedDefault.roundsTotal).toBe(2);
+      expect(rearmedDefault.servers['srv-a'].roundsRemaining).toBe(1);
+
+      // 2. Custom rearm with additionalRounds: 2
+      const rearmedCustom = await service.rearmBroadcast(broadcast.id, { additionalRounds: 2 });
+      expect(rearmedCustom.roundsTotal).toBe(4);
+      expect(rearmedCustom.servers['srv-a'].roundsRemaining).toBe(3);
+
+      // 3. Custom rearm using roundsCount alias: 1
+      const rearmedAlias = await service.rearmBroadcast(broadcast.id, { roundsCount: 1 });
+      expect(rearmedAlias.roundsTotal).toBe(5);
+      expect(rearmedAlias.servers['srv-a'].roundsRemaining).toBe(4);
 
       // Round 2 freeze time works
       cmds.say.mockClear();

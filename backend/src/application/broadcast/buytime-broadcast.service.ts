@@ -44,7 +44,7 @@ export class BuytimeBroadcastService {
       throw new BadRequestException('Le message ne peut pas être vide');
     }
 
-    const roundsTotal = Math.max(1, Math.floor(Number(dto.roundsCount) || 1));
+    const roundsTotal = Math.max(1, Math.floor(Number(dto.roundsCount ?? 1) || 1));
     const prefix = dto.prefix !== undefined ? dto.prefix.trim() : '[Annonce]';
     const formattedMessage = prefix ? `${prefix} ${rawMessage}` : rawMessage;
     const sendImmediateIfNoMatch = dto.sendImmediateIfNoMatch !== false;
@@ -203,7 +203,8 @@ export class BuytimeBroadcastService {
       throw new NotFoundException(`Annonce ${id} introuvable`);
     }
 
-    const additionalRounds = Math.max(1, Math.floor(Number(dto.additionalRounds) || 1));
+    const requested = dto.additionalRounds ?? dto.roundsCount ?? 1;
+    const additionalRounds = Math.max(1, Math.floor(Number(requested) || 1));
     broadcast.roundsTotal += additionalRounds;
     broadcast.completed = false;
     broadcast.cancelled = false;
