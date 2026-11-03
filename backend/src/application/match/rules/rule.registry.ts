@@ -9,6 +9,8 @@ import { PostgameRule } from './postgame.rule';
 import { ReadyCommand } from '@app/match/commands/ready.command';
 import { KnifeChoiceCommand } from '../commands/knife-choice.command';
 import { PauseCommand } from '../commands/pause.command';
+import { Optional } from '@nestjs/common';
+import { CommunityMessagesService } from '@app/community-messages/community-messages.service';
 
 @Injectable()
 export class RuleRegistry {
@@ -18,8 +20,9 @@ export class RuleRegistry {
     private readonly readyCmd: ReadyCommand,
     private readonly knifeCmd: KnifeChoiceCommand,
     private readonly pauseCmd: PauseCommand,
+    @Optional() private readonly communityMessages?: CommunityMessagesService,
   ) {
-    const warmupRule = new WarmupRule(this.readyCmd);
+    const warmupRule = new WarmupRule(this.readyCmd, this.communityMessages);
     const knifeRule = new KnifeRule();
     const knifeChoiceRule = new KnifeChoiceRule(this.knifeCmd);
     const liveRule = new LiveRule(this.pauseCmd);

@@ -137,6 +137,7 @@ model Tournament {
   rosters     TeamRoster[]
   stages      Stage[]
   sponsors    Sponsor[]
+  communityMessages CommunityMessage[]
 
   @@map("tournaments")
 }
@@ -506,4 +507,24 @@ model Sponsor {
   @@index([tournamentId])
   @@index([active])
   @@map("sponsors")
+}
+
+// =============================================================================
+// COMMUNITY & LAN MESSAGES
+// =============================================================================
+
+model CommunityMessage {
+  id           String      @id @default(uuid()) @db.Uuid
+  text         String      @db.VarChar(255)
+  category     String      @default("info") @db.VarChar(32)
+  active       Boolean     @default(true)
+  tournamentId String?     @map("tournament_id") @db.Uuid
+  createdAt    DateTime    @default(now()) @map("created_at")
+  updatedAt    DateTime    @updatedAt @map("updated_at")
+
+  tournament   Tournament? @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
+
+  @@index([tournamentId])
+  @@index([active])
+  @@map("community_messages")
 }

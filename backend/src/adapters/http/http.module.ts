@@ -35,6 +35,8 @@ import { MatchAdminService } from '@app/match/admin/match-admin.service';
 import { BroadcastController } from './broadcast/broadcast.controller';
 import { SponsorController } from './sponsors/sponsor.controller';
 import { SponsorModule } from '@app/sponsors/sponsor.module';
+import { CommunityMessagesController } from './community-messages/community-messages.controller';
+import { CommunityMessagesModule } from '@app/community-messages/community-messages.module';
 
 @Module({
   imports: [
@@ -47,6 +49,7 @@ import { SponsorModule } from '@app/sponsors/sponsor.module';
     WsModule, // veto:updated pushed by the veto actions
     BuytimeBroadcastModule,
     SponsorModule,
+    CommunityMessagesModule,
   ],
   controllers: [
     MatchesController,
@@ -64,6 +67,7 @@ import { SponsorModule } from '@app/sponsors/sponsor.module';
     MatchAdminController,
     BroadcastController,
     SponsorController,
+    CommunityMessagesController,
   ],
   providers: [
     TournamentStagesService,

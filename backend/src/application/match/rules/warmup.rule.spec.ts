@@ -155,4 +155,30 @@ describe('WarmupRule - Ready Checks & Target Phase Selection', () => {
       expect(mockCtx.orch.startPhaseCountdown).not.toHaveBeenCalled();
     });
   });
+
+  describe('say', () => {
+    it('returns SaySpec with default messages when no CommunityMessagesService is provided', async () => {
+      const spec = await rule.say(mockCtx);
+      expect(spec).toBeDefined();
+      expect(Array.isArray(spec)).toBe(true);
+      const units = spec as Array<{ items: string[] }>;
+      expect(units[1].items).toEqual([
+        'La GG-Lan est entièrement financée par vos participations ! Merci à vous !',
+        'Presque dix ans que la GG-Lan existe !',
+        "Nous avons eu le plaisir d'accueillir Croissant Strike à la 17ème édition",
+      ]);
+    });
+
+    it('returns SaySpec with dynamic messages from CommunityMessagesService', async () => {
+      const mockCommunityService = {
+        getActiveWarmupMessages: jest.fn().mockResolvedValue(['Message Dynamique 1', 'Message Dynamique 2']),
+      };
+      const ruleWithCommunity = new WarmupRule(mockReadyCmd, mockCommunityService as any);
+
+      const spec = await ruleWithCommunity.say(mockCtx);
+      const units = spec as Array<{ items: string[] }>;
+      expect(units[1].items).toEqual(['Message Dynamique 1', 'Message Dynamique 2']);
+      expect(mockCommunityService.getActiveWarmupMessages).toHaveBeenCalled();
+    });
+  });
 });
