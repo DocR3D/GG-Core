@@ -7,6 +7,7 @@ import type { MatchCommandsService } from '@app/commands/match-commands.service'
 import type { MatchStateService } from '@app/match/state/match-state.service';
 import type { PrismaService } from '@adapters/database/prisma.service';
 import type { Sponsor } from '@prisma/client';
+import type { Redis } from 'ioredis';
 
 describe('SponsorChatAnnouncerService', () => {
   let announcer: SponsorChatAnnouncerService;
@@ -29,6 +30,10 @@ describe('SponsorChatAnnouncerService', () => {
     server: {
       findMany: jest.Mock;
     };
+  };
+  let mockRedis: {
+    get: jest.Mock;
+    set: jest.Mock;
   };
 
   const sampleSponsor: Sponsor = {
@@ -69,17 +74,70 @@ describe('SponsorChatAnnouncerService', () => {
         findMany: jest.fn().mockResolvedValue([]),
       },
     };
+    mockRedis = {
+      get: jest.fn().mockResolvedValue(null),
+      set: jest.fn().mockResolvedValue('OK'),
+    };
 
     announcer = new SponsorChatAnnouncerService(
       mockSponsorService as unknown as SponsorService,
       mockCmds as unknown as MatchCommandsService,
       mockState as unknown as MatchStateService,
       mockPrisma as unknown as PrismaService,
+      mockRedis as unknown as Redis,
     );
   });
 
   afterEach(() => {
     jest.useRealTimers();
+  });
+
+  describe('configuration & anti-spam', () => {
+    it('returns default config with pauses disabled to prevent player distraction', () => {
+      const cfg = announcer.getConfig();
+      expect(cfg.enabled).toBe(true);
+      expect(cfg.enableInPauses).toBe(false); // désactivé par défaut
+      expect(cfg.minIntervalBetweenMessagesSec).toBe(300); // 5 min cooldown
+    });
+
+    it('updates config on the fly and persists to Redis', async () => {
+      const updated = await announcer.updateConfig({
+        enableInPauses: true,
+        pauseDelaySec: 20,
+      });
+
+      expect(updated.enableInPauses).toBe(true);
+      expect(updated.pauseDelaySec).toBe(20);
+      expect(mockRedis.set).toHaveBeenCalledWith(
+        'sponsors:config',
+        expect.stringContaining('"enableInPauses":true'),
+      );
+    });
+
+    it('respects anti-spam cooldown on the same server', async () => {
+      mockSponsorService.selectWeightedSponsor.mockResolvedValue(sampleSponsor);
+
+      // 1st announcement on srv-1 -> succeeds
+      const first = await announcer.announceOnServer('srv-1');
+      expect(first).toBe(true);
+      expect(mockCmds.say).toHaveBeenCalledTimes(1);
+
+      // 2nd announcement on srv-1 immediately -> blocked by cooldown
+      const second = await announcer.announceOnServer('srv-1');
+      expect(second).toBe(false);
+      expect(mockCmds.say).toHaveBeenCalledTimes(1);
+
+      // Announcement on srv-2 -> succeeds (different server)
+      const otherSrv = await announcer.announceOnServer('srv-2');
+      expect(otherSrv).toBe(true);
+      expect(mockCmds.say).toHaveBeenCalledTimes(2);
+
+      // After 301 seconds -> cooldown elapsed on srv-1 -> succeeds again
+      jest.advanceTimersByTime(301 * 1000);
+      const third = await announcer.announceOnServer('srv-1');
+      expect(third).toBe(true);
+      expect(mockCmds.say).toHaveBeenCalledTimes(3);
+    });
   });
 
   describe('announceOnServer', () => {
@@ -120,31 +178,34 @@ describe('SponsorChatAnnouncerService', () => {
   });
 
   describe('onPauseStarted', () => {
-    it('dispatches sponsor message after delay when match is in tactical pause', async () => {
+    it('does NOT dispatch during pause by default (enableInPauses = false)', async () => {
       mockState.getPhase.mockResolvedValue(MatchPhase.PAUSED_TAC);
       mockSponsorService.selectWeightedSponsor.mockResolvedValue(sampleSponsor);
 
       announcer.onPauseStarted('m-1', 'srv-1', 'tactical');
 
-      // Before timer ticks -> not sent yet
+      await jest.advanceTimersByTimeAsync(30000);
+      expect(mockCmds.say).not.toHaveBeenCalled();
+    });
+
+    it('dispatches after configured pauseDelaySec when enableInPauses = true', async () => {
+      await announcer.updateConfig({ enableInPauses: true, pauseDelaySec: 15 });
+      mockState.getPhase.mockResolvedValue(MatchPhase.PAUSED_TAC);
+      mockSponsorService.selectWeightedSponsor.mockResolvedValue(sampleSponsor);
+
+      announcer.onPauseStarted('m-1', 'srv-1', 'tactical');
+
+      // Before delay -> not called
+      await jest.advanceTimersByTimeAsync(14000);
       expect(mockCmds.say).not.toHaveBeenCalled();
 
-      // Advance by 2000ms
-      await jest.advanceTimersByTimeAsync(2000);
-
+      // At 15s -> called once
+      await jest.advanceTimersByTimeAsync(1000);
       expect(mockCmds.say).toHaveBeenCalledTimes(1);
       expect(mockCmds.say).toHaveBeenCalledWith(
         'srv-1',
         '[Partenaire] Profitez de 10% de remise chez Hardware Pro !',
       );
-    });
-
-    it('does not send if disabled', async () => {
-      announcer.setEnabled(false);
-      announcer.onPauseStarted('m-1', 'srv-1', 'tactical');
-
-      await jest.advanceTimersByTimeAsync(2000);
-      expect(mockCmds.say).not.toHaveBeenCalled();
     });
   });
 

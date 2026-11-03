@@ -18,7 +18,7 @@ import * as path from 'path';
 import * as fs from 'fs';
 import { SponsorService } from '@app/sponsors/sponsor.service';
 import { SponsorChatAnnouncerService } from '@app/sponsors/sponsor-chat-announcer.service';
-import { CreateSponsorDto, UpdateSponsorDto, SponsorTier } from '@app/sponsors/sponsor.types';
+import { CreateSponsorDto, UpdateSponsorDto, SponsorTier, UpdateSponsorChatConfigDto } from '@app/sponsors/sponsor.types';
 
 const UPLOAD_DIR = path.join(process.cwd(), 'public/uploads/sponsors');
 if (!fs.existsSync(UPLOAD_DIR)) {
@@ -171,5 +171,15 @@ export class SponsorController {
       return { success, serverId };
     }
     return this.announcer.broadcastToAllNonPlayingServers(prefix);
+  }
+
+  @Get('admin/sponsors/config')
+  getConfig() {
+    return this.announcer.getConfig();
+  }
+
+  @Patch('admin/sponsors/config')
+  async updateConfig(@Body() dto: UpdateSponsorChatConfigDto) {
+    return this.announcer.updateConfig(dto);
   }
 }

@@ -1,50 +1,107 @@
 // src/application/sponsors/sponsor-chat-announcer.service.ts
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, Inject, OnModuleInit } from '@nestjs/common';
+import type { Redis } from 'ioredis';
+import { REDIS_CMD } from '@adapters/redis/redis.tokens';
 import { SponsorService } from './sponsor.service';
 import { MatchCommandsService } from '@app/commands/match-commands.service';
 import { MatchStateService } from '@app/match/state/match-state.service';
 import { PrismaService } from '@adapters/database/prisma.service';
 import { MatchPhase } from '@domain/phase.types';
+import {
+  SponsorChatConfig,
+  UpdateSponsorChatConfigDto,
+  DEFAULT_SPONSOR_CHAT_CONFIG,
+  AnnounceSponsorOptions,
+} from './sponsor.types';
 import type { Sponsor } from '@prisma/client';
 
-export interface AnnounceSponsorOptions {
-  sponsorId?: string;
-  prefix?: string;
-  customMessage?: string;
-}
+const REDIS_CONFIG_KEY = 'sponsors:config';
 
 @Injectable()
-export class SponsorChatAnnouncerService {
+export class SponsorChatAnnouncerService implements OnModuleInit {
   private readonly logger = new Logger(SponsorChatAnnouncerService.name);
-  private enabled = true;
-  private defaultPrefix = '[Partenaire]';
+  private config: SponsorChatConfig = { ...DEFAULT_SPONSOR_CHAT_CONFIG };
+  // Anti-spam par serveur : timestamp de la dernière annonce diffusée
+  private readonly lastAnnouncedAt = new Map<string, number>();
 
   constructor(
     private readonly sponsorService: SponsorService,
     private readonly cmds: MatchCommandsService,
     private readonly state: MatchStateService,
     private readonly prisma: PrismaService,
+    @Inject(REDIS_CMD) private readonly redis: Redis,
   ) {}
 
-  /** Active ou désactive la diffusion automatique dans le chat in-game. */
-  setEnabled(enabled: boolean): void {
-    this.enabled = enabled;
-    this.logger.log(`[SponsorChat] Auto-announcements set to ${enabled ? 'ENABLED' : 'DISABLED'}`);
+  async onModuleInit(): Promise<void> {
+    await this.loadConfig();
   }
 
-  isEnabled(): boolean {
-    return this.enabled;
+  /**
+   * Charge la configuration depuis Redis ou initialise avec les valeurs par défaut.
+   */
+  async loadConfig(): Promise<SponsorChatConfig> {
+    try {
+      const raw = await this.redis.get(REDIS_CONFIG_KEY);
+      if (raw) {
+        const parsed = JSON.parse(raw) as Partial<SponsorChatConfig>;
+        this.config = { ...DEFAULT_SPONSOR_CHAT_CONFIG, ...parsed };
+      }
+    } catch (err) {
+      this.logger.warn(`[SponsorChat] Impossible de charger la config Redis, utilisation du défaut: ${String(err)}`);
+    }
+    return this.config;
   }
 
-  setDefaultPrefix(prefix: string): void {
-    this.defaultPrefix = prefix.trim();
+  /**
+   * Retourne la configuration actuelle.
+   */
+  getConfig(): SponsorChatConfig {
+    return { ...this.config };
+  }
+
+  /**
+   * Met à jour la configuration à la volée (sauvegardée dans Redis).
+   */
+  async updateConfig(dto: UpdateSponsorChatConfigDto): Promise<SponsorChatConfig> {
+    this.config = {
+      ...this.config,
+      ...dto,
+    };
+    try {
+      await this.redis.set(REDIS_CONFIG_KEY, JSON.stringify(this.config));
+    } catch (err) {
+      this.logger.warn(`[SponsorChat] Erreur sauvegarde config Redis: ${String(err)}`);
+    }
+    this.logger.log(
+      `[SponsorChat] Config mise à jour: enabled=${this.config.enabled}, pauses=${this.config.enableInPauses} (${this.config.pauseDelaySec}s), warmup=${this.config.enableInWarmup}, cooldown=${this.config.minIntervalBetweenMessagesSec}s`,
+    );
+    return { ...this.config };
+  }
+
+  /**
+   * Vérifie le cooldown anti-spam pour un serveur donné.
+   */
+  private isCooldownActive(serverId: string): boolean {
+    const last = this.lastAnnouncedAt.get(serverId);
+    if (!last) return false;
+    const elapsedSec = (Date.now() - last) / 1000;
+    return elapsedSec < this.config.minIntervalBetweenMessagesSec;
   }
 
   /**
    * Envoie une annonce sponsor ciblée sur un serveur donné.
-   * Ne perturbe pas le jeu : respecte le formatage sobre et clair.
+   * Respecte le cooldown anti-spam configuré (sauf si forcé par ignoreCooldown).
    */
   async announceOnServer(serverId: string, options?: AnnounceSponsorOptions): Promise<boolean> {
+    if (!this.config.enabled && !options?.ignoreCooldown) {
+      return false;
+    }
+
+    if (!options?.ignoreCooldown && this.isCooldownActive(serverId)) {
+      this.logger.debug(`[SponsorChat] Cooldown actif sur ${serverId}, annonce ignorée pour éviter de spammer`);
+      return false;
+    }
+
     const tournamentId = await this.resolveTournamentIdForServer(serverId);
 
     let sponsor: Sponsor | null = null;
@@ -55,20 +112,18 @@ export class SponsorChatAnnouncerService {
     }
 
     if (!sponsor) {
-      this.logger.debug(`[SponsorChat] No active sponsor available for server ${serverId}`);
+      this.logger.debug(`[SponsorChat] Aucun sponsor actif disponible pour le serveur ${serverId}`);
       return false;
     }
 
-    const prefix = options?.prefix ?? this.defaultPrefix;
+    const prefix = options?.prefix ?? this.config.prefix;
     let messageText = options?.customMessage;
 
     if (!messageText) {
       if (sponsor.messages && sponsor.messages.length > 0) {
-        // Tirage aléatoire parmi les messages configurés pour ce sponsor
         const idx = Math.floor(Math.random() * sponsor.messages.length);
         messageText = sponsor.messages[idx];
       } else {
-        // Message sobre par défaut
         messageText = `Merci a ${sponsor.name} pour son soutien !`;
       }
     }
@@ -76,23 +131,35 @@ export class SponsorChatAnnouncerService {
     const formatted = `${prefix} ${messageText}`;
     try {
       await this.cmds.say(serverId, formatted);
-      this.logger.log(`[SponsorChat] Broadcast sent to ${serverId}: "${formatted}"`);
+      this.lastAnnouncedAt.set(serverId, Date.now());
+      this.logger.log(`[SponsorChat] Annonce diffusée sur ${serverId}: "${formatted}"`);
       return true;
     } catch (err) {
-      this.logger.error(`[SponsorChat] Failed to send announcement to ${serverId}: ${String(err)}`);
+      this.logger.error(`[SponsorChat] Échec envoi vers ${serverId}: ${String(err)}`);
       return false;
     }
   }
 
   /**
    * Déclenché lors du début d'une pause tactique ou technique.
-   * Diffuse un sponsor pendant le temps mort sans perturber le gameplay.
+   * Si désactivé ou si cooldown non écoulé, ne diffuse absolument rien.
+   * Si activé, attend le délai configuré (ex: 15s) avant d'envoyer UNE annonce.
    */
   onPauseStarted(matchId: string, serverId: string, reason: string): void {
-    if (!this.enabled) return;
+    if (!this.config.enabled || !this.config.enableInPauses) {
+      // Désactivé par configuration : aucune distraction pour les joueurs
+      return;
+    }
 
-    this.logger.log(`[SponsorChat] Pause detected on ${serverId} (reason: ${reason}, match: ${matchId}). Scheduling sponsor message...`);
-    // Délai court de 2s pour laisser passer la notification de pause
+    if (this.isCooldownActive(serverId)) {
+      return;
+    }
+
+    this.logger.log(
+      `[SponsorChat] Pause détectée sur ${serverId} (${reason}). Message sponsor programmé dans ${this.config.pauseDelaySec}s...`,
+    );
+
+    const delayMs = Math.max(1, this.config.pauseDelaySec) * 1000;
     setTimeout(() => {
       void (async () => {
         try {
@@ -107,28 +174,34 @@ export class SponsorChatAnnouncerService {
             await this.announceOnServer(serverId);
           }
         } catch (e) {
-          this.logger.warn(`[SponsorChat] Error in pause sponsor tick for ${serverId}: ${String(e)}`);
+          this.logger.warn(`[SponsorChat] Erreur annonce pause sur ${serverId}: ${String(e)}`);
         }
       })();
-    }, 2000);
+    }, delayMs);
   }
 
   /**
    * Déclenché lors de la mi-temps.
    */
   onHalfTime(matchId: string, serverId: string): void {
-    if (!this.enabled) return;
+    if (!this.config.enabled || !this.config.enableInHalftime) {
+      return;
+    }
 
-    this.logger.log(`[SponsorChat] Half-time on ${serverId} (match: ${matchId}). Dispatching sponsor announcement...`);
+    if (this.isCooldownActive(serverId)) {
+      return;
+    }
+
+    this.logger.log(`[SponsorChat] Mi-temps sur ${serverId} (match: ${matchId}). Diffusion sponsor...`);
     setTimeout(() => {
       void (async () => {
         try {
           await this.announceOnServer(serverId);
         } catch (e) {
-          this.logger.warn(`[SponsorChat] Error in half-time sponsor dispatch: ${String(e)}`);
+          this.logger.warn(`[SponsorChat] Erreur annonce mi-temps: ${String(e)}`);
         }
       })();
-    }, 1500);
+    }, 2000);
   }
 
   /**

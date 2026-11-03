@@ -22,6 +22,8 @@ describe('SponsorController', () => {
   let mockAnnouncer: {
     announceOnServer: jest.Mock;
     broadcastToAllNonPlayingServers: jest.Mock;
+    getConfig: jest.Mock;
+    updateConfig: jest.Mock;
   };
 
   const sampleSponsor: Sponsor = {
@@ -55,6 +57,8 @@ describe('SponsorController', () => {
     mockAnnouncer = {
       announceOnServer: jest.fn(),
       broadcastToAllNonPlayingServers: jest.fn(),
+      getConfig: jest.fn(),
+      updateConfig: jest.fn(),
     };
 
     controller = new SponsorController(
@@ -171,5 +175,26 @@ describe('SponsorController', () => {
     mockAnnouncer.broadcastToAllNonPlayingServers.mockResolvedValueOnce({ sent: 2, servers: ['srv-1', 'srv-2'] });
     const allRes = await controller.triggerAnnounce('all', undefined, '[Sponsor]');
     expect(allRes).toEqual({ sent: 2, servers: ['srv-1', 'srv-2'] });
+  });
+
+  it('GET & PATCH /admin/sponsors/config manages chat configuration', async () => {
+    const config = {
+      enabled: true,
+      enableInWarmup: true,
+      warmupIntervalSec: 180,
+      enableInPauses: false,
+      pauseDelaySec: 15,
+      enableInHalftime: true,
+      minIntervalBetweenMessagesSec: 300,
+      prefix: '[Partenaire]',
+    };
+
+    mockAnnouncer.getConfig.mockReturnValueOnce(config);
+    expect(controller.getConfig()).toEqual(config);
+
+    mockAnnouncer.updateConfig.mockResolvedValueOnce({ ...config, enableInPauses: true });
+    const updated = await controller.updateConfig({ enableInPauses: true });
+    expect(updated.enableInPauses).toBe(true);
+    expect(mockAnnouncer.updateConfig).toHaveBeenCalledWith({ enableInPauses: true });
   });
 });

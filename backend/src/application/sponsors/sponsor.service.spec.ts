@@ -4,7 +4,7 @@ import { SponsorService } from './sponsor.service';
 import { SponsorTier } from './sponsor.types';
 import type { PrismaService } from '@adapters/database/prisma.service';
 import type { RealtimeEmitter } from '@adapters/ws/ws-emitter.internal';
-import type { Sponsor, Tournament } from '@prisma/client';
+import type { Sponsor } from '@prisma/client';
 
 describe('SponsorService', () => {
   let service: SponsorService;
