@@ -14,6 +14,7 @@ describe('BuytimeBroadcastService', () => {
   const mockActiveIds = new Set<string>();
 
   beforeEach(() => {
+    jest.useFakeTimers();
     Object.keys(mockRedisStorage).forEach((k) => delete mockRedisStorage[k]);
     mockActiveIds.clear();
 
@@ -60,6 +61,11 @@ describe('BuytimeBroadcastService', () => {
     };
 
     service = new BuytimeBroadcastService(redis, cmds, state, emitter, prisma);
+  });
+
+  afterEach(() => {
+    service.onModuleDestroy();
+    jest.useRealTimers();
   });
 
   describe('createBroadcast', () => {
@@ -112,6 +118,69 @@ describe('BuytimeBroadcastService', () => {
 
       // Added to active broadcasts
       expect(mockActiveIds.has(broadcast.id)).toBe(true);
+    });
+  });
+
+  describe('warmup periodic repeats', () => {
+    it('repeats message in warmup across configured interval, and completes', async () => {
+      // srv-b is idle / in warmup
+      const broadcast = await service.createBroadcast({
+        message: 'Tapez !ready svp',
+        targets: ['srv-b'],
+        warmupRepeats: 3,
+        warmupIntervalSec: 30,
+        sendImmediateIfNoMatch: true,
+      });
+
+      expect(cmds.say).toHaveBeenCalledTimes(1);
+      expect(cmds.say).toHaveBeenCalledWith('srv-b', '[Annonce] Tapez !ready svp');
+      expect(broadcast.servers['srv-b'].completed).toBe(false);
+      expect(broadcast.servers['srv-b'].warmupRepeatsRemaining).toBe(2);
+
+      // Advance by 30s -> 2nd tick
+      await jest.advanceTimersByTimeAsync(30000);
+      expect(cmds.say).toHaveBeenCalledTimes(2);
+
+      let current = await service.getBroadcast(broadcast.id);
+      expect(current?.servers['srv-b'].roundsSent).toBe(2);
+      expect(current?.servers['srv-b'].warmupRepeatsRemaining).toBe(1);
+      expect(current?.servers['srv-b'].completed).toBe(false);
+
+      // Advance by 30s -> 3rd tick (completed)
+      await jest.advanceTimersByTimeAsync(30000);
+      expect(cmds.say).toHaveBeenCalledTimes(3);
+
+      current = await service.getBroadcast(broadcast.id);
+      expect(current?.servers['srv-b'].roundsSent).toBe(3);
+      expect(current?.servers['srv-b'].warmupRepeatsRemaining).toBe(0);
+      expect(current?.servers['srv-b'].completed).toBe(true);
+      expect(current?.completed).toBe(true);
+
+      // Advance further -> no more calls
+      await jest.advanceTimersByTimeAsync(30000);
+      expect(cmds.say).toHaveBeenCalledTimes(3);
+    });
+
+    it('stops warmup repeats immediately if match goes live', async () => {
+      const broadcast = await service.createBroadcast({
+        message: 'Bienvenue au tournoi',
+        targets: ['srv-b'],
+        warmupRepeats: 5,
+        warmupIntervalSec: 20,
+      });
+
+      expect(cmds.say).toHaveBeenCalledTimes(1);
+
+      // Match starts live on srv-b before tick 2
+      state.getMatchIdFromServerId.mockImplementation((sid: string) => Promise.resolve(sid === 'srv-b' ? 'm-srv-b' : null));
+      state.getPhase.mockImplementation((mid: string) => Promise.resolve(mid === 'm-srv-b' ? MatchPhase.LIVE_MAIN : null));
+
+      // Advance timer: should detect match is live and stop
+      await jest.advanceTimersByTimeAsync(20000);
+      expect(cmds.say).toHaveBeenCalledTimes(1); // not called again
+
+      const current = await service.getBroadcast(broadcast.id);
+      expect(current?.servers['srv-b'].completed).toBe(true);
     });
   });
 
@@ -247,9 +316,13 @@ describe('BuytimeBroadcastService', () => {
 
   describe('listBroadcasts', () => {
     it('lists broadcasts sorted by creation date desc', async () => {
-      await service.createBroadcast({ message: 'Premier' });
-      await new Promise((r) => setTimeout(r, 10));
-      await service.createBroadcast({ message: 'Deuxième' });
+      const b1 = await service.createBroadcast({ message: 'Premier' });
+      b1.createdAt = 1000;
+      await (service as any).saveBroadcast(b1);
+
+      const b2 = await service.createBroadcast({ message: 'Deuxième' });
+      b2.createdAt = 2000;
+      await (service as any).saveBroadcast(b2);
 
       const list = await service.listBroadcasts();
       expect(list.length).toBe(2);

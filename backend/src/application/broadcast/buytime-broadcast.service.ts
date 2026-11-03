@@ -1,5 +1,13 @@
 // src/application/broadcast/buytime-broadcast.service.ts
-import { Injectable, Logger, Inject, BadRequestException, NotFoundException, Optional } from '@nestjs/common';
+import {
+  Injectable,
+  Logger,
+  Inject,
+  BadRequestException,
+  NotFoundException,
+  Optional,
+  OnModuleDestroy,
+} from '@nestjs/common';
 import type Redis from 'ioredis';
 import * as crypto from 'crypto';
 import { REDIS_CMD } from '@adapters/redis/redis.tokens';
@@ -23,8 +31,9 @@ function uuid(): string {
 }
 
 @Injectable()
-export class BuytimeBroadcastService {
+export class BuytimeBroadcastService implements OnModuleDestroy {
   private readonly logger = new Logger(BuytimeBroadcastService.name);
+  private readonly warmupTimers = new Map<string, NodeJS.Timeout>();
 
   constructor(
     @Inject(REDIS_CMD) private readonly redis: Redis,
@@ -34,9 +43,18 @@ export class BuytimeBroadcastService {
     @Optional() private readonly prisma?: PrismaService,
   ) {}
 
+  onModuleDestroy() {
+    for (const timer of this.warmupTimers.values()) {
+      clearTimeout(timer);
+    }
+    this.warmupTimers.clear();
+  }
+
   /**
-   * Arm a broadcast message to be sent at buytime (freeze time) across target servers,
-   * with support for repeating across multiple consecutive rounds.
+   * Arm a broadcast message to be sent at buytime across target servers.
+   * - In competitive matches: displayed at buytime / freeze time for `roundsCount` rounds.
+   * - In warmup / idle: displayed immediately, and optionally repeated `warmupRepeats` times
+   *   separated by `warmupIntervalSec` seconds (e.g. every 60s during warmup).
    */
   async createBroadcast(dto: CreateBroadcastDto, author = 'admin'): Promise<BuytimeBroadcast> {
     const rawMessage = (dto.message ?? '').trim().replace(/[\r\n]+/g, ' ');
@@ -45,6 +63,8 @@ export class BuytimeBroadcastService {
     }
 
     const roundsTotal = Math.max(1, Math.floor(Number(dto.roundsCount ?? 1) || 1));
+    const warmupRepeats = Math.max(1, Math.floor(Number(dto.warmupRepeats ?? 1) || 1));
+    const warmupIntervalSec = Math.max(5, Math.floor(Number(dto.warmupIntervalSec ?? 60) || 60));
     const prefix = dto.prefix !== undefined ? dto.prefix.trim() : '[Annonce]';
     const formattedMessage = prefix ? `${prefix} ${rawMessage}` : rawMessage;
     const sendImmediateIfNoMatch = dto.sendImmediateIfNoMatch !== false;
@@ -63,7 +83,10 @@ export class BuytimeBroadcastService {
       const matchRunning = await this.isCompetitiveMatchRunning(serverId);
 
       if (!matchRunning && sendImmediateIfNoMatch) {
-        // Server is idle or in warmup: send immediately
+        // Server is idle or in warmup: send first message immediately
+        const remainingWarmup = warmupRepeats - 1;
+        const isWarmupDone = remainingWarmup <= 0;
+
         try {
           await this.cmds.say(serverId, formattedMessage);
           serversProgress[serverId] = {
@@ -71,10 +94,17 @@ export class BuytimeBroadcastService {
             roundsRemaining: 0,
             roundsSent: 1,
             lastSentAt: now,
-            completed: true,
+            completed: isWarmupDone,
             immediate: true,
+            warmupRepeatsRemaining: remainingWarmup,
           };
-          this.logger.log(`[BuytimeBroadcast] Sent immediately to idle/warmup server ${serverId}: "${formattedMessage}"`);
+          this.logger.log(
+            `[BuytimeBroadcast] Sent immediately in warmup/idle on ${serverId} (warmup repeats left: ${remainingWarmup}): "${formattedMessage}"`,
+          );
+
+          if (!isWarmupDone) {
+            this.scheduleWarmupTick(broadcastId, serverId, warmupIntervalSec);
+          }
         } catch (err) {
           this.logger.warn(`[BuytimeBroadcast] Failed immediate dispatch to ${serverId}: ${String(err)}`);
           serversProgress[serverId] = {
@@ -83,6 +113,7 @@ export class BuytimeBroadcastService {
             roundsSent: 0,
             completed: true,
             immediate: true,
+            warmupRepeatsRemaining: 0,
           };
         }
       } else {
@@ -93,6 +124,7 @@ export class BuytimeBroadcastService {
           roundsSent: 0,
           completed: false,
           immediate: false,
+          warmupRepeatsRemaining: 0,
         };
         this.logger.log(
           `[BuytimeBroadcast] Armed for server ${serverId} for ${roundsTotal} consecutive round(s) at buytime: "${formattedMessage}"`,
@@ -108,6 +140,8 @@ export class BuytimeBroadcastService {
       prefix,
       formattedMessage,
       roundsTotal,
+      warmupRepeats,
+      warmupIntervalSec,
       createdAt: now,
       createdBy: author,
       sendImmediateIfNoMatch,
@@ -143,6 +177,9 @@ export class BuytimeBroadcastService {
     let sentCount = 0;
 
     for (const id of activeIds) {
+      // Clear any remaining warmup timer for this server since competitive match is now running
+      this.clearWarmupTimer(id, serverId);
+
       const broadcast = await this.getBroadcast(id);
       if (!broadcast || broadcast.cancelled || broadcast.completed) {
         await this.redis.srem(ACTIVE_BROADCASTS_KEY, id);
@@ -195,7 +232,7 @@ export class BuytimeBroadcastService {
   }
 
   /**
-   * Re-arm an existing broadcast for additional rounds (e.g. show 2 more rounds).
+   * Re-arm an existing broadcast for additional rounds or additional warmup repeats.
    */
   async rearmBroadcast(id: string, dto: RearmBroadcastDto = {}): Promise<BuytimeBroadcast> {
     const broadcast = await this.getBroadcast(id);
@@ -205,25 +242,36 @@ export class BuytimeBroadcastService {
 
     const requested = dto.additionalRounds ?? dto.roundsCount ?? 1;
     const additionalRounds = Math.max(1, Math.floor(Number(requested) || 1));
+    const additionalWarmup = Math.max(1, Math.floor(Number(dto.warmupRepeats ?? 1) || 1));
+
     broadcast.roundsTotal += additionalRounds;
     broadcast.completed = false;
     broadcast.cancelled = false;
 
-    for (const prog of Object.values(broadcast.servers)) {
-      prog.roundsRemaining += additionalRounds;
-      prog.completed = false;
+    for (const [serverId, prog] of Object.entries(broadcast.servers)) {
+      const matchRunning = await this.isCompetitiveMatchRunning(serverId);
+
+      if (matchRunning) {
+        prog.roundsRemaining += additionalRounds;
+        prog.completed = false;
+      } else {
+        // Idle/warmup server: re-arm warmup repeats
+        prog.warmupRepeatsRemaining = (prog.warmupRepeatsRemaining ?? 0) + additionalWarmup;
+        prog.completed = false;
+        this.scheduleWarmupTick(broadcast.id, serverId, broadcast.warmupIntervalSec || 60);
+      }
     }
 
     await this.saveBroadcast(broadcast);
     await this.redis.sadd(ACTIVE_BROADCASTS_KEY, id);
 
     this.notifyBroadcastEvent('rearmed', broadcast);
-    this.logger.log(`[BuytimeBroadcast] Broadcast ${id} re-armed for +${additionalRounds} round(s)`);
+    this.logger.log(`[BuytimeBroadcast] Broadcast ${id} re-armed (+${additionalRounds} rounds / +${additionalWarmup} warmup)`);
     return broadcast;
   }
 
   /**
-   * Cancel an armed broadcast, stopping future round dispatches.
+   * Cancel an armed broadcast, stopping future round and warmup dispatches.
    */
   async cancelBroadcast(id: string): Promise<BuytimeBroadcast> {
     const broadcast = await this.getBroadcast(id);
@@ -233,9 +281,12 @@ export class BuytimeBroadcastService {
 
     broadcast.cancelled = true;
     broadcast.completed = true;
-    for (const prog of Object.values(broadcast.servers)) {
+
+    for (const [serverId, prog] of Object.entries(broadcast.servers)) {
+      this.clearWarmupTimer(id, serverId);
       prog.completed = true;
       prog.roundsRemaining = 0;
+      prog.warmupRepeatsRemaining = 0;
     }
 
     await this.saveBroadcast(broadcast);
@@ -279,6 +330,90 @@ export class BuytimeBroadcastService {
       return JSON.parse(data) as BuytimeBroadcast;
     } catch {
       return null;
+    }
+  }
+
+  // ---------------------------------------------------------------------------
+  // Warmup Periodic Repeats
+  // ---------------------------------------------------------------------------
+
+  private scheduleWarmupTick(broadcastId: string, serverId: string, intervalSec: number): void {
+    const timerKey = `${broadcastId}:${serverId}`;
+    this.clearWarmupTimer(broadcastId, serverId);
+
+    const timer = setTimeout(() => {
+      void (async () => {
+        this.warmupTimers.delete(timerKey);
+        await this.executeWarmupTick(broadcastId, serverId, intervalSec);
+      })();
+    }, intervalSec * 1000);
+
+    timer.unref();
+    this.warmupTimers.set(timerKey, timer);
+  }
+
+  private clearWarmupTimer(broadcastId: string, serverId: string): void {
+    const timerKey = `${broadcastId}:${serverId}`;
+    const timer = this.warmupTimers.get(timerKey);
+    if (timer) {
+      clearTimeout(timer);
+      this.warmupTimers.delete(timerKey);
+    }
+  }
+
+  private async executeWarmupTick(broadcastId: string, serverId: string, intervalSec: number): Promise<void> {
+    const broadcast = await this.getBroadcast(broadcastId);
+    if (!broadcast || broadcast.cancelled || broadcast.completed) {
+      return;
+    }
+
+    const prog = broadcast.servers[serverId];
+    if (!prog || prog.completed || (prog.warmupRepeatsRemaining ?? 0) <= 0) {
+      return;
+    }
+
+    // Check if match started live in the meantime
+    const matchRunning = await this.isCompetitiveMatchRunning(serverId);
+    if (matchRunning) {
+      this.logger.log(`[BuytimeBroadcast] Match became competitive on ${serverId}, stopping warmup repeats.`);
+      prog.warmupRepeatsRemaining = 0;
+      if (prog.roundsRemaining <= 0) {
+        prog.completed = true;
+      }
+      await this.saveBroadcast(broadcast);
+      return;
+    }
+
+    // Still in warmup: dispatch next repeat
+    try {
+      await this.cmds.say(serverId, broadcast.formattedMessage);
+      prog.roundsSent += 1;
+      prog.lastSentAt = Date.now();
+      prog.warmupRepeatsRemaining = (prog.warmupRepeatsRemaining ?? 1) - 1;
+
+      this.logger.log(
+        `[BuytimeBroadcast] Warmup periodic repeat delivered to ${serverId} (remaining: ${prog.warmupRepeatsRemaining}): "${broadcast.formattedMessage}"`,
+      );
+
+      if (prog.warmupRepeatsRemaining <= 0) {
+        if (prog.roundsRemaining <= 0) {
+          prog.completed = true;
+        }
+      } else {
+        // Schedule next repeat
+        this.scheduleWarmupTick(broadcastId, serverId, intervalSec);
+      }
+
+      const allCompleted = Object.values(broadcast.servers).every((s) => s.completed);
+      if (allCompleted) {
+        broadcast.completed = true;
+        await this.redis.srem(ACTIVE_BROADCASTS_KEY, broadcastId);
+      }
+
+      await this.saveBroadcast(broadcast);
+      this.notifyBroadcastEvent('progress', broadcast);
+    } catch (err) {
+      this.logger.error(`[BuytimeBroadcast] Error delivering warmup repeat to ${serverId}: ${String(err)}`);
     }
   }
 
