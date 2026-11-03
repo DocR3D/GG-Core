@@ -203,3 +203,15 @@ Le cœur moteur de match, l'arbitrage automatisé, le calcul de scores/stats CS2
 - [x] **Historique git sans données réelles de joueurs** (réécriture `filter-repo` des fixtures, 2026-10-30).
 
 - [x] **Message global aux serveurs au Buytime avec réarmement multi-rounds** (Item §15) : diffusion armée au freeze time sur N rounds consécutifs (`roundsCount`), envoi immédiat si serveur libre/warmup, réarmement et annulation via API REST `/admin/broadcasts`, suivi temps réel par serveur et persistance Redis.
+
+---
+
+### 16. ⚙️ Personnalisation Admin des Commandes In-Game & Templates de Messages (Alias & i18n)
+* **Origine & Besoin** : Pouvoir configurer et étendre les mots-clés in-game (ex: `!temps`, `!crash`, `!arbitre`, `!sos`) et personnaliser les textes/préfixes du bot sans modifier le code ni recompiler l'agent Go.
+* **Architecture cible** :
+  - **Résolveur d'alias (`CommandAliasService`)** : mapping dynamique `mot-clé in-game -> action canonique` (`pause`, `tech`, `admin`, `restore`, `ready`, etc.).
+  - **Gestion BDD / Dashboard Admin** :
+    - Table ou champ JSON des alias configurables par tournoi / instance.
+    - Possibilité d'activer ou désactiver certaines commandes (ex: `!restore` restreint aux arbitres).
+  - **Templates de messages paramétrables** : dictionnaire de messages (clé -> template de texte, ex: `pause_tech_announced`, `admin_call_ack`) avec variables dynamiques (`{team}`, `{player}`, `{round}`).
+* **État** : Documenté en backlog ; le backend utilise des actions canoniques rendant le branchement BDD direct.
