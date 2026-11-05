@@ -13,9 +13,7 @@ on:
       - '.github/workflows/backend-ci.yml'
       - 'sonar-project.properties'
   pull_request:
-    branches:
-      - main
-      - new-main
+    types: [opened, synchronize, reopened]
     paths:
       - 'backend/**'
       - 'infra/**'
@@ -24,7 +22,7 @@ on:
 
 jobs:
   backend-quality-and-tests:
-    name: Typecheck, Lint, Test & Coverage
+    name: Typecheck, Lint, Test & SonarQube Coverage
     runs-on: ubuntu-latest
 
     services:
@@ -47,6 +45,13 @@ jobs:
         uses: actions/checkout@v4
         with:
           fetch-depth: 0 # Full history required for SonarQube analysis
+
+      - name: Cache SonarQube packages
+        uses: actions/cache@v4
+        with:
+          path: ~/.sonar/cache
+          key: ${{ runner.os }}-sonar
+          restore-keys: ${{ runner.os }}-sonar
 
       - name: Setup Node.js 20
         uses: actions/setup-node@v4
@@ -88,9 +93,8 @@ jobs:
         working-directory: ./backend
         run: npm run build
 
-      - name: 6. SonarQube Scan
+      - name: 6. SonarQube Cloud Scan
         uses: SonarSource/sonarqube-scan-action@v4
         if: env.SONAR_TOKEN != ''
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
-          SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }}
