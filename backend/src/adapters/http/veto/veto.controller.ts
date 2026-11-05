@@ -17,13 +17,10 @@ import {
 import type { Request, Response } from 'express';
 import type { Session } from '@app/auth/auth.service';
 import { TournamentError } from '@app/tournament/tournament-stages.service';
-import { VetoActor, VetoService } from '@app/tournament/veto.service';
+import { VetoService } from '@app/tournament/veto.service';
 import { renderVetoPage } from '@app/tournament/veto-view';
-import { RealtimeEmitter } from '@adapters/ws/ws-emitter.internal';
-import type { VetoUpdatedWsEvent } from '@adapters/ws/dto/events.dto';
-
-/** A veto action, from the page's form (strings, _form = "1") or as JSON. */
-type VetoBody = { _form?: string; _page?: string; choice?: string; first?: boolean | string; teamId?: string; map?: string; side?: string } | undefined;
+import { actorOf, VetoActions, vetoFirst } from './veto-actions';
+import type { VetoBody } from './veto-actions';
 
 type SessionRequest = Request & { ggSession?: Session | null };
 
@@ -43,7 +40,7 @@ type SessionRequest = Request & { ggSession?: Session | null };
 export class VetoController {
   constructor(
     private readonly veto: VetoService,
-    private readonly realtime: RealtimeEmitter,
+    private readonly actions: VetoActions,
   ) {}
 
   @Get(':matchId')
@@ -68,7 +65,7 @@ export class VetoController {
 
   @Post(':matchId/start')
   start(@Param('matchId') id: string, @Body() body: VetoBody, @Req() req: SessionRequest, @Res({ passthrough: true }) res: Response) {
-    const first = body?.first === undefined ? undefined : body.first === true || body.first === 'true';
+    const first = vetoFirst(body?.first);
     return this.act(id, body, req, res, (actor) => this.veto.chooseStart(id, actor, { first, teamId: body?.teamId }));
   }
 
@@ -87,35 +84,19 @@ export class VetoController {
     return this.act(id, body, req, res, (actor) => this.veto.reset(id, actor));
   }
 
-  private async act<T>(id: string, body: VetoBody, req: SessionRequest, res: Response, fn: (actor: VetoActor) => Promise<T>) {
-    const actor = actorOf(req.ggSession);
-    if (!actor) throw new HttpException({ statusCode: 401, message: 'authentication required (Sign in through Steam on /login)' }, 401);
+  private async act(id: string, body: VetoBody, req: SessionRequest, res: Response, fn: Parameters<VetoActions['execute']>[2]) {
     if (body?._form !== '1') {
-      const state = await this.run(() => fn(actor));
-      await this.broadcast(id);
-      return state;
+      return this.actions.execute(id, req.ggSession, fn);
     }
     // Page form: back to the page, the refusal shown on it
     const page = `/veto/${encodeURIComponent(id)}${body._page === 'admin' ? '/admin' : ''}`;
     try {
-      await this.run(() => fn(actor));
-      await this.broadcast(id);
+      await this.actions.execute(id, req.ggSession, fn);
       res.redirect(303, page);
     } catch (e) {
       const reason = e instanceof HttpException ? (e.getResponse() as { message?: unknown })?.message : undefined;
       const message = typeof reason === 'string' ? reason : e instanceof HttpException ? e.message : 'unexpected error';
       res.redirect(303, `${page}?error=${encodeURIComponent(message)}`);
-    }
-  }
-
-  /** Public state to the match room: captains (who then re-read their own state) and spectators. */
-  private async broadcast(matchId: string) {
-    try {
-      const v = await this.veto.getState(matchId);
-      const event: VetoUpdatedWsEvent = { type: 'veto:updated', matchId: v.matchId, seq: v.seq, ts: Date.now(), payload: v };
-      this.realtime.emitPublic(v.matchId, 'veto:updated', event);
-    } catch {
-      // never fail an action that was recorded because the push failed: clients still read the state
     }
   }
 
@@ -133,7 +114,4 @@ export class VetoController {
 }
 
 /** Steam login → captain identity; any admin session (Steam, offline password, token) may act for a team. */
-export function actorOf(session: Session | null | undefined): VetoActor | undefined {
-  if (!session) return undefined;
-  return { steamId: session.via === 'steam' ? session.sub : undefined, admin: session.role === 'admin', name: session.name };
-}
+export { actorOf } from './veto-actions';

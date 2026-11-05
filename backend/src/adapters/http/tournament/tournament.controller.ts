@@ -7,6 +7,7 @@ import {
   Delete,
   ForbiddenException,
   Get,
+  Header,
   HttpException,
   NotFoundException,
   Param,
@@ -31,7 +32,8 @@ import { TournamentAdminService } from '@app/tournament/tournament-admin.service
 import { TournamentEditService } from '@app/tournament/tournament-edit.service';
 import type { Session } from '@app/auth/auth.service';
 import type { VetoConfig } from '@domain/tournament/veto';
-import { actorOf } from '../veto/veto.controller';
+import { actorOf, VetoActions, vetoFirst } from '../veto/veto-actions';
+import type { VetoBody } from '../veto/veto-actions';
 import { authorOf } from './tournament-matches.controller';
 import { MatchSettings } from '@domain/match-settings.types';
 
@@ -47,6 +49,7 @@ export class TournamentController {
     private readonly veto: VetoService,
     private readonly admin: TournamentAdminService,
     private readonly edit: TournamentEditService,
+    private readonly vetoActions: VetoActions,
   ) {}
 
   /** The data behind the /view pages, as JSON. */
@@ -65,6 +68,13 @@ export class TournamentController {
   @Get('matches/:id')
   matchDetail(@Param('id') matchId: string) {
     return this.run(() => this.stages.getMatchDetail(matchId));
+  }
+
+  /** Active game connection details, filtered for the current backend session. */
+  @Get('matches/:id/connect')
+  @Header('Cache-Control', 'private, no-store')
+  connect(@Param('id') matchId: string, @Req() req: Request & { ggSession?: Session | null }) {
+    return this.launch.connectInfo(matchId, req.ggSession);
   }
 
   /** Every game being played (admin dashboard): series, server, phase, score per team, pause, frozen result. */
@@ -343,6 +353,33 @@ export class TournamentController {
   @Get('matches/:id/veto')
   vetoState(@Param('id') matchId: string, @Req() req: Request & { ggSession?: Session | null }) {
     return this.run(() => this.veto.getState(matchId, actorOf(req.ggSession)));
+  }
+
+  @Post('matches/:id/veto/rps')
+  vetoRps(@Param('id') id: string, @Body() body: VetoBody, @Req() req: Request & { ggSession?: Session | null }) {
+    return this.vetoActions.execute(id, req.ggSession, (actor) => this.veto.playRps(id, actor, body?.choice ?? ''));
+  }
+
+  @Post('matches/:id/veto/start')
+  vetoStart(@Param('id') id: string, @Body() body: VetoBody, @Req() req: Request & { ggSession?: Session | null }) {
+    return this.vetoActions.execute(id, req.ggSession, (actor) =>
+      this.veto.chooseStart(id, actor, { first: vetoFirst(body?.first), teamId: body?.teamId }),
+    );
+  }
+
+  @Post('matches/:id/veto/step')
+  vetoStep(@Param('id') id: string, @Body() body: VetoBody, @Req() req: Request & { ggSession?: Session | null }) {
+    return this.vetoActions.execute(id, req.ggSession, (actor) => this.veto.playStep(id, actor, { map: body?.map, side: body?.side }));
+  }
+
+  @Post('matches/:id/veto/undo')
+  vetoUndo(@Param('id') id: string, @Req() req: Request & { ggSession?: Session | null }) {
+    return this.vetoActions.execute(id, req.ggSession, (actor) => this.veto.undo(id, actor));
+  }
+
+  @Post('matches/:id/veto/reset')
+  vetoReset(@Param('id') id: string, @Req() req: Request & { ggSession?: Session | null }) {
+    return this.vetoActions.execute(id, req.ggSession, (actor) => this.veto.reset(id, actor));
   }
 
   private async run<T>(fn: () => Promise<T>): Promise<T> {
