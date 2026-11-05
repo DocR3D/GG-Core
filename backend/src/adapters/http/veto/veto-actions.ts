@@ -29,9 +29,9 @@ export class VetoActions {
   async execute(id: string, session: Session | null | undefined, action: (actor: VetoActor) => Promise<unknown>) {
     const actor = actorOf(session);
     if (!actor) throw new HttpException({ statusCode: 401, message: 'authentication required (Sign in through Steam on /login)' }, 401);
-    await this.mapError(() => action(actor));
+    await this.run(() => action(actor));
     await this.broadcast(id);
-    return this.mapError(() => this.veto.getState(id, actor));
+    return this.run(() => this.veto.getState(id, actor));
   }
 
   private async broadcast(matchId: string) {
@@ -50,7 +50,8 @@ export class VetoActions {
     }
   }
 
-  private async mapError<T>(fn: () => Promise<T>): Promise<T> {
+  /** Runs a veto call, turning domain errors into the matching HTTP errors. */
+  async run<T>(fn: () => Promise<T>): Promise<T> {
     try {
       return await fn();
     } catch (e) {

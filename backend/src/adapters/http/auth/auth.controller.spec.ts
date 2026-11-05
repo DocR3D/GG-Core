@@ -1,12 +1,12 @@
 import type { Request, Response } from 'express';
 import { AuthController } from './auth.controller';
 
-const request = (kind: 'json' | 'form'): Request =>
+const request = (kind: 'json' | 'form' | 'bare'): Request =>
   ({
     ip: '127.0.0.1',
     socket: {},
     is: jest.fn().mockReturnValue(kind === 'json' ? 'application/json' : false),
-    accepts: jest.fn().mockReturnValue(kind === 'json' ? 'json' : 'html'),
+    get: jest.fn().mockReturnValue(kind === 'json' ? 'application/json' : kind === 'form' ? 'text/html,application/xhtml+xml,*/*;q=0.8' : undefined),
   }) as unknown as Request;
 
 const response = () => {
@@ -71,6 +71,14 @@ describe('AuthController local JSON compatibility', () => {
     failure.local({ password: 'bad' }, request('form'), throttleRes);
     expect(throttleRes.setHeader).toHaveBeenCalledWith('Retry-After', expect.any(String));
     expect(throttleRes.redirect).toHaveBeenCalledWith(303, expect.stringContaining('/login?error='));
+  });
+
+  it('keeps the redirect when the client sends no Accept header (curl, scripts)', () => {
+    const controller = new AuthController(auth(false));
+    const res = response();
+    controller.local({ password: 'bad' }, request('bare'), res);
+    expect(res.redirect).toHaveBeenCalledWith(303, expect.stringContaining('/login?error='));
+    expect(res.json).not.toHaveBeenCalled();
   });
 
   it('POST logout clears the cookie and returns 204', () => {

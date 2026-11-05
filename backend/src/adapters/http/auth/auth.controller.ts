@@ -74,7 +74,8 @@ export class AuthController {
   @Post('auth/local')
   local(@Body() body: { password?: string; next?: string }, @Req() req: Request, @Res() res: Response) {
     const next = safeNext(body?.next);
-    const wantsJson = req.is('application/json') === 'application/json' || req.accepts(['json', 'html']) === 'json';
+    // JSON only when the client says so (JSON body or an Accept naming application/json): no Accept header (curl, scripts) keeps the redirect.
+    const wantsJson = req.is('application/json') === 'application/json' || (req.get('accept') ?? '').includes('application/json');
     const address = req.ip ?? req.socket.remoteAddress ?? 'unknown';
     const wait = this.throttle.retryAfterSec(address);
     if (wait > 0) {

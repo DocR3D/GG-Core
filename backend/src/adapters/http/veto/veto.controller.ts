@@ -1,13 +1,9 @@
 // src/adapters/http/veto/veto.controller.ts
 import {
-  BadRequestException,
   Body,
-  ConflictException,
   Controller,
-  ForbiddenException,
   Get,
   HttpException,
-  NotFoundException,
   Param,
   Post,
   Query,
@@ -16,7 +12,6 @@ import {
 } from '@nestjs/common';
 import type { Request, Response } from 'express';
 import type { Session } from '@app/auth/auth.service';
-import { TournamentError } from '@app/tournament/tournament-stages.service';
 import { VetoService } from '@app/tournament/veto.service';
 import { renderVetoPage } from '@app/tournament/veto-view';
 import { actorOf, VetoActions, vetoFirst } from './veto-actions';
@@ -47,14 +42,14 @@ export class VetoController {
   async page(@Param('matchId') matchId: string, @Query('error') error: string | undefined, @Req() req: SessionRequest, @Res() res: Response) {
     const actor = actorOf(req.ggSession);
     // an admin is read as a plain player here: only its own moves as a captain, the rest is on the admin page
-    const view = await this.run(() => this.veto.getState(matchId, actor && { ...actor, admin: false }));
+    const view = await this.actions.run(() => this.veto.getState(matchId, actor && { ...actor, admin: false }));
     res.type('html').send(renderVetoPage(view, { mode: 'captain', error, loggedIn: !!actor, isAdmin: !!actor?.admin }));
   }
 
   /** Admin only (AuthMiddleware). */
   @Get(':matchId/admin')
   async adminPage(@Param('matchId') matchId: string, @Query('error') error: string | undefined, @Req() req: SessionRequest, @Res() res: Response) {
-    const view = await this.run(() => this.veto.getState(matchId, actorOf(req.ggSession)));
+    const view = await this.actions.run(() => this.veto.getState(matchId, actorOf(req.ggSession)));
     res.type('html').send(renderVetoPage(view, { mode: 'admin', error, loggedIn: true }));
   }
 
@@ -100,17 +95,6 @@ export class VetoController {
     }
   }
 
-  private async run<T>(fn: () => Promise<T>): Promise<T> {
-    try {
-      return await fn();
-    } catch (e) {
-      if (!(e instanceof TournamentError)) throw e;
-      if (e.code === 'not_found') throw new NotFoundException(e.message);
-      if (e.code === 'conflict') throw new ConflictException(e.message);
-      if (e.code === 'forbidden') throw new ForbiddenException(e.message);
-      throw new BadRequestException(e.message);
-    }
-  }
 }
 
 /** Steam login → captain identity; any admin session (Steam, offline password, token) may act for a team. */
