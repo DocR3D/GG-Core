@@ -63,4 +63,10 @@ export class RealtimeEmitter {
     this.io.to(this.roomLobbyAdmin()).emit(eventName, data);
     this.logger.debug(`[WS→lobby:admin] ${eventName} ${meta(data)}`);
   }
+
+  emitBroadcast(eventName: string, data: unknown) {
+    if (!this.io) return this.logger.warn(`emitBroadcast(${eventName}) without IO`);
+    this.io.emit(eventName, data);
+    this.logger.debug(`[WS→all] ${eventName} ${meta(data)}`);
+  }
 }

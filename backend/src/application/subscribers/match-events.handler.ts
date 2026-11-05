@@ -64,7 +64,23 @@ export class MatchEventsHandler {
       const p = (ev as any).payload ?? {};
       await this.placement.track(ev.serverId, p.player ?? {}, p.to ?? null).catch(() => {});
     } else if ((ev.type as string) === EventTypes.PLAYER_DISCONNECTED) {
-      await this.placement.track(ev.serverId, (ev as any).payload?.player ?? {}, null).catch(() => {});
+      const p = (ev as any).payload ?? {};
+      await this.placement.track(ev.serverId, p.player ?? {}, null).catch(() => {});
+      const currentPhase = await this.phase.getPhase(matchId);
+      if (currentPhase === 'live_main' || currentPhase === 'overtime') {
+        const playerName = p.player?.name ?? 'Un joueur';
+        const reason = p.reason ? ` (${p.reason})` : '';
+        this.ctxFactory.orchestrator
+          .push(matchId, 'admin:alert', {
+            matchId,
+            serverId: ev.serverId,
+            type: 'player_disconnect',
+            player: p.player,
+            message: `Déconnexion de ${playerName}${reason}`,
+            at: Date.now(),
+          })
+          .catch(() => {});
+      }
     }
 
     // 0bis) Résultat gelé (désaccord serveur / GG-Core) : en attendant l'admin, on ne fait qu'archiver les

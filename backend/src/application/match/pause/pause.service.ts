@@ -16,6 +16,7 @@ type ArmedPick = {
   req: {
     reason: PauseReason;
     durationSec?: number | null;
+    customReason?: string | null;
     requestedAt: number;
     by?: { steamId?: string | null; name?: string | null; source: string };
   };
@@ -24,10 +25,13 @@ type ArmedPick = {
 export type PauseState = {
   state: 'paused' | 'none';
   reason?: PauseReason;
+  customReason?: string;
   team?: Logical | 'system';
   startedAt?: number;
   tacBankHome?: number;
   tacBankAway?: number;
+  unpauseHome?: boolean;
+  unpauseAway?: boolean;
 };
 
 const tacId = (m: string) => `pause:tac:${m}`; // namespace "pause"
@@ -67,6 +71,9 @@ export class PauseMatchService {
       startedAt: h.started_at ? parseInt(h.started_at, 10) : undefined,
       tacBankHome: h.tac_bank_home ? parseInt(h.tac_bank_home, 10) : undefined,
       tacBankAway: h.tac_bank_away ? parseInt(h.tac_bank_away, 10) : undefined,
+      customReason: h.custom_reason || undefined,
+      unpauseHome: h.unpause_home === '1',
+      unpauseAway: h.unpause_away === '1',
     };
   }
 
@@ -95,6 +102,7 @@ export class PauseMatchService {
       team?: 'home' | 'away' | 'system';
       durationSec?: number;
       armOnly?: boolean;
+      customReason?: string;
       by?: { steamId?: string | null; name?: string | null; source?: string };
     },
   ): Promise<void> {
@@ -120,6 +128,7 @@ export class PauseMatchService {
         reason: opts.reason,
         team,
         durationSec: opts.durationSec ?? null,
+        customReason: opts.customReason ?? null,
         requestedAt: now,
         by: {
           steamId: opts.by?.steamId ?? null,
@@ -141,6 +150,9 @@ export class PauseMatchService {
       team,
       until: until ? String(until) : '',
       started_at: String(now),
+      custom_reason: opts.customReason ?? '',
+      unpause_home: '0',
+      unpause_away: '0',
     });
 
     // Messages périodiques "pause" (namespace propre "pause:*")
@@ -185,6 +197,7 @@ export class PauseMatchService {
         team: pick.team === 'system' ? 'system' : (pick.team),
         durationSec: duration,
         armOnly: false,
+        customReason: pick.req.customReason ?? undefined,
         by: pick.req.by,
       });
 
@@ -284,7 +297,44 @@ export class PauseMatchService {
     if (id) this.messenger.cancel(id, lockKeyFor(id));
 
     // Reset état
-    await this.redis.hset(key, { state: 'none', reason: '', team: '', started_at: '', until: '' });
+    await this.redis.hset(key, {
+      state: 'none',
+      reason: '',
+      team: '',
+      started_at: '',
+      until: '',
+      custom_reason: '',
+      unpause_home: '0',
+      unpause_away: '0',
+    });
+  }
+
+  // -----------------------------------------------------
+  // Mutual Unpause
+  // -----------------------------------------------------
+  async voteUnpause(
+    matchId: string,
+    team: 'home' | 'away',
+  ): Promise<{ bothReady: boolean; homeReady: boolean; awayReady: boolean }> {
+    const key = this.key(matchId);
+    const field = team === 'home' ? 'unpause_home' : 'unpause_away';
+    await this.redis.hset(key, field, '1');
+
+    const [h, a] = await Promise.all([
+      this.redis.hget(key, 'unpause_home'),
+      this.redis.hget(key, 'unpause_away'),
+    ]);
+
+    const homeReady = h === '1';
+    const awayReady = a === '1';
+    const bothReady = homeReady && awayReady;
+
+    return { bothReady, homeReady, awayReady };
+  }
+
+  async clearUnpauseVotes(matchId: string): Promise<void> {
+    const key = this.key(matchId);
+    await this.redis.hdel(key, 'unpause_home', 'unpause_away');
   }
 
   // -----------------------------------------------------
