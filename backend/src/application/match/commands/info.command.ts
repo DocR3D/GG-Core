@@ -1,5 +1,5 @@
 // src/application/match/commands/info.command.ts
-import { Injectable, Logger, Optional } from '@nestjs/common';
+import { forwardRef, Inject, Injectable, Logger, Optional } from '@nestjs/common';
 import { TournamentConfigService } from '@app/config/tournament-config.service';
 import { BaseCommand } from '@domain/commands/base.command';
 import { CommandEvent } from '@domain/events/command.event';
@@ -13,6 +13,7 @@ export class InfoCommand extends BaseCommand {
   private readonly logger = new Logger(InfoCommand.name);
 
   constructor(
+    @Inject(forwardRef(() => PauseMatchService))
     private readonly pauseService: PauseMatchService,
     @Optional() private readonly configService?: TournamentConfigService,
   ) {

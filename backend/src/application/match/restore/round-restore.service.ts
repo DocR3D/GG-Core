@@ -3,6 +3,7 @@ import {
   Injectable,
   Logger,
   Inject,
+  forwardRef,
   BadRequestException,
   NotFoundException,
   OnModuleDestroy,
@@ -30,6 +31,7 @@ export class RoundRestoreService implements OnModuleDestroy {
   constructor(
     @Inject(REDIS_CMD) private readonly redis: Redis,
     private readonly state: MatchStateService,
+    @Inject(forwardRef(() => MatchCommandsService))
     private readonly cmds: MatchCommandsService,
     private readonly emitter: RealtimeEmitter,
   ) {}

@@ -1,5 +1,5 @@
 // src/application/sponsors/sponsor-chat-announcer.service.ts
-import { Injectable, Logger, Inject, OnModuleInit } from '@nestjs/common';
+import { Injectable, Logger, Inject, OnModuleInit, forwardRef } from '@nestjs/common';
 import type { Redis } from 'ioredis';
 import { REDIS_CMD } from '@adapters/redis/redis.tokens';
 import { SponsorService } from './sponsor.service';
@@ -26,6 +26,7 @@ export class SponsorChatAnnouncerService implements OnModuleInit {
 
   constructor(
     private readonly sponsorService: SponsorService,
+    @Inject(forwardRef(() => MatchCommandsService))
     private readonly cmds: MatchCommandsService,
     private readonly state: MatchStateService,
     private readonly prisma: PrismaService,

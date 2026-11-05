@@ -1,13 +1,5 @@
 // src/application/broadcast/buytime-broadcast.service.ts
-import {
-  Injectable,
-  Logger,
-  Inject,
-  BadRequestException,
-  NotFoundException,
-  Optional,
-  OnModuleDestroy,
-} from '@nestjs/common';
+import { Injectable, Logger, Inject, BadRequestException, NotFoundException, Optional, OnModuleDestroy, forwardRef } from '@nestjs/common';
 import type Redis from 'ioredis';
 import * as crypto from 'crypto';
 import { REDIS_CMD } from '@adapters/redis/redis.tokens';
@@ -37,6 +29,7 @@ export class BuytimeBroadcastService implements OnModuleDestroy {
 
   constructor(
     @Inject(REDIS_CMD) private readonly redis: Redis,
+    @Inject(forwardRef(() => MatchCommandsService))
     private readonly cmds: MatchCommandsService,
     private readonly state: MatchStateService,
     private readonly emitter: RealtimeEmitter,

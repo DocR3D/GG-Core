@@ -1,5 +1,5 @@
 // src/application/match/admin-call/admin-call.service.ts
-import { Injectable, Logger, Inject, Optional } from '@nestjs/common';
+import { Injectable, Logger, Inject, Optional, forwardRef } from '@nestjs/common';
 import { randomUUID } from 'crypto';
 import type { Redis } from 'ioredis';
 import { REDIS_CMD } from '@adapters/redis/redis.tokens';
@@ -19,6 +19,7 @@ export class AdminCallService {
   constructor(
     @Inject(REDIS_CMD) private readonly redis: Redis,
     private readonly emitter: RealtimeEmitter,
+    @Inject(forwardRef(() => MatchCommandsService))
     private readonly cmds: MatchCommandsService,
     private readonly state: MatchStateService,
     @Optional() private readonly prisma?: PrismaService,
