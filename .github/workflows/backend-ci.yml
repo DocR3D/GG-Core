@@ -1,18 +1,22 @@
 name: Backend CI & SonarQube
 
 on:
+  # Déclenchement lors du merge sur les branches principales
   push:
     branches:
       - main
       - new-main
-      - 'feat/**'
-      - 'ci/**'
     paths:
       - 'backend/**'
       - 'infra/**'
       - '.github/workflows/backend-ci.yml'
       - 'sonar-project.properties'
+
+  # Déclenchement lors de l'ouverture ou mise à jour d'une Pull Request / MR
   pull_request:
+    branches:
+      - main
+      - new-main
     types: [opened, synchronize, reopened]
     paths:
       - 'backend/**'
