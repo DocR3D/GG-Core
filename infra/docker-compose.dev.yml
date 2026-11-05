@@ -5,6 +5,7 @@
 #   redis, postgres         infrastructure
 #   backend                 NestJS (hot-reload, schéma Prisma appliqué au démarrage)
 #   manager                 Go : lance 1 agent par fichier agents.d/*.yaml
+#   front    [profil front] front Next.js (dépôt GGCoreFront, voisin de celui-ci), relaie /api /auth /socket.io /sandbox
 #   cs2      [profil cs2]   serveur CS2 dédié vanilla (Zero Plugin), ~73 Go téléchargés au 1er lancement
 #   log-drain [profil debug] copie le bus Redis dans infra/logs/redis-events.jsonl
 #
@@ -78,6 +79,9 @@ services:
       GG_ADMIN_PASSWORD: "${GG_ADMIN_PASSWORD:?missing: run make up (generates .env)}"
       GG_ADMIN_TOKEN: "${GG_ADMIN_TOKEN:?missing: run make up (generates .env)}"
       AUTH_PUBLIC_URL: "${AUTH_PUBLIC_URL:-}"
+      # Derrière le front Next (profil front) : seule son IP fixe peut fournir l'adresse du client (limite d'essais du
+      # login). Sans proxy devant le backend, aucune valeur à régler.
+      TRUST_PROXY: "${TRUST_PROXY:-172.30.0.20}"
       REDIS_URL: "redis://redis:6379"
       DATABASE_URL: "postgresql://postgres:postgres@postgres:5432/ggcore?schema=public"
       SERVER_IDS: "srv-a"
@@ -129,6 +133,32 @@ services:
     ports:
       # un port de logs par serveur CS2 (logs.bind de agents.d/*.yaml) : srv-a = 8082, puis ceux de `make server`
       - "8082-8113:8082-8113"
+    restart: unless-stopped
+
+  # Front Next.js (profil front : `make web`). Le dépôt GGCoreFront est attendu à côté de celui-ci (FRONT_DIR pour
+  # un autre emplacement). Le navigateur ne parle qu'à lui : il relaie /api, /auth, /socket.io et /sandbox au backend.
+  # BACKEND_URL est figée à la compilation de l'image (changer d'adresse = reconstruire).
+  front:
+    build:
+      context: "${FRONT_DIR:-../../GGCoreFront}"
+      args:
+        BACKEND_URL: "http://backend:8081"
+    container_name: ggcore-front-dev
+    profiles: ["front"]
+    networks:
+      ggcore:
+        ipv4_address: 172.30.0.20
+    depends_on:
+      backend:
+        condition: service_healthy
+    ports:
+      - "3000:3000"
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:3000/api/health"]
+      interval: 5s
+      timeout: 3s
+      retries: 30
+      start_period: 15s
     restart: unless-stopped
 
   cs2:
