@@ -1,5 +1,6 @@
 // src/application/match/commands/info.command.ts
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, Optional } from '@nestjs/common';
+import { TournamentConfigService } from '@app/config/tournament-config.service';
 import { BaseCommand } from '@domain/commands/base.command';
 import { CommandEvent } from '@domain/events/command.event';
 import { RuleContext } from '@domain/rules';
@@ -11,7 +12,10 @@ import { PauseMatchService } from '../pause/pause.service';
 export class InfoCommand extends BaseCommand {
   private readonly logger = new Logger(InfoCommand.name);
 
-  constructor(private readonly pauseService: PauseMatchService) {
+  constructor(
+    private readonly pauseService: PauseMatchService,
+    @Optional() private readonly configService?: TournamentConfigService,
+  ) {
     super();
   }
 
@@ -36,7 +40,10 @@ export class InfoCommand extends BaseCommand {
     if (cmd === CS2_CHAT_COMMANDS.PAUSES) {
       const team = (await ctx.orch.sideToLogical(matchId, side)) ?? 'home';
       const bank = await this.pauseService.getTacBank(matchId, team);
-      await ctx.say(`[GG-Core] Temps de pause tactique restant pour votre équipe : ${bank} secondes.`);
+      const msg = this.configService
+        ? await this.configService.formatMessage(matchId, 'INFO_PAUSES_REMAINING', { bank })
+        : `[GG-Core] Temps de pause tactique restant pour votre équipe : ${bank} secondes.`;
+      await ctx.say(msg);
       return true;
     }
 
@@ -46,7 +53,10 @@ export class InfoCommand extends BaseCommand {
       const ct = snap?.score?.ct ?? 0;
       const t = snap?.score?.t ?? 0;
       const round = snap?.score?.round ?? 0;
-      await ctx.say(`[GG-Core] Score : CT ${ct} - ${t} T (Round ${round})`);
+      const msg = this.configService
+        ? await this.configService.formatMessage(matchId, 'INFO_SCORE', { ct, t, round })
+        : `[GG-Core] Score : CT ${ct} - ${t} T (Round ${round})`;
+      await ctx.say(msg);
       return true;
     }
 
@@ -55,13 +65,20 @@ export class InfoCommand extends BaseCommand {
     const phase = snap?.phase ?? 'live_main';
 
     if (phase.includes('warmup') || phase === 'halftime') {
-      await ctx.say('[GG-Core] Commandes Warmup : !ready, !unready, !admin <message>');
+      const msg = this.configService
+        ? await this.configService.formatMessage(matchId, 'INFO_WARMUP_COMMANDS')
+        : '[GG-Core] Commandes Warmup : !ready, !unready, !admin <message>';
+      await ctx.say(msg);
     } else if (phase === 'knife_choice') {
-      await ctx.say('[GG-Core] Choix de camp : !stay, !switch, !ct, !t, !admin <message>');
+      const msg = this.configService
+        ? await this.configService.formatMessage(matchId, 'INFO_KNIFE_CHOICE_COMMANDS')
+        : '[GG-Core] Choix de camp : !stay, !switch, !ct, !t, !admin <message>';
+      await ctx.say(msg);
     } else {
-      await ctx.say(
-        '[GG-Core] Commandes Live : !pause, !tech [raison], !unpause, !backup, !restore [num], !pauses, !score, !admin <message>',
-      );
+      const msg = this.configService
+        ? await this.configService.formatMessage(matchId, 'INFO_LIVE_COMMANDS')
+        : '[GG-Core] Commandes Live : !pause, !tech [raison], !unpause, !backup, !restore [num], !pauses, !score, !admin <message>';
+      await ctx.say(msg);
     }
 
     return true;

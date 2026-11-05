@@ -1,9 +1,10 @@
 // src/application/subscribers/chat-commands.handler.ts
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, Optional } from '@nestjs/common';
 import { RuleContextFactory } from '@app/rules/rule-context.factory';
 import { RuleRegistry } from '@app/match/rules/rule.registry';
 import { MatchPhaseService } from '@app/match/phase/match-phase.service';
 import { MatchCommandsService } from '@app/commands/match-commands.service';
+import { TournamentConfigService } from '@app/config/tournament-config.service';
 import type { CommandEvent } from '@domain/events/command.event';
 
 import { isNonPlayingSide } from '@domain/side.types';
@@ -23,6 +24,7 @@ export class ChatCommandHandler {
     private readonly ctxFactory: RuleContextFactory,
     private readonly phase: MatchPhaseService,
     private readonly matchCmds: MatchCommandsService,
+    @Optional() private readonly configService?: TournamentConfigService,
   ) {}
 
   private key(matchId: string, who: string) { return `${matchId}::${who}`; }
@@ -88,13 +90,24 @@ private ensureGlobalInit() {
     if (kind && kind !== 'primary') return;
 
     const sender = ev.payload?.sender;
-    const command = normalizeChatCommand(ev.payload?.command);
-    if (ev.payload) ev.payload.command = command;
-    const params  = ev.payload?.parameters ?? [];
+    let command = normalizeChatCommand(ev.payload?.command);
     if (!sender || !command) {
       this.logger.warn('[COMMAND] ignored: bad payload');
       return;
     }
+
+    if (this.configService) {
+      const resolved = await this.configService.resolveCommand(ev.matchId, command);
+      if (resolved) {
+        if (!resolved.isAllowed) {
+          this.logger.debug(`[COMMAND] disabled: ${command} (${resolved.canonical}) match=${ev.matchId}`);
+          return;
+        }
+        command = resolved.canonical;
+      }
+    }
+    if (ev.payload) ev.payload.command = command;
+    const params  = ev.payload?.parameters ?? [];
 
     const side  = sender.team as GameSide;
     const chan  = this.normChan(sender.channel);

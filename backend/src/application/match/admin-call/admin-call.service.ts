@@ -7,6 +7,7 @@ import { RealtimeEmitter } from '@adapters/ws/ws-emitter.internal';
 import { MatchCommandsService } from '@app/commands/match-commands.service';
 import { MatchStateService } from '@app/match/state/match-state.service';
 import { PrismaService } from '@adapters/database/prisma.service';
+import { TournamentConfigService } from '@app/config/tournament-config.service';
 import { errorMessage } from '@app/shared/error-message';
 import type { Prisma } from '@prisma/client';
 import { AdminCall } from './admin-call.types';
@@ -21,6 +22,7 @@ export class AdminCallService {
     private readonly cmds: MatchCommandsService,
     private readonly state: MatchStateService,
     @Optional() private readonly prisma?: PrismaService,
+    @Optional() private readonly configService?: TournamentConfigService,
   ) {}
 
   private callsKey(matchId: string): string {
@@ -75,10 +77,10 @@ export class AdminCallService {
     }
 
     // 3) Confirmation in-game pour rassurer le joueur
-    await this.cmds.say(
-      serverId,
-      `[GG-Core] Message reçu par les admins : "${cleanMsg}". Un arbitre arrive ou va vous répondre.`,
-    );
+    const chatMsg = this.configService
+      ? await this.configService.formatMessage(matchId, 'ADMIN_CALL_ACK', { message: cleanMsg })
+      : `[GG-Core] Message reçu par les admins : "${cleanMsg}". Un arbitre arrive ou va vous répondre.`;
+    await this.cmds.say(serverId, chatMsg);
 
     // 4) Pousser l'alerte aux arbitres (room du match + lobby admin)
     this.emitter.emitAdmin(matchId, 'admin:call', call);

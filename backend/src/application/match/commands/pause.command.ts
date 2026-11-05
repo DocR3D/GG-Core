@@ -7,6 +7,7 @@ import { PauseMatchService, PauseReason } from '@app/match/pause/pause.service';
 import { isNonPlayingSide, GameSide } from '@domain/side.types';
 import { CS2_CHAT_COMMANDS } from '@domain/rules/rules.constants';
 import { RoundRestoreService } from '../restore/round-restore.service';
+import { TournamentConfigService } from '@app/config/tournament-config.service';
 
 @Injectable()
 export class PauseCommand extends BaseCommand {
@@ -20,6 +21,7 @@ export class PauseCommand extends BaseCommand {
     @Optional()
     @Inject(forwardRef(() => RoundRestoreService))
     private readonly restoreService?: RoundRestoreService,
+    @Optional() private readonly configService?: TournamentConfigService,
   ) {
     super();
   }
@@ -65,7 +67,10 @@ export class PauseCommand extends BaseCommand {
     if (isPauseRequest) {
       if (this.restoreService?.hasPendingUnpause(event.matchId)) {
         this.restoreService.clearUnpauseTimer(event.matchId);
-        await ctx.say('[GG-Core] Reprise interrompue : pause prise en compte.');
+        const msg = this.configService
+          ? await this.configService.formatMessage(event.matchId, 'PAUSE_RESUME_INTERRUPTED')
+          : '[GG-Core] Reprise interrompue : pause prise en compte.';
+        await ctx.say(msg);
       }
       // Garde-fous: seuls les joueurs affectés à une équipe peuvent pauser
       if (isNonPlayingSide(event.payload.sender.team)) return false;
@@ -163,7 +168,10 @@ export class PauseCommand extends BaseCommand {
           );
           return true;
         }
-        await ctx.say('[GG-Core] Accord des deux équipes reçu ! Reprise du match...');
+        const msg = this.configService
+          ? await this.configService.formatMessage(event.matchId, 'UNPAUSE_AGREED')
+          : '[GG-Core] Accord des deux équipes reçu ! Reprise du match...';
+        await ctx.say(msg);
       }
     }
     await this.pauseService.resume(event.matchId);
@@ -171,7 +179,10 @@ export class PauseCommand extends BaseCommand {
       matchId: event.matchId,
       serverId: event.serverId,
     });
-    await ctx.say('[GG] Le match a repris.');
+    const msg = this.configService
+      ? await this.configService.formatMessage(event.matchId, 'MATCH_RESUMED')
+      : '[GG] Le match a repris.';
+    await ctx.say(msg);
     return true;
   }
 }

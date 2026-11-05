@@ -23,6 +23,7 @@ import { SandboxTournamentController } from './sandbox/sandbox-tournament.contro
 import { TournamentSimulationService } from '@app/tournament/simulation/tournament-simulation.service';
 import { TournamentMatchesController } from './tournament/tournament-matches.controller';
 import { TournamentController } from './tournament/tournament.controller';
+import { TournamentConfigController } from './tournament/tournament-config.controller';
 import { ViewController } from './view/view.controller';
 import { TournamentStagesService } from '@app/tournament/tournament-stages.service';
 import { TournamentLaunchService } from '@app/tournament/tournament-launch.service';
@@ -64,6 +65,7 @@ import { CommunityMessagesModule } from '@app/community-messages/community-messa
     SandboxTournamentController,
     TournamentMatchesController,
     TournamentController,
+    TournamentConfigController,
     ViewController,
     VetoController,
     MatchAdminController,

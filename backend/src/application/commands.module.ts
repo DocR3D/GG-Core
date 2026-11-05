@@ -17,6 +17,7 @@ import { RoundRestoreService } from './match/restore/round-restore.service';
 import { AdminCallService } from './match/admin-call/admin-call.service';
 import { AdminCallCommand } from './match/commands/admin-call.command';
 import { InfoCommand } from './match/commands/info.command';
+import { TournamentConfigService } from './config/tournament-config.service';
 
 @Module({
   imports: [
@@ -33,6 +34,7 @@ import { InfoCommand } from './match/commands/info.command';
     PauseMatchService,
     RoundRestoreService,
     AdminCallService,
+    TournamentConfigService,
     // ET toutes les commandes spécifiques
     ReadyCommand,
     PauseCommand,
@@ -47,6 +49,7 @@ import { InfoCommand } from './match/commands/info.command';
     PauseMatchService,
     RoundRestoreService,
     AdminCallService,
+    TournamentConfigService,
     ReadyCommand,
     PauseCommand,
     KnifeChoiceCommand,
