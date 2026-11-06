@@ -13,7 +13,7 @@ Ce fichier sert de point d'entrée universel pour tout agent d'intelligence arti
 2. **Backend NestJS** (`backend/`) : Cœur métier en Clean Architecture, machine à états, gestion des règles, API REST et serveur WebSocket (Socket.IO).
 3. **Redis** : Bus de messages temps réel (Pub/Sub) et cache d'état actif (snapshots de match).
 4. **PostgreSQL** : Source of Truth historique (Sourcing d'événements, tables `events_primary`, tournois, équipes, joueurs).
-5. **Frontend React + Vite** (`frontend/`, pas encore créé, compilé et servi par NestJS ; pas Next.js, voir `docs/context/frontend.md`) : Interfaces réactives pour administrateurs (console live), spectateurs (scoreboard) et joueurs. En attendant, le backend sert des pages HTML simples (`/view`, `/veto`, `/login`, `/sandbox`) stylées par `backend/public/css/`.
+5. **Frontend Next.js** (projet **GGCoreFront**, dépôt voisin `../GGCoreFront`, branche `feat/migration-gg-core`, lancé par `make web` ; décision du 2026-11-05, voir `docs/context/frontend.md`) : interfaces réactives pour administrateurs (console live), spectateurs (scoreboard) et joueurs. Il parle au backend par un proxy (`/api`, `/auth`, `/socket.io`, `/sandbox`). **En attendant la parité** (vérifiée par un tournoi complet joué avec lui), le front React + Vite (`frontend/`, servi par NestJS sur :8081) et les pages HTML du backend (`/view`, `/veto`, `/login`, `/sandbox`, stylées par `backend/public/css/`) restent en place : ne rien en retirer avant.
 
 ---
 
@@ -111,9 +111,14 @@ npm test             # Suite Jest complète (dont Golden Master sur fixtures ré
 # Intégration PostgreSQL réelle (base à jour via `npx prisma db push`) - obligatoire si la persistance change
 DB_IT=1 npx jest --config jest.config.ts db.spec   # tous les *.db.spec.ts (ou : make test-db)
 
-# Frontend React (si frontend/ change)
+# Frontend React + Vite (si frontend/ change, transitoire)
 cd frontend
 npm run build        # tsc --noEmit + vite build (ou `make front` sans Node installé)
+
+# Frontend Next.js (dépôt GGCoreFront, si l'API ou le front change)
+cd ../GGCoreFront
+npm run typecheck && npm run lint && npm run build   # ou : make web (build de l'image, la compilation Next vérifie les types)
+# Vérification dans un navigateur, stack et front lancés (make up && make web) : tools/front-check/ (voir son README)
 
 # Agent Go
 cd agent

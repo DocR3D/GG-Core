@@ -8,9 +8,15 @@ Ce fichier centralise les chantiers, fonctionnalités à venir, améliorations a
 
 Le cœur moteur de match, l'arbitrage automatisé, le calcul de scores/stats CS2 et le replay de logs sont opérationnels. Les chantiers ci-dessous constituent ce qui manque pour un tournoi LAN opérationnel de bout en bout :
 
-### 1. 🖥️ Frontend React + Vite servi par NestJS (Admin, Spectateur, Joueur)
+### 1. 🖥️ Frontend Next.js (GGCoreFront) : Admin, Spectateur, Joueur
 * **Origine & Spécifications** : [`docs/cahier-des-charges.md`](file:///d:/DEV/GG-Core/docs/cahier-des-charges.md) et [`docs/context/frontend.md`](file:///d:/DEV/GG-Core/docs/context/frontend.md).
-* **État actuel** : Non implémenté. Seule l'interface temporaire de test Sandbox HTML est servie par NestJS.
+* **État actuel (2026-11-05)** : le front est le projet GGCoreFront (Next.js, dépôt voisin, `make web`), décidé avec
+  l'utilisateur ; le front React + Vite (`frontend/`) et les pages HTML du backend restent jusqu'à la parité. Vérifié dans
+  Chrome contre la stack : 20 écrans sans erreur, live, créer un tournoi / ajouter un serveur, sandbox match. Détail, reste
+  à faire et pièges (Socket.IO et le slash final) : `docs/context/frontend.md`.
+  **Reste** : login Steam et flux admin longs à vérifier dans l'interface ; porter `src/legacy/` en routes Next ; écrans
+  des fonctions déjà dans le backend (sponsors, restauration de round, appels admin, alias et templates) ; puis retirer
+  `frontend/` et les pages HTML du backend après un tournoi complet joué avec le front Next.
 * **Tâches à réaliser** :
   - **Initialisation** : projet React + Vite (TypeScript, React Router, Tailwind CSS avec la charte de `base.css`,
     shadcn/ui restylé, client Socket.IO), compilé et servi par NestJS (choix et raisons : `docs/context/frontend.md`).

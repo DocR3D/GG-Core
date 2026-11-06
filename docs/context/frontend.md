@@ -1,6 +1,49 @@
 # Frontend - Contexte
 
 ## État actuel
+
+### Direction décidée le 2026-11-05 : le front est GGCoreFront (Next.js)
+Le front sera le projet **GGCoreFront** (dépôt `sullyvanyonnet/GGCoreFront`, branche `feat/migration-gg-core`, voisin de
+ce dépôt : `../GGCoreFront`), pas le `frontend/` React + Vite. Décidé avec l'utilisateur : on garde tout ce qui est fait
+du côté de GGCoreFront (sa charte bleu électrique, son dashboard `/admin/dashboard`) et on y ajoute ce que le front Vite
+avait en plus. Le plan est dans `docs/plans/migration-frontend-nextjs.md` (partie backend) et dans
+`docs/plan-migration-gg-core.md` du dépôt du front. Le front Vite et les pages HTML du backend restent en place jusqu'à
+la parité, vérifiée par un tournoi complet joué avec le front Next.
+
+- **Lancer** : `make web` (profil compose `front`, port 3000, IP fixe 172.30.0.20) construit l'image depuis
+  `../GGCoreFront` (`FRONT_DIR=<chemin absolu>` pour un autre emplacement), à côté du front Vite (:8081). Le navigateur
+  ne parle qu'à Next, qui relaie `/api`, `/auth`, `/socket.io` et `/sandbox` au backend (`BACKEND_URL`, figée à la
+  compilation de l'image : changer d'adresse = reconstruire). Même origine : pas de CORS, cookie `gg_session` inchangé.
+- **Côté backend** (sur `main`) : login et déconnexion en JSON (`POST /auth/local`, `POST /auth/logout`), routes JSON du
+  véto, `GET /api/tournament/matches/:id/connect`, `/socket.io` public (le garde du gateway authentifie), `TRUST_PROXY`
+  (défaut : l'IP fixe du front) pour que la limite d'essais du login voie le vrai client. Retour du login Steam :
+  `AUTH_PUBLIC_URL=http://<ip>:3000` dans `.env`.
+- **Piège Socket.IO** : engine.io ne répond que sur `/socket.io/` (slash final) et Next retire ce slash en relayant.
+  `next.config.ts` a donc `skipTrailingSlashRedirect: true` et deux règles explicites (`/socket.io` et `/socket.io/`
+  vers `${backend}/socket.io/`) placées avant la règle générique. Sans elles le live ne marche pas : 404 du polling,
+  upgrade WebSocket refusé.
+- **Contenu du front** : ses écrans (accueil, dashboard, tournois, matchs, équipes, serveurs) ; les écrans du front Vite
+  repris dans `src/legacy/` derrière un routeur maison provisoire (`src/lib/router.tsx`) : console de match, gestion d'un
+  tournoi en étapes, sandbox tournoi ; les pages publiques (tournoi avec ses arbres en lecture seule, match, véto,
+  « Mes vétos ») ; **Messages en jeu** (`/admin/messages` : annonce au buytime, messages communautaires) ; **Sandbox match**
+  (`/admin/sandbox/match` : presets, injection d'état, replay round par round, scoreboard live, simulateur, RCON,
+  console) ; la carte de chaque serveur dit si les logs CS2 arrivent (« reçus il y a N s », « mauvais jeton »).
+- **Vérifié** (Chrome headless contre la stack, 2026-11-05) : 20 écrans sans erreur navigateur ni requête en échec ;
+  WebSocket connecté sur chaque page ; console de match mise à jour en direct sans rechargement ; créer un tournoi et
+  ajouter un serveur dans l'interface ; sandbox match (injection, replay dust2 13-0 round par round, simulation) ;
+  typecheck et lint du front sans erreur.
+- **Pas encore vérifié** : le login Steam (Internet requis), les enchaînements admin longs joués dans l'interface
+  (équipes et joueurs, phases, qualification, véto à deux navigateurs), « Appliquer partout » et les boutons RCON de la
+  sandbox (serveur CS2 requis).
+- **Reste** : porter `src/legacy/` en vraies routes Next et retirer le routeur maison ; regrouper par poule les matchs
+  de poules de la page publique ; écrans des fonctions déjà dans le backend mais sans interface (sponsors, restauration
+  de round, appels admin, alias de commandes et templates) ; puis, après un tournoi complet joué avec ce front, retirer
+  `frontend/` (Vite), `make front`, `FRONT_DIST` / `serveFront`, les pages HTML du backend (`/view`, `/veto`, `/login`,
+  `/sandbox`) et `backend/public/css`.
+- **Vérifier dans un navigateur** : `tools/front-check/` (Chrome headless piloté par le protocole DevTools, sans
+  dépendance) : parcours des écrans, flux joués, page Sandbox ; voir son README.
+
+### Front React + Vite (`frontend/`), transitoire jusqu'à la parité
 **Mis en place** (`frontend/`) : React + Vite, Tailwind avec la charte, React Router, client Socket.IO ; barre du site
 (session via `/auth/me`, état du lien en direct) et une première page (liste des tournois). Les écrans (console admin,
 scoreboard, véto, portail joueur) restent à faire.
@@ -70,7 +113,7 @@ Les pages serveur restent en attendant d'être remplacées : le backend sert des
 `/sandbox/tournament`. Leur style vit dans `backend/public/css/` (voir « Design des pages » dans
 `docs/context/backend.md`). Toutes les données passent par l'API REST : un futur front pourra s'y brancher tel quel.
 
-## Stack retenue (décidée avec l'utilisateur le 2026-10-31)
+## Stack du front Vite (décidée le 2026-10-31, remplacée le 2026-11-05 par GGCoreFront : voir plus haut)
 - **React + Vite** (TypeScript), routage côté navigateur (React Router) : aucun rechargement de page (exigence du
   cahier des charges, maintenue).
 - **Servi par NestJS** : `npm run build` produit des fichiers statiques que le backend distribue sur son port (8081).
@@ -78,11 +121,16 @@ Les pages serveur restent en attendant d'être remplacées : le backend sert des
 - **Socket.IO client** pour le temps réel ; **Tailwind CSS** ; **shadcn/ui** restylé (voir Design).
 - Responsive : PC, tablette, TV.
 
-### Pourquoi pas Next.js (prévu par le cahier des charges)
+### Pourquoi pas Next.js (raisonnement du 2026-10-31, réévalué le 2026-11-05)
 Next.js apporte surtout le rendu côté serveur (référencement, premier affichage d'un site public) et ses propres
 routes serveur : rien dont une LAN a besoin. Il coûterait un deuxième serveur Node à lancer, surveiller et publier par
 le tunnel, et deux origines (ports 3000 / 8081), donc du CORS et des cookies de session à faire passer. Servi par
 NestJS, le front a la même adresse que l'API : la connexion (Steam, mot de passe admin) marche telle quelle.
+
+**Réévalué le 2026-11-05** : ces coûts sont acceptés parce que GGCoreFront existe déjà avec son design, et que le proxy
+Next donne une origine unique au navigateur (même cookie, pas de CORS). Contreparties : un conteneur de plus (`front`),
+une IP fixe pour que `TRUST_PROXY` ne fasse confiance qu'à lui, et une image à reconstruire si l'adresse du backend
+change (`BACKEND_URL` figée à la compilation).
 
 ### Design
 - **Tailwind** avec la charte de `backend/public/css/base.css` comme seule palette (les couleurs par défaut de
@@ -97,7 +145,8 @@ NestJS, le front a la même adresse que l'API : la connexion (Steam, mot de pass
   alignés, dans l'esprit des vues ASCII actuelles.
 
 ## Connexion au backend
-- Même origine que le backend (le front est servi par NestJS) : REST `/api/...`, Socket.IO `/ws`
+- Même origine que le backend (le front Vite est servi par NestJS ; le front Next passe par son proxy) : REST `/api/...`,
+  Socket.IO `/socket.io`
 - Auth : la session existante (cookie `gg_session` posé par `/login`), aucun jeton à gérer côté front ; le WebSocket
   reconnaît aussi un admin par ce cookie
 - Une seule connexion Socket.IO pour toute l'app (`lib/live.ts`) ; un écran suit un match par `match:subscribe`
@@ -200,4 +249,5 @@ PATCH /api/matches/:id/teams
 Liste complète (tournois, poules, arbres, véto, serveurs, opérations admin, connexion) : tableau des endpoints de
 `docs/context/backend.md`.
 
-CORS : ajouter l'origine du frontend à `CORS_ORIGIN` côté backend (défaut `http://localhost:3000`).
+CORS : inutile pour le navigateur (même origine, directe ou par le proxy Next) ; `CORS_ORIGIN` ne sert qu'à d'éventuels
+clients externes (défaut `http://localhost:3000`).

@@ -333,7 +333,7 @@ Les organisateurs doivent pouvoir gérer la totalité du cycle de tournoi, depui
 
 * Prévoir une intégration CSTV future (position, grenades, replays).  
 * Prévoir la possibilité de proposer dans le futur un overlay pour afficher sur les streams  
-* Maintenir un socle technologique moderne : Go, NestJS, Redis, PostgreSQL, React. (décision du 2026-10-31 : React + Vite servi par NestJS au lieu de Next.js, voir `docs/context/frontend.md`)  
+* Maintenir un socle technologique moderne : Go, NestJS, Redis, PostgreSQL, React. (décision du 2026-11-05 : le front est GGCoreFront, en Next.js derrière un proxy, voir `docs/context/frontend.md`)  
 * Respect des normes de sécurité réseau (auth, JWT, isolation des services).
 
 3. # Fonctionnalités attendues {#fonctionnalités-attendues}
@@ -757,7 +757,7 @@ Ce chapitre détaille les fondations techniques du projet, incluant les composan
 * **Backend NestJS** : Logique métier, API REST, WebSocket, synchronisation.  
 * **Redis** : Bus de messages temps réel (Pub/Sub) et cache.  
 * **PostgreSQL** : Persistance longue durée (vérité historique).  
-* **Frontend React** : Interface d'administration et interface publique. (décision du 2026-10-31 : React + Vite servi par NestJS au lieu de Next.js, voir `docs/context/frontend.md`).
+* **Frontend React** : Interface d'administration et interface publique. (décision du 2026-11-05 : le front est GGCoreFront, en Next.js derrière un proxy, voir `docs/context/frontend.md`).
 
 **Flux de données**
 
