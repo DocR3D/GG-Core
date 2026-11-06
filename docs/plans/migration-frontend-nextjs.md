@@ -6,9 +6,9 @@
 >   public, `TRUST_PROXY`), B5a (service `front`, `make web`). Reste B2 (lectures publiques de `/view`, sandbox), B3b, B4, B5b : à la parité.
 > - Fait côté front (dépôt GGCoreFront, branche `feat/migration-gg-core`) : F0 à F2 et l'essentiel de F3, les écrans du Vite
 >   étant repris dans `src/legacy/` ; correctif Socket.IO du proxy (slash final) ; routeur ; arbres publics ; Sandbox match ;
->   Messages en jeu. Vérifié dans Chrome contre la stack : 20 écrans sans erreur, live, flux de création.
+>   Messages en jeu. Vérifié dans Chrome contre la stack : 20 écrans sans erreur, live, un tournoi monté et déroulé dans l'interface.
 > - Reste : porter `src/legacy/` en routes Next, écrans des fonctions sans interface (sponsors, restauration de round, appels
->   admin, alias), flux admin longs et login Steam à vérifier, puis la bascule (retrait du Vite et des pages HTML du backend)
+>   admin, alias), login Steam, véto de vrais capitaines et lancement d'un game à vérifier, puis la bascule (retrait du Vite et des pages HTML du backend)
 >   après un tournoi complet joué avec le front Next.
 
 ## 0. Décisions prises avec l'utilisateur

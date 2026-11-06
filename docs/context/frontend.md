@@ -30,11 +30,14 @@ la parité, vérifiée par un tournoi complet joué avec le front Next.
   console) ; la carte de chaque serveur dit si les logs CS2 arrivent (« reçus il y a N s », « mauvais jeton »).
 - **Vérifié** (Chrome headless contre la stack, 2026-11-05) : 20 écrans sans erreur navigateur ni requête en échec ;
   WebSocket connecté sur chaque page ; console de match mise à jour en direct sans rechargement ; créer un tournoi et
-  ajouter un serveur dans l'interface ; sandbox match (injection, replay dust2 13-0 round par round, simulation) ;
-  typecheck et lint du front sans erreur.
-- **Pas encore vérifié** : le login Steam (Internet requis), les enchaînements admin longs joués dans l'interface
-  (équipes et joueurs, phases, qualification, véto à deux navigateurs), « Appliquer partout » et les boutons RCON de la
-  sandbox (serveur CS2 requis).
+  ajouter un serveur dans l'interface ; **un tournoi monté et déroulé dans l'interface** (renommer, 4 équipes avec
+  capitaine, véto enregistré, phase de poules, génération des poules, résultats saisis, arbres Élite et Amateur,
+  qualification qui remplit les arbres, véto d'un match d'arbre joué par l'admin jusqu'à `done`, 28 vérifications) ;
+  sandbox match (injection, replay dust2 13-0 round par round, simulation) ; typecheck et lint du front sans erreur.
+- **Pas encore vérifié** : le login Steam (Internet requis), le véto joué par de vrais capitaines connectés (deux
+  navigateurs, mise à jour en direct de l'autre écran), lancer un game et jouer ses matchs (serveur CS2 requis),
+  « Appliquer partout » et les boutons RCON de la sandbox, la correction d'un résultat fini, forfait, format et
+  remplacement d'une équipe dans l'interface.
 - **Reste** : porter `src/legacy/` en vraies routes Next et retirer le routeur maison ; regrouper par poule les matchs
   de poules de la page publique ; écrans des fonctions déjà dans le backend mais sans interface (sponsors, restauration
   de round, appels admin, alias de commandes et templates) ; puis, après un tournoi complet joué avec ce front, retirer

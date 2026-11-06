@@ -12,9 +12,10 @@ Le cœur moteur de match, l'arbitrage automatisé, le calcul de scores/stats CS2
 * **Origine & Spécifications** : [`docs/cahier-des-charges.md`](file:///d:/DEV/GG-Core/docs/cahier-des-charges.md) et [`docs/context/frontend.md`](file:///d:/DEV/GG-Core/docs/context/frontend.md).
 * **État actuel (2026-11-05)** : le front est le projet GGCoreFront (Next.js, dépôt voisin, `make web`), décidé avec
   l'utilisateur ; le front React + Vite (`frontend/`) et les pages HTML du backend restent jusqu'à la parité. Vérifié dans
-  Chrome contre la stack : 20 écrans sans erreur, live, créer un tournoi / ajouter un serveur, sandbox match. Détail, reste
-  à faire et pièges (Socket.IO et le slash final) : `docs/context/frontend.md`.
-  **Reste** : login Steam et flux admin longs à vérifier dans l'interface ; porter `src/legacy/` en routes Next ; écrans
+  Chrome contre la stack : 20 écrans sans erreur, live, un tournoi monté et déroulé dans l'interface (équipes, véto, poules,
+  résultats, arbres, qualification, véto joué par l'admin), sandbox match. Détail, reste à faire et pièges (Socket.IO et le
+  slash final) : `docs/context/frontend.md`.
+  **Reste** : login Steam, véto de vrais capitaines et lancement d'un game à vérifier ; porter `src/legacy/` en routes Next ; écrans
   des fonctions déjà dans le backend (sponsors, restauration de round, appels admin, alias et templates) ; puis retirer
   `frontend/` et les pages HTML du backend après un tournoi complet joué avec le front Next.
 * **Tâches à réaliser** :
