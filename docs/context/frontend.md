@@ -15,7 +15,8 @@ la parité, vérifiée par un tournoi complet joué avec le front Next.
   ne parle qu'à Next, qui relaie `/api`, `/auth`, `/socket.io` et `/sandbox` au backend (`BACKEND_URL`, figée à la
   compilation de l'image : changer d'adresse = reconstruire). Même origine : pas de CORS, cookie `gg_session` inchangé.
 - **Côté backend** (sur `main`) : login et déconnexion en JSON (`POST /auth/local`, `POST /auth/logout`), routes JSON du
-  véto, `GET /api/tournament/matches/:id/connect`, `/socket.io` public (le garde du gateway authentifie), `TRUST_PROXY`
+  véto, `GET /api/tournament/matches/:id/connect`, `GET /api/tournament/games/:id/rounds` (les rounds d'un game, publique),
+  `/socket.io` public (le garde du gateway authentifie), `TRUST_PROXY`
   (défaut : l'IP fixe du front) pour que la limite d'essais du login voie le vrai client. Retour du login Steam :
   `AUTH_PUBLIC_URL=http://<ip>:3000` dans `.env`.
 - **Piège Socket.IO** : engine.io ne répond que sur `/socket.io/` (slash final) et Next retire ce slash en relayant.
@@ -24,17 +25,21 @@ la parité, vérifiée par un tournoi complet joué avec le front Next.
   upgrade WebSocket refusé.
 - **Contenu du front** : ses écrans (accueil, dashboard, tournois, matchs, équipes, serveurs) ; les écrans du front Vite
   repris dans `src/legacy/` derrière un routeur maison provisoire (`src/lib/router.tsx`) : console de match, gestion d'un
-  tournoi en étapes, sandbox tournoi ; les pages publiques (tournoi avec ses arbres en lecture seule, match, véto,
-  « Mes vétos ») ; **Messages en jeu** (`/admin/messages` : annonce au buytime, messages communautaires) ; **Sandbox match**
+  tournoi en étapes, sandbox tournoi ; les pages publiques (tournoi avec ses arbres en lecture seule, véto, « Mes vétos »,
+  et le match : score de la série, bandeau « En direct », par game la frise des rounds, le tableau des joueurs et, pour
+  un game en cours, le scoreboard en direct **sans argent ni équipement** ; la console de match a le même scoreboard
+  avec l'argent, et la frise, qui est aussi dans le déplié d'un match de l'écran Matchs) ; **Messages en jeu** (`/admin/messages` : annonce au buytime, messages communautaires) ; **Sandbox match**
   (`/admin/sandbox/match` : presets, injection d'état, replay round par round, scoreboard live, simulateur, RCON,
   console) ; la carte de chaque serveur dit si les logs CS2 arrivent (« reçus il y a N s », « mauvais jeton »).
 - **Vérifié** (Chrome headless contre la stack, 2026-11-05) : 20 écrans sans erreur navigateur ni requête en échec ;
   WebSocket connecté sur chaque page ; console de match mise à jour en direct sans rechargement ; créer un tournoi et
-  ajouter un serveur dans l'interface ; **un tournoi monté et déroulé dans l'interface** (renommer, 4 équipes avec
+  ajouter un serveur dans l'interface ; reconnexion du live après un redémarrage du backend sans recharger la page ;
+  **un tournoi monté et déroulé dans l'interface** (renommer, 4 équipes avec
   capitaine, véto enregistré, phase de poules, génération des poules, résultats saisis, arbres Élite et Amateur,
   qualification qui remplit les arbres, véto d'un match d'arbre joué par l'admin jusqu'à `done`, 28 vérifications) ;
   sandbox match (injection, replay dust2 13-0 round par round, simulation) ; typecheck et lint du front sans erreur.
-- **Pas encore vérifié** : le login Steam (Internet requis), le véto joué par de vrais capitaines connectés (deux
+- **Pas encore vérifié** : le suivi en direct d'un game **de tournoi** sur la page publique (serveur CS2 requis ; la même
+  frise et le même scoreboard marchent sur la console d'un match de sandbox), le login Steam (Internet requis), le véto joué par de vrais capitaines connectés (deux
   navigateurs, mise à jour en direct de l'autre écran), lancer un game et jouer ses matchs (serveur CS2 requis),
   « Appliquer partout » et les boutons RCON de la sandbox, la correction d'un résultat fini, forfait, format et
   remplacement d'une équipe dans l'interface.
@@ -43,6 +48,12 @@ la parité, vérifiée par un tournoi complet joué avec le front Next.
   de round, appels admin, alias de commandes et templates) ; puis, après un tournoi complet joué avec ce front, retirer
   `frontend/` (Vite), `make front`, `FRONT_DIST` / `serveFront`, les pages HTML du backend (`/view`, `/veto`, `/login`,
   `/sandbox`) et `backend/public/css`.
+- **Fonctions de l'ancien front sans équivalent dans `main`** : forcer la phase d'un match (échauffement, knife,
+  prolongation, map suivante) et corriger le score à la main existaient dans l'API de la branche `fix/p0-p1…` de
+  sullyvan (`POST /api/matches/:id/admin-actions` vers un handler `/admin-action` de l'agent Go), jamais fusionnée.
+  Son agent n'appliquait d'ailleurs pas le score (« non applicable sans plugin CS2 ») : il exécutait seulement un
+  fichier de config. L'historique public d'un match (événements) demande une route filtrée (le journal complet est
+  réservé aux admins : il contient le chat, les logs bruts et les actions admin).
 - **Vérifier dans un navigateur** : `tools/front-check/` (Chrome headless piloté par le protocole DevTools, sans
   dépendance) : parcours des écrans, flux joués, page Sandbox ; voir son README.
 

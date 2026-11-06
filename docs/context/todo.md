@@ -18,6 +18,10 @@ Le cœur moteur de match, l'arbitrage automatisé, le calcul de scores/stats CS2
   **Reste** : login Steam, véto de vrais capitaines et lancement d'un game à vérifier ; porter `src/legacy/` en routes Next ; écrans
   des fonctions déjà dans le backend (sponsors, restauration de round, appels admin, alias et templates) ; puis retirer
   `frontend/` et les pages HTML du backend après un tournoi complet joué avec le front Next.
+  **Actions admin sur un match en cours** (forcer la phase : échauffement, knife, prolongation ; corriger le score à la
+  main) : n'existent pas dans `main`, voir `docs/context/frontend.md`. Le score n'est pas applicable en jeu sans
+  plugin : il faudrait passer par une sauvegarde de round (Round Doctor), pas par une simple commande RCON.
+  Historique public d'un match : route filtrée à créer.
 * **Tâches à réaliser** :
   - **Initialisation** : projet React + Vite (TypeScript, React Router, Tailwind CSS avec la charte de `base.css`,
     shadcn/ui restylé, client Socket.IO), compilé et servi par NestJS (choix et raisons : `docs/context/frontend.md`).
