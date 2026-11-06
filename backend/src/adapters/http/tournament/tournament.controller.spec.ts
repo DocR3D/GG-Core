@@ -10,6 +10,7 @@ describe('TournamentController JSON veto and connect routes', () => {
   let veto: Record<string, jest.Mock>;
   let launch: Record<string, jest.Mock>;
   let actions: { execute: jest.Mock };
+  let gameRounds: { forGame: jest.Mock };
   let controller: TournamentController;
 
   beforeEach(() => {
@@ -29,7 +30,8 @@ describe('TournamentController JSON veto and connect routes', () => {
         return state;
       }),
     };
-    controller = new TournamentController({} as any, launch as any, veto as any, {} as any, {} as any, actions as any);
+    gameRounds = { forGame: jest.fn().mockResolvedValue([{ number: 1, winner: 'CT', reason: 'defused', ct: 1, t: 0, at: 5 }]) };
+    controller = new TournamentController({} as any, launch as any, veto as any, {} as any, {} as any, actions as any, gameRounds as any);
   });
 
   it('delegates every action with the same body shapes and returns the caller state', async () => {
@@ -60,6 +62,11 @@ describe('TournamentController JSON veto and connect routes', () => {
   it('lets an admin actor reach admin actions', async () => {
     await controller.vetoUndo('m1', { ggSession: admin } as any);
     expect(veto.undo).toHaveBeenCalledWith('m1', expect.objectContaining({ admin: true, name: 'admin' }));
+  });
+
+  it('gives the rounds of a game under its id (public, nothing of the event log but the rounds)', async () => {
+    await expect(controller.rounds('g1')).resolves.toEqual({ gameId: 'g1', rounds: [{ number: 1, winner: 'CT', reason: 'defused', ct: 1, t: 0, at: 5 }] });
+    expect(gameRounds.forGame).toHaveBeenCalledWith('g1');
   });
 
   it('delegates connect with the backend session and declares private no-store', async () => {

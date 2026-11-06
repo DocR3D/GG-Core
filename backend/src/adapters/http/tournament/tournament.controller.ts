@@ -30,6 +30,7 @@ import { TournamentLaunchService } from '@app/tournament/tournament-launch.servi
 import { VetoService } from '@app/tournament/veto.service';
 import { TournamentAdminService } from '@app/tournament/tournament-admin.service';
 import { TournamentEditService } from '@app/tournament/tournament-edit.service';
+import { GameRoundsService } from '@app/tournament/game-rounds.service';
 import type { Session } from '@app/auth/auth.service';
 import type { VetoConfig } from '@domain/tournament/veto';
 import { actorOf, VetoActions, vetoFirst } from '../veto/veto-actions';
@@ -50,6 +51,7 @@ export class TournamentController {
     private readonly admin: TournamentAdminService,
     private readonly edit: TournamentEditService,
     private readonly vetoActions: VetoActions,
+    private readonly gameRounds: GameRoundsService,
   ) {}
 
   /** The data behind the /view pages, as JSON. */
@@ -68,6 +70,12 @@ export class TournamentController {
   @Get('matches/:id')
   matchDetail(@Param('id') matchId: string) {
     return this.run(() => this.stages.getMatchDetail(matchId));
+  }
+
+  /** How each round of a game ended (public): { gameId, rounds: [{ number, winner: CT|T|none, reason, ct, t, at }] }. */
+  @Get('games/:id/rounds')
+  async rounds(@Param('id') gameId: string) {
+    return { gameId, rounds: await this.gameRounds.forGame(gameId) };
   }
 
   /** Active game connection details, filtered for the current backend session. */
