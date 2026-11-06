@@ -7,7 +7,7 @@ import { MatchOrchestrator } from '@app/match/match-orchestrator.service';
 import { MatchStateService } from '@app/match/state/match-state.service';
 import { PauseMatchService } from '@app/match/pause/pause.service';
 import { MatchPhase } from '@domain/phase.types';
-import { CS2_RCON_COMMANDS, CS2_RULES } from '@domain/rules/rules.constants';
+import { CS2_CFG, CS2_RCON_COMMANDS, CS2_RULES } from '@domain/rules/rules.constants';
 import { errorMessage } from '@app/shared/error-message';
 
 export class MatchAdminError extends Error {
@@ -26,6 +26,9 @@ const NEXT_PHASE: Partial<Record<string, MatchPhase>> = {
   [MatchPhase.HALFTIME]: MatchPhase.LIVE_MAIN,
 };
 const PLAYING = new Set<string>([MatchPhase.LIVE_MAIN, MatchPhase.OVERTIME]);
+/** Phases before the live: the match can be taken back to a warmup or to the knife (not once the live has started). */
+const BEFORE_LIVE = new Set<string>([MatchPhase.KNIFE_WARMUP, MatchPhase.KNIFE_LIVE, MatchPhase.KNIFE_CHOICE, MatchPhase.WARMUP_MAIN]);
+const PHASE_TARGET: Record<string, MatchPhase> = { warmup: MatchPhase.WARMUP_MAIN, knife: MatchPhase.KNIFE_WARMUP };
 
 /**
  * Commands of the match console (admins), on a match of the real-time engine (for a tournament game: the game id).
@@ -81,6 +84,28 @@ export class MatchAdminService {
     await this.cmds.say(serverId, '[GG-Core] Départ forcé par un admin.');
     await this.orch.startPhaseCountdown(matchId, next, CS2_RULES.COUNTDOWN_DELAY_SEC, serverId);
     return this.done(matchId, serverId, by, 'force_start', { to: next });
+  }
+
+  /**
+   * Takes the match back, before the live, to the warmup ("warmup") or to the knife warmup ("knife"): a knife to skip or
+   * to redo, a warmup to restart. It goes through the engine like the start does (the countdown with no delay), so the
+   * phase's own rule applies its config, resets the !ready flags and announces it, and GG-Core and the server stay in
+   * step. A knife in progress has its config removed first, as the knife rule does when it ends. Refused once the live
+   * has started (a round is replayed with `restoreRound`; going back to a warmup would wipe the score) and during a
+   * countdown.
+   */
+  async setPhase(matchId: string, target: string, by: string) {
+    const to = PHASE_TARGET[target];
+    if (!to) throw new MatchAdminError('invalid', 'phase: "warmup" or "knife"');
+    const { serverId, phase } = await this.running(matchId);
+    if (!BEFORE_LIVE.has(phase)) {
+      throw new MatchAdminError('conflict', `phase ${phase}: only before the live (to replay a round, use "restore")`);
+    }
+    if (await this.orch.isCountdownActive(matchId)) throw new MatchAdminError('conflict', 'a countdown is already running');
+    if (phase === MatchPhase.KNIFE_LIVE) await this.orch.execCfg({ serverId, matchId }, CS2_CFG.KNIFE_UNDO);
+    await this.cmds.say(serverId, to === MatchPhase.WARMUP_MAIN ? "[GG-Core] Retour à l'échauffement demandé par un admin." : '[GG-Core] Retour au knife demandé par un admin.');
+    await this.orch.startPhaseCountdown(matchId, to, 0, serverId);
+    return this.done(matchId, serverId, by, 'set_phase', { from: phase, to });
   }
 
   /**

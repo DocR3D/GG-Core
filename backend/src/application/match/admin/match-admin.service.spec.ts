@@ -13,6 +13,7 @@ describe('MatchAdminService (match console)', () => {
       isCountdownActive: jest.fn().mockResolvedValue(false),
       checkTeamPlacement: jest.fn().mockResolvedValue(true),
       startPhaseCountdown: jest.fn().mockResolvedValue(undefined),
+      execCfg: jest.fn().mockResolvedValue(undefined),
       pushState: jest.fn().mockResolvedValue(undefined),
     };
     state = {
@@ -107,5 +108,51 @@ describe('MatchAdminService (match console)', () => {
     await svc.say(M, '  Pause "repas"\nà 13h ', 'a');
     expect(cmds.say).toHaveBeenCalledWith('srv-a', '[Admin] Pause  repas  à 13h');
     expect(await code(svc.say(M, '   ', 'a'))).toBe('invalid');
+  });
+
+  describe('setPhase (back to the warmup or the knife, before the live)', () => {
+    it('takes the match from the warmup to the knife warmup through the engine, and records it', async () => {
+      phase(MatchPhase.WARMUP_MAIN);
+      await svc.setPhase(M, 'knife', 'Admin');
+      expect(orch.startPhaseCountdown).toHaveBeenCalledWith(M, MatchPhase.KNIFE_WARMUP, 0, 'srv-a');
+      expect(cmds.say).toHaveBeenCalledWith('srv-a', expect.stringContaining('knife'));
+      expect(prisma.eventPrimary.create).toHaveBeenCalledWith({
+        data: expect.objectContaining({ type: 'admin_action', payload: { action: 'set_phase', by: 'Admin', from: MatchPhase.WARMUP_MAIN, to: MatchPhase.KNIFE_WARMUP } }),
+      });
+    });
+
+    it('removes the knife config first when the knife is in progress, then goes back to the warmup', async () => {
+      phase(MatchPhase.KNIFE_LIVE);
+      await svc.setPhase(M, 'warmup', 'Admin');
+      expect(orch.execCfg).toHaveBeenCalledWith({ serverId: 'srv-a', matchId: M }, 'knife_undo.cfg');
+      expect(orch.execCfg.mock.invocationCallOrder[0]).toBeLessThan(orch.startPhaseCountdown.mock.invocationCallOrder[0]);
+      expect(orch.startPhaseCountdown).toHaveBeenCalledWith(M, MatchPhase.WARMUP_MAIN, 0, 'srv-a');
+    });
+
+    it.each([MatchPhase.KNIFE_WARMUP, MatchPhase.KNIFE_CHOICE, MatchPhase.WARMUP_MAIN])('is allowed from %s without touching the knife config', async (from) => {
+      phase(from);
+      await svc.setPhase(M, 'warmup', 'Admin');
+      expect(orch.execCfg).not.toHaveBeenCalled();
+      expect(orch.startPhaseCountdown).toHaveBeenCalledWith(M, MatchPhase.WARMUP_MAIN, 0, 'srv-a');
+    });
+
+    it.each([MatchPhase.LIVE_MAIN, MatchPhase.OVERTIME, MatchPhase.HALFTIME, MatchPhase.PAUSED_TECH])('is refused from %s (the live has started)', async (from) => {
+      phase(from);
+      expect(await code(svc.setPhase(M, 'warmup', 'Admin'))).toBe('conflict');
+      expect(orch.startPhaseCountdown).not.toHaveBeenCalled();
+      expect(prisma.eventPrimary.create).not.toHaveBeenCalled();
+    });
+
+    it('is refused when the match is over, during a countdown, and for an unknown phase', async () => {
+      phase(MatchPhase.POSTGAME);
+      expect(await code(svc.setPhase(M, 'knife', 'Admin'))).toBe('conflict');
+      phase(MatchPhase.WARMUP_MAIN);
+      orch.isCountdownActive.mockResolvedValue(true);
+      expect(await code(svc.setPhase(M, 'knife', 'Admin'))).toBe('conflict');
+      orch.isCountdownActive.mockResolvedValue(false);
+      expect(await code(svc.setPhase(M, 'overtime', 'Admin'))).toBe('invalid');
+      expect(await code(svc.setPhase(M, '', 'Admin'))).toBe('invalid');
+      expect(orch.startPhaseCountdown).not.toHaveBeenCalled();
+    });
   });
 });
