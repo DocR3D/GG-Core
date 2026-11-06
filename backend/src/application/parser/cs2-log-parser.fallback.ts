@@ -135,7 +135,9 @@ export function parseCs2LineFallback(rawLine: string, matchId: string, serverId:
     const sfui = winMatch[2].toLowerCase();
     const reason = sfui.includes('target_bombed')
       ? 'bomb_exploded'
-      : ((sfui.includes('defused') || sfui.includes('target_saved')) ? 'defused' : 'elim');
+      : sfui.includes('defused')
+        ? 'defused'
+        : (sfui.includes('target_saved') || sfui.includes('round_timed_out')) ? 'time' : 'elim'; // Target_Saved: timer ran out, no defuse
     const scoreCT = winMatch[3] ? parseInt(winMatch[3], 10) : undefined;
     const scoreT = winMatch[4] ? parseInt(winMatch[4], 10) : undefined;
     const score = (scoreCT !== undefined && scoreT !== undefined) ? { ct: scoreCT, t: scoreT } : undefined;

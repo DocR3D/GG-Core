@@ -343,12 +343,13 @@ func parseLine(line string) (string, json.RawMessage, bool) {
 		switch {
 		case strings.Contains(sfui, "target_bombed"):
 			reason = "bomb_exploded"
-		case strings.Contains(sfui, "target_saved"), strings.Contains(sfui, "bomb_defused"):
+		case strings.Contains(sfui, "bomb_defused"):
 			reason = "defused"
+		case strings.Contains(sfui, "target_saved"), strings.Contains(sfui, "round_timed_out"):
+			// Target_Saved: the timer ran out with no bomb exploded, the CTs win (no defuse involved).
+			reason = "time"
 		case strings.Contains(sfui, "wipe"), strings.Contains(sfui, "elimination"), strings.Contains(sfui, "win"):
 			reason = "elim"
-		case strings.Contains(sfui, "round_timed_out"):
-			reason = "time"
 		case strings.Contains(sfui, "round_draw"):
 			reason = "draw"
 		}
