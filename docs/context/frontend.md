@@ -38,6 +38,10 @@ la parité, vérifiée par un tournoi complet joué avec le front Next.
   capitaine, véto enregistré, phase de poules, génération des poules, résultats saisis, arbres Élite et Amateur,
   qualification qui remplit les arbres, véto d'un match d'arbre joué par l'admin jusqu'à `done`, 28 vérifications) ;
   sandbox match (injection, replay dust2 13-0 round par round, simulation) ; typecheck et lint du front sans erreur.
+- **Vérifié sur un vrai serveur CS2** (conteneur `make up-cs2`, bots, 2026-11-06) : un match lancé sur le serveur, pause et
+  reprise, `say`, forçage de phase (warmup.cfg et knife.cfg bien exécutés), puis un vrai round fini par le temps : le parser
+  Go le classe `time`, la route publique des rounds le renvoie et la console l'affiche avec l'horloge (navigateur, sans
+  erreur). Les joueurs étaient des bots : le scoreboard avec de vrais joueurs reste à voir.
 - **Pas encore vérifié** : le suivi en direct d'un game **de tournoi** sur la page publique (serveur CS2 requis ; la même
   frise et le même scoreboard marchent sur la console d'un match de sandbox), le login Steam (Internet requis), le véto joué par de vrais capitaines connectés (deux
   navigateurs, mise à jour en direct de l'autre écran), lancer un game et jouer ses matchs (serveur CS2 requis),
