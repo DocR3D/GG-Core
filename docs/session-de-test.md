@@ -44,7 +44,7 @@ préparation et ce qu'il faut noter. Cocher au fur et à mesure, noter tout éca
 
 | # | À vérifier | OK | Notes |
 |---|---|---|---|
-| A-1 | Page du match (`/view/matches/:id`) vue par le joueur Rouge connecté avec Steam : bouton « Se connecter » ; il rejoint sans taper le mot de passe | [ ] | |
+| A-1 | Page du match (`/view/matches/:id`) vue par le joueur Rouge connecté avec Steam : bouton « Se connecter » ; il rejoint sans taper le mot de passe | [x] 2026-11-07 | Sous WSL2, mettre l'IP de WSL dans le serveur (`PATCH /api/tournament/servers/:id {"ip":"<IP WSL>"}`) : Windows ne relaie que le TCP vers `127.0.0.1` |
 | A-2 | Même page en privé (spectateur) : seulement « Regarder (GOTV) » ; la GOTV s'ouvre, en différé (~105 s) | [ ] | |
 | A-3 | `connect <IP>:27015` sans mot de passe : refusé | [ ] | |
 | A-4 | Le 4e compte (hors rosters) rejoint avec le mot de passe : kické « Vous n'êtes pas inscrit sur ce match », alerte dans le journal de la console | [ ] | |
@@ -59,8 +59,8 @@ Ouvrir la console depuis le tableau de bord (clic sur le game). Garder un œil s
 | C-2 | Pause technique : le jeu se met en pause, « En pause technique » en ambre ; Reprendre : le jeu repart | [ ] | |
 | C-3 | Message dans le jeu : affiché `[Admin] …` dans le chat, ligne « Admin … : message » au journal | [ ] | |
 | C-4 | Échanger les camps en warmup : les joueurs changent de camp, les couleurs des équipes s'inversent à l'écran | [ ] | |
-| C-5 | Forcer le départ en warmup (sans `!ready`) : décompte puis knife (ou live sans knife) | [ ] | |
-| C-6 | Rejouer un round pendant le live (ex. round 2 au round 3) : confirmation demandée, le serveur revient au début du round, score et stats corrigés, serveur en pause ; Reprendre le serveur le relance | [ ] | |
+| C-5 | Forcer le départ en warmup (sans `!ready`) : décompte de 5 s puis knife (ou live sans knife) | [x] 2026-11-07 | |
+| C-6 | Rejouer un round pendant le live (ex. round 2 au round 3) : confirmation demandée, le serveur revient au début du round, score et stats corrigés, **match mis en pause** pour que l'admin vérifie ; « Reprendre » le relance (ou `!unpause` / `!ready` des deux équipes) | [x] 2026-11-07 | |
 | C-7 | Refus clairs : échanger les camps pendant le live, rejouer un round en warmup (bouton grisé ou message « refusé » avec la raison) | [ ] | |
 | C-8 | Couper le réseau du PC admin quelques secondes : « Hors ligne » puis retour à « Direct » et reprise du journal | [ ] | |
 
@@ -80,7 +80,7 @@ Ouvrir la console depuis le tableau de bord (clic sur le game). Garder un œil s
 | RT-01 | `!pause` après la pose de bombe : armée, appliquée au freeze suivant | [ ] | |
 | RT-02 | `!tech` entre la fin du round et le freeze : armée puis appliquée | [ ] | |
 | RT-03 | Rappel de la banque de pause : part de 120 s, jamais 0:00 | [ ] | |
-| RT-04 | TAB pendant l'entracte de fin : écran de fin visible ~25 s, warmup seulement à +30 s | [ ] | |
+| RT-04 | TAB pendant l'entracte de fin : écran de fin visible ~2 min (intermission de 130 s), warmup à +135 s ; vote de map affiché mais inopérant | [x] 2026-11-07 | |
 | RT-05 | Rester connecté après la fin : kick à +120 s, GOTV et bots épargnés | [ ] | |
 | RT-06 | Nouveau match lancé avant les 120 s : aucun kick | [ ] | |
 | RT-07 | Démo GOTV du match (`playdemo`) : le dernier round est présent | [ ] | |

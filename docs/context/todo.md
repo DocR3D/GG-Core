@@ -192,6 +192,51 @@ Le cœur moteur de match, l'arbitrage automatisé, le calcul de scores/stats CS2
 * **Lien avec le cahier des charges** : les messages sponsorisés dans le chat en jeu (rotation manuelle ou
   automatique, presets) reposent sur le même mécanisme d'envoi au buytime ; à faire ensemble.
 
+### 16. 🔁 Rechargement à chaud du backend en dev (sous WSL)
+* **Constat** (2026-11-07, session de test) : le backend du compose de dev se lance par `nest start --watch`, mais une
+  modification du code source ne le recharge pas. Le dossier `backend/` est monté depuis le disque Windows (`/mnt/d/...`),
+  où les notifications de fichiers n'arrivent pas dans le conteneur. `CHOKIDAR_USEPOLLING=1` est déjà posé dans
+  `infra/docker-compose.dev.yml`, mais Nest compile avec le `tsc` en mode watch, qui ne lit pas cette variable : il lui
+  faut ses propres variables (`TSC_WATCHFILE`, `TSC_WATCHDIRECTORY`). Aujourd'hui, chaque correctif demande un
+  `docker compose restart backend` (environ 30 s, le site est coupé).
+* **Pistes, à essayer dans cet ordre** :
+  1. Ajouter dans le compose de dev `TSC_WATCHFILE=PriorityPollingInterval` et
+     `TSC_WATCHDIRECTORY=DynamicPriorityPolling` (interrogation périodique au lieu des notifications), puis vérifier
+     qu'un changement de fichier relance bien le backend.
+  2. Sinon, cloner le dépôt dans le disque de WSL (`~/GG-Core`) : les notifications y fonctionnent, et les builds sont aussi
+     plus rapides ; seul l'éditeur côté Windows doit alors ouvrir le dossier par `\\wsl$\Debian\...`.
+* **À vérifier** : le rechargement ne doit pas couper une session de test en cours plus longtemps qu'un redémarrage (l'état
+  d'un match est dans Redis, il survit) ; décider si on le laisse actif aussi pendant une vraie LAN (sans doute non : un
+  rechargement en plein match est un risque, la LAN doit tourner sur une image figée).
+
+### 17. 🎬 Tests de bout en bout « scénario joué, journal de sortie comparé »
+* **Idée** (utilisateur, 2026-11-07) : jouer une suite de commandes, de rounds et d'actions sur le vrai serveur de test, puis
+  comparer ce que GG-Core a produit (événements, score, phases, messages envoyés dans le chat, commandes RCON) avec un
+  fichier de référence.
+* **Ce qui existe déjà** : le Golden Master (`fixtures-golden-master.spec.ts`) rejoue de vrais logs CS2 et compare le
+  résultat à `test/fixtures/expected-outcomes.json` ; `make replay F=...` rejoue un log dans la stack complète ;
+  `make e2e-tournament` déroule un tournoi. Ils partent tous d'un **log déjà écrit**, jamais d'un scénario piloté.
+* **Ce qui manque** : un scénario déclaratif (par exemple en JSON : « forcer le départ, attendre la fin du round, taper
+  `!pause`, attendre 45 s, `!restore 3`… ») joué contre le serveur CS2 du conteneur (les bots jouent, les commandes de
+  joueurs sont publiées sur le bus Redis comme le fait l'agent), avec :
+  - un **journal de sortie normalisé** (heures et identifiants retirés) : lignes `say` et RCON reçues par le serveur,
+    changements de phase, scores, événements enregistrés ;
+  - la **comparaison** avec un fichier attendu, et un mode de régénération relu avant commit, comme le Golden Master.
+* **Pièges vus pendant la session de test** : le timing (rounds courts, `mp_roundtime 0.5`), les rounds que les bots ne
+  jouent pas (ils ne bougent pas : la fin vient du temps), l'état laissé par un scénario précédent (repartir d'un game
+  neuf), et les commandes simulées de la Sandbox qui doivent transmettre leurs paramètres (corrigé le 2026-11-07).
+
+### 18. ⏱️ Alerte aux admins quand une pause technique dure trop longtemps
+* **Idée** (utilisateur, 2026-11-07) : prévenir les admins quand une **pause technique dépasse 2 minutes**. Une pause technique n'a
+  pas de durée de fin (reprise par les deux équipes avec `!unpause` / `!ready`, ou par un admin) : sans alerte, elle peut
+  durer sans que personne à l'organisation ne le voie.
+* **Pistes** : un minuteur lancé au début de la pause technique (`PauseMatchService`, à côté des rappels périodiques « Pause
+  technique … »), qui à 2 min publie une alerte vers les admins (le même canal que les appels admin et les alertes de la
+  console : WebSocket `admin`) et la journalise ; durée réglable dans la configuration du tournoi (comme les autres
+  délais) ; l'alerte s'annule à la reprise. Peut se répéter toutes les 2 min tant que la pause dure.
+* **À décider** : le texte et l'endroit de l'alerte (bandeau de la console, tableau de bord, journal), et si les pauses
+  « système » (restauration de round, pause posée par un admin) comptent aussi.
+
 ---
 
 ## ✅ Chantiers Achevés

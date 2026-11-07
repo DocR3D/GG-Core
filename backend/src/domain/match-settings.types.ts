@@ -29,10 +29,20 @@ export interface MatchSettings {
 
   /**
    * Seconds to wait after Game Over before applying postgameAction, so players keep the end screen
-   * and scoreboard during CS2's intermission (mp_match_restart_delay).
-   * Default: 30
+   * and scoreboard during CS2's intermission (mp_match_restart_delay, 130 s in warmup.cfg). It is long on purpose:
+   * the GOTV is delayed (tv_delay up to 120 s) and CS2 restarts the game at the end of the intermission, which cuts
+   * the delayed broadcast: before the demo is complete, the last round is missing.
+   * Default: 135
    */
   postgameResetDelaySec?: number;
+
+  /**
+   * Seconds after Game Over before the GOTV demo recording is stopped. The recording follows the delayed broadcast:
+   * stopping it at Game Over loses the last tv_delay seconds, the last round included. Must be more than tv_delay
+   * (120 s is CS2's own default) and less than the intermission.
+   * Default: 125
+   */
+  postgameDemoStopDelaySec?: number;
 
   /**
    * Seconds after Game Over before every player still connected is kicked, so nobody stays on a
@@ -97,7 +107,8 @@ export const DEFAULT_MATCH_SETTINGS: Required<MatchSettings> = {
   warmupAtHalftime: false,
   warmupAtOvertime: false,
   postgameAction: 'soft_reset',
-  postgameResetDelaySec: 30,
+  postgameResetDelaySec: 135,
+  postgameDemoStopDelaySec: 125,
   postgameKickDelaySec: 120,
   mrFormat: CS2_RULES.DEFAULT_MR_HALF,
   overtimeMrFormat: CS2_RULES.DEFAULT_OT_HALF,

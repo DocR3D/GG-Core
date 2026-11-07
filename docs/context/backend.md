@@ -84,7 +84,7 @@ match:{id}:db_match_map         - UUID du MatchMap PostgreSQL lié (optionnel)
 - `applyPauseIfArmed()` - consomme pause armée à la freeze time
 - `execCfg()` / `execCfgs()` - applique un .cfg GG-Core (`agent/cfg/ggbot`) **via l'agent** (`exec_cfg`) ; jamais en `exec` RCON brut (ces fichiers n'existent pas sur le serveur)
 - `startMatch()` - `tv_enable 1`, changelevel, warmup.cfg, `tv_record`, banques de pause (`tacticalPauseBankSec`), phase initiale
-- `endMatch()` - annonce, `tv_stoprecord`, progression bracket, puis **différé** : reset warmup à `postgameResetDelaySec` (30 s) et kick des joueurs à `postgameKickDelaySec` (120 s, 0 = off), ignorés si un autre match a démarré sur le serveur
+- `endMatch()` - annonce, progression bracket, puis **différé** : arrêt de la démo GOTV à `postgameDemoStopDelaySec` (125 s : la GOTV est retardée, un arrêt au Game Over perdait le dernier round), reset warmup à `postgameResetDelaySec` (135 s ; CS2 garde son intermission de 130 s, `mp_match_restart_delay` de `warmup.cfg`) et kick des joueurs à `postgameKickDelaySec` (120 s, 0 = off), ignorés si un autre match a démarré sur le serveur
 - `onServerGameOver()` / `checkServerGameOver()` / `resolveReview()` - arbitrage du `Game Over` serveur : score = serveur, verdict = règlement GG-Core ; désaccord → résultat gelé (`match:{id}:review`) en attendant l'admin
 - `onFreezeTimeStart()` / `onRoundStart()` / `onRoundEnd()` / `onBombPlanted()` - lifecycle round
 - `push()` - broadcast WS

@@ -382,3 +382,52 @@ describe('LiveRule.onEnter', () => {
     expect(ctx.say).toHaveBeenCalledWith(expect.stringContaining('Reprise du match LIVE'));
   });
 });
+
+// ---------------------------------------------------------------------------
+// Backup restore across the halftime
+// ---------------------------------------------------------------------------
+describe('LiveRule : restore back before the halftime', () => {
+  const drawEvent = (ct: number, t: number) =>
+    ({ type: EventTypes.TEAM_ROUND_WIN, matchId: MATCH_ID, serverId: SERVER_ID, round: 0, tick: 0, payload: { winner: 'none', reason: 'draw', score: { ct, t } } }) as any;
+
+  // second half: 12 rounds played (2-10 for CT-T), sides swapped, halftime noted
+  const ctxSecondHalf = (isHalftimePlayed = true, roundsPlayed = 12) => {
+    const ctx = makeCtx({ isHalftimePlayed });
+    ctx.state.getScore = jest.fn().mockResolvedValue({ ct: 2, t: roundsPlayed - 2 });
+    ctx.state.reconcileScore = jest.fn().mockResolvedValue(undefined);
+    ctx.state.getSides = jest.fn().mockResolvedValueOnce({ home: 'CT', away: 'T' }).mockResolvedValue({ home: 'T', away: 'CT' });
+    ctx.state.setSides = jest.fn().mockResolvedValue(undefined);
+    return ctx;
+  };
+
+  it('puts home / away back and forgets the halftime when the game goes back to the first half', async () => {
+    const rule = new LiveRule(makePauseCmd());
+    const ctx = ctxSecondHalf();
+
+    await (rule as any).onTeamRoundWin(drawEvent(9, 2), ctx); // back to the start of round 12
+
+    expect(ctx.state.reconcileScore).toHaveBeenCalledWith(MATCH_ID, 9, 2);
+    expect(ctx.state.setSides).toHaveBeenCalledWith(MATCH_ID, { home: 'T', away: 'CT' });
+    expect(ctx.state.setHalftimePlayed).toHaveBeenCalledWith(MATCH_ID, false);
+    expect(ctx.orch.push).toHaveBeenCalledWith(MATCH_ID, 'sides:swapped', { sides: { home: 'T', away: 'CT' } });
+  });
+
+  it('leaves the sides alone when the restore stays in the second half', async () => {
+    const rule = new LiveRule(makePauseCmd());
+    const ctx = ctxSecondHalf(true, 15);
+
+    await (rule as any).onTeamRoundWin(drawEvent(3, 10), ctx); // 13 rounds: after the halftime
+
+    expect(ctx.state.setSides).not.toHaveBeenCalled();
+    expect(ctx.state.setHalftimePlayed).not.toHaveBeenCalled();
+  });
+
+  it('leaves the sides alone when the halftime had not been played yet', async () => {
+    const rule = new LiveRule(makePauseCmd());
+    const ctx = ctxSecondHalf(false, 8);
+
+    await (rule as any).onTeamRoundWin(drawEvent(1, 3), ctx);
+
+    expect(ctx.state.setSides).not.toHaveBeenCalled();
+  });
+});

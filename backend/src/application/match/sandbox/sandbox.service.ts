@@ -563,13 +563,17 @@ export class SandboxService {
       }
     }
 
+    // "!restore 4" is the command "restore" with the parameter "4", like the CS2 log parser sends it.
+    const [name = '', ...parameters] = command.trim().split(/\s+/);
+
     const event = {
       type: 'command',
       matchId,
       serverId,
       timestamp: Date.now(),
       payload: {
-        command,
+        command: name,
+        parameters,
         sender: {
           name: sender.name || 'SandboxTester',
           // One default SteamID per side: with a single one, the 2nd captain's !ready was dropped by the spam filter.

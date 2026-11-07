@@ -8,6 +8,8 @@ describe('RoundRestoreService', () => {
   let mockState: any;
   let mockCmds: any;
   let mockEmitter: any;
+  let mockPrisma: any;
+  let mockPause: any;
 
   const MATCH_ID = 'match-123';
   const SERVER_ID = 'server-cs2-1';
@@ -38,12 +40,28 @@ describe('RoundRestoreService', () => {
       emitBoth: jest.fn(),
     };
 
+    mockPrisma = { eventPrimary: { findMany: jest.fn().mockResolvedValue([]) } };
+
+    mockPause = {
+      isPaused: jest.fn().mockResolvedValue(true), // the pause the proposal started is in effect
+      getPhase: jest.fn().mockResolvedValue('freeze'),
+      pause: jest.fn().mockResolvedValue(undefined),
+      resume: jest.fn().mockResolvedValue(undefined),
+      clearArmed: jest.fn().mockResolvedValue(undefined),
+    };
+
     service = new RoundRestoreService(
       mockRedis,
       mockState,
       mockCmds,
       mockEmitter,
+      mockPrisma,
+      mockPause,
     );
+  });
+
+  afterEach(() => {
+    service.onModuleDestroy(); // no 45 s timer left behind
   });
 
   describe('getRestoreCandidates', () => {
@@ -70,6 +88,35 @@ describe('RoundRestoreService', () => {
       expect(candidates[3].round).toBe(7);
       expect(candidates[3].canDirectRestore).toBe(false);
       expect(candidates[3].backupFile).toBe('backup_round06.txt');
+    });
+
+    it('gives each checkpoint the score it restores (the score before that round), not the current one', async () => {
+      // 5 rounds played (T, T, CT, T, T): the round being played, or about to start, is the 6th
+      mockState.getSnapshot.mockResolvedValueOnce({
+        score: { round: 5, ct: 1, t: 4 },
+        sides: { home: 'T', away: 'CT' },
+      });
+      const win = (winner: string, ct: number, t: number, ts: number) => ({ timestamp: ts, payload: { winner, reason: 'elim', score: { ct, t } } });
+      mockPrisma.eventPrimary.findMany.mockResolvedValueOnce([win('T', 0, 1, 1), win('T', 0, 2, 2), win('CT', 1, 2, 3), win('T', 1, 3, 4), win('T', 1, 4, 5)]);
+
+      const candidates = await service.getRestoreCandidates(MATCH_ID);
+
+      expect(candidates.map((c) => [c.round, c.scoreCt, c.scoreT, c.isCurrent])).toEqual([
+        [6, 1, 4, true], // the round in progress starts from the score on the scoreboard
+        [5, 1, 3, false],
+        [4, 1, 2, false],
+        [3, 0, 2, false],
+        [2, 0, 1, false],
+      ]);
+      expect(candidates[0].backupFile).toBe('backup_round05.txt');
+      expect(candidates[0].scoreHome).toBe(4); // home plays T
+    });
+
+    it('in the freeze time `score.round` still names the round just finished: the next one is offered', async () => {
+      mockState.getSnapshot.mockResolvedValueOnce({ score: { round: 3, ct: 1, t: 2 }, sides: { home: 'T', away: 'CT' } });
+      const candidates = await service.getRestoreCandidates(MATCH_ID);
+      expect(candidates[0].round).toBe(4);
+      expect(candidates[0].backupFile).toBe('backup_round03.txt');
     });
 
     it('correctly maps home and away scores based on sides', async () => {
@@ -106,6 +153,8 @@ describe('RoundRestoreService', () => {
       expect(proposal.proposingTeam).toBe('home');
       expect(proposal.requiresAdmin).toBe(false); // 9 >= 10 - 2
 
+      // a technical pause of GG-Core (the console shows it), started now: the freeze time
+      expect(mockPause.pause).toHaveBeenCalledWith(MATCH_ID, SERVER_ID, expect.objectContaining({ reason: 'technical', team: 'system', armOnly: false }));
       expect(mockCmds.pause).toHaveBeenCalledWith({
         serverId: SERVER_ID,
         matchId: MATCH_ID,
@@ -340,6 +389,78 @@ describe('RoundRestoreService', () => {
       expect(service.hasPendingUnpause(MATCH_ID)).toBe(false);
 
       await jest.advanceTimersByTimeAsync(5000);
+      expect(mockCmds.unpause).not.toHaveBeenCalled();
+    });
+  });
+  describe('proposal made in the middle of a round', () => {
+    it('only arms the pause (it starts at the next freeze time): no raw pause sent to the server now', async () => {
+      mockPause.getPhase.mockResolvedValue('live');
+      await service.proposeRestore(MATCH_ID, 9, { team: 'home', name: 'Alice' });
+      expect(mockPause.pause).toHaveBeenCalledWith(MATCH_ID, SERVER_ID, expect.objectContaining({ armOnly: true, team: 'system' }));
+      expect(mockCmds.pause).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('proposal expiry (nobody answers within 45 s)', () => {
+    beforeEach(() => jest.useFakeTimers());
+    afterEach(() => jest.useRealTimers());
+
+    const stored = (status = 'pending') => {
+      const saved = JSON.parse(mockRedis.set.mock.calls.at(-1)[1]);
+      return JSON.stringify({ ...saved, status });
+    };
+
+    it('announces the expiry in chat, tells the site, then resumes the game it had paused', async () => {
+      const proposal = await service.proposeRestore(MATCH_ID, 9, { team: 'home', name: 'Alice' });
+      mockRedis.get.mockResolvedValue(stored());
+
+      await jest.advanceTimersByTimeAsync(45_000);
+
+      expect(mockRedis.del).toHaveBeenCalledWith(`match:${MATCH_ID}:restore_proposal`);
+      expect(mockCmds.say).toHaveBeenCalledWith(SERVER_ID, expect.stringContaining('expirée'));
+      expect(mockEmitter.emitBoth).toHaveBeenCalledWith(MATCH_ID, 'restore:cancelled', expect.objectContaining({ status: 'expired', targetRound: proposal.targetRound }));
+      expect(mockCmds.unpause).not.toHaveBeenCalled(); // 5 s safety delay first
+      await jest.advanceTimersByTimeAsync(5_000);
+      expect(mockCmds.unpause).toHaveBeenCalledWith({ serverId: SERVER_ID, matchId: MATCH_ID });
+    });
+
+    it('in the middle of a round (no pause in effect) it does not claim to resume, but still cancels the armed pause', async () => {
+      mockPause.getPhase.mockResolvedValue('live'); // the round is still running: the pause is only armed
+      mockPause.isPaused.mockResolvedValue(false);
+      await service.proposeRestore(MATCH_ID, 3, { team: 'home', name: 'Alice' });
+      mockRedis.get.mockResolvedValue(stored());
+
+      await jest.advanceTimersByTimeAsync(45_000);
+      expect(mockCmds.say).toHaveBeenCalledWith(SERVER_ID, expect.stringContaining('Le round continue.'));
+      expect(mockCmds.say).not.toHaveBeenCalledWith(SERVER_ID, expect.stringContaining('Reprise dans 5s'));
+
+      await jest.advanceTimersByTimeAsync(5_000);
+      expect(mockCmds.unpause).toHaveBeenCalledWith({ serverId: SERVER_ID, matchId: MATCH_ID });
+      expect(mockPause.clearArmed).toHaveBeenCalledWith(MATCH_ID); // the pause armed for the next freeze time is forgotten
+      expect(mockCmds.say).not.toHaveBeenCalledWith(SERVER_ID, '[GG-Core] Match repris !');
+    });
+
+    it('when the round ended meanwhile and the armed pause took effect, it says the game resumes in 5 s, then resumes it', async () => {
+      await service.proposeRestore(MATCH_ID, 9, { team: 'home', name: 'Alice' });
+      mockRedis.get.mockResolvedValue(stored());
+      mockPause.isPaused.mockResolvedValue(true); // the round ended meanwhile: the armed pause took effect
+
+      await jest.advanceTimersByTimeAsync(45_000);
+      expect(mockCmds.say).toHaveBeenCalledWith(SERVER_ID, expect.stringContaining('Reprise dans 5s.'));
+      expect(mockCmds.say).not.toHaveBeenCalledWith(SERVER_ID, expect.stringContaining('Le round continue'));
+
+      await jest.advanceTimersByTimeAsync(5_000);
+      expect(mockCmds.say).toHaveBeenCalledWith(SERVER_ID, '[GG-Core] Match repris !');
+    });
+
+    it('says nothing when the proposal was cancelled or accepted meanwhile (key gone)', async () => {
+      await service.proposeRestore(MATCH_ID, 9, { team: 'home', name: 'Alice' });
+      mockRedis.get.mockResolvedValue(null);
+      mockCmds.say.mockClear();
+
+      await jest.advanceTimersByTimeAsync(60_000);
+
+      expect(mockCmds.say).not.toHaveBeenCalled();
       expect(mockCmds.unpause).not.toHaveBeenCalled();
     });
   });
