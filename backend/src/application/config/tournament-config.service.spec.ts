@@ -59,7 +59,7 @@ describe('TournamentConfigService', () => {
       expect(effective.commandAliases.ready).toContain('ready'); // preserved
       expect(effective.disabledCommands).toEqual(['restore']);
       expect(effective.messages.ADMIN_CALL_ACK).toBe('{tag} Help is coming: "{message}"');
-      expect(effective.messages.PAUSE_TAC_ARMED).toContain('Pause tactical'); // preserved
+      expect(effective.messages.PAUSE_TAC_ARMED).toContain('Pause tactique'); // preserved
       expect(effective.matchRules.tacticalPauseBankSec).toBe(180);
       expect(effective.matchRules.technicalPauseMaxDurationSec).toBe(300); // preserved
     });
