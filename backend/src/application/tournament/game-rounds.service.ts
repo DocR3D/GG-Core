@@ -40,6 +40,11 @@ export function roundsFromEvents(rows: RoundWinRow[]): GameRound[] {
     const t = asScore(p.score?.t);
     const number = ct !== null && t !== null ? ct + t : sequence;
     for (const n of [...byNumber.keys()]) if (n > number) byNumber.delete(n);
+    // A backup restore is logged by CS2 as a round draw carrying the restored score: the game is back at the start of
+    // the next round, it is not a round of its own. It cuts the later rounds but must not overwrite the real round
+    // that ended on this very score (restored to "3 rounds played": round 3 keeps its winner).
+    const restoreMarker = p.winner === 'none' && p.reason === 'draw' && ct !== null && t !== null;
+    if (restoreMarker && byNumber.has(number)) continue;
     byNumber.set(number, {
       number,
       winner: p.winner === 'CT' || p.winner === 'T' ? p.winner : 'none',

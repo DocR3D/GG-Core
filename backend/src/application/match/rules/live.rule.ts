@@ -33,6 +33,7 @@ export class LiveRule extends BaseRule implements PhaseRule {
     // Délégation des commandes
     this.commands.set('pause', this.onCommand.bind(this));
     this.commands.set('unpause', this.onCommand.bind(this));
+    this.commands.set('ready', this.onReadyCommand.bind(this)); // paused: "ready to resume"
     this.commands.set('tac', this.onCommand.bind(this));
     this.commands.set('tech', this.onCommand.bind(this));
     this.commands.set('restore', this.onRestoreCommand.bind(this));
@@ -140,6 +141,30 @@ export class LiveRule extends BaseRule implements PhaseRule {
     });
   }
 
+  /**
+   * A restore back to before the halftime (regulation only): CS2 is in its first half again, the teams back on their
+   * starting side, but GG-Core had already swapped home / away and noted the halftime as played. Without undoing both,
+   * the sides stay reversed on the site and the halftime of the replayed round is ignored.
+   */
+  private async undoHalftimeIfRestoredBefore(matchId: string, restoredRounds: number, roundsBefore: number, ctx: RuleContext) {
+    const settings = await ctx.state.getSettings(matchId);
+    const mr = settings.mrFormat ?? CS2_RULES.DEFAULT_MR_HALF;
+    if (restoredRounds >= mr) return;
+    if (!(await ctx.state.isHalftimePlayed(matchId))) return;
+    if (roundsBefore > mr * 2) {
+      this.logger.warn(`[LiveRule] Restore from overtime to before the halftime (match ${matchId}): sides not re-aligned`);
+      return;
+    }
+    const sides = await ctx.state.getSides(matchId);
+    if (sides) {
+      // setSides, not swapSides: the scores were just aligned on the server's own (restored) figures
+      await ctx.state.setSides(matchId, { home: sides.away, away: sides.home });
+    }
+    await ctx.state.setHalftimePlayed(matchId, false);
+    await ctx.orch.push(matchId, 'sides:swapped', { sides: await ctx.state.getSides(matchId) });
+    this.logger.log(`[LiveRule] Restore before the halftime: sides and halftime flag put back (match ${matchId})`);
+  }
+
   private async onTeamRoundWin(ev: TeamRoundWinEvent, ctx: RuleContext) {
     const winner = ((ev.payload as any)?.winner || (ev.payload as any)?.team) as string | undefined;
     if (!winner || winner === 'none' || (ev.payload as any)?.reason === 'draw') {
@@ -153,6 +178,7 @@ export class LiveRule extends BaseRule implements PhaseRule {
           // Les rounds annulés vont être rejoués avec les mêmes numéros : la garde anti-doublon doit les accepter
           await ctx.state.setLastScoredRound(ev.matchId, restored.ct + restored.t);
           await ctx.orch.push(ev.matchId, 'score:update', { score: await ctx.state.getScore(ev.matchId) });
+          await this.undoHalftimeIfRestoredBefore(ev.matchId, restored.ct + restored.t, (current?.ct ?? 0) + (current?.t ?? 0), ctx);
         }
       }
       return;
@@ -299,6 +325,10 @@ export class LiveRule extends BaseRule implements PhaseRule {
   // =========================================================================
   private async onCommand(cmd: CommandEvent, ctx: RuleContext) {
     await this.pauseCmd.handle(cmd, ctx);
+  }
+
+  private async onReadyCommand(cmd: CommandEvent, ctx: RuleContext) {
+    await this.pauseCmd.handleReadyToResume(cmd, ctx);
   }
 
   private async onRestoreCommand(cmd: CommandEvent, ctx: RuleContext) {
