@@ -77,6 +77,29 @@ describe('MatchOrchestrator.endMatch - postgame', () => {
     expect(cmds.kickAll).toHaveBeenCalledWith(expect.objectContaining({ serverId: SERVER_ID }));
   });
 
+  it('arrête la démo GOTV après postgameDemoStopDelaySec, pas au Game Over (la diffusion est retardée)', async () => {
+    const { orch, cmds, ctx } = setup({ postgameKickDelaySec: 0, postgameDemoStopDelaySec: 125 });
+    await orch.endMatch(MATCH_ID, 'CT', ctx);
+
+    expect(cmds.rcon).not.toHaveBeenCalledWith(expect.objectContaining({ command: 'tv_stoprecord' }));
+    jest.advanceTimersByTime(124_000);
+    await flush();
+    expect(cmds.rcon).not.toHaveBeenCalledWith(expect.objectContaining({ command: 'tv_stoprecord' }));
+    jest.advanceTimersByTime(1_000);
+    await flush();
+    expect(cmds.rcon).toHaveBeenCalledWith(expect.objectContaining({ serverId: SERVER_ID, command: 'tv_stoprecord' }));
+  });
+
+  it("n'arrête pas la démo d'un nouveau match qui a pris le serveur entre-temps", async () => {
+    const { orch, cmds, state, ctx } = setup({ postgameKickDelaySec: 0, postgameDemoStopDelaySec: 125 });
+    await orch.endMatch(MATCH_ID, 'CT', ctx);
+    state.getMatchIdFromServerId.mockResolvedValue('m-next');
+
+    jest.advanceTimersByTime(130_000);
+    await flush();
+    expect(cmds.rcon).not.toHaveBeenCalledWith(expect.objectContaining({ command: 'tv_stoprecord' }));
+  });
+
   it('ne kicke personne si un nouveau match a démarré sur le serveur entre-temps', async () => {
     const { orch, cmds, state, ctx } = setup({ postgameKickDelaySec: 120 });
     await orch.endMatch(MATCH_ID, 'CT', ctx);
