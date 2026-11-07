@@ -17,8 +17,6 @@ export class MatchPhaseService {
 
   private readonly logger = new Logger(MatchPhaseService.name);
   private timers = new Map<string, NodeJS.Timeout>(); // par matchId
-  private readonly phaseByMatch = new Map<string, MatchPhase>();
-  private cache = new Map<string, MatchPhase>(); // 🔒 cache fort cohérent
 
   constructor(
     @Inject(REDIS_CMD) private readonly redis: Redis,
@@ -136,15 +134,6 @@ export class MatchPhaseService {
 
 
 
-// utilitaire
-private clearTimersForGroup(groupId: string) {
-  for (const [key, int] of this.timers.entries()) {
-    if (key.startsWith(groupId)) {
-      clearInterval(int);
-      this.timers.delete(key);
-    }
-  }
-}
 public async cancelPhaseCountdown(
   matchId: string,
   reason: 'team_unready' | 'paused' | 'not_ready_or_paused' | 'lock_lost' | 'manual',
@@ -246,14 +235,12 @@ public async isCountdownActive(matchId: string): Promise<boolean> {
     const key = redisConst.phase(matchId);
     const val = (await this.redis.get(key)) as MatchPhase | null;
     const phase = val ?? MatchPhase.WARMUP_MAIN;
-    this.cache.set(matchId, phase);
     return phase;
   }
 
   async setPhase(matchId: string, phase: MatchPhase): Promise<void> {
     const key = redisConst.phase(matchId); // ⚠️ vérifie que c'est la même clé partout
     await this.redis.set(key, phase);
-    this.cache.set(matchId, phase);
     await this.resetReady(matchId);
     this.logger.debug(`[setPhase] match=${matchId} -> ${phase} (ready flags reset)`);
   }
