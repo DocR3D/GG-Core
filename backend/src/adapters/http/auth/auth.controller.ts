@@ -114,9 +114,17 @@ export class AuthController {
   }
 }
 
-/** Public base URL (Steam sends the browser back to it): AUTH_PUBLIC_URL, else the request's own host. */
-function publicBase(req: Request): string {
+/**
+ * Public base URL (Steam sends the browser back to it): AUTH_PUBLIC_URL, else the host the browser used. Behind the Next
+ * front the proxy rewrites `Host` to the service name (`backend:8081`), so the original one is read from
+ * `X-Forwarded-Host`, but only when the request comes from a trusted proxy (TRUST_PROXY): otherwise any client could
+ * choose where Steam sends the browser back to.
+ */
+export function publicBase(req: Request): string {
   if (process.env.AUTH_PUBLIC_URL) return process.env.AUTH_PUBLIC_URL.replace(/\/$/, '');
   const proto = (req.headers['x-forwarded-proto'] as string)?.split(',')[0] || req.protocol;
-  return `${proto}://${req.get('host')}`;
+  const trustProxy = req.app.get('trust proxy fn') as ((addr: string, i: number) => boolean) | undefined;
+  const fromProxy = trustProxy?.(req.socket.remoteAddress ?? '', 0) === true;
+  const forwarded = fromProxy ? (req.headers['x-forwarded-host'] as string | undefined)?.split(',')[0]?.trim() : undefined;
+  return `${proto}://${forwarded || req.get('host')}`;
 }
