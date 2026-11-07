@@ -25,6 +25,16 @@ describe('roundsFromEvents', () => {
     expect(rounds[3]).toMatchObject({ ct: 2, t: 2 });
   });
 
+  it('a backup restore (round draw with the restored score) cuts the later rounds but does not replace the real round', () => {
+    // rounds 1 to 5, then the game is restored to the start of round 4 (3 rounds played, score 1-2)
+    const rounds = roundsFromEvents([win('T', 0, 1), win('T', 0, 2), win('CT', 1, 2, 'time'), win('T', 1, 3), win('T', 1, 4), win('none', 1, 2, 'draw')]);
+    expect(rounds.map((r) => [r.number, r.winner, r.reason])).toEqual([
+      [1, 'T', 'elim'],
+      [2, 'T', 'elim'],
+      [3, 'CT', 'time'],
+    ]);
+  });
+
   it('numbers by order of arrival when the event has no score, and calls an unknown winner "none"', () => {
     const rounds = roundsFromEvents([
       { timestamp: 1, payload: { winner: 'CT' } },

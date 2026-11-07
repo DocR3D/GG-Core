@@ -309,6 +309,14 @@ export class PauseMatchService {
     });
   }
 
+  /**
+   * Forgets the pauses requested but not started yet (armed in the middle of a round, they would start at the next
+   * freeze time). An admin who resumes the game means "no pause": otherwise one comes back a round later.
+   */
+  async clearArmed(matchId: string): Promise<void> {
+    await this.redis.hdel(this.key(matchId), 'arm_home_json', 'arm_away_json', 'arm_system_json');
+  }
+
   // -----------------------------------------------------
   // Mutual Unpause
   // -----------------------------------------------------

@@ -67,6 +67,8 @@ export interface IRuleContextState {
   getOvertimeCount(matchId: string): Promise<number>;
   setOvertimeCount(matchId: string, count: number): Promise<void>;
   reconcileScore(matchId: string, ct: number, t: number): Promise<unknown>;
+  getSides(matchId: string): Promise<{ home: GameSide; away: GameSide } | null>;
+  setSides(matchId: string, sides: { home: GameSide; away: GameSide }): Promise<unknown>;
 }
 
 export type RuleContext = {
