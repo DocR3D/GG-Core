@@ -280,6 +280,9 @@ export class SidesScoreService {
       postgameResetDelaySec: raw.postgameResetDelaySec
         ? Number(raw.postgameResetDelaySec)
         : DEFAULT_MATCH_SETTINGS.postgameResetDelaySec,
+      postgameDemoStopDelaySec: raw.postgameDemoStopDelaySec !== undefined
+        ? Number(raw.postgameDemoStopDelaySec)
+        : DEFAULT_MATCH_SETTINGS.postgameDemoStopDelaySec,
       postgameKickDelaySec: raw.postgameKickDelaySec !== undefined
         ? Number(raw.postgameKickDelaySec)
         : DEFAULT_MATCH_SETTINGS.postgameKickDelaySec,
@@ -316,6 +319,7 @@ export class SidesScoreService {
     if (settings.warmupAtOvertime !== undefined) fields.warmupAtOvertime = String(settings.warmupAtOvertime);
     if (settings.postgameAction !== undefined) fields.postgameAction = settings.postgameAction;
     if (settings.postgameResetDelaySec !== undefined) fields.postgameResetDelaySec = String(settings.postgameResetDelaySec);
+    if (settings.postgameDemoStopDelaySec !== undefined) fields.postgameDemoStopDelaySec = String(settings.postgameDemoStopDelaySec);
     if (settings.postgameKickDelaySec !== undefined) fields.postgameKickDelaySec = String(settings.postgameKickDelaySec);
     if (settings.mrFormat !== undefined) fields.mrFormat = String(settings.mrFormat);
     if (settings.overtimeMrFormat !== undefined) fields.overtimeMrFormat = String(settings.overtimeMrFormat);

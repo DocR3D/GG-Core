@@ -449,6 +449,10 @@ export class MatchOrchestrator {
     //    and no demo is recorded (observed on a real server).
     await this.cmds.rcon({ serverId, matchId, command: 'tv_enable 1' }).catch(() => {});
 
+    // The demo of a match that just ended may still be recording (it stops late on purpose): close it, or `tv_record`
+    // below would be refused and the new match would have no demo.
+    await this.cmds.rcon({ serverId, matchId, command: 'tv_stoprecord' }).catch(() => {});
+
     // 2) Change map if needed
     try {
       await this.cmds.changeLevel({ serverId, map: mapName });
@@ -499,14 +503,23 @@ export class MatchOrchestrator {
       await ctx.say(`[GG-Core] MATCH TERMINÉ ! Égalité (${snapshot.score.ct}-${snapshot.score.t}) !`);
     }
 
-    // 3. Stop GOTV recording via RCON
+    // 3. Stop the GOTV recording, but not yet: it follows the DELAYED broadcast (tv_delay), so stopping at Game Over
+    //    loses the last seconds of the match, the last round included (seen on a real server: the demo ended at the
+    //    previous round). Not if a new match took the server over meanwhile: its own recording must not be stopped.
     if (serverId) {
-      try {
-        await this.cmds.rcon({ serverId, matchId, command: 'tv_stoprecord' });
-        this.log.log(`[endMatch] tv_stoprecord executed on server ${serverId}`);
-      } catch (err) {
-        this.log.warn(`[endMatch] tv_stoprecord failed: ${errorMessage(err)}`);
-      }
+      const demoSec = settings.postgameDemoStopDelaySec ?? DEFAULT_MATCH_SETTINGS.postgameDemoStopDelaySec;
+      this.log.log(`[endMatch] GOTV demo of server ${serverId} stops in ${demoSec}s (the broadcast is delayed)`);
+      setTimeout(() => {
+        void (async () => {
+          try {
+            if (await this.serverMovedOn(serverId, matchId)) return;
+            await this.cmds.rcon({ serverId, matchId, command: 'tv_stoprecord' });
+            this.log.log(`[endMatch] tv_stoprecord executed on server ${serverId}`);
+          } catch (err) {
+            this.log.warn(`[endMatch] tv_stoprecord failed: ${errorMessage(err)}`);
+          }
+        })();
+      }, demoSec * 1000).unref();
     }
 
     // 4. Broadcast match:ended via WebSocket
