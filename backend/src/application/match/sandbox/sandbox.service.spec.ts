@@ -285,6 +285,13 @@ describe('SandboxService', () => {
   });
 
   describe('simulateCommand', () => {
+    it('sépare la commande de ses paramètres (!restore 4 = restore + ["4"])', async () => {
+      await service.simulateCommand('m-test-1', 'srv-a', '!restore 4', { name: 'Tester', team: 'CT' });
+      const sent = JSON.parse(mockPub.publish.mock.calls.at(-1)[1]);
+      expect(sent.payload.command).toBe('!restore');
+      expect(sent.payload.parameters).toEqual(['4']);
+    });
+
     it('devrait publier une commande chat joueur sur le bus Redis', async () => {
       const res = await service.simulateCommand('m-test-1', 'srv-a', '!ready', {
         name: 'Tester',
