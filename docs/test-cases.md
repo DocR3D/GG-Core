@@ -208,7 +208,7 @@ Suivre les logs : `docker logs -f ggcore-cs2-dev` (serveur) et `docker logs -f g
 | Déconnexion, mort par la C4, suicide molotov | K/D identiques au TAB / `round_stats` |
 | Mi-temps native | CS2 inverse seul, score serveur conservé (2:0 → 0:2), **aucun** `mp_swapteams` / `mp_restartgame` envoyé |
 | Prolongations natives | swap de mi-OT, OT1 → OT2 → OT3 sans nul (`mp_overtime_limit 0`) |
-| Fin de match | annonce du vainqueur = `Game Over` serveur, reset warmup à +30 s (`postgameResetDelaySec`) |
+| Fin de match | annonce du vainqueur = `Game Over` serveur, reset warmup à +135 s (`postgameResetDelaySec`), démo arrêtée à +125 s (`postgameDemoStopDelaySec`) |
 | Game Over serveur vs GG-Core | replay d'une fixture : « server Game Over 11:13 confirms GG-Core » |
 | Démo GOTV | `.dem` écrite (`tv_enable 1` + `TV_ENABLE=1` du conteneur) |
 | Rate-limit RCON | 1 seule connexion RCON, ≤ 3 commandes/s reçues par le serveur (limite 6/s) |
@@ -218,13 +218,13 @@ Suivre les logs : `docker logs -f ggcore-cs2-dev` (serveur) et `docker logs -f g
 
 | ID | Scénario | Procédure | Attendu |
 |---|---|---|---|
-| RT-01 | `!pause` après la pose de bombe | pendant un round, poser la C4 puis taper `!pause` | « Pause … armée », appliquée au freeze suivant (plus de « match terminé ») |
-| RT-02 | `!tech` en fin de round | taper `!tech` entre la fin du round et le freeze | pause technique armée puis appliquée au freeze |
-| RT-03 | Affichage de la banque de pause | `!pause` au freeze, lire le rappel périodique | « banque restante » part de `tacticalPauseBankSec` (120 s par défaut), jamais 0:00 |
-| RT-04 | TAB pendant l'entracte de fin | finir un match, tenir TAB | écran de fin et scoreboard visibles ~25 s, joueurs non figés, warmup seulement à +30 s |
-| RT-05 | Kick post-match | rester connecté après la fin du match | kick à +120 s (`postgameKickDelaySec`) avec « Match terminé, merci d'avoir joué ! » ; GOTV et bots non kickés |
-| RT-06 | Kick annulé par un nouveau match | démarrer un nouveau match sur le serveur avant les 120 s | aucun kick |
-| RT-07 | Fin de la démo GOTV | lire la démo d'un match terminé (`playdemo`) | le dernier round est présent malgré `tv_delay 105` et le `tv_stoprecord` envoyé au Game Over |
+| RT-01 | `!pause` après la pose de bombe | pendant un round, poser la C4 puis taper `!pause` | « Pause … armée », appliquée au freeze suivant (plus de « match terminé ») ✅ validé le 2026-11-07 avec une vraie bombe : « Pause tactique de <équipe> armée - début au prochain freeze », appliquée au temps mort suivant, sans « match terminé ». |
+| RT-02 | `!tech` en fin de round | taper `!tech` entre la fin du round et le freeze | pause technique armée puis appliquée au freeze ✅ validé le 2026-11-07 par script (`!tech` publié 0,3 s après l'événement de fin de round) : pause technique armée, puis appliquée au freeze. |
+| RT-03 | Affichage de la banque de pause | `!pause` au freeze, lire le rappel périodique | « banque restante » part de `tacticalPauseBankSec` (120 s par défaut), jamais 0:00 ✅ validé le 2026-11-07 (en vrai) : la banque part de 2:00, puis 1:45, 1:30…, jamais 0:00. |
+| RT-04 | TAB pendant l'entracte de fin | finir un match, tenir TAB | écran de fin et scoreboard visibles ~25 s, joueurs non figés, warmup seulement à +30 s ✅ validé le 2026-11-07, **comportement changé** : l'intermission dure ~2 min (`mp_match_restart_delay 130` dans `warmup.cfg`) pour que la démo retardée soit complète, et la réinitialisation est à +135 s. Le vote de la prochaine map reste affiché mais inopérant, malgré `mp_endmatch_votenextmap 0` (vérifié `false` sur le serveur). |
+| RT-05 | Kick post-match | rester connecté après la fin du match | kick à +120 s (`postgameKickDelaySec`) avec « Match terminé, merci d'avoir joué ! » ; GOTV et bots non kickés ✅ validé le 2026-11-07 : kick à +120 s, bots et GOTV épargnés. CS2 n'affiche que « exclu par le serveur » : le texte envoyé (« Match terminé, merci d'avoir joué ! ») n'est pas montré au joueur. |
+| RT-06 | Kick annulé par un nouveau match | démarrer un nouveau match sur le serveur avant les 120 s | aucun kick ✅ validé le 2026-11-07 par script (Game Over simulé par la Sandbox) : un game lancé 15 s après, « server srv-a now runs <game> : postgame action skipped » à +30 s et +120 s, aucun `kick_all`. Témoin sans nouveau match : `kick_all` à +120 s exactement. |
+| RT-07 | Fin de la démo GOTV | lire la démo d'un match terminé (`playdemo`) | le dernier round est présent malgré `tv_delay 105` et le `tv_stoprecord` envoyé au Game Over ✅ validé le 2026-11-07 **après correction** : `tv_stoprecord` partait au Game Over alors que la GOTV est retardée (la démo perdait le dernier round, constaté en vrai) ; il part maintenant à +125 s (`postgameDemoStopDelaySec`). |
 | RT-08 | Navigation round par round (UI Sandbox) | `/sandbox`, vitesse « Round par round », suivant / précédent / aller au round N | score et scoreboard conformes au log à chaque étape |
 | RT-09 | Sides choisis au véto (mode « pick », sans knife) | véto avec choix de side (`make veto-demo`), lancer le game, les joueurs rejoignent le mauvais camp | un joueur dans le mauvais camp : pas de décompte, « Mauvais camp … À changer de camp : <pseudo> » ; les deux équipes inversées : `mp_swapteams`, « Équipes inversées », puis décompte ; noms d'équipe en jeu du bon côté (scoreboard). Déjà vérifié sans joueur (2026-10-31, lignes de log simulées) |
 | RT-10 | `mp_swapteams` et noms d'équipe | ✅ vérifié le 2026-10-31 avec des bots : `mp_teamname_1` va au CT, `mp_teamname_2` au T ; `mp_swapteams` en warmup déplace les joueurs, les noms restent sur leur camp | GG-Core pose les noms après l'éventuel swap |

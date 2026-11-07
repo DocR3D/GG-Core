@@ -42,6 +42,10 @@ la parité, vérifiée par un tournoi complet joué avec le front Next.
   reprise, `say`, forçage de phase (warmup.cfg et knife.cfg bien exécutés), puis un vrai round fini par le temps : le parser
   Go le classe `time`, la route publique des rounds le renvoie et la console l'affiche avec l'horloge (navigateur, sans
   erreur). Les joueurs étaient des bots : le scoreboard avec de vrais joueurs reste à voir.
+- **Vérifié avec un joueur humain (2026-11-07)** : login Steam, bouton « Se connecter » de la page du match, véto contre le
+  bot, plusieurs rounds et un match jusqu'au Game Over, console (pause, reprise, rejeu d'un round avec pause ensuite, refus
+  avec infobulles), coupure du site puis reconnexion sans recharger (la frise, le journal et le scoreboard se relisent à
+  la reconnexion). Détail, défauts corrigés et ce qui reste : `docs/rapport-session-test-2026-11-07.md`.
 - **Pas encore vérifié** : le suivi en direct d'un game **de tournoi** sur la page publique (serveur CS2 requis ; la même
   frise et le même scoreboard marchent sur la console d'un match de sandbox), le login Steam (Internet requis), le véto joué par de vrais capitaines connectés (deux
   navigateurs, mise à jour en direct de l'autre écran), lancer un game et jouer ses matchs (serveur CS2 requis),
