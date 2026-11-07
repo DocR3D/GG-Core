@@ -3,7 +3,7 @@
  * strings (pause, banks, flags). It is NOT a mock of one method at a time: the service runs against real data, so a
  * test fails when the state it leaves behind is wrong (which a mocked `hget` cannot show).
  *
- * Supported: hget, hgetall, hset (object or field + value), hsetnx, hdel, get, set (NX), del, expire (ignored).
+ * Supported: hget, hgetall, hset (object or field + value), hsetnx, hdel, get, set (NX), del, exists, expire (ignored).
  */
 export class FakeRedis {
   readonly hashes = new Map<string, Map<string, string>>();
@@ -69,6 +69,10 @@ export class FakeRedis {
       if (this.hashes.delete(k)) removed += 1;
     }
     return Promise.resolve(removed);
+  }
+
+  exists(...keys: string[]): Promise<number> {
+    return Promise.resolve(keys.filter((k) => this.strings.has(k) || this.hashes.has(k)).length);
   }
 
   expire(): Promise<number> {
