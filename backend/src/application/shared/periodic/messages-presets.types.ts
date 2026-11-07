@@ -11,6 +11,12 @@ const warmId = (m: string) => `warmup:${m}`;
 const knifeId = (m: string) => `knifechoice:${m}`;
 const lockKeyFor = (id: string) => `lock:periodic:${id}`;
 
+/** The team's name for the chat, or "Domicile" / "Extérieur" when the match has none. */
+async function teamLabel(redis: Redis, matchId: string, team: 'home' | 'away'): Promise<string> {
+  const name = await redis.hget(redisConst.teams(matchId), `${team}_name`);
+  return name?.trim() || (team === 'home' ? 'Domicile' : 'Extérieur');
+}
+
 // --- PAUSE TACTIQUE - messages banque restante
 export function buildTacPauseSpec(opts: {
   matchId: string;
@@ -47,7 +53,7 @@ export function buildTacPauseSpec(opts: {
           ? Math.max(0, bankHome - elapsed)
           : Math.max(0, bankAway - elapsed);
 
-      return { text: `⏸ Tac ${team} - banque restante: ${fmtMmSs(remaining)}` };
+      return { text: `⏸ Pause tactique (${await teamLabel(redis, matchId, team)}) - banque restante : ${fmtMmSs(remaining)}` };
     },
   };
 }
@@ -76,8 +82,8 @@ export function buildTecPauseSpec(opts: {
         return { stop: true as const };
       }
 
-      const team = (h.team as 'home' | 'away') ?? 'system';
-      return { text: `⏸ Tec ${team} - pas de durée de fin` };
+      const team = (h.team as 'home' | 'away' | 'system') || 'system';
+      return { text: `⏸ Pause technique${team === 'system' ? '' : ` (${await teamLabel(redis, matchId, team)})`} - pas de durée de fin : reprise avec !unpause ou !ready des deux équipes` };
     },
   };
 }

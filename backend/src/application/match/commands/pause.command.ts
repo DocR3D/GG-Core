@@ -56,6 +56,22 @@ export class PauseCommand extends BaseCommand {
     return true;
   }
 
+  /**
+   * "!ready" while the game is paused means "ready to resume": the same as "!unpause" (after a technical pause, both
+   * teams have to agree). Outside a pause it does nothing: the warmup owns "!ready".
+   */
+  async handleReadyToResume(event: CommandEvent, ctx: RuleContext): Promise<boolean> {
+    if (!(await this.pauseService.isPaused(event.matchId))) return false;
+    return this.handle({ ...event, payload: { ...event.payload, command: 'unpause' } }, ctx);
+  }
+
+  /** The team's name for the chat ("Démo Rouge"), not its logical slot ("AWAY"). */
+  private async teamLabel(ctx: RuleContext, matchId: string, team: 'home' | 'away'): Promise<string> {
+    const snapshot = await ctx.state.getSnapshot(matchId);
+    const name = team === 'home' ? snapshot?.teams?.home_name : snapshot?.teams?.away_name;
+    return name?.trim() || (team === 'home' ? 'Domicile' : 'Extérieur');
+  }
+
   async handle(event: CommandEvent, ctx: RuleContext): Promise<boolean> {
     const isPauseRequest =
       event.payload.command === CS2_CHAT_COMMANDS.PAUSE ||
@@ -86,6 +102,8 @@ export class PauseCommand extends BaseCommand {
           ? event.payload.parameters.map(String).join(' ').trim()
           : undefined;
       const reasonLabel = customReason ? ` : "${customReason}"` : '';
+      const reasonFr = reason === 'tactical' ? 'tactique' : 'technique';
+      const teamName = await this.teamLabel(ctx, event.matchId, team);
 
       // Politique d'autorisation (banque tactique, etc.)
       const isAllowed = await this.pauseService.isPauseAllowed(event.matchId, {
@@ -117,7 +135,7 @@ export class PauseCommand extends BaseCommand {
           },
         });
         await ctx.say(
-          `[GG] Pause ${reason} de ${team.toUpperCase()} armée${reasonLabel} - début au prochain freeze.`,
+          `[GG] Pause ${reasonFr} de ${teamName} armée${reasonLabel} - début au prochain freeze.`,
         );
         return true;
       }
@@ -141,7 +159,9 @@ export class PauseCommand extends BaseCommand {
           serverId: event.serverId,
         });
         await ctx.say(
-          `[GG] Pause ${reason} de ${team.toUpperCase()} - ${durationSec}s${reasonLabel}.`,
+          reason === 'tactical'
+            ? `[GG] Pause tactique de ${teamName}.`
+            : `[GG] Pause technique de ${teamName}${reasonLabel}. Pas de durée de fin : reprise avec !unpause ou !ready des deux équipes.`,
         );
         return true;
       }
@@ -157,6 +177,10 @@ export class PauseCommand extends BaseCommand {
     }
 
     // Reprise (UNPAUSE)
+    if (!(await this.pauseService.isPaused(event.matchId))) {
+      await ctx.say("Le match n'est pas en pause.");
+      return false;
+    }
     const pauseState = await this.pauseService.getPauseState(event.matchId);
     if (pauseState.reason === 'technical') {
       const team = await ctx.orch.sideToLogical(event.matchId, event.payload.sender.team as GameSide);
@@ -164,7 +188,7 @@ export class PauseCommand extends BaseCommand {
         const { bothReady } = await this.pauseService.voteUnpause(event.matchId, team);
         if (!bothReady) {
           await ctx.say(
-            `[GG-Core] L'équipe ${team.toUpperCase()} est prête à reprendre. En attente de l'équipe adverse (!unpause pour valider).`,
+            `[GG-Core] L'équipe ${await this.teamLabel(ctx, event.matchId, team)} est prête à reprendre. En attente de l'équipe adverse (!unpause ou !ready pour valider).`,
           );
           return true;
         }

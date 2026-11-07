@@ -260,4 +260,50 @@ describe('TC-03 - PauseCommand : phase live_main', () => {
     expect(ctx.say).toHaveBeenCalledWith(expect.stringContaining('Accord des deux équipes reçu'));
     expect(rconService.unpause).toHaveBeenCalled();
   });
+
+  it("annonce le NOM de l'équipe (pas HOME / AWAY), en français, sans durée de fin inventée", async () => {
+    const pauseService = makePauseService({ phase: 'freeze' });
+    const ctx = makeCtx();
+    ctx.state.getSnapshot.mockResolvedValue({ phase: 'live_main', teams: { home_name: 'Démo Rouge', away_name: 'Démo Noir' } });
+
+    await makeCmd(pauseService).handle(makePauseEvent('tech'), ctx);
+
+    expect(ctx.say).toHaveBeenCalledWith(expect.stringContaining('Pause technique de Démo Rouge.'));
+    expect(ctx.say).not.toHaveBeenCalledWith(expect.stringMatching(/60s|HOME|AWAY|technical/));
+  });
+
+  it('!unpause sans pause en cours le dit, et ne relance rien', async () => {
+    const pauseService = makePauseService({ isPaused: false });
+    const rconService = makeRconService();
+    const ctx = makeCtx();
+
+    expect(await makeCmd(pauseService, rconService).handle(makePauseEvent('unpause'), ctx)).toBe(false);
+
+    expect(ctx.say).toHaveBeenCalledWith("Le match n'est pas en pause.");
+    expect(rconService.unpause).not.toHaveBeenCalled();
+  });
+
+  it('!ready pendant une pause technique vaut !unpause (les deux équipes doivent le taper)', async () => {
+    const pauseService = makePauseService({ isPaused: true });
+    pauseService.getPauseState.mockResolvedValue({ reason: 'technical' });
+    pauseService.voteUnpause.mockResolvedValueOnce({ bothReady: false }).mockResolvedValueOnce({ bothReady: true });
+    const rconService = makeRconService();
+    const cmd = makeCmd(pauseService, rconService);
+    const ctx = makeCtx();
+
+    await cmd.handleReadyToResume(makePauseEvent('ready'), ctx);
+    expect(ctx.say).toHaveBeenCalledWith(expect.stringContaining('!unpause ou !ready pour valider'));
+    expect(rconService.unpause).not.toHaveBeenCalled();
+
+    await cmd.handleReadyToResume(makePauseEvent('ready'), ctx);
+    expect(rconService.unpause).toHaveBeenCalled();
+  });
+
+  it('!ready hors pause ne fait rien (l\'échauffement garde !ready)', async () => {
+    const pauseService = makePauseService({ isPaused: false });
+    const ctx = makeCtx();
+
+    expect(await makeCmd(pauseService).handleReadyToResume(makePauseEvent('ready'), ctx)).toBe(false);
+    expect(ctx.say).not.toHaveBeenCalled();
+  });
 });
