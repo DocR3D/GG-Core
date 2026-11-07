@@ -21,11 +21,11 @@ describe('MatchAdminService (match console)', () => {
       getPhase: jest.fn().mockResolvedValue(MatchPhase.LIVE_MAIN),
       getSettings: jest.fn().mockResolvedValue({ fixedSides: false }),
       swapSides: jest.fn().mockResolvedValue(true),
-      getSnapshot: jest.fn().mockResolvedValue({ score: { round: 7 } }),
+      getSnapshot: jest.fn().mockResolvedValue({ score: { round: 7, ct: 3, t: 4 } }), // 7 rounds played: the 8th is being played
       getDbMatchMapId: jest.fn().mockResolvedValue(null),
     };
     cmds = { say: jest.fn(), rcon: jest.fn(), unpause: jest.fn() };
-    pause = { isPaused: jest.fn().mockResolvedValue(false) };
+    pause = { isPaused: jest.fn().mockResolvedValue(false), clearArmed: jest.fn().mockResolvedValue(undefined) };
     prisma = { eventPrimary: { create: jest.fn().mockResolvedValue({}), findMany: jest.fn().mockResolvedValue([]) } };
     ws = { push: jest.fn() };
     svc = new MatchAdminService(orch, state, cmds, pause, prisma, ws);
@@ -68,6 +68,11 @@ describe('MatchAdminService (match console)', () => {
     expect(cmds.unpause).toHaveBeenCalledWith({ serverId: 'srv-a', matchId: M });
   });
 
+  it('unpause also forgets a pause a player armed in the middle of a round (it would come back a round later)', async () => {
+    await svc.unpauseMatch(M, 'a');
+    expect(pause.clearArmed).toHaveBeenCalledWith(M);
+  });
+
   it('force start: next phase from the warmups, sides checked before the first live, nothing during the live', async () => {
     phase(MatchPhase.KNIFE_WARMUP);
     await svc.forceStart(M, 'a');
@@ -97,10 +102,17 @@ describe('MatchAdminService (match console)', () => {
   it('restore round N loads backup_round(N-1), within the rounds played', async () => {
     await svc.restoreRound(M, 6, 'a');
     expect(cmds.rcon).toHaveBeenCalledWith({ serverId: 'srv-a', matchId: M, command: 'mp_backup_restore_load_file backup_round05.txt' });
-    expect(await code(svc.restoreRound(M, 8, 'a'))).toBe('invalid'); // round 7 is being played
+    expect(await code(svc.restoreRound(M, 9, 'a'))).toBe('invalid'); // round 8 is being played (7 played)
+    expect(await code(svc.restoreRound(M, 8, 'a'))).toBe('ok'); // the round being played itself
     expect(await code(svc.restoreRound(M, 0, 'a'))).toBe('invalid');
     phase(MatchPhase.WARMUP_MAIN);
     expect(await code(svc.restoreRound(M, 1, 'a'))).toBe('conflict');
+  });
+
+  it('restore round: the game is paused once loaded, so the admin can check before "Reprendre"', async () => {
+    await svc.restoreRound(M, 6, 'a');
+    expect(orch.requestPauseTechnical).toHaveBeenCalledWith({ serverId: 'srv-a', matchId: M }, 'system');
+    expect(cmds.say).toHaveBeenCalledWith('srv-a', expect.stringContaining('match en pause'));
   });
 
   it('say: signed [Admin], quotes and line breaks removed, empty refused, allowed after the end', async () => {

@@ -6,6 +6,7 @@ import { MatchCommandsService } from '@app/commands/match-commands.service';
 import { MatchOrchestrator } from '@app/match/match-orchestrator.service';
 import { MatchStateService } from '@app/match/state/match-state.service';
 import { PauseMatchService } from '@app/match/pause/pause.service';
+import { currentRoundOf } from '@app/match/restore/round-restore.service';
 import { MatchPhase } from '@domain/phase.types';
 import { CS2_CFG, CS2_RCON_COMMANDS, CS2_RULES } from '@domain/rules/rules.constants';
 import { errorMessage } from '@app/shared/error-message';
@@ -52,7 +53,7 @@ export class MatchAdminService {
   /** Technical pause by an admin: immediate, no time limit, until "Reprendre". */
   async pauseMatch(matchId: string, by: string) {
     const { serverId } = await this.running(matchId);
-    if (await this.pause.isPaused(matchId)) throw new MatchAdminError('conflict', 'match already paused');
+    if (await this.pause.isPaused(matchId)) throw new MatchAdminError('conflict', 'Le match est déjà en pause.');
     await this.orch.requestPauseTechnical({ serverId, matchId }, 'system');
     await this.cmds.say(serverId, '[GG-Core] Pause technique demandée par un admin.');
     return this.done(matchId, serverId, by, 'pause');
@@ -66,6 +67,8 @@ export class MatchAdminService {
     const { serverId } = await this.running(matchId);
     if (await this.pause.isPaused(matchId)) await this.orch.resume({ serverId, matchId }, { source: 'admin', reason: 'admin' });
     else await this.cmds.unpause({ serverId, matchId });
+    // "Reprendre" means no pause: one a player armed in the middle of a round would otherwise start a round later
+    await this.pause.clearArmed(matchId);
     return this.done(matchId, serverId, by, 'unpause');
   }
 
@@ -76,10 +79,10 @@ export class MatchAdminService {
   async forceStart(matchId: string, by: string) {
     const { serverId, phase } = await this.running(matchId);
     const next = NEXT_PHASE[phase];
-    if (!next) throw new MatchAdminError('conflict', `nothing to start in phase ${phase}`);
-    if (await this.orch.isCountdownActive(matchId)) throw new MatchAdminError('conflict', 'a countdown is already running');
+    if (!next) throw new MatchAdminError('conflict', `Rien à démarrer en phase ${phase} : le départ forcé ne sert que pendant l'échauffement.`);
+    if (await this.orch.isCountdownActive(matchId)) throw new MatchAdminError('conflict', 'Un décompte est déjà en cours.');
     if (phase === MatchPhase.WARMUP_MAIN && !(await this.orch.checkTeamPlacement(matchId, serverId))) {
-      throw new MatchAdminError('conflict', 'players on the wrong side (named in the chat): move them first');
+      throw new MatchAdminError('conflict', "Des joueurs sont du mauvais camp (nommés dans le chat) : il faut d'abord les faire changer.");
     }
     await this.cmds.say(serverId, '[GG-Core] Départ forcé par un admin.');
     await this.orch.startPhaseCountdown(matchId, next, CS2_RULES.COUNTDOWN_DELAY_SEC, serverId);
@@ -96,12 +99,12 @@ export class MatchAdminService {
    */
   async setPhase(matchId: string, target: string, by: string) {
     const to = PHASE_TARGET[target];
-    if (!to) throw new MatchAdminError('invalid', 'phase: "warmup" or "knife"');
+    if (!to) throw new MatchAdminError('invalid', 'Phase : "warmup" ou "knife".');
     const { serverId, phase } = await this.running(matchId);
     if (!BEFORE_LIVE.has(phase)) {
-      throw new MatchAdminError('conflict', `phase ${phase}: only before the live (to replay a round, use "restore")`);
+      throw new MatchAdminError('conflict', `Phase ${phase} : possible seulement avant le début du match (pour rejouer un round, utiliser « Rejouer un round »).`);
     }
-    if (await this.orch.isCountdownActive(matchId)) throw new MatchAdminError('conflict', 'a countdown is already running');
+    if (await this.orch.isCountdownActive(matchId)) throw new MatchAdminError('conflict', 'Un décompte est déjà en cours.');
     if (phase === MatchPhase.KNIFE_LIVE) await this.orch.execCfg({ serverId, matchId }, CS2_CFG.KNIFE_UNDO);
     await this.cmds.say(serverId, to === MatchPhase.WARMUP_MAIN ? "[GG-Core] Retour à l'échauffement demandé par un admin." : '[GG-Core] Retour au knife demandé par un admin.');
     await this.orch.startPhaseCountdown(matchId, to, 0, serverId);
@@ -115,10 +118,10 @@ export class MatchAdminService {
   async swapTeams(matchId: string, by: string) {
     const { serverId, phase } = await this.running(matchId);
     if (phase !== MatchPhase.KNIFE_WARMUP && phase !== MatchPhase.WARMUP_MAIN) {
-      throw new MatchAdminError('conflict', `sides can only be swapped before the live (phase ${phase})`);
+      throw new MatchAdminError('conflict', `Les camps ne s'échangent qu'avant le début du match (phase ${phase}).`);
     }
     if ((await this.state.getSettings(matchId)).fixedSides) {
-      throw new MatchAdminError('conflict', 'sides chosen in the veto: the players are checked on !ready (both teams inverted are swapped)');
+      throw new MatchAdminError('conflict', 'Camps imposés par le véto : les joueurs sont vérifiés au !ready (si les deux équipes sont inversées, elles sont échangées automatiquement).');
     }
     await this.cmds.rcon({ serverId, matchId, command: 'mp_swapteams' });
     await this.state.swapSides(matchId);
@@ -130,25 +133,28 @@ export class MatchAdminService {
   /**
    * Replays round `round` (1-based) from the backup CS2 wrote at its start: backup_round(N-1).txt, the state after
    * N-1 rounds (checked on the dev server: backup_round05.txt holds "round" "5" and 5 rounds of score). GG-Core
-   * rolls its score and stats back when CS2 logs the restore; CS2 pauses the match after it (Reprendre).
+   * rolls its score and stats back when CS2 logs the restore; the match is paused after it so the admin can check before "Reprendre".
    */
   async restoreRound(matchId: string, round: number, by: string) {
     const { serverId, phase } = await this.running(matchId);
-    if (!PLAYING.has(phase)) throw new MatchAdminError('conflict', `no round to restore in phase ${phase}`);
-    const current = (await this.state.getSnapshot(matchId))?.score?.round ?? 0;
+    if (!PLAYING.has(phase)) throw new MatchAdminError('conflict', `Aucun round à rejouer en phase ${phase}.`);
+    const current = currentRoundOf((await this.state.getSnapshot(matchId))?.score);
     if (!Number.isInteger(round) || round < 1 || round > current) {
-      throw new MatchAdminError('invalid', `round: 1 to ${current} (the round being played)`);
+      throw new MatchAdminError('invalid', `Round : de 1 à ${current} (le round en cours).`);
     }
     const file = `backup_round${String(round - 1).padStart(2, '0')}.txt`;
     await this.cmds.say(serverId, `[GG-Core] Un admin rejoue le round ${round}.`);
     await this.cmds.rcon({ serverId, matchId, command: CS2_RCON_COMMANDS.RESTORE_LOAD(file) });
+    // Paused once loaded, so the admin can check that everything is right before the game goes on ("Reprendre")
+    await this.orch.requestPauseTechnical({ serverId, matchId }, 'system');
+    await this.cmds.say(serverId, `[GG-Core] Round ${round} restauré : match en pause, un admin le relancera.`);
     return this.done(matchId, serverId, by, 'restore_round', { round, file });
   }
 
   /** Message in the game chat, signed "[Admin]". */
   async say(matchId: string, message: string, by: string) {
     const text = String(message ?? '').replace(/["\r\n]/g, ' ').trim().slice(0, 180);
-    if (!text) throw new MatchAdminError('invalid', 'message: the text to show in the game chat');
+    if (!text) throw new MatchAdminError('invalid', 'Message : le texte à afficher dans le chat du jeu.');
     const { serverId } = await this.running(matchId, true);
     await this.cmds.say(serverId, `[Admin] ${text}`);
     return this.done(matchId, serverId, by, 'say', { message: text });
@@ -169,8 +175,8 @@ export class MatchAdminService {
   /** The match must be bound to a server and not over (`anyPhase`: over is fine, e.g. a message after the end). */
   private async running(matchId: string, anyPhase = false): Promise<{ serverId: string; phase: string }> {
     const [serverId, phase] = await Promise.all([this.state.getServerIdFromMatchId(matchId), this.state.getPhase(matchId)]);
-    if (!serverId || !phase) throw new MatchAdminError('not_found', 'match not running on a server');
-    if (!anyPhase && phase === MatchPhase.POSTGAME) throw new MatchAdminError('conflict', 'match is over');
+    if (!serverId || !phase) throw new MatchAdminError('not_found', 'Ce match ne tourne sur aucun serveur.');
+    if (!anyPhase && phase === MatchPhase.POSTGAME) throw new MatchAdminError('conflict', 'Le match est terminé.');
     return { serverId, phase };
   }
 
