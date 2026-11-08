@@ -66,7 +66,7 @@ _core: frontend/dist/index.html
 FRONT_SRC := $(shell find frontend/src frontend/index.html frontend/package.json frontend/package-lock.json frontend/vite.config.ts frontend/tsconfig.json -type f 2>/dev/null)
 
 front: ## Compile le front React (frontend/ → frontend/dist, servi par le backend sur :8081)
-	@docker run --rm -v "$(CURDIR)/frontend:/app" -v ggcore-front-modules:/app/node_modules -w /app node:20-alpine \
+	@docker run --rm -v "$(CURDIR)/frontend:/app" -v ggcore-front-modules:/app/node_modules -w /app node:26-alpine \
 	  sh -c "npm ci --no-audit --no-fund --loglevel=error && npm run build"
 
 frontend/dist/index.html: $(FRONT_SRC)
