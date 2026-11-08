@@ -4,6 +4,7 @@ export interface FakeMulti {
   rpush(key: string, ...values: string[]): FakeMulti;
   sadd(key: string, ...members: string[]): FakeMulti;
   hset(key: string, fieldOrObject: string | Record<string, string | number>, value?: string | number): FakeMulti;
+  hincrby(key: string, field: string, by: number): FakeMulti;
   exec(): Promise<Array<[null, unknown]>>;
 }
 
@@ -13,7 +14,8 @@ export interface FakeMulti {
  * test fails when the state it leaves behind is wrong (which a mocked `hget` cannot show).
  *
  * Supported: hget, hgetall, hset (object or field + value), hsetnx, hdel, get, set (NX), rpush, lrange, sadd,
- * sismember, smembers, del, exists, multi (del / set / rpush / sadd / hset, then exec), expire (ignored).
+ * sismember, smembers, hincrby, hmget, mget, keys (glob with *), del, exists, multi (del / set / rpush / sadd / hset /
+ * hincrby, then exec), expire (ignored).
  */
 export class FakeRedis {
   readonly hashes = new Map<string, Map<string, string>>();
@@ -48,6 +50,29 @@ export class FakeRedis {
       h.set(f, String(v));
     }
     return Promise.resolve(added);
+  }
+
+  hincrby(key: string, field: string, by: number): Promise<number> {
+    const h = this.hash(key);
+    const next = Number(h.get(field) ?? 0) + by;
+    h.set(field, String(next));
+    return Promise.resolve(next);
+  }
+
+  hmget(key: string, ...fields: string[]): Promise<Array<string | null>> {
+    return Promise.resolve(fields.map((f) => this.hashes.get(key)?.get(f) ?? null));
+  }
+
+  mget(...keys: string[]): Promise<Array<string | null>> {
+    return Promise.resolve(keys.map((k) => this.strings.get(k) ?? null));
+  }
+
+  /** Only the `*` wildcard, over every kind of key. */
+  keys(pattern: string): Promise<string[]> {
+    const literal = pattern.split('*').map((part) => part.replace(/[.+?^${}()|[\]\\]/g, '\\$&'));
+    const re = new RegExp(`^${literal.join('.*')}$`);
+    const all = [...this.strings.keys(), ...this.hashes.keys(), ...this.lists.keys(), ...this.sets.keys()];
+    return Promise.resolve(all.filter((k) => re.test(k)));
   }
 
   hsetnx(key: string, field: string, value: string): Promise<number> {
@@ -132,6 +157,7 @@ export class FakeRedis {
       rpush: (key, ...values) => (queue.push(() => this.rpush(key, ...values)), tx),
       sadd: (key, ...members) => (queue.push(() => this.sadd(key, ...members)), tx),
       hset: (key, fieldOrObject, value) => (queue.push(() => this.hset(key, fieldOrObject, value)), tx),
+      hincrby: (key, field, by) => (queue.push(() => this.hincrby(key, field, by)), tx),
       exec: async () => {
         const results: Array<[null, unknown]> = [];
         for (const op of queue) results.push([null, await op()]);
