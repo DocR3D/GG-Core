@@ -16,7 +16,7 @@ RUN --mount=type=cache,target=/go/pkg/mod \
     go build -o /out/ggbot-agent .
 
 # ---------- Stage 2: build NestJS ----------
-FROM node:20-alpine AS nest-builder
+FROM node:25-alpine AS nest-builder
 WORKDIR /app
 COPY backend/ggbot-backend/package*.json ./
 RUN npm ci
@@ -24,7 +24,7 @@ COPY backend/ggbot-backend ./
 RUN npm run build
 
 # ---------- Stage 3: prod deps NestJS ----------
-FROM node:20-alpine AS nest-prod-deps
+FROM node:25-alpine AS nest-prod-deps
 WORKDIR /app
 COPY backend/ggbot-backend/package*.json ./
 RUN npm ci --omit=dev
