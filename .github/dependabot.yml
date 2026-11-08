@@ -1,6 +1,12 @@
-# Monthly dependency updates. Minor and patch bumps are grouped per ecosystem; the packages that must move together
-# (NestJS, Prisma) are grouped whatever the kind of update, so a major version of NestJS arrives as ONE pull request
-# instead of one per package. A group is taken by the first entry that matches, so the specific groups come first.
+# Monthly dependency updates. Minor and patch bumps are grouped per ecosystem (one pull request each, safe to merge when
+# "CI OK" is green); the packages that must move together (NestJS, Prisma) are grouped whatever the kind of update, so
+# a major version of NestJS arrives as ONE pull request instead of one per package. A group is taken by the first entry
+# that matches, so the specific groups come first. Major versions of anything else (an action, an image, a Go module)
+# arrive on their own, one pull request each.
+#
+# Why not one pull request for every ecosystem (multi-ecosystem-groups)? They can only be filtered by package name,
+# not by kind of update, so the monthly pull request would also carry the major versions: one failing major would
+# block all the safe updates.
 #
 # Major versions are NOT ignored: a major pull request stays open as a reminder, to be handled one at a time in a
 # quiet period between two tournaments, with the tests as safety net. Do not close one: Dependabot would stop
@@ -39,6 +45,9 @@ updates:
     schedule: { interval: monthly }
     open-pull-requests-limit: 5
     commit-message: { prefix: "chore(deps)" }
+    groups:
+      images-minor-patch:
+        update-types: [minor, patch]
     ignore:
       - dependency-name: node
         versions: ["25.x", "27.x", "29.x"]
@@ -49,6 +58,9 @@ updates:
     schedule: { interval: monthly }
     open-pull-requests-limit: 3
     commit-message: { prefix: "chore(deps)" }
+    groups:
+      compose-images-minor-patch:
+        update-types: [minor, patch]
 
   # The actions of the workflows are pinned by commit: Dependabot moves the pin and the version comment together.
   - package-ecosystem: github-actions
@@ -57,5 +69,5 @@ updates:
     open-pull-requests-limit: 3
     commit-message: { prefix: "chore(ci)" }
     groups:
-      actions:
-        patterns: ["*"]
+      actions-minor-patch:
+        update-types: [minor, patch]
