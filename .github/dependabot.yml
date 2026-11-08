@@ -1,46 +1,59 @@
-# Weekly dependency updates, one pull request per ecosystem and folder with the minor and patch bumps grouped.
-# Major versions arrive as their own pull request: NestJS 11/12 (with Express 5) and Prisma 7 are planned migrations,
-# close those pull requests until the migration is scheduled. Security updates are opened right away, outside this
-# schedule. Pull requests run the CI like any other: "CI OK" must pass before merging.
+# Monthly dependency updates. Minor and patch bumps are grouped per ecosystem; the packages that must move together
+# (NestJS, Prisma) are grouped whatever the kind of update, so a major version of NestJS arrives as ONE pull request
+# instead of one per package. A group is taken by the first entry that matches, so the specific groups come first.
+#
+# Major versions are NOT ignored: a major pull request stays open as a reminder, to be handled one at a time in a
+# quiet period between two tournaments, with the tests as safety net. Do not close one: Dependabot would stop
+# proposing it. The only exclusion is the odd Node versions (25, 27...), which never get long-term support.
+# Security updates are opened right away, outside the schedule.
+# Pull requests run the CI like any other: "CI OK" must pass before merging.
 version: 2
 
 updates:
   - package-ecosystem: npm
     directory: /backend
-    schedule: { interval: weekly, day: monday }
+    schedule: { interval: monthly }
     open-pull-requests-limit: 5
     commit-message: { prefix: "chore(deps)" }
     groups:
+      nestjs:
+        patterns: ["@nestjs/*"]
+      prisma:
+        patterns: ["prisma", "@prisma/client"]
       backend-minor-patch:
         update-types: [minor, patch]
 
   - package-ecosystem: gomod
     directory: /agent
-    schedule: { interval: weekly, day: monday }
+    schedule: { interval: monthly }
     open-pull-requests-limit: 5
     commit-message: { prefix: "chore(deps)" }
     groups:
       agent-minor-patch:
         update-types: [minor, patch]
 
-  # Base images of the Dockerfiles (root, backend, infra, tools).
+  # Base images of the Dockerfiles that are built (backend, infra, tools). The Dockerfile at the root and
+  # Dockerfile.agent.dev are not listed: nothing uses them (the root one copies folders that no longer exist).
   - package-ecosystem: docker
-    directories: [/, /backend, /infra, /tools/log-drain]
-    schedule: { interval: weekly, day: monday }
+    directories: [/backend, /infra, /tools/log-drain]
+    schedule: { interval: monthly }
     open-pull-requests-limit: 5
     commit-message: { prefix: "chore(deps)" }
+    ignore:
+      - dependency-name: node
+        versions: ["25.x", "27.x", "29.x"]
 
   # Images of the compose files (Redis, PostgreSQL).
   - package-ecosystem: docker-compose
     directory: /infra
-    schedule: { interval: weekly, day: monday }
+    schedule: { interval: monthly }
     open-pull-requests-limit: 3
     commit-message: { prefix: "chore(deps)" }
 
   # The actions of the workflows are pinned by commit: Dependabot moves the pin and the version comment together.
   - package-ecosystem: github-actions
     directory: /
-    schedule: { interval: weekly, day: monday }
+    schedule: { interval: monthly }
     open-pull-requests-limit: 3
     commit-message: { prefix: "chore(ci)" }
     groups:
