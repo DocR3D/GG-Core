@@ -35,6 +35,10 @@ describe('AuthService', () => {
     expect(auth.checkAdminPassword('')).toBe(false);
     expect(auth.sessionFromBearer('Bearer tok')?.role).toBe('admin');
     expect(auth.sessionFromBearer('Bearer other')).toBeNull();
+    expect(auth.sessionFromBearer('bearer   tok')?.role).toBe('admin'); // case and spacing of the scheme do not matter
+    for (const bad of [undefined, '', 'Bearer', 'Bearer ', 'Bearer    ', 'tok', 'Basic tok']) {
+      expect(auth.sessionFromBearer(bad)).toBeNull();
+    }
     delete process.env.GG_ADMIN_PASSWORD;
     expect(auth.checkAdminPassword('lan-pass')).toBe(false); // pas de mot de passe configuré = pas de connexion hors ligne
   });

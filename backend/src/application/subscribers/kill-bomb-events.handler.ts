@@ -54,12 +54,12 @@ export class KillAndBombEventsHandler {
     }
   }
 
-  async handle(ev: AnyEvent & { matchId: string }): Promise<boolean> {
+  async handle(ev: AnyEvent & { matchId: string }): Promise<void> {
     if (typeof (this.matchState as any).getPhase === 'function') {
       const currentPhase = await this.matchState.getPhase(ev.matchId);
       if (currentPhase === MatchPhase.POSTGAME) {
         this.pendingDefuser.delete(ev.matchId);
-        return false;
+        return;
       }
     }
 
@@ -93,7 +93,7 @@ export class KillAndBombEventsHandler {
             await this.matchState.resetStreaks(ev.matchId);
           }
         }
-        return false;
+        return;
       }
 
       case EventTypes.ROUND_START: {
@@ -103,7 +103,7 @@ export class KillAndBombEventsHandler {
           const sc = await this.matchState.getScore(ev.matchId);
           await this.matchState.snapshotRound(ev.matchId, (sc?.ct ?? 0) + (sc?.t ?? 0));
         }
-        return false;
+        return;
       }
 
       case EventTypes.KILL: {
@@ -144,7 +144,7 @@ export class KillAndBombEventsHandler {
             const vic = p.player || p.victim;
             // Ignorer les suicides techniques émis par CS2 lors d'une déconnexion ou d'un changement d'équipe (<Unassigned> / <Spectator>) ou d'un BOT
             if (this.isBot(vic.steamId) || (vic.team && isNonPlayingSide(vic.team))) {
-              return false;
+              return;
             }
             if (!isWarmupEvent) {
               await this.matchState.recordKill(
@@ -157,7 +157,7 @@ export class KillAndBombEventsHandler {
             await this.autoRoster(ev.matchId, vic);
           }
         }
-        return false;
+        return;
       }
 
       case EventTypes.ASSIST: {
@@ -182,7 +182,7 @@ export class KillAndBombEventsHandler {
           }
           await this.autoRoster(ev.matchId, p.player);
         }
-        return false;
+        return;
       }
 
       case EventTypes.BOMB_PLANTED: {
@@ -198,7 +198,7 @@ export class KillAndBombEventsHandler {
           }
           await this.autoRoster(ev.matchId, planter);
         }
-        return false;
+        return;
       }
 
       case EventTypes.BOMB_DEFUSED: {
@@ -214,7 +214,7 @@ export class KillAndBombEventsHandler {
           }
           await this.autoRoster(ev.matchId, defuser);
         }
-        return false;
+        return;
       }
 
       case EventTypes.DEFUSE_BEGIN: {
@@ -223,12 +223,12 @@ export class KillAndBombEventsHandler {
           this.pendingDefuser.set(ev.matchId, p.player);
           await this.autoRoster(ev.matchId, p.player);
         }
-        return false;
+        return;
       }
 
       case EventTypes.DEFUSE_ABORT: {
         this.pendingDefuser.delete(ev.matchId);
-        return false;
+        return;
       }
 
       case EventTypes.TEAM_ROUND_WIN: {
@@ -244,7 +244,7 @@ export class KillAndBombEventsHandler {
           if (restored > 0 && restored <= current && (await this.matchState.restoreRound(ev.matchId, restored))) {
             this.logger.log(`[KillAndBombEventsHandler] backup restore detected match=${ev.matchId}: stats and team streaks rolled back to ${restored} rounds played`);
           }
-          return false;
+          return;
         }
         if (p?.reason === 'defused') {
           const defuser = this.pendingDefuser.get(ev.matchId);
@@ -258,17 +258,17 @@ export class KillAndBombEventsHandler {
         } else {
           this.pendingDefuser.delete(ev.matchId);
         }
-        return false;
+        return;
       }
 
       case EventTypes.BEGIN_BOMB_PLANT:
       case EventTypes.GRENADE_THROW:
       case EventTypes.PLAYER_BLINDED:
         this.logger.debug(`[KillAndBombEventsHandler] event=${ev.type} match=${ev.matchId}`);
-        return false;
+        return;
 
       default:
-        return false;
+        return;
     }
   }
 }

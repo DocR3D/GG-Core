@@ -9,20 +9,20 @@ export class RoundEventsHandler {
   private readonly logger = new Logger(RoundEventsHandler.name);
   constructor(private readonly orchestrator: MatchOrchestrator) {}
 
-  async handle(ev: AnyEvent & { matchId: string }): Promise<boolean> {
+  async handle(ev: AnyEvent & { matchId: string }): Promise<void> {
     switch (ev.type) {
       case EventTypes.ROUND_START:
         await this.orchestrator.onRoundStart(ev);
-        return false;
+        return;
       case EventTypes.TEAM_ROUND_WIN:
       case EventTypes.SFUI_TARGET_BOMBED:
         await this.orchestrator.onRoundEnd(ev);
-        return false;
+        return;
       case EventTypes.ROUND_FREEZE_START:
         await this.orchestrator.onFreezeTimeStart(ev);
-        return false;
+        return;
       default:
-        return false;
+        return;
     }
   }
 }
