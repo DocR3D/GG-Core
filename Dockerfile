@@ -1,5 +1,5 @@
 # ---------- Stage 1: build Go agent ----------
-FROM golang:1.23 AS go-builder
+FROM golang:1.25 AS go-builder
 WORKDIR /work
 
 # modules pour cache
@@ -47,7 +47,7 @@ COPY --from=nest-builder /app/package*.json /opt/ggbot-backend/
 # Usage: docker build -t ggbot/manager:dev .
 
 
-FROM golang:1.22-alpine AS builder
+FROM golang:1.25-alpine AS builder
 RUN apk add --no-cache git ca-certificates build-base
 WORKDIR /app
 
