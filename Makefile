@@ -18,7 +18,7 @@ F            ?=
 S            ?=
 
 .DEFAULT_GOAL := help
-.PHONY: help doctor admin _core front web up up-cs2 down restart ps logs status server servers sandbox replay fixtures test test-backend test-db test-go e2e-tournament tournament veto-demo veto-bot shell-backend psql redis-cli reset
+.PHONY: help doctor admin _core front web up up-cs2 down restart ps logs status server servers sandbox replay fixtures check test test-backend test-db test-go e2e-tournament tournament veto-demo veto-bot shell-backend psql redis-cli reset
 
 help: ## Affiche cette aide
 	@echo "GG-Core - commandes disponibles :"
@@ -119,6 +119,9 @@ replay: ## Rejoue une fixture dans la Sandbox (F=gglan19_mirage_13-11_anonymized
 	  curl -fsS -X POST "$(API)/sandbox/replay/$$ep" -H 'Content-Type: application/json' -H "Authorization: Bearer $(GG_ADMIN_TOKEN)" \
 	    -d "{\"fixtureName\":\"$(F)\",\"matchId\":\"m-sandbox-1\",\"serverId\":\"srv-a\",\"speed\":\"instant\"}" >/dev/null \
 	  && echo "✅ $(F) rejoué → $(API)/sandbox (match m-sandbox-1)" || { echo "❌ replay échoué (backend lancé ? nom correct ?)"; exit 1; }
+
+check: ## Vérification qualité complète : typecheck + lint + tests avec couverture
+	@$(COMPOSE) run --rm --no-deps backend sh -c "npx --no-install prisma generate >/dev/null && npm run typecheck && npm run lint && npm run test:coverage"
 
 test: test-backend test-db test-go ## Tous les tests (typecheck, Jest, intégration PostgreSQL, Go)
 
