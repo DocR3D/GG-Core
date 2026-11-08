@@ -177,7 +177,6 @@ Redis ggbot:events
 | `GET /api/matches/:id/events?limit=` | Journal du match, du plus ancien au plus récent (admin seulement, 403 sinon : il contient le chat, les logs bruts et les actions admin) : la console l'affiche à l'ouverture puis suit le WebSocket |
 | `GET /api/matches/:id/review` | Résultat gelé (désaccord `Game Over` serveur / GG-Core) ou `null` |
 | `POST /api/matches/:id/review/accept-server` \| `.../review/dismiss` | Décision admin : prendre le score du serveur et terminer le match (un nul reste un nul), ou lever le gel |
-| `POST /api/matches/init` | Compat smoke tests CI (`matchId` dans le body) |
 | `GET /api/matches/:id/players` | Joueurs du match |
 | `GET /api/matches/:id/economy` | Économie |
 | `GET/PATCH /api/matches/:id/sides`, `PATCH .../sides/swap` | Sides |

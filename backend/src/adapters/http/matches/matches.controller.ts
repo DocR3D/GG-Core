@@ -82,13 +82,6 @@ export class MatchesController {
     return res;
   }
 
-  // Backward compatibility endpoint for CI smoke tests (POST /api/matches/init)
-  @Post('init')
-  async initWithoutParam(@Body() dto: InitDto & { matchId?: string } = {}) {
-    const matchId = dto.matchId ?? 'match-default';
-    return this.init(matchId, dto);
-  }
-
   // GET /api/matches/:id/score-with-teams
   @Get(':id/score-with-teams')
   async getScoreWithTeams(@Param('id') matchId: string) {

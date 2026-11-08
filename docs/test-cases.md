@@ -166,7 +166,7 @@ say: "Tapez !ready quand vous êtes prêts."
 **Prérequis pour tous les autres tests.**
 
 **Séquence :**
-1. `POST /api/matches/init` avec `{ matchId, serverId }`
+1. `POST /api/matches/:matchId/init` avec `{ serverId }`
 2. Vérifier Redis : `server:srv-a:currentMatch` = `matchId`
 3. Vérifier Redis : `match:{matchId}:server` = `"srv-a"`
 
