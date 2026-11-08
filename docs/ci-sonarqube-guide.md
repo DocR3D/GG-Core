@@ -26,23 +26,22 @@ Cette commande exécute séquentiellement :
 
 ## ⚙️ 2. Architecture du Pipeline CI (GitHub Actions)
 
-Le workflow `.github/workflows/backend-ci.yml` se déclenche automatiquement :
-- Sur chaque `push` vers `main`, `new-main`, `feat/**`, `ci/**`.
-- Sur chaque `pull_request` vers `main`.
+Le workflow `.github/workflows/ci.yml` se déclenche sur chaque `push` vers `main` et sur chaque `pull_request` vers `main`.
+Le job `changes` regarde les fichiers modifiés par la PR et décide quels jobs lancer (sur `main`, ou si le workflow lui-même change, tout tourne) :
 
-### Étapes exécutées dans le runner Ubuntu :
-1. **Services** : Démarrage d'un conteneur `postgres:16-alpine` dédié aux tests d'intégration.
-2. **Setup** : Node.js 20 avec cache des modules npm.
-3. **Prisma** : Génération du client (`npx prisma generate`).
-4. **Validation Qualité** :
-   - `npm run typecheck`
-   - `npm run lint`
-   - `npm run test:coverage` (produit `coverage/lcov.info`)
-5. **Intégration BDD réelle** :
-   - Migration du schéma test : `npx prisma db push --skip-generate`
-   - Exécution de la suite DB : `DB_IT=1 npx jest --config jest.config.ts db.spec`
-6. **Build** : Compilation NestJS (`npm run build`).
-7. **Analyse SonarQube** : Envoi des métriques et du rapport de couverture au serveur Sonar.
+| Job | Se lance si la PR touche | Contenu |
+|---|---|---|
+| `Typecheck, Lint, Test & SonarQube Coverage` | `backend/`, `test/`, `infra/` | typecheck, lint, Jest avec couverture (Golden Master inclus), tests PostgreSQL réels (`DB_IT=1`), build NestJS, audit des dépendances (informatif), analyse SonarQube |
+| `End-to-end tournament scenario` | `backend/`, `test/`, `infra/` | backend réel démarré sur PostgreSQL 16 et Redis 7, puis `scripts/e2e-tournament.mjs` (l'équivalent de `make e2e-tournament`) |
+| `Go agent (build, vet, tests)` | `agent/` | `go build ./...`, `go vet ./...`, `go test ./...` |
+| `Dockerfiles and shell scripts` | un Dockerfile, un `.sh`, `infra/`, `scripts/` | shellcheck, hadolint (erreurs seulement : les avertissements de style ne bloquent pas) |
+| `CI OK` | toujours | réussi si tous les jobs qui devaient tourner ont réussi (un job ignoré compte comme réussi) |
+
+**`CI OK` est le seul contrôle à exiger avant fusion** (protection de `main`). Comme chaque job décide seul s'il tourne, une PR qui ne touche que de la documentation n'attend pas un contrôle qui ne viendra jamais.
+
+Sur une PR, une porte qualité SonarQube en échec fait échouer le job (`sonar.qualitygate.wait`). La porte ne regarde que le code nouveau. Sans le secret `SONAR_TOKEN` (PR venant d'un fork ou de Dependabot), l'analyse est ignorée.
+
+Les actions sont épinglées par empreinte de commit (le tag est en commentaire) ; Dependabot (`.github/dependabot.yml`) met à jour l'empreinte et le commentaire ensemble, chaque lundi, avec les dépendances npm du backend, les modules Go de l'agent, les images Docker et les actions. Les montées de version majeures arrivent en PR séparées.
 
 ---
 
@@ -53,7 +52,7 @@ Le workflow `.github/workflows/backend-ci.yml` se déclenche automatiquement :
 - En TypeScript, Jest génère nativement le format **LCOV**.
 - Le fichier `backend/sonar-project.properties` pointe directement vers ce fichier :
   ```properties
-  sonar.javascript.lcov.reportPaths=backend/coverage/lcov.info
+  sonar.javascript.lcov.reportPaths=coverage/lcov.info
   ```
 
 ### Configuration des Secrets GitHub
