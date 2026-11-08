@@ -6,7 +6,7 @@
   "license": "MIT",
   "scripts": {
     "build": "nest build",
-    "openapi:export": "nest build && node dist/tools/export-openapi.js",
+    "openapi:export": "nest build && node dist/tools/export-openapi.cli.js",
     "start": "node dist/main.js",
     "start:dev": "nest start --watch",
     "start:prod": "node dist/main.js",
