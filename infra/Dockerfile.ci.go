@@ -1,7 +1,7 @@
 # =============================================================================
 # GG-Core Agent Go - Image CI (compile uniquement, sort 0 si OK)
 # =============================================================================
-FROM golang:1.23-alpine AS builder
+FROM golang:1.25-alpine AS builder
 RUN apk add --no-cache git ca-certificates build-base
 WORKDIR /src
 COPY agent/go.mod agent/go.sum ./
