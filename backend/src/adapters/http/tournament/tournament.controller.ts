@@ -37,6 +37,7 @@ import { actorOf, VetoActions, vetoFirst } from '../veto/veto-actions';
 import type { VetoBody } from '../veto/veto-actions';
 import { authorOf } from './tournament-matches.controller';
 import { MatchSettings } from '@domain/match-settings.types';
+import { CreateTeamsDto } from './dto/create-teams.dto';
 
 /**
  * Tournament structure (database, UUIDs): tournaments, teams, stages, group stage.
@@ -193,7 +194,7 @@ export class TournamentController {
 
   /** Creates teams by name (until the import from the registration site exists). */
   @Post('teams')
-  createTeams(@Body() body: { names: string[] }) {
+  createTeams(@Body() body: CreateTeamsDto) {
     return this.run(() => this.stages.createTeams(body?.names));
   }
 
