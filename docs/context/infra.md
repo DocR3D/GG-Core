@@ -58,7 +58,6 @@ AUTH_DISABLED=                   # 1 = pas d'authentification (dev jetable uniqu
 ```
 infra/
 ├── docker-compose.dev.yml
-├── docker-compose.ci.yml
 ├── docker-compose.monolith.yml
 └── Dockerfile
 
