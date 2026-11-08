@@ -18,7 +18,8 @@
     "prisma:studio": "prisma studio",
     "test": "jest --config jest.config.ts",
     "test:watch": "jest --config jest.config.ts --watch",
-    "test:coverage": "jest --config jest.config.ts --coverage"
+    "test:coverage": "jest --config jest.config.ts --coverage",
+    "check": "npm run typecheck && npm run lint && npm run test:coverage"
   },
   "dependencies": {
     "@fontsource/poppins": "^5.3.0",
