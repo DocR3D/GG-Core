@@ -1,0 +1,301 @@
+name: CI
+
+# One workflow for the whole repository. Each job decides from the files a pull request touches whether it has to run
+# (job "changes"), and "CI OK" sums everything up: it is the only check branch protection has to require. A job that is
+# skipped counts as passed, so a pull request that only touches docs is not blocked waiting for a check that never runs.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+    types: [opened, synchronize, reopened]
+
+# A new push to a pull request cancels the run in progress; runs on main always go to the end.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+permissions:
+  contents: read
+
+jobs:
+  # ---------------------------------------------------------------------------
+  # What does this change touch?
+  # ---------------------------------------------------------------------------
+  changes:
+    name: What changed
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      backend: ${{ steps.filter.outputs.backend }}
+      agent: ${{ steps.filter.outputs.agent }}
+      lint: ${{ steps.filter.outputs.lint }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          fetch-depth: 2 # a pull request is checked out as a merge commit: HEAD^1 is the tip of main
+
+      - id: filter
+        run: |
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            files="$(git diff --name-only HEAD^1 HEAD)"
+          else
+            files="" # push to main: everything runs
+          fi
+          echo "Changed files:"; echo "$files"
+          # Everything runs on main, and when the workflow itself changes.
+          all=false
+          if [ -z "$files" ] || echo "$files" | grep -q '^\.github/workflows/ci\.yml$'; then all=true; fi
+          has() { [ "$all" = true ] || echo "$files" | grep -Eq "$1"; }
+          {
+            echo "backend=$(has '^(backend/|test/|infra/)' && echo true || echo false)"
+            echo "agent=$(has '^agent/' && echo true || echo false)"
+            echo "lint=$(has '(^|/)(Dockerfile[^/]*|[^/]*\.sh)$|^infra/|^scripts/' && echo true || echo false)"
+          } | tee -a "$GITHUB_OUTPUT"
+
+  # ---------------------------------------------------------------------------
+  # Backend: typecheck, lint, unit tests + Golden Master, PostgreSQL tests, build, SonarQube
+  # ---------------------------------------------------------------------------
+  backend:
+    name: Typecheck, Lint, Test & SonarQube Coverage
+    needs: changes
+    if: needs.changes.outputs.backend == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }} # empty on pull requests from forks and from Dependabot: the scan is skipped
+
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: ggcore_ci
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          fetch-depth: 0 # Full history required for SonarQube analysis
+
+      - name: Cache SonarQube packages
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+        with:
+          path: ~/.sonar/cache
+          key: ${{ runner.os }}-sonar
+          restore-keys: ${{ runner.os }}-sonar
+
+      - name: Setup Node.js 20
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: 20
+          cache: 'npm'
+          cache-dependency-path: backend/package-lock.json
+
+      - name: Install dependencies
+        working-directory: ./backend
+        run: npm ci
+
+      - name: Generate Prisma Client
+        working-directory: ./backend
+        run: npx prisma generate
+
+      - name: 1. Strict Typecheck (tsc --noEmit)
+        working-directory: ./backend
+        run: npm run typecheck
+
+      - name: 2. Lint (ESLint 9 + typed rules)
+        working-directory: ./backend
+        run: npm run lint
+
+      - name: 3. Unit Tests & Golden Master with Coverage (LCOV)
+        working-directory: ./backend
+        run: npm run test:coverage
+
+      - name: 4. Real PostgreSQL Integration Tests
+        working-directory: ./backend
+        env:
+          DATABASE_URL: "postgresql://postgres:postgres@localhost:5432/ggcore_ci?schema=public"
+          DB_IT: "1"
+        run: |
+          npx prisma db push --skip-generate
+          npx jest --config jest.config.ts db.spec
+
+      - name: 5. Build NestJS Backend
+        working-directory: ./backend
+        run: npm run build
+
+      # Informative: the production vulnerabilities left need major upgrades (NestJS 11/12 with Express 5, Prisma 7).
+      - name: 6. Dependency audit (production, informative)
+        working-directory: ./backend
+        continue-on-error: true
+        run: npm audit --omit=dev --audit-level=high
+
+      - name: 7. SonarQube Cloud Scan
+        uses: SonarSource/sonarqube-scan-action@fd88b7d7ccbaefd23d8f36f73b59db7a3d246602 # v6
+        if: env.SONAR_TOKEN != ''
+        with:
+          projectBaseDir: backend # sonar-project.properties lives there, its paths are relative to it
+          # On a pull request, a failed quality gate fails the job (the gate only looks at the new code).
+          args: ${{ github.event_name == 'pull_request' && '-Dsonar.qualitygate.wait=true' || '' }}
+
+  # ---------------------------------------------------------------------------
+  # Full tournament scenario on a real backend, PostgreSQL and Redis (what `make e2e-tournament` plays locally)
+  # ---------------------------------------------------------------------------
+  e2e-tournament:
+    name: End-to-end tournament scenario
+    needs: changes
+    if: needs.changes.outputs.backend == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      DATABASE_URL: "postgresql://postgres:postgres@localhost:5432/ggcore_e2e?schema=public"
+      REDIS_URL: "redis://localhost:6379"
+      # Values for this throwaway backend only (it lives for the duration of the job and listens on localhost).
+      JWT_SECRET: ci-e2e-secret
+      GG_ADMIN_TOKEN: ci-e2e-admin-token
+      GG_ADMIN_PASSWORD: ci-e2e-password
+      GG_ADMIN_STEAMIDS: "76561190000000001"
+      TRUST_PROXY: loopback
+      PORT: "8081"
+      WS_PATH: /ws
+      NODE_ENV: development
+
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: ggcore_e2e
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: 20
+          cache: 'npm'
+          cache-dependency-path: backend/package-lock.json
+
+      - name: Install, generate, create the schema, build
+        working-directory: ./backend
+        run: |
+          npm ci
+          npx prisma generate
+          npx prisma db push --skip-generate
+          npm run build
+
+      - name: Start the backend
+        working-directory: ./backend
+        run: |
+          nohup node dist/main.js > "$RUNNER_TEMP/backend.log" 2>&1 &
+          for i in $(seq 1 60); do
+            [ "$(curl -s -m 2 -o /dev/null -w '%{http_code}' localhost:8081/api/health)" = 200 ] && { echo "backend up after ${i} tries"; exit 0; }
+            sleep 2
+          done
+          echo "backend did not answer on /api/health"; tail -50 "$RUNNER_TEMP/backend.log"; exit 1
+
+      - name: Play the tournament scenario
+        working-directory: ./backend
+        run: node scripts/e2e-tournament.mjs
+
+      - name: Backend log (on failure)
+        if: failure()
+        run: tail -150 "$RUNNER_TEMP/backend.log"
+
+  # ---------------------------------------------------------------------------
+  # Go agent and manager
+  # ---------------------------------------------------------------------------
+  agent:
+    name: Go agent (build, vet, tests)
+    needs: changes
+    if: needs.changes.outputs.agent == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+
+      - uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5
+        with:
+          go-version-file: agent/go.mod
+          cache-dependency-path: agent/go.sum
+
+      - name: Build
+        working-directory: ./agent
+        run: go build ./...
+
+      - name: Vet
+        working-directory: ./agent
+        run: go vet ./...
+
+      - name: Tests
+        working-directory: ./agent
+        run: go test ./...
+
+  # ---------------------------------------------------------------------------
+  # Dockerfiles (errors only: style warnings such as unpinned apk packages are not blocking) and shell scripts
+  # (warnings and errors: the "info" notes depend on the shellcheck version of the runner, e.g. SC2015 on `A && B || C`)
+  # ---------------------------------------------------------------------------
+  lint-docker-shell:
+    name: Dockerfiles and shell scripts
+    needs: changes
+    if: needs.changes.outputs.lint == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+
+      - name: Shellcheck
+        run: git ls-files -z '*.sh' | xargs -0 --no-run-if-empty shellcheck --severity=warning
+
+      - name: Hadolint
+        run: |
+          status=0
+          for f in $(git ls-files | grep -E '(^|/)Dockerfile[^/]*$'); do
+            echo "== $f"
+            docker run --rm -i hadolint/hadolint:v2.12.0 hadolint --failure-threshold error - < "$f" || status=1
+          done
+          exit $status
+
+  # ---------------------------------------------------------------------------
+  # The one check to require before merging
+  # ---------------------------------------------------------------------------
+  ci-ok:
+    name: CI OK
+    needs: [changes, backend, e2e-tournament, agent, lint-docker-shell]
+    if: always()
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Every job that had to run passed
+        run: |
+          echo '${{ toJSON(needs) }}'
+          if echo '${{ toJSON(needs.*.result) }}' | grep -Eq 'failure|cancelled'; then
+            echo "a job failed or was cancelled"; exit 1
+          fi
