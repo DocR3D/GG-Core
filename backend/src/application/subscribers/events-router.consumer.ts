@@ -64,7 +64,7 @@ export class EventsRouterSubscriber implements OnModuleInit, OnModuleDestroy {
   // =========================================================================
   private async onMessage(channel: string, msg: string) {
     // 1) Parse JSON
-    let ev: AnyEvent | null = null;
+    let ev: AnyEvent | null;
     try {
       ev = JSON.parse(msg) as AnyEvent;
     } catch {

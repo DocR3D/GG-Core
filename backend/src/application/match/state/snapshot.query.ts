@@ -332,7 +332,7 @@ export class SnapshotQuery {
     }
 
     // 2) Fallback migration depuis ancienne String JSON
-    let raw: string | null = null;
+    let raw: string | null;
     try {
       raw = await this.redis.get(key);
     } catch {

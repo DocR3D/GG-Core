@@ -105,7 +105,7 @@ export class SponsorChatAnnouncerService implements OnModuleInit {
 
     const tournamentId = await this.resolveTournamentIdForServer(serverId);
 
-    let sponsor: Sponsor | null = null;
+    let sponsor: Sponsor | null;
     if (options?.sponsorId) {
       sponsor = await this.sponsorService.findById(options.sponsorId).catch(() => null);
     } else {
