@@ -11,7 +11,8 @@ import { escapeHtml, htmlPage } from '@app/shared/html-page';
  * - own authentication: agent log ingestion (/cs2/logs, log token) and WebSockets (/ws, JWT guard);
  * - any logged-in user (captains): the veto actions (POST /veto/:matchId/rps|start|step) - the veto service
  *   checks who is captain of what;
- * - admin only: everything else that changes something (POST / PUT / PATCH / DELETE) and the Sandbox tools.
+ * - admin only: everything else that changes something (POST / PUT / PATCH / DELETE), the Sandbox tools and the API
+ *   documentation (/api/docs, /api/docs-json).
  * Browsers: not logged in → /login; logged in without the right → an "admin only" page (sending them to /login
  * would loop: /login sends a logged-in visitor back). API calls get 401 (not logged in) or 403 (not admin).
  */
@@ -60,7 +61,9 @@ export function isPublic(method: string, path: string): boolean {
   const read = method === 'GET' || method === 'HEAD';
   const sandbox = path === '/sandbox' || path.startsWith('/sandbox/');
   const vetoAdmin = /^\/veto\/[^/]+\/admin$/.test(path);
-  return read && !sandbox && !vetoAdmin;
+  // the API documentation lists every route, the admin ones included: admin only (and mounted only when GG_API_DOCS=1)
+  const apiDocs = path === '/api/docs' || path.startsWith('/api/docs/') || path === '/api/docs-json';
+  return read && !sandbox && !vetoAdmin && !apiDocs;
 }
 
 /** Veto actions a captain (player role) may send; undo / reset stay admin only. */
