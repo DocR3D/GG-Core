@@ -7,10 +7,11 @@ import type { Express, NextFunction, Request, Response } from 'express';
 import type { NestExpressApplication } from '@nestjs/platform-express';
 import * as path from 'path';
 import * as fs from 'fs';
-import { RequestMethod } from '@nestjs/common';
 import { AuthMiddleware } from './adapters/http/auth/auth.middleware';
 import { parseTrustProxy } from './trust-proxy';
 import { installAuthBodyParsers } from './adapters/http/auth/auth-body-parsers';
+import { mountApiDocs } from './adapters/http/docs/api-docs';
+import { applyGlobalPrefix } from './global-prefix';
 
 async function bootstrap() {
   const app = await NestFactory.create<NestExpressApplication>(AppModule, { logger: ['log','error','warn','debug','verbose'] });
@@ -44,23 +45,11 @@ async function bootstrap() {
 
   serveFront(app.getHttpAdapter().getInstance());
 
-  // 3) Prefix global /api en excluant /cs2/logs et /sandbox
-  app.setGlobalPrefix('api', {
-    exclude: [
-      { path: 'cs2/logs', method: RequestMethod.ALL },
-      { path: 'cs2/logs/(.*)', method: RequestMethod.ALL },
-      { path: 'sandbox', method: RequestMethod.ALL },
-      { path: 'sandbox/(.*)', method: RequestMethod.ALL },
-      // login pages
-      { path: 'login', method: RequestMethod.ALL },
-      { path: 'auth/(.*)', method: RequestMethod.ALL },
-      // human pages (plain-text views), /api stays the JSON API
-      { path: 'view', method: RequestMethod.ALL },
-      { path: 'view/(.*)', method: RequestMethod.ALL },
-      // map veto page and its forms
-      { path: 'veto/(.*)', method: RequestMethod.ALL },
-    ],
-  });
+  // 3) Prefix global /api en excluant /cs2/logs et /sandbox (shared with the OpenAPI export)
+  applyGlobalPrefix(app);
+
+  // API documentation (Swagger UI), only when GG_API_DOCS=1, admins only: after the prefix, the document lists the real paths
+  if (mountApiDocs(app)) console.log('[docs] API documentation on /api/docs (admins only)');
 
   // CORS REST : origines autorisées via CORS_ORIGIN (liste séparée par des virgules). Le front React est servi par
   // ce même serveur (même origine) : utile seulement pour un client externe.

@@ -17,6 +17,7 @@ lerna-debug.log*
 
 # Tests
 /coverage
+/openapi.json
 /.nyc_output
 
 # IDEs and editors

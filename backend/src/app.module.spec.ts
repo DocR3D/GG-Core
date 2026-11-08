@@ -11,17 +11,7 @@ import { REDIS_CMD, REDIS_PUB, REDIS_SUB } from '@adapters/redis/redis.tokens';
 import { PauseMatchService } from '@app/match/pause/pause.service';
 import { RoundRestoreService } from '@app/match/restore/round-restore.service';
 import { MatchPhaseService } from '@app/match/phase/match-phase.service';
-
-/** A Redis stand-in: every method exists, resolves to undefined, and nothing is ever opened. */
-function redisStub(): unknown {
-  const noop = () => Promise.resolve(undefined);
-  return new Proxy(
-    {},
-    {
-      get: (_t, prop) => (prop === 'then' ? undefined : prop === 'duplicate' ? () => redisStub() : noop),
-    },
-  );
-}
+import { redisStub } from './testing/redis-stub';
 
 describe('AppModule (real dependency graph)', () => {
   it('resolves every provider without a missing or circular dependency', async () => {

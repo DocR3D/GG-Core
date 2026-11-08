@@ -23,6 +23,14 @@ describe('auth route classification', () => {
     expect(isCaptainAction('GET', `/api/tournament/matches/match/veto/${action}`)).toBe(false);
   });
 
+  it('keeps the API documentation out of the public reads (admin only), the other reads stay public', () => {
+    for (const path of ['/api/docs', '/api/docs/', '/api/docs/swagger-ui.css', '/api/docs-json']) {
+      expect(isPublic('GET', path)).toBe(false);
+    }
+    expect(isPublic('GET', '/api/documents')).toBe(true); // only the documentation paths are concerned
+    expect(isPublic('GET', '/api/tournament/live')).toBe(true);
+  });
+
   it.each(['undo', 'reset'])('keeps %s admin-only', (action) => {
     expect(isCaptainAction('POST', `/api/tournament/matches/match/veto/${action}`)).toBe(false);
   });
