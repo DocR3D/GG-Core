@@ -114,7 +114,7 @@ export class TournamentSimulationService {
   /** JSON scenarios available in test/fixtures/tournaments */
   listScenarios(): string[] {
     const dir = this.scenariosDir();
-    return dir ? fs.readdirSync(dir).filter((f) => f.endsWith('.json')).sort() : [];
+    return dir ? fs.readdirSync(dir).filter((f) => f.endsWith('.json')).sort((a, b) => a.localeCompare(b)) : [];
   }
 
   listRuns(): SimulationRun[] {

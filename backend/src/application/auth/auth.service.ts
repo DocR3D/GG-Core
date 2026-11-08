@@ -60,7 +60,7 @@ export class AuthService {
   /** Scripts / curl: "Authorization: Bearer <GG_ADMIN_TOKEN>". */
   sessionFromBearer(authorization: string | undefined): Session | null {
     const expected = process.env.GG_ADMIN_TOKEN;
-    const token = /^Bearer\s+(.+)$/i.exec(authorization ?? '')?.[1];
+    const token = /^Bearer\s+(\S.*)$/i.exec(authorization ?? '')?.[1];
     return expected && token && secretEq(token, expected) ? { sub: 'admin-token', role: 'admin', name: 'admin (token)', via: 'token' } : null;
   }
 
