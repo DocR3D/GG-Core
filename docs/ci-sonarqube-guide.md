@@ -34,7 +34,7 @@ Le job `changes` regarde les fichiers modifiés par la PR et décide quels jobs 
 | `Typecheck, Lint, Test & SonarQube Coverage` | `backend/`, `test/`, `infra/` | typecheck, lint, Jest avec couverture (Golden Master inclus), tests PostgreSQL réels (`DB_IT=1`), build NestJS, audit des dépendances (informatif), analyse SonarQube |
 | `End-to-end tournament scenario` | `backend/`, `test/`, `infra/` | backend réel démarré sur PostgreSQL 16 et Redis 7, puis `scripts/e2e-tournament.mjs` (l'équivalent de `make e2e-tournament`) |
 | `Go agent (build, vet, tests)` | `agent/` | `go build ./...`, `go vet ./...`, `go test ./...` |
-| `Dockerfiles and shell scripts` | un Dockerfile, un `.sh`, `infra/`, `scripts/` | shellcheck, hadolint (erreurs seulement : les avertissements de style ne bloquent pas) |
+| `Dockerfiles and shell scripts` | un Dockerfile, un `.sh`, `infra/`, `scripts/` | shellcheck (avertissements et erreurs, pas les remarques « info », qui varient selon la version) et hadolint (erreurs seulement : les avertissements de style ne bloquent pas) |
 | `CI OK` | toujours | réussi si tous les jobs qui devaient tourner ont réussi (un job ignoré compte comme réussi) |
 
 **`CI OK` est le seul contrôle à exiger avant fusion** (protection de `main`). Comme chaque job décide seul s'il tourne, une PR qui ne touche que de la documentation n'attend pas un contrôle qui ne viendra jamais.

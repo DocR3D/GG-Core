@@ -260,6 +260,7 @@ jobs:
 
   # ---------------------------------------------------------------------------
   # Dockerfiles (errors only: style warnings such as unpinned apk packages are not blocking) and shell scripts
+  # (warnings and errors: the "info" notes depend on the shellcheck version of the runner, e.g. SC2015 on `A && B || C`)
   # ---------------------------------------------------------------------------
   lint-docker-shell:
     name: Dockerfiles and shell scripts
@@ -271,7 +272,7 @@ jobs:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
 
       - name: Shellcheck
-        run: git ls-files -z '*.sh' | xargs -0 --no-run-if-empty shellcheck
+        run: git ls-files -z '*.sh' | xargs -0 --no-run-if-empty shellcheck --severity=warning
 
       - name: Hadolint
         run: |
