@@ -46,11 +46,12 @@ function makeCtx(matchPhase = 'live_main') {
 function makePauseService(overrides?: {
   isPaused?: boolean;
   isAllowed?: boolean;
+  why?: string;
   phase?: 'live' | 'bomb_planted' | 'freeze' | 'end' | null;
 }) {
   return {
     isPaused: jest.fn().mockResolvedValue(overrides?.isPaused ?? false),
-    isPauseAllowed: jest.fn().mockResolvedValue({ allowed: overrides?.isAllowed ?? true }),
+    isPauseAllowed: jest.fn().mockResolvedValue({ allowed: overrides?.isAllowed ?? true, why: overrides?.why }),
     getPhase: jest.fn().mockResolvedValue(overrides && 'phase' in overrides ? overrides.phase : 'live'),
     pause: jest.fn().mockResolvedValue(undefined),
     resume: jest.fn().mockResolvedValue(undefined),
@@ -69,6 +70,26 @@ function makeRconService() {
 function makeCmd(pauseService: ReturnType<typeof makePauseService>, rconService = makeRconService()) {
   return new PauseCommand(pauseService as any, rconService as any);
 }
+
+// Refus d'une pause : le message dit la vraie raison (avant, tout refus annonçait « plus de pauses tactiques »)
+describe('PauseCommand : pause refusée', () => {
+  it.each([
+    ['already_paused', 'déjà en pause'],
+    ['no_bank', "plus de pauses tactiques"],
+    ['unknown_reason', 'Pause refusée'],
+  ])("raison '%s' → message « %s », rien n'est armé ni lancé", async (why, expected) => {
+    const pauseService = makePauseService({ isAllowed: false, why });
+    const rconService = makeRconService();
+    const ctx = makeCtx();
+
+    const result = await makeCmd(pauseService, rconService).handle(makePauseEvent('pause'), ctx);
+
+    expect(result).toBe(false);
+    expect(ctx.say).toHaveBeenCalledWith(expect.stringContaining(expected));
+    expect(pauseService.pause).not.toHaveBeenCalled();
+    expect(rconService.pause).not.toHaveBeenCalled();
+  });
+});
 
 // ---------------------------------------------------------------------------
 // TC-03.A - Phase 'live' → pause armée (pas de RCON)

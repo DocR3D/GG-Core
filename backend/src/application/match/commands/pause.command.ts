@@ -111,7 +111,13 @@ export class PauseCommand extends BaseCommand {
         team,
       });
       if (!isAllowed.allowed) {
-        await ctx.say("Vous n'avez plus de pauses tactiques.");
+        await ctx.say(
+          isAllowed.why === 'already_paused'
+            ? '[GG] Le match est déjà en pause.'
+            : isAllowed.why === 'no_bank'
+              ? "Vous n'avez plus de pauses tactiques."
+              : '[GG] Pause refusée.',
+        );
         return false;
       }
 
