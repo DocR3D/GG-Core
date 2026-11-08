@@ -2,7 +2,7 @@
 # Build context expected at repo root. This Dockerfile lives in infra/Dockerfile
 # so in compose use: build: { context: .., dockerfile: infra/Dockerfile }
 
-FROM golang:1.23-alpine AS builder
+FROM golang:1.26-alpine AS builder
 RUN apk add --no-cache git ca-certificates build-base
 WORKDIR /src
 

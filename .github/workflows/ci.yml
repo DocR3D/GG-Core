@@ -31,6 +31,7 @@ jobs:
       backend: ${{ steps.filter.outputs.backend }}
       agent: ${{ steps.filter.outputs.agent }}
       lint: ${{ steps.filter.outputs.lint }}
+      images: ${{ steps.filter.outputs.images }}
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
@@ -52,6 +53,7 @@ jobs:
             echo "backend=$(has '^(backend/|test/|infra/)' && echo true || echo false)"
             echo "agent=$(has '^agent/' && echo true || echo false)"
             echo "lint=$(has '(^|/)(Dockerfile[^/]*|[^/]*\.sh)$|^infra/|^scripts/' && echo true || echo false)"
+            echo "images=$(has '(^|/)Dockerfile[^/]*$|^infra/|^tools/log-drain/|^agent/|^backend/(package|prisma)' && echo true || echo false)"
           } | tee -a "$GITHUB_OUTPUT"
 
   # ---------------------------------------------------------------------------
@@ -94,10 +96,10 @@ jobs:
           key: ${{ runner.os }}-sonar
           restore-keys: ${{ runner.os }}-sonar
 
-      - name: Setup Node.js 20
+      - name: Setup Node.js 26
         uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
-          node-version: 20
+          node-version: 26
           cache: 'npm'
           cache-dependency-path: backend/package-lock.json
 
@@ -199,7 +201,7 @@ jobs:
 
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
-          node-version: 20
+          node-version: 26
           cache: 'npm'
           cache-dependency-path: backend/package-lock.json
 
@@ -284,11 +286,34 @@ jobs:
           exit $status
 
   # ---------------------------------------------------------------------------
+  # Docker images that the dev stack builds (hadolint only reads the Dockerfiles: a base image that no longer builds
+  # would otherwise show up only when somebody starts the stack). Build only, nothing is pushed.
+  # The root Dockerfile and docker-compose.monolith.yml are not built: they copy folders that no longer exist.
+  # ---------------------------------------------------------------------------
+  docker-build:
+    name: Docker images build
+    needs: changes
+    if: needs.changes.outputs.images == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+
+      - name: Backend (dev image of the compose stack)
+        run: docker build -f backend/Dockerfile.nest.dev -t ggcore-backend-dev backend
+
+      - name: Agent and manager (Go)
+        run: docker build -f infra/Dockerfile -t ggcore-agent .
+
+      - name: Log drain (dev tool)
+        run: docker build -t ggcore-log-drain tools/log-drain
+
+  # ---------------------------------------------------------------------------
   # The one check to require before merging
   # ---------------------------------------------------------------------------
   ci-ok:
     name: CI OK
-    needs: [changes, backend, e2e-tournament, agent, lint-docker-shell]
+    needs: [changes, backend, e2e-tournament, agent, lint-docker-shell, docker-build]
     if: always()
     runs-on: ubuntu-latest
     timeout-minutes: 5
