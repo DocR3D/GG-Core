@@ -18,7 +18,7 @@ F            ?=
 S            ?=
 
 .DEFAULT_GOAL := help
-.PHONY: help doctor admin _core front up up-cs2 down restart ps logs status server servers sandbox replay fixtures check test test-backend test-db test-go e2e-tournament tournament veto-demo veto-bot shell-backend psql redis-cli reset
+.PHONY: help doctor admin _core front web up up-cs2 down restart ps logs status server servers sandbox replay fixtures check test test-backend test-db test-go e2e-tournament tournament veto-demo veto-bot shell-backend psql redis-cli reset
 
 help: ## Affiche cette aide
 	@echo "GG-Core - commandes disponibles :"
@@ -72,17 +72,23 @@ front: ## Compile le front React (frontend/ → frontend/dist, servi par le back
 frontend/dist/index.html: $(FRONT_SRC)
 	@$(MAKE) --no-print-directory front
 
+web: ## Construit et lance le front Next.js (dépôt GGCoreFront voisin, ou FRONT_DIR=...) sur :3000, à côté du front React
+	@test -f "$(or $(FRONT_DIR),../GGCoreFront)/package.json" || { echo "❌ Dépôt GGCoreFront introuvable ($(or $(FRONT_DIR),../GGCoreFront)) : FRONT_DIR=<chemin> make web"; exit 1; }
+	@$(MAKE) --no-print-directory _core
+	@$(COMPOSE) --profile front up -d --build --wait front
+	@echo "✅ Front Next.js : http://localhost:3000  (login Steam : AUTH_PUBLIC_URL=http://<ip>:3000 dans .env)"
+
 down: ## Arrête tous les conteneurs (les données sont conservées)
-	@$(COMPOSE) --profile cs2 --profile debug down
+	@$(COMPOSE) --profile cs2 --profile debug --profile front down
 
 restart: ## Redémarre un service (S=backend par défaut)
 	@$(COMPOSE) restart $(or $(S),backend)
 
 ps: ## Liste les conteneurs
-	@$(COMPOSE) --profile cs2 --profile debug ps
+	@$(COMPOSE) --profile cs2 --profile debug --profile front ps
 
 logs: ## Suit les logs (tous, ou S=<service>)
-	@$(COMPOSE) --profile cs2 --profile debug logs -f --tail=100 $(S)
+	@$(COMPOSE) --profile cs2 --profile debug --profile front logs -f --tail=100 $(S)
 
 status: ## Résumé de l'état et des URLs
 	@echo ""
@@ -154,7 +160,7 @@ redis-cli: ## Console Redis
 
 reset: ## ⚠️ Supprime conteneurs ET données (base, Redis ; CS2 conservé sauf RESET_CS2=1)
 	@read -p "Supprimer les données de dev (base PostgreSQL…) ? [o/N] " a; [ "$$a" = "o" ] || exit 1
-	@$(COMPOSE) --profile cs2 --profile debug down --remove-orphans
+	@$(COMPOSE) --profile cs2 --profile debug --profile front down --remove-orphans
 	@docker volume rm -f infra_pgdata >/dev/null
 	@if [ "$(RESET_CS2)" = "1" ]; then docker volume rm -f infra_cs2data >/dev/null && echo "CS2 supprimé (re-téléchargement au prochain up-cs2)"; fi
 	@echo "✅ Données supprimées. make up pour repartir de zéro."

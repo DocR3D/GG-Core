@@ -82,6 +82,20 @@ export const CS2_CHAT_COMMANDS = {
   SWITCH: 'switch',
   SWAP: 'swap',
   INIT: 'init',
+  RESTORE: 'restore',
+  BACKUP: 'backup',
+  BACKUPS: 'backups',
+  CANCEL: 'cancel',
+  REFUSE: 'refuse',
+  NO: 'no',
+  ADMIN: 'admin',
+  CALLADMIN: 'calladmin',
+  ARBITRE: 'arbitre',
+  HELP: 'help',
+  COMMANDS: 'commands',
+  AIDE: 'aide',
+  PAUSES: 'pauses',
+  SCORE: 'score',
 } as const;
 
 /**
@@ -91,5 +105,7 @@ export const CS2_CHAT_COMMANDS = {
 export function normalizeChatCommand(cmd: string | null | undefined): string {
   if (!cmd) return '';
   const trimmed = cmd.trim().toLowerCase();
-  return trimmed.startsWith('!') || trimmed.startsWith('.') ? trimmed.slice(1) : trimmed;
+  return trimmed.startsWith('!') || trimmed.startsWith('.') || trimmed.startsWith('/')
+    ? trimmed.slice(1)
+    : trimmed;
 }

@@ -78,7 +78,7 @@ SOoT = Source of Truth historique (vérité absolue).
 - L'agent écrit aussi chaque événement dans un **Stream** `ggbot:events_primary:<serverId>` (borné à ~100 000), prévu
   pour rattraper les événements après une coupure. **Personne ne le lit aujourd'hui** : voir « Résilience aux coupures ».
 
-###  Frontend React + Vite *(pas encore fait ; compilé et servi par le backend, voir `docs/context/frontend.md` - pages `/view`, `/veto` et console `/sandbox` en attendant)*
+###  Frontend Next.js *(GGCoreFront, dépôt voisin, lancé par `make web` ; le front React + Vite et les pages `/view`, `/veto`, `/sandbox` du backend restent jusqu'à la parité : voir `docs/context/frontend.md`)*
 - Application web publique : live scoreboard, overlays, mini‑map
 - Console admin pour l’organisation (contrôle des matchs)
 

@@ -8,6 +8,7 @@ import { MatchOrchestratorModule } from '@app/match/match-orchestrator.module';
 import { CommandsModule } from '@app/commands.module';
 import { SandboxModule } from '@app/match/sandbox/sandbox.module';
 import { WsModule } from '@adapters/ws/ws.module';
+import { BuytimeBroadcastModule } from '@app/broadcast/buytime-broadcast.module';
 
 // Contrôleurs HTTP
 import { MatchesController } from './matches/matches.controller';
@@ -22,25 +23,38 @@ import { SandboxTournamentController } from './sandbox/sandbox-tournament.contro
 import { TournamentSimulationService } from '@app/tournament/simulation/tournament-simulation.service';
 import { TournamentMatchesController } from './tournament/tournament-matches.controller';
 import { TournamentController } from './tournament/tournament.controller';
+import { TournamentConfigController } from './tournament/tournament-config.controller';
 import { ViewController } from './view/view.controller';
 import { TournamentStagesService } from '@app/tournament/tournament-stages.service';
 import { TournamentLaunchService } from '@app/tournament/tournament-launch.service';
 import { VetoService } from '@app/tournament/veto.service';
 import { TournamentAdminService } from '@app/tournament/tournament-admin.service';
 import { TournamentEditService } from '@app/tournament/tournament-edit.service';
+import { GameRoundsService } from '@app/tournament/game-rounds.service';
 import { VetoController } from './veto/veto.controller';
 import { MatchAdminController } from './matches/match-admin.controller';
 import { MatchAdminService } from '@app/match/admin/match-admin.service';
+import { VetoActions } from './veto/veto-actions';
+import { MatchRestoreController } from './matches/match-restore.controller';
+import { AdminCallController } from './matches/admin-call.controller';
+import { BroadcastController } from './broadcast/broadcast.controller';
+import { SponsorController } from './sponsors/sponsor.controller';
+import { SponsorModule } from '@app/sponsors/sponsor.module';
+import { CommunityMessagesController } from './community-messages/community-messages.controller';
+import { CommunityMessagesModule } from '@app/community-messages/community-messages.module';
 
 @Module({
   imports: [
     MatchStateModule,
     forwardRef(() => MatchOrchestratorModule),
-    forwardRef(() => CommandsModule), // match console commands (MatchAdminService)
+    forwardRef(() => CommandsModule), // match console commands (MatchAdminService, MatchRestoreController)
     BusModule,
     Cs2LogsModule, // nouvelle intégration propre du module CS2 logs
     SandboxModule,
     WsModule, // veto:updated pushed by the veto actions
+    BuytimeBroadcastModule,
+    SponsorModule,
+    CommunityMessagesModule,
   ],
   controllers: [
     MatchesController,
@@ -53,10 +67,26 @@ import { MatchAdminService } from '@app/match/admin/match-admin.service';
     SandboxTournamentController,
     TournamentMatchesController,
     TournamentController,
+    TournamentConfigController,
     ViewController,
     VetoController,
     MatchAdminController,
+    MatchRestoreController,
+    AdminCallController,
+    BroadcastController,
+    SponsorController,
+    CommunityMessagesController,
   ],
-  providers: [TournamentStagesService, TournamentLaunchService, TournamentSimulationService, VetoService, TournamentAdminService, MatchAdminService, TournamentEditService],
+  providers: [
+    TournamentStagesService,
+    TournamentLaunchService,
+    TournamentSimulationService,
+    VetoService,
+    VetoActions,
+    TournamentAdminService,
+    MatchAdminService,
+    TournamentEditService,
+    GameRoundsService,
+  ],
 })
 export class HttpModule {}

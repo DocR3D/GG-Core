@@ -225,6 +225,17 @@ func TestTryParse(t *testing.T) {
 			},
 		},
 		{
+			name:     "CT Target Saved is a round won on time, not a defuse",
+			logLine:  `Team "CT" triggered "SFUI_Notice_Target_Saved" (CT "6") (T "5")`,
+			wantType: events.EvTeamRoundWin,
+			wantOk:   true,
+			verifyAssert: func(t *testing.T, payload map[string]any) {
+				if payload["winner"] != "CT" || payload["reason"] != "time" {
+					t.Fatalf("expected CT / time, got %v / %v", payload["winner"], payload["reason"])
+				}
+			},
+		},
+		{
 			name:     "T Target Bombed",
 			logLine:  `Team "TERRORIST" triggered "SFUI_Notice_Target_Bombed" (CT "0") (T "2")`,
 			wantType: events.EvTeamRoundWin,

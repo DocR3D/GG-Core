@@ -8,9 +8,20 @@ Ce fichier centralise les chantiers, fonctionnalités à venir, améliorations a
 
 Le cœur moteur de match, l'arbitrage automatisé, le calcul de scores/stats CS2 et le replay de logs sont opérationnels. Les chantiers ci-dessous constituent ce qui manque pour un tournoi LAN opérationnel de bout en bout :
 
-### 1. 🖥️ Frontend React + Vite servi par NestJS (Admin, Spectateur, Joueur)
+### 1. 🖥️ Frontend Next.js (GGCoreFront) : Admin, Spectateur, Joueur
 * **Origine & Spécifications** : [`docs/cahier-des-charges.md`](file:///d:/DEV/GG-Core/docs/cahier-des-charges.md) et [`docs/context/frontend.md`](file:///d:/DEV/GG-Core/docs/context/frontend.md).
-* **État actuel** : Non implémenté. Seule l'interface temporaire de test Sandbox HTML est servie par NestJS.
+* **État actuel (2026-11-05)** : le front est le projet GGCoreFront (Next.js, dépôt voisin, `make web`), décidé avec
+  l'utilisateur ; le front React + Vite (`frontend/`) et les pages HTML du backend restent jusqu'à la parité. Vérifié dans
+  Chrome contre la stack : 20 écrans sans erreur, live, un tournoi monté et déroulé dans l'interface (équipes, véto, poules,
+  résultats, arbres, qualification, véto joué par l'admin), sandbox match. Détail, reste à faire et pièges (Socket.IO et le
+  slash final) : `docs/context/frontend.md`.
+  **Reste** : login Steam, véto de vrais capitaines et lancement d'un game à vérifier ; porter `src/legacy/` en routes Next ; écrans
+  des fonctions déjà dans le backend (sponsors, restauration de round, appels admin, alias et templates) ; puis retirer
+  `frontend/` et les pages HTML du backend après un tournoi complet joué avec le front Next.
+  **Actions admin sur un match en cours** (forcer la phase : échauffement, knife, prolongation ; corriger le score à la
+  main) : n'existent pas dans `main`, voir `docs/context/frontend.md`. Le score n'est pas applicable en jeu sans
+  plugin : il faudrait passer par une sauvegarde de round (Round Doctor), pas par une simple commande RCON.
+  Historique public d'un match : route filtrée à créer.
 * **Tâches à réaliser** :
   - **Initialisation** : projet React + Vite (TypeScript, React Router, Tailwind CSS avec la charte de `base.css`,
     shadcn/ui restylé, client Socket.IO), compilé et servi par NestJS (choix et raisons : `docs/context/frontend.md`).
@@ -162,6 +173,25 @@ Le cœur moteur de match, l'arbitrage automatisé, le calcul de scores/stats CS2
 * Une page qui montre tous les éléments (titres, tableaux, boutons, formulaires, bloc ASCII, classes du vocabulaire de
   `base.css`) dans les deux thèmes : l'équivalent léger d'un Storybook, pour juger une modification du CSS d'un coup d'œil.
 
+### 15. 📣 Message à tous les serveurs au moment de l'achat (buytime)
+* **Besoin** : l'admin écrit un message une fois et il s'affiche dans le chat de tous les serveurs (ou d'une sélection)
+  pendant la phase d'achat, quand les joueurs regardent l'écran. Exemple : « Quand vous avez fini ce match, vous pouvez
+  aller manger ! ».
+* **Pourquoi à l'achat** : c'est le seul moment où le message est lu sans gêner un round. Même principe que
+  l'armement des pauses : le message est « armé » puis envoyé au prochain freeze time de chaque serveur, pas tout de
+  suite (un serveur en plein round l'afficherait au mauvais moment, un serveur en pause ou en warmup n'a pas de
+  buytime).
+* **À prévoir** :
+  - Cible : tous les serveurs avec un match en cours, ou une sélection.
+  - Envoi unique ou répété (n rounds de suite), avec annulation tant qu'il n'est pas parti.
+  - Un serveur sans match en cours (warmup, libre) : envoi immédiat ou ignoré, à choisir.
+  - L'envoi passe par la file RCON de l'agent (6 commandes par seconde et par serveur) : sur 32 serveurs, pas de
+    problème car la limite est par serveur.
+  - Suivi : afficher à l'admin quels serveurs l'ont reçu et lesquels attendent encore.
+  - La commande « message » d'un match existe déjà (console admin) : s'en servir comme brique, ajouter l'armement.
+* **Lien avec le cahier des charges** : les messages sponsorisés dans le chat en jeu (rotation manuelle ou
+  automatique, presets) reposent sur le même mécanisme d'envoi au buytime ; à faire ensemble.
+
 ---
 
 ## ✅ Chantiers Achevés
@@ -182,3 +212,10 @@ Le cœur moteur de match, l'arbitrage automatisé, le calcul de scores/stats CS2
 - [x] **Pauses** : armement pendant tout le round (y compris bombe posée / fin de round), banque tactique réglable par match (`tacticalPauseBankSec`, 120 s par défaut).
 - [x] **Agent** : RCON ≤ 6 commandes/s sur une connexion réutilisée, plus aucune ligne de log perdue après un lancer de grenade (`Parse()` multi-événements).
 - [x] **Historique git sans données réelles de joueurs** (réécriture `filter-repo` des fixtures, 2026-10-30).
+
+- [x] **Message global aux serveurs au Buytime avec réarmement multi-rounds** (Item §15) : diffusion armée au freeze time sur N rounds consécutifs (`roundsCount`), envoi immédiat si serveur libre/warmup, réarmement et annulation via API REST `/admin/broadcasts`, suivi temps réel par serveur et persistance Redis.
+- [x] **Personnalisation Admin des Commandes In-Game & Templates de Messages (Alias & i18n)** (Item §16) :
+  - Stockage en PostgreSQL `JSONB` (`tournaments.settings.config`) avec fallback transparent sur valeurs par défaut.
+  - Résolution dynamique de commandes in-game (`TournamentConfigService.resolveCommand`) traduisant tout alias personnalisé (`!sos`, `!temps`, etc.) vers son action canonique (`admin`, `pause`, etc.) et respectant les commandes désactivées (`disabledCommands`).
+  - Système de templates de messages interpolés (`formatMessage` avec `{tag}`, `{message}`, `{team}`, `{player}`, `{round}`, etc.) pour personnaliser le tag du bot (`botTag`) et toutes les annonces CS2 chat.
+  - API REST complète : `GET /api/tournament/config/defaults`, `GET /api/tournament/tournaments/:id/config`, `PUT .../config`, `POST .../config/reset`. Cache Redis invalidé à chaud.

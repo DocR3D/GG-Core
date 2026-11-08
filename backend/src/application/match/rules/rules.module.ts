@@ -3,6 +3,7 @@ import { RedisModule } from '@adapters/redis/redis.module';
 import { MatchStateModule } from '@app/match-state.module';
 import { CommandsModule } from '@app/commands.module';
 import { MatchOrchestratorModule } from '@app/match/match-orchestrator.module';
+import { CommunityMessagesModule } from '@app/community-messages/community-messages.module';
 
 import { RuleRegistry } from './rule.registry';
 import { RuleContextFactory } from '@app/rules/rule-context.factory';
@@ -13,6 +14,7 @@ import { RuleContextFactory } from '@app/rules/rule-context.factory';
     MatchStateModule,
     forwardRef(() => CommandsModule),
     forwardRef(() => MatchOrchestratorModule),
+    CommunityMessagesModule,
   ],
   providers: [
     RuleRegistry,

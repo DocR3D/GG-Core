@@ -49,6 +49,13 @@ export class MatchAdminController {
     return this.run(() => this.admin.forceStart(matchId, authorOf(req.ggSession)));
   }
 
+  /** Before the live, back to the warmup or the knife: { phase: "warmup" | "knife" }. */
+  @Post('phase')
+  @HttpCode(200)
+  setPhase(@Param('id') matchId: string, @Body() body: { phase?: string }, @Req() req: AdminRequest) {
+    return this.run(() => this.admin.setPhase(matchId, String(body?.phase ?? ''), authorOf(req.ggSession)));
+  }
+
   /** Before the live: the two teams change side, GG-Core follows them. */
   @Post('swap-teams')
   @HttpCode(200)

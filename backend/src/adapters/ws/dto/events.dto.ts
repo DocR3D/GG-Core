@@ -53,7 +53,15 @@ export type WsEventType =
   | 'player:name_change'
   | 'item:purchase'
   // Véto des maps d'une série (room du match de la série, pas d'un game)
-  | 'veto:updated';
+  | 'veto:updated'
+  | 'restore:proposed'
+  | 'restore:cancelled'
+  | 'restore:refused'
+  | 'restore:executed'
+  | 'admin:call'
+  | 'admin:call_ack'
+  | 'admin:alert'
+  | 'pause:unpause_vote';
 //  | 'grenade_landed'  // activer quand prêt
 
 export interface BaseWsEvent<TType extends WsEventType, TPayload> {
@@ -153,7 +161,12 @@ export type KillPayload =
 
 // Événements lobby (listes de matchs)
 export type LobbyEventType = 'matches:upsert' | 'matches:remove';
-export type LobbyAdminEventType = LobbyEventType | 'matches:debug';
+export type LobbyAdminEventType =
+  | LobbyEventType
+  | 'matches:debug'
+  | 'broadcast:updated'
+  | 'admin:call'
+  | 'admin:call_ack';
 
 export interface RoundStartPayload { round: number; }
 export type RoundStartEvent = BaseWsEvent<'round:start', RoundStartPayload>;
@@ -204,6 +217,10 @@ export type ChatAdminEvent = BaseWsEvent<'chat:admin', ChatAdminPayload>;
 
 export interface SponsorRotatePayload {
   sponsorId: string;
+  name?: string;
+  logoUrl?: string | null;
+  websiteUrl?: string | null;
+  tier?: string;
   slot?: string;
   durationMs?: number;
 }

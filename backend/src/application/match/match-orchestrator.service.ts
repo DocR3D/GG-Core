@@ -21,6 +21,8 @@ import { RuleContext } from '@domain/rules';
 import { TournamentPersistenceService, isUuid } from '@adapters/database/tournament-persistence.service';
 import { MatchAccess, MatchAccessService } from './access/match-access.service';
 import { TeamPlacementService } from './access/team-placement.service';
+import { BuytimeBroadcastService } from '@app/broadcast/buytime-broadcast.service';
+import { SponsorChatAnnouncerService } from '@app/sponsors/sponsor-chat-announcer.service';
 import { errorMessage } from '@app/shared/error-message';
 
 type ResumeMeta = { source?: 'expired' | 'admin' | 'chat'; reason?: 'tactical'|'technical'|'admin' };
@@ -47,6 +49,8 @@ export class MatchOrchestrator {
     @Optional() private readonly tournamentPersistence?: TournamentPersistenceService,
     @Optional() private readonly access?: MatchAccessService,
     @Optional() private readonly placement?: TeamPlacementService,
+    @Optional() private readonly buytimeBroadcast?: BuytimeBroadcastService,
+    @Optional() private readonly sponsorAnnouncer?: SponsorChatAnnouncerService,
   ) {}
 
   /**
@@ -142,6 +146,7 @@ export class MatchOrchestrator {
     this.armAutoUnpause(matchId, serverId, bank);
 
     await this.notify('pause:started', { matchId, serverId, reason: 'tactical', team });
+    void this.sponsorAnnouncer?.onPauseStarted(matchId, serverId, 'tactical');
     return { ok: true };
   }
 
@@ -164,6 +169,7 @@ export class MatchOrchestrator {
 
       // 2) Demander la pause à l'agent (ingame)
       await this.cmds.pause(ev);
+      void this.sponsorAnnouncer?.onPauseStarted(ev.matchId, ev.serverId, reason);
 
       // 3) Auto-unpause si pause tactique
       if (reason === 'tactical' && res.pick.team !== 'system') {
@@ -187,6 +193,7 @@ export class MatchOrchestrator {
     });
     await this.cmds.pause({ serverId, matchId });
     await this.notify('pause:started', { matchId, serverId, reason: 'technical', team });
+    void this.sponsorAnnouncer?.onPauseStarted(matchId, serverId, 'technical');
     return { ok: true as const };
   }
 
@@ -370,6 +377,9 @@ export class MatchOrchestrator {
     this.log.debug('Freeze time started !');
     await this.phase.setRoundPhase(ev.matchId, RoundPhase.FREEZE);
     await this.applyPauseIfArmed(ev);
+    if (this.buytimeBroadcast) {
+      await this.buytimeBroadcast.onFreezeTime(ev.matchId, ev.serverId);
+    }
   }
 
   async onRoundEnd(ev: (TeamRoundWinEvent & { serverId?: string }) | (GenericMatchEvent & { serverId?: string })) {
@@ -384,6 +394,9 @@ export class MatchOrchestrator {
 
   async onRoundStart(ev: (RoundStartEvent & { serverId?: string }) | (GenericMatchEvent & { serverId?: string })) {
     await this.phase.setRoundPhase(ev.matchId, RoundPhase.LIVE);
+    if (this.buytimeBroadcast) {
+      await this.buytimeBroadcast.onFreezeTime(ev.matchId, ev.serverId);
+    }
 
     const s = await this.state.getSnapshot(ev.matchId);
     const HCT = s.sides?.home === 'CT';

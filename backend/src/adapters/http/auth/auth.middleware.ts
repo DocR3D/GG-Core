@@ -56,7 +56,7 @@ function adminOnlyPage(session: Session): string {
 export function isPublic(method: string, path: string): boolean {
   if (path === '/login' || path.startsWith('/auth/') || path === '/api/health') return true;
   if (path === '/cs2/logs' || path.startsWith('/cs2/logs/')) return true; // agent → backend, log token
-  if (path === '/ws' || path.startsWith('/ws/')) return true; // Socket.IO, its own JWT guard
+  if (path === '/ws' || path.startsWith('/ws/') || path === '/socket.io' || path.startsWith('/socket.io/')) return true; // Socket.IO, its own JWT guard
   const read = method === 'GET' || method === 'HEAD';
   const sandbox = path === '/sandbox' || path.startsWith('/sandbox/');
   const vetoAdmin = /^\/veto\/[^/]+\/admin$/.test(path);
@@ -65,5 +65,8 @@ export function isPublic(method: string, path: string): boolean {
 
 /** Veto actions a captain (player role) may send; undo / reset stay admin only. */
 export function isCaptainAction(method: string, path: string): boolean {
-  return method === 'POST' && /^\/veto\/[^/]+\/(rps|start|step)$/.test(path);
+  return (
+    method === 'POST' &&
+    (/^\/veto\/[^/]+\/(rps|start|step)$/.test(path) || /^\/api\/tournament\/matches\/[^/]+\/veto\/(rps|start|step)$/.test(path))
+  );
 }

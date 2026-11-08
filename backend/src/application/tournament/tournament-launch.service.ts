@@ -1,5 +1,6 @@
 // src/application/tournament/tournament-launch.service.ts
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, Optional } from '@nestjs/common';
+import { TournamentConfigService } from '@app/config/tournament-config.service';
 import { PrismaService } from '@adapters/database/prisma.service';
 import { isUuid } from '@adapters/database/tournament-persistence.service';
 import { MatchStateService } from '@app/match/state/match-state.service';
@@ -32,6 +33,7 @@ export class TournamentLaunchService {
     private readonly veto: VetoService,
     private readonly access: MatchAccessService,
     private readonly placement: TeamPlacementService,
+    @Optional() private readonly configService?: TournamentConfigService,
   ) {}
 
   // ---------------------------------------------------------------------------
@@ -176,6 +178,7 @@ export class TournamentLaunchService {
     if (match.status === 'PENDING') await this.prisma.match.update({ where: { id: match.id }, data: { status: 'LIVE' } });
 
     const engineMatchId = game.id;
+    await this.configService?.setMatchTournamentId(engineMatchId, match.tournamentId);
     await this.state.initMatchState(engineMatchId, {
       teams: {
         home_id: match.teamHome.id,
@@ -259,8 +262,10 @@ export class TournamentLaunchService {
         order: g.mapOrder,
         mapName: g.mapName,
         // the players of the match play it, they do not watch it (delayed GOTV of their own game)
-        watch: isPlayer ? undefined : `${g.server!.ip}:${g.server!.tvPort}`,
-        play: isAdmin || isPlayer ? { address: `${g.server!.ip}:${g.server!.port}`, password: await this.access.getPassword(g.id) } : undefined,
+        ...(isPlayer ? {} : { watch: `${g.server!.ip}:${g.server!.tvPort}` }),
+        ...(isAdmin || isPlayer
+          ? { play: { address: `${g.server!.ip}:${g.server!.port}`, password: await this.access.getPassword(g.id) } }
+          : {}),
       })),
     );
   }

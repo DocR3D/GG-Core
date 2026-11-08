@@ -9,12 +9,14 @@ import * as path from 'path';
 import * as fs from 'fs';
 import { RequestMethod } from '@nestjs/common';
 import { AuthMiddleware } from './adapters/http/auth/auth.middleware';
+import { parseTrustProxy } from './trust-proxy';
+import { installAuthBodyParsers } from './adapters/http/auth/auth-body-parsers';
 
 async function bootstrap() {
   const app = await NestFactory.create<NestExpressApplication>(AppModule, { logger: ['log','error','warn','debug','verbose'] });
 
-  // Pour des IP correctes derrière proxy
-  app.set('trust proxy', 1);
+  // Only explicitly trusted proxies may supply the client address used by auth throttling.
+  app.set('trust proxy', parseTrustProxy(process.env.TRUST_PROXY));
 
   // ✅ 1) TEXTE brut UNIQUEMENT pour /cs2/logs (d’abord)
   app.use('/cs2/logs', bodyParser.text({ type: () => true, limit: '2mb' }));
@@ -24,7 +26,7 @@ async function bootstrap() {
   app.use('/api', urlencoded({ extended: true }));
   app.use('/sandbox', json({ limit: '15mb' }));
   app.use('/sandbox', urlencoded({ extended: true, limit: '15mb' }));
-  app.use('/auth', urlencoded({ extended: false })); // login form
+  installAuthBodyParsers(app);
   app.use('/veto', json({ limit: '16kb' }));
   app.use('/veto', urlencoded({ extended: false, limit: '16kb' })); // veto forms
 
@@ -33,6 +35,7 @@ async function bootstrap() {
   app.use('/assets', serveStatic(path.join(process.cwd(), 'node_modules/@picocss/pico/css'), { index: false, maxAge: '1d' }));
   app.use('/assets/css', serveStatic(path.join(process.cwd(), 'public/css'), { index: false }));
   app.use('/assets/fonts', serveStatic(path.join(process.cwd(), 'node_modules/@fontsource/poppins/files'), { index: false, maxAge: '30d' }));
+  app.use('/uploads', serveStatic(path.join(process.cwd(), 'public/uploads'), { index: false, maxAge: '7d' }));
 
   // Access rules for EVERY request, at the Express level: a Nest module middleware would only cover the
   // /api-prefixed routes, not /sandbox, /view, /login, /auth (excluded from the prefix below)

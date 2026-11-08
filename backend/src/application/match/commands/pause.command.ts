@@ -1,4 +1,4 @@
-import { forwardRef, Inject, Injectable, Logger } from '@nestjs/common';
+import { forwardRef, Inject, Injectable, Logger, Optional } from '@nestjs/common';
 import { BaseCommand } from '@domain/commands/base.command';
 import { CommandEvent } from '@domain/events/command.event';
 import { RuleContext } from '@domain/rules';
@@ -6,6 +6,8 @@ import { MatchCommandsService } from '@app/commands/match-commands.service';
 import { PauseMatchService, PauseReason } from '@app/match/pause/pause.service';
 import { isNonPlayingSide, GameSide } from '@domain/side.types';
 import { CS2_CHAT_COMMANDS } from '@domain/rules/rules.constants';
+import { RoundRestoreService } from '../restore/round-restore.service';
+import { TournamentConfigService } from '@app/config/tournament-config.service';
 
 @Injectable()
 export class PauseCommand extends BaseCommand {
@@ -16,6 +18,10 @@ export class PauseCommand extends BaseCommand {
     private readonly pauseService: PauseMatchService,
     @Inject(forwardRef(() => MatchCommandsService))
     private readonly rconService: MatchCommandsService,
+    @Optional()
+    @Inject(forwardRef(() => RoundRestoreService))
+    private readonly restoreService?: RoundRestoreService,
+    @Optional() private readonly configService?: TournamentConfigService,
   ) {
     super();
   }
@@ -59,6 +65,13 @@ export class PauseCommand extends BaseCommand {
     this.logCommand(event.payload.command, event);
 
     if (isPauseRequest) {
+      if (this.restoreService?.hasPendingUnpause(event.matchId)) {
+        this.restoreService.clearUnpauseTimer(event.matchId);
+        const msg = this.configService
+          ? await this.configService.formatMessage(event.matchId, 'PAUSE_RESUME_INTERRUPTED')
+          : '[GG-Core] Reprise interrompue : pause prise en compte.';
+        await ctx.say(msg);
+      }
       // Garde-fous: seuls les joueurs affectés à une équipe peuvent pauser
       if (isNonPlayingSide(event.payload.sender.team)) return false;
 
@@ -68,6 +81,11 @@ export class PauseCommand extends BaseCommand {
 
       const reason: PauseReason =
         event.payload.command === CS2_CHAT_COMMANDS.TECH ? 'technical' : 'tactical';
+      const customReason =
+        reason === 'technical' && event.payload.parameters?.length
+          ? event.payload.parameters.map(String).join(' ').trim()
+          : undefined;
+      const reasonLabel = customReason ? ` : "${customReason}"` : '';
 
       // Politique d'autorisation (banque tactique, etc.)
       const isAllowed = await this.pauseService.isPauseAllowed(event.matchId, {
@@ -91,6 +109,7 @@ export class PauseCommand extends BaseCommand {
           team,
           durationSec,
           armOnly: true,
+          customReason,
           by: {
             steamId: event.payload.sender.steamId,
             name: event.payload.sender.name,
@@ -98,7 +117,7 @@ export class PauseCommand extends BaseCommand {
           },
         });
         await ctx.say(
-          `[GG] Pause ${reason} de ${team.toUpperCase()} armée - elle débutera au prochain freeze.`,
+          `[GG] Pause ${reason} de ${team.toUpperCase()} armée${reasonLabel} - début au prochain freeze.`,
         );
         return true;
       }
@@ -110,6 +129,7 @@ export class PauseCommand extends BaseCommand {
           team,
           durationSec,
           armOnly: false,
+          customReason,
           by: {
             steamId: event.payload.sender.steamId,
             name: event.payload.sender.name,
@@ -121,7 +141,7 @@ export class PauseCommand extends BaseCommand {
           serverId: event.serverId,
         });
         await ctx.say(
-          `[GG] Pause ${reason} de ${team.toUpperCase()} - ${durationSec}s.`,
+          `[GG] Pause ${reason} de ${team.toUpperCase()} - ${durationSec}s${reasonLabel}.`,
         );
         return true;
       }
@@ -137,12 +157,32 @@ export class PauseCommand extends BaseCommand {
     }
 
     // Reprise (UNPAUSE)
+    const pauseState = await this.pauseService.getPauseState(event.matchId);
+    if (pauseState.reason === 'technical') {
+      const team = await ctx.orch.sideToLogical(event.matchId, event.payload.sender.team as GameSide);
+      if (team === 'home' || team === 'away') {
+        const { bothReady } = await this.pauseService.voteUnpause(event.matchId, team);
+        if (!bothReady) {
+          await ctx.say(
+            `[GG-Core] L'équipe ${team.toUpperCase()} est prête à reprendre. En attente de l'équipe adverse (!unpause pour valider).`,
+          );
+          return true;
+        }
+        const msg = this.configService
+          ? await this.configService.formatMessage(event.matchId, 'UNPAUSE_AGREED')
+          : '[GG-Core] Accord des deux équipes reçu ! Reprise du match...';
+        await ctx.say(msg);
+      }
+    }
     await this.pauseService.resume(event.matchId);
     await this.rconService.unpause({
       matchId: event.matchId,
       serverId: event.serverId,
     });
-    await ctx.say('[GG] Le match a repris.');
+    const msg = this.configService
+      ? await this.configService.formatMessage(event.matchId, 'MATCH_RESUMED')
+      : '[GG] Le match a repris.';
+    await ctx.say(msg);
     return true;
   }
 }

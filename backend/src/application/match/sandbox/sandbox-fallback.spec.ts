@@ -95,6 +95,12 @@ describe('Fallback Parser & Suicide vs Player Kill Handling', () => {
       expect(event.payload.reason).toBe('defused');
     });
 
+    it('parses Target_Saved as a round won on time, not as a defuse', () => {
+      const event = parse('Team "CT" triggered "SFUI_Notice_Target_Saved" (CT "6") (T "5")', 'm-1', 'srv-a');
+      expect(event.payload.winner).toBe('CT');
+      expect(event.payload.reason).toBe('time');
+    });
+
     it('distinguishes Bomb_Begin_Plant from Planted_The_Bomb', () => {
       const beginLine = '"Player_03<5><[U:1:10000003]><TERRORIST>" triggered "Bomb_Begin_Plant" at bombsite B';
       const beginEv = parse(beginLine, 'm-1', 'srv-a');
