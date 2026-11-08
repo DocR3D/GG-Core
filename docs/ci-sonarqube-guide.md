@@ -42,7 +42,7 @@ Le job `changes` regarde les fichiers modifiés par la PR et décide quels jobs 
 
 Sur une PR, une porte qualité SonarQube en échec fait échouer le job (`sonar.qualitygate.wait`). La porte ne regarde que le code nouveau. Sans le secret `SONAR_TOKEN` (PR venant d'un fork ou de Dependabot), l'analyse est ignorée.
 
-Les actions sont épinglées par empreinte de commit (le tag est en commentaire) ; Dependabot (`.github/dependabot.yml`) met à jour l'empreinte et le commentaire ensemble, chaque mois, avec les dépendances npm du backend, les modules Go de l'agent, les images Docker et les actions. NestJS d'un côté et Prisma de l'autre arrivent chacun en une seule PR, majeures comprises. Les montées de version majeures ne sont pas ignorées : on les traite une à la fois, entre deux tournois (ne pas fermer la PR, Dependabot cesserait de la proposer). Seules les versions impaires de Node sont exclues, car elles n'ont pas de support long.
+Les actions sont épinglées par empreinte de commit (le tag est en commentaire) ; Dependabot (`.github/dependabot.yml`) met à jour l'empreinte et le commentaire ensemble, chaque mois, avec les dépendances npm du backend, les modules Go de l'agent, les images Docker et les actions. Les mineures et correctifs d'un écosystème arrivent groupés en une PR (sûre à fusionner quand `CI OK` est vert) ; NestJS d'un côté et Prisma de l'autre arrivent chacun en une seule PR, majeures comprises ; la majeure de tout le reste (une action, une image, un module Go) arrive seule. Les montées de version majeures ne sont pas ignorées : on les traite une à la fois, entre deux tournois (ne pas fermer la PR, Dependabot cesserait de la proposer). Seules les versions impaires de Node sont exclues, car elles n'ont pas de support long.
 
 ---
 
