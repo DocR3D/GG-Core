@@ -34,6 +34,7 @@ Le job `changes` regarde les fichiers modifiés par la PR et décide quels jobs 
 | `Typecheck, Lint, Test & SonarQube Coverage` | `backend/`, `test/`, `infra/` | typecheck, lint, Jest avec couverture (Golden Master inclus), tests PostgreSQL réels (`DB_IT=1`), build NestJS, audit des dépendances (informatif), analyse SonarQube |
 | `End-to-end tournament scenario` | `backend/`, `test/`, `infra/` | backend réel démarré sur PostgreSQL 16 et Redis 7, puis `scripts/e2e-tournament.mjs` (l'équivalent de `make e2e-tournament`) |
 | `Go agent (build, vet, tests)` | `agent/` | `go build ./...`, `go vet ./...`, `go test ./...` |
+| `Docker images build` | un Dockerfile, `infra/`, `agent/`, `tools/log-drain/`, `backend/package*` ou `backend/prisma` | `docker build` (sans publication) du backend de dev, de l'agent/manager Go et de `tools/log-drain`. Le `Dockerfile` racine et `docker-compose.monolith.yml` ne sont pas construits : ils copient des dossiers qui n'existent plus |
 | `Dockerfiles and shell scripts` | un Dockerfile, un `.sh`, `infra/`, `scripts/` | shellcheck (avertissements et erreurs, pas les remarques « info », qui varient selon la version) et hadolint (erreurs seulement : les avertissements de style ne bloquent pas) |
 | `CI OK` | toujours | réussi si tous les jobs qui devaient tourner ont réussi (un job ignoré compte comme réussi) |
 
@@ -41,7 +42,7 @@ Le job `changes` regarde les fichiers modifiés par la PR et décide quels jobs 
 
 Sur une PR, une porte qualité SonarQube en échec fait échouer le job (`sonar.qualitygate.wait`). La porte ne regarde que le code nouveau. Sans le secret `SONAR_TOKEN` (PR venant d'un fork ou de Dependabot), l'analyse est ignorée.
 
-Les actions sont épinglées par empreinte de commit (le tag est en commentaire) ; Dependabot (`.github/dependabot.yml`) met à jour l'empreinte et le commentaire ensemble, chaque lundi, avec les dépendances npm du backend, les modules Go de l'agent, les images Docker et les actions. Les montées de version majeures arrivent en PR séparées.
+Les actions sont épinglées par empreinte de commit (le tag est en commentaire) ; Dependabot (`.github/dependabot.yml`) met à jour l'empreinte et le commentaire ensemble, chaque mois, avec les dépendances npm du backend, les modules Go de l'agent, les images Docker et les actions. NestJS d'un côté et Prisma de l'autre arrivent chacun en une seule PR, majeures comprises. Les montées de version majeures ne sont pas ignorées : on les traite une à la fois, entre deux tournois (ne pas fermer la PR, Dependabot cesserait de la proposer). Seules les versions impaires de Node sont exclues, car elles n'ont pas de support long.
 
 ---
 
