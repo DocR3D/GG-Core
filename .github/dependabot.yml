@@ -8,9 +8,14 @@
 # not by kind of update, so the monthly pull request would also carry the major versions: one failing major would
 # block all the safe updates.
 #
-# Major versions are NOT ignored: a major pull request stays open as a reminder, to be handled one at a time in a
-# quiet period between two tournaments, with the tests as safety net. Do not close one: Dependabot would stop
-# proposing it. The only exclusion is the odd Node versions (25, 27...), which never get long-term support.
+# Major versions are NOT ignored in general: a major pull request stays open as a reminder, to be handled one at a
+# time in a quiet period between two tournaments, with the tests as safety net. Do not close one: Dependabot would
+# stop proposing it. The exclusions, each with its reason:
+# - the odd Node versions (25, 27...), which never get long-term support;
+# - the NestJS majors (10 -> 12, with Express 5): Dependabot could not build one valid pull request for them, it
+#   opened one per package and each fails alone. The migration is done by hand in one branch that bumps every
+#   @nestjs/* package together. REMOVE THAT EXCLUSION when the migration starts (or when NestJS 13 is the target).
+# Prisma 7 is not excluded: its two packages do arrive as one pull request, kept open as a reminder.
 # Security updates are opened right away, outside the schedule.
 # Pull requests run the CI like any other: "CI OK" must pass before merging.
 version: 2
@@ -21,6 +26,9 @@ updates:
     schedule: { interval: monthly }
     open-pull-requests-limit: 5
     commit-message: { prefix: "chore(deps)" }
+    ignore:
+      - dependency-name: "@nestjs/*"
+        update-types: ["version-update:semver-major"]
     groups:
       nestjs:
         patterns: ["@nestjs/*"]
