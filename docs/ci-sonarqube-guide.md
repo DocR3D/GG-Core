@@ -51,7 +51,7 @@ Le workflow `.github/workflows/backend-ci.yml` se déclenche automatiquement :
 ### Pourquoi aucun composant Java/Jakarta n'est nécessaire ?
 - **JaCoCo** et **Jakarta** sont réservés aux projets Java.
 - En TypeScript, Jest génère nativement le format **LCOV**.
-- Le fichier `sonar-project.properties` pointe directement vers ce fichier :
+- Le fichier `backend/sonar-project.properties` pointe directement vers ce fichier :
   ```properties
   sonar.javascript.lcov.reportPaths=backend/coverage/lcov.info
   ```

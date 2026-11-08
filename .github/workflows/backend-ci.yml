@@ -10,7 +10,6 @@ on:
       - 'backend/**'
       - 'infra/**'
       - '.github/workflows/backend-ci.yml'
-      - 'sonar-project.properties'
 
   # Déclenchement lors de l'ouverture ou mise à jour d'une Pull Request / MR
   pull_request:
@@ -22,7 +21,6 @@ on:
       - 'backend/**'
       - 'infra/**'
       - '.github/workflows/backend-ci.yml'
-      - 'sonar-project.properties'
 
 jobs:
   backend-quality-and-tests:
@@ -100,5 +98,7 @@ jobs:
       - name: 6. SonarQube Cloud Scan
         uses: SonarSource/sonarqube-scan-action@v6
         if: env.SONAR_TOKEN != ''
+        with:
+          projectBaseDir: backend # sonar-project.properties lives there, its paths are relative to it
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
