@@ -12,6 +12,7 @@ import { parseTrustProxy } from './trust-proxy';
 import { installAuthBodyParsers } from './adapters/http/auth/auth-body-parsers';
 import { mountApiDocs } from './adapters/http/docs/api-docs';
 import { applyGlobalPrefix } from './global-prefix';
+import { createValidationPipe } from './adapters/http/validation/validation-pipe';
 
 async function bootstrap() {
   const app = await NestFactory.create<NestExpressApplication>(AppModule, { logger: ['log','error','warn','debug','verbose'] });
@@ -47,6 +48,11 @@ async function bootstrap() {
 
   // 3) Prefix global /api en excluant /cs2/logs et /sandbox (shared with the OpenAPI export)
   applyGlobalPrefix(app);
+
+  // Inputs of the routes that have a described class (DTO with class-validator rules): GG_VALIDATION = tolerant (default,
+  // logs what it would refuse), strict (400) or off
+  const validation = createValidationPipe();
+  if (validation) app.useGlobalPipes(validation);
 
   // API documentation (Swagger UI), only when GG_API_DOCS=1, admins only: after the prefix, the document lists the real paths
   if (mountApiDocs(app)) console.log('[docs] API documentation on /api/docs (admins only)');
