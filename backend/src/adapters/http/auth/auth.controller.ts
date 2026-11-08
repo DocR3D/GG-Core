@@ -59,7 +59,7 @@ export class AuthController {
   @Get('auth/steam/return')
   async steamReturn(@Req() req: Request, @Query() query: Record<string, unknown>, @Res() res: Response) {
     const next = safeNext(query.next);
-    let steam64: string | null = null;
+    let steam64: string | null;
     try {
       steam64 = await verifySteamAssertion(query, `${publicBase(req)}/auth/steam/return`);
     } catch {
