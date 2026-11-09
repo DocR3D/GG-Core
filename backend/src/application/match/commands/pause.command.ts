@@ -8,6 +8,9 @@ import { isNonPlayingSide, GameSide } from '@domain/side.types';
 import { CS2_CHAT_COMMANDS } from '@domain/rules/rules.constants';
 import { RoundRestoreService } from '../restore/round-restore.service';
 import { TournamentConfigService } from '@app/config/tournament-config.service';
+import { DEFAULT_BOT_TAG, DEFAULT_MESSAGES } from '@domain/config/config.constants';
+import { MessageKey } from '@domain/config/config.types';
+import { interpolateTemplate } from '@domain/config/template.utils';
 
 @Injectable()
 export class PauseCommand extends BaseCommand {
@@ -39,17 +42,17 @@ export class PauseCommand extends BaseCommand {
 
     const senderTeam = event.payload.sender.team;
     if (senderTeam !== 'CT' && senderTeam !== 'T') {
-      await ctx.say('Seuls les joueurs peuvent mettre le match en pause/reprise.');
+      await ctx.say(await this.message(event.matchId, 'PAUSE_ONLY_PLAYERS'));
       return false;
     }
 
     const isMatchPaused = await this.pauseService.isPaused(event.matchId);
     if (isPauseRequest && isMatchPaused) {
-      await ctx.say('Le match est déjà en pause.');
+      await ctx.say(await this.message(event.matchId, 'PAUSE_ALREADY'));
       return false;
     }
     if (isUnpauseRequest && !isMatchPaused) {
-      await ctx.say("Le match n'est pas en pause.");
+      await ctx.say(await this.message(event.matchId, 'UNPAUSE_NOT_PAUSED'));
       return false;
     }
 
@@ -63,6 +66,15 @@ export class PauseCommand extends BaseCommand {
   async handleReadyToResume(event: CommandEvent, ctx: RuleContext): Promise<boolean> {
     if (!(await this.pauseService.isPaused(event.matchId))) return false;
     return this.handle({ ...event, payload: { ...event.payload, command: 'unpause' } }, ctx);
+  }
+
+  /**
+   * A chat message from the catalogue (DEFAULT_MESSAGES, overridable per tournament). Without the config service
+   * (unit tests, no tournament) the default text and tag are used.
+   */
+  private async message(matchId: string, key: MessageKey, params: Record<string, unknown> = {}): Promise<string> {
+    if (this.configService) return this.configService.formatMessage(matchId, key, params);
+    return interpolateTemplate(DEFAULT_MESSAGES[key], { tag: DEFAULT_BOT_TAG, ...params });
   }
 
   /** The team's name for the chat ("Démo Rouge"), not its logical slot ("AWAY"). */
@@ -83,10 +95,7 @@ export class PauseCommand extends BaseCommand {
     if (isPauseRequest) {
       if (this.restoreService?.hasPendingUnpause(event.matchId)) {
         this.restoreService.clearUnpauseTimer(event.matchId);
-        const msg = this.configService
-          ? await this.configService.formatMessage(event.matchId, 'PAUSE_RESUME_INTERRUPTED')
-          : '[GG-Core] Reprise interrompue : pause prise en compte.';
-        await ctx.say(msg);
+        await ctx.say(await this.message(event.matchId, 'PAUSE_RESUME_INTERRUPTED'));
       }
       // Garde-fous: seuls les joueurs affectés à une équipe peuvent pauser
       if (isNonPlayingSide(event.payload.sender.team)) return false;
@@ -102,7 +111,6 @@ export class PauseCommand extends BaseCommand {
           ? event.payload.parameters.map(String).join(' ').trim()
           : undefined;
       const reasonLabel = customReason ? ` : "${customReason}"` : '';
-      const reasonFr = reason === 'tactical' ? 'tactique' : 'technique';
       const teamName = await this.teamLabel(ctx, event.matchId, team);
 
       // Politique d'autorisation (banque tactique, etc.)
@@ -111,13 +119,13 @@ export class PauseCommand extends BaseCommand {
         team,
       });
       if (!isAllowed.allowed) {
-        await ctx.say(
+        const denied: MessageKey =
           isAllowed.why === 'already_paused'
-            ? '[GG] Le match est déjà en pause.'
+            ? 'PAUSE_ALREADY'
             : isAllowed.why === 'no_bank'
-              ? "Vous n'avez plus de pauses tactiques."
-              : '[GG] Pause refusée.',
-        );
+              ? 'PAUSE_DENIED_NO_BANK'
+              : 'PAUSE_DENIED';
+        await ctx.say(await this.message(event.matchId, denied));
         return false;
       }
 
@@ -141,7 +149,10 @@ export class PauseCommand extends BaseCommand {
           },
         });
         await ctx.say(
-          `[GG] Pause ${reasonFr} de ${teamName} armée${reasonLabel} - début au prochain freeze.`,
+          await this.message(event.matchId, reason === 'tactical' ? 'PAUSE_TAC_ARMED' : 'PAUSE_TECH_ARMED', {
+            team: teamName,
+            reason: reasonLabel,
+          }),
         );
         return true;
       }
@@ -165,26 +176,23 @@ export class PauseCommand extends BaseCommand {
           serverId: event.serverId,
         });
         await ctx.say(
-          reason === 'tactical'
-            ? `[GG] Pause tactique de ${teamName}.`
-            : `[GG] Pause technique de ${teamName}${reasonLabel}. Pas de durée de fin : reprise avec !unpause ou !ready des deux équipes.`,
+          await this.message(event.matchId, reason === 'tactical' ? 'PAUSE_TAC_LIVE' : 'PAUSE_TECH_LIVE', {
+            team: teamName,
+            reason: reasonLabel,
+          }),
         );
         return true;
       }
 
       // Hors round (warmup, knife, fin de match) → on refuse avec le bon motif
       const matchPhase = (await ctx.state.getSnapshot(event.matchId))?.phase;
-      await ctx.say(
-        matchPhase === 'postgame'
-          ? 'Impossible de mettre en pause : le match est terminé.'
-          : "Impossible de mettre en pause : aucun round n'est en cours.",
-      );
+      await ctx.say(await this.message(event.matchId, matchPhase === 'postgame' ? 'PAUSE_DENIED_ENDED' : 'PAUSE_DENIED_NO_ROUND'));
       return false;
     }
 
     // Reprise (UNPAUSE)
     if (!(await this.pauseService.isPaused(event.matchId))) {
-      await ctx.say("Le match n'est pas en pause.");
+      await ctx.say(await this.message(event.matchId, 'UNPAUSE_NOT_PAUSED'));
       return false;
     }
     const pauseState = await this.pauseService.getPauseState(event.matchId);
@@ -194,14 +202,11 @@ export class PauseCommand extends BaseCommand {
         const { bothReady } = await this.pauseService.voteUnpause(event.matchId, team);
         if (!bothReady) {
           await ctx.say(
-            `[GG-Core] L'équipe ${await this.teamLabel(ctx, event.matchId, team)} est prête à reprendre. En attente de l'équipe adverse (!unpause ou !ready pour valider).`,
+            await this.message(event.matchId, 'UNPAUSE_WAITING', { team: await this.teamLabel(ctx, event.matchId, team) }),
           );
           return true;
         }
-        const msg = this.configService
-          ? await this.configService.formatMessage(event.matchId, 'UNPAUSE_AGREED')
-          : '[GG-Core] Accord des deux équipes reçu ! Reprise du match...';
-        await ctx.say(msg);
+        await ctx.say(await this.message(event.matchId, 'UNPAUSE_AGREED'));
       }
     }
     await this.pauseService.resume(event.matchId);
@@ -209,10 +214,7 @@ export class PauseCommand extends BaseCommand {
       matchId: event.matchId,
       serverId: event.serverId,
     });
-    const msg = this.configService
-      ? await this.configService.formatMessage(event.matchId, 'MATCH_RESUMED')
-      : '[GG] Le match a repris.';
-    await ctx.say(msg);
+    await ctx.say(await this.message(event.matchId, 'MATCH_RESUMED'));
     return true;
   }
 }
