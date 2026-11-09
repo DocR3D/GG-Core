@@ -50,7 +50,6 @@ export default tseslint.config(
     // domain/events/match.event.ts). The "any" rules are off for them only; every other file must be typed.
     // Remove a file from this list once it is typed - never add one.
     files: [
-      'src/adapters/ws/dto/events.mapper.ts',
       'src/application/match/backup/round-backup.service.ts',
       'src/application/match/rules/live.rule.ts',
       'src/application/match/sandbox/sandbox.service.ts',
