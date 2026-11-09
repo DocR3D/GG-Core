@@ -20,7 +20,7 @@ npm run check    # Exécute typecheck + lint + test:coverage
 Cette commande exécute séquentiellement :
 1. `npm run typecheck` (`tsc --noEmit`) : validation stricte des types TypeScript sur le code source ET les fichiers de tests.
 2. `npm run lint` (ESLint 9 + typescript-eslint) : détection des erreurs de style, imports inutilisés et `any` non autorisés.
-3. `npm run test:coverage` (Jest) : exécution des 465+ tests unitaires et de non-régression (Golden Master) avec génération du rapport de couverture LCOV dans `backend/coverage/lcov.info`.
+3. `npm run test:coverage` (Jest) : exécution des 465+ tests unitaires et de non-régression (Golden Master) avec génération du rapport de couverture LCOV dans `backend/coverage/lcov.info`. En CI, ce passage inclut les tests PostgreSQL réels (`DB_IT=1`, base préparée par `prisma db push`) : les services du tournoi sont testés presque uniquement par eux, donc la couverture envoyée à Sonar les compte (82 % des lignes au total, contre 73 % sans eux).
 
 ---
 
@@ -31,7 +31,7 @@ Le job `changes` regarde les fichiers modifiés par la PR et décide quels jobs 
 
 | Job | Se lance si la PR touche | Contenu |
 |---|---|---|
-| `Typecheck, Lint, Test & SonarQube Coverage` | `backend/`, `test/`, `infra/` | typecheck, lint, Jest avec couverture (Golden Master inclus), tests PostgreSQL réels (`DB_IT=1`), build NestJS, audit des dépendances (informatif), analyse SonarQube |
+| `Typecheck, Lint, Test & SonarQube Coverage` | `backend/`, `test/`, `infra/` | typecheck, lint, Jest avec couverture (Golden Master et tests PostgreSQL réels `DB_IT=1` inclus, en un seul passage), build NestJS, audit des dépendances (informatif), analyse SonarQube |
 | `End-to-end tournament scenario` | `backend/`, `test/`, `infra/` | backend réel démarré sur PostgreSQL 16 et Redis 7, puis `scripts/e2e-tournament.mjs` (l'équivalent de `make e2e-tournament`) |
 | `Go agent (build, vet, tests)` | `agent/` | `go build ./...`, `go vet ./...`, `go test ./...` |
 | `Docker images build` | un Dockerfile, `infra/`, `agent/`, `tools/log-drain/`, `backend/package*` ou `backend/prisma` | `docker build` (sans publication) du backend de dev, de l'agent/manager Go et de `tools/log-drain`. Le `Dockerfile` racine et `docker-compose.monolith.yml` ne sont pas construits : ils copient des dossiers qui n'existent plus |
