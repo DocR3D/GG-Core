@@ -13,7 +13,7 @@ export interface FakeMulti {
  * strings (pause, banks, flags). It is NOT a mock of one method at a time: the service runs against real data, so a
  * test fails when the state it leaves behind is wrong (which a mocked `hget` cannot show).
  *
- * Supported: hget, hgetall, hset (object or field + value), hsetnx, hdel, get, set (NX), rpush, lrange, sadd,
+ * Supported: hget, hgetall, hset (object or field + value), hsetnx, hdel, get, set (NX), rpush, lrange, lrem, lpos, sadd,
  * sismember, smembers, hincrby, hmget, mget, keys (glob with *), del, exists, multi (del / set / rpush / sadd / hset /
  * hincrby, then exec), expire (ignored).
  */
@@ -104,6 +104,27 @@ export class FakeRedis {
     list.push(...values);
     this.lists.set(key, list);
     return Promise.resolve(list.length);
+  }
+
+  /** Removes occurrences of `value` (count 0 = all of them); answers how many were removed. */
+  lrem(key: string, count: number, value: string): Promise<number> {
+    const list = this.lists.get(key);
+    if (!list) return Promise.resolve(0);
+    const limit = count === 0 ? Infinity : Math.abs(count);
+    const kept: string[] = [];
+    let removed = 0;
+    for (const item of list) {
+      if (item === value && removed < limit) removed += 1;
+      else kept.push(item);
+    }
+    this.lists.set(key, kept);
+    return Promise.resolve(removed);
+  }
+
+  /** Index of the first `value`, `null` when it is not in the list. */
+  lpos(key: string, value: string): Promise<number | null> {
+    const index = (this.lists.get(key) ?? []).indexOf(value);
+    return Promise.resolve(index === -1 ? null : index);
   }
 
   /** Same bounds as Redis: `stop` -1 means "to the end". */
