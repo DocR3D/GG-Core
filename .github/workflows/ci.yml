@@ -119,30 +119,28 @@ jobs:
         working-directory: ./backend
         run: npm run lint
 
-      - name: 3. Unit Tests & Golden Master with Coverage (LCOV)
-        working-directory: ./backend
-        run: npm run test:coverage
-
-      - name: 4. Real PostgreSQL Integration Tests
+      # One run for everything, PostgreSQL specs included, so that the coverage sent to Sonar counts what they
+      # cover (the tournament services are tested almost only by them: 5-11% without, 83-91% with).
+      - name: 3. Unit, Golden Master and real PostgreSQL tests with Coverage (LCOV)
         working-directory: ./backend
         env:
           DATABASE_URL: "postgresql://postgres:postgres@localhost:5432/ggcore_ci?schema=public"
           DB_IT: "1"
         run: |
           npx prisma db push --skip-generate
-          npx jest --config jest.config.ts db.spec
+          npm run test:coverage
 
-      - name: 5. Build NestJS Backend
+      - name: 4. Build NestJS Backend
         working-directory: ./backend
         run: npm run build
 
       # Informative: the production vulnerabilities left need major upgrades (NestJS 11/12 with Express 5, Prisma 7).
-      - name: 6. Dependency audit (production, informative)
+      - name: 5. Dependency audit (production, informative)
         working-directory: ./backend
         continue-on-error: true
         run: npm audit --omit=dev --audit-level=high
 
-      - name: 7. SonarQube Cloud Scan
+      - name: 6. SonarQube Cloud Scan
         uses: SonarSource/sonarqube-scan-action@e805d875275f728fac1885b413934be6d7c63f65 # v8.4.1
         if: env.SONAR_TOKEN != ''
         with:
