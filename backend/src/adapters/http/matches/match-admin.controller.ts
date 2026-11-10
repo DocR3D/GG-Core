@@ -16,8 +16,8 @@ import {
 import type { Request } from 'express';
 import type { Session } from '@app/auth/auth.service';
 import { MatchAdminError, MatchAdminService } from '@app/match/admin/match-admin.service';
-import { RestoreBackupService, RestoreStateError, type RestoreBackup } from '@app/match/restore/restore-backup.service';
-import type { RestoreState } from '@domain/restore/restore-state';
+import { RestoreBackupService, RestoreStateError } from '@app/match/restore/restore-backup.service';
+import { RestoreBackupDto, RestoreStateDto } from './dto/restore-state.dto';
 import { authorOf } from '../tournament/tournament-matches.controller';
 
 type AdminRequest = Request & { ggSession?: Session | null };
@@ -86,7 +86,7 @@ export class MatchAdminController {
    */
   @Post('manual-restore/backup')
   @HttpCode(200)
-  restoreBackup(@Param('id') matchId: string, @Body() body: RestoreState): Promise<RestoreBackup> {
+  restoreBackup(@Param('id') matchId: string, @Body() body: RestoreStateDto): Promise<RestoreBackupDto> {
     return this.run(() => this.restoreBackups.build(matchId, body));
   }
 
