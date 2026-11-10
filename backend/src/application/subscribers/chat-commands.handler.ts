@@ -8,6 +8,7 @@ import { TournamentConfigService } from '@app/config/tournament-config.service';
 import type { CommandEvent } from '@domain/events/command.event';
 
 import { isNonPlayingSide } from '@domain/side.types';
+import { isDevMode } from '@app/shared/app-mode';
 import { CS2_CHAT_COMMANDS, normalizeChatCommand } from '@domain/rules/rules.constants';
 type GameSide = 'CT' | 'T' | 'SPECTATOR';
 type Channel  = 'say' | 'say_team';
@@ -107,6 +108,12 @@ private ensureGlobalInit() {
       }
     }
     if (ev.payload) ev.payload.command = command;
+
+    // !init starts a match from the chat, outside a tournament: a development tool, closed everywhere else
+    if (command === CS2_CHAT_COMMANDS.INIT && !isDevMode()) {
+      this.logger.debug(`[COMMAND] ignored: !init only works in dev mode (match=${ev.matchId})`);
+      return;
+    }
     const params  = ev.payload?.parameters ?? [];
 
     const side  = sender.team as GameSide;

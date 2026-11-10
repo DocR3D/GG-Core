@@ -67,6 +67,8 @@ services:
       - ../test:/test:ro # fixtures pour la Sandbox et les tests Golden Master
       - ../frontend/dist:/front:ro # front React compilé (make front), servi par le backend
     environment:
+      # Mode of the application (dev | rec | prod, prod when absent): GG_ENV=rec make up to try another one
+      GG_ENV: "${GG_ENV:-dev}"
       PORT: "8081"
       FRONT_DIST: "/front"
       WS_PATH: "/ws"
@@ -115,6 +117,7 @@ services:
       ggcore:
         ipv4_address: 172.30.0.10
     environment:
+      GG_ENV: "${GG_ENV:-dev}"
       # le backend demande "knife.cfg", "warmup.cfg"… : ils sont dans agent/cfg/ggbot/
       CFG_BASE: /app/cfg/ggbot
       # Expansés dans agents.d/*.yaml (${GG_…:-défaut natif})
@@ -146,6 +149,8 @@ services:
         BACKEND_URL: "http://backend:8081"
     container_name: ggcore-front-dev
     profiles: ["front"]
+    environment:
+      GG_ENV: "${GG_ENV:-dev}"
     networks:
       ggcore:
         ipv4_address: 172.30.0.20
