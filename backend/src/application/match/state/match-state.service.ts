@@ -287,6 +287,15 @@ export class MatchStateService {
   async snapshotRound(matchId: string, roundsPlayed: number) {
     await this.playerStats.snapshotPlayerStats(matchId, roundsPlayed);
     await this.economy.snapshotTeamEconomy(matchId, roundsPlayed);
+    await this.economy.snapshotPlayersEconomy(matchId, roundsPlayed);
+  }
+  /** What the teams' loss streaks were at the start of that round (null: no photo). */
+  getTeamEconomyAt(matchId: string, roundsPlayed: number) {
+    return this.economy.getTeamEconomyAt(matchId, roundsPlayed);
+  }
+  /** What each player had at the start of that round (null: no photo). */
+  getPlayersEconomyAt(matchId: string, roundsPlayed: number) {
+    return this.economy.getPlayersEconomyAt(matchId, roundsPlayed);
   }
   /** Backup restore CS2 : remet stats joueurs et séries d'équipe à la photo. Retourne false sans photo. */
   async restoreRound(matchId: string, roundsPlayed: number): Promise<boolean> {

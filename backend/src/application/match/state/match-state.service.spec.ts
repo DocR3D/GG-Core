@@ -125,6 +125,7 @@ describe('MatchStateService : a round, photographed then restored', () => {
 
     expect(playerStats.snapshotPlayerStats).toHaveBeenCalledWith(M, 12);
     expect(economy.snapshotTeamEconomy).toHaveBeenCalledWith(M, 12);
+    expect(economy.snapshotPlayersEconomy).toHaveBeenCalledWith(M, 12);
   });
 
   it('restores both, and says so', async () => {
@@ -209,6 +210,8 @@ describe('MatchStateService : hand-over to the owner of each state', () => {
     ['getTeamEconomyMeta', [M], 'economy', 'getTeamEconomyMeta'],
     ['setTeamLossStreak', [M, 'home', 2], 'economy', 'setTeamLossStreak'],
     ['getSnapshot', [M], 'snapshotQ', 'getSnapshot'],
+    ['getTeamEconomyAt', [M, 12], 'economy', 'getTeamEconomyAt'],
+    ['getPlayersEconomyAt', [M, 12], 'economy', 'getPlayersEconomyAt'],
   ];
 
   it.each(cases)('%s goes to %s.%s with the same arguments', async (method, args, owner, target) => {
