@@ -1,14 +1,18 @@
 import type { INestApplication } from '@nestjs/common';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import type { OpenAPIObject } from '@nestjs/swagger';
+import { appMode } from '@app/shared/app-mode';
 
 /** Where the documentation is served: the page, and the OpenAPI document it shows. */
 export const API_DOCS_PATH = 'api/docs';
 export const API_DOCS_JSON_PATH = 'api/docs-json';
 
-/** The documentation exists only when GG_API_DOCS=1 (the dev compose sets it; nothing else does). */
+/**
+ * The documentation exists in the dev and rec modes, never in prod (nothing opens it there). GG_API_DOCS=0 closes it in
+ * dev and rec too.
+ */
 export function docsEnabled(env: NodeJS.ProcessEnv = process.env): boolean {
-  return env.GG_API_DOCS === '1';
+  return appMode(env) !== 'prod' && env.GG_API_DOCS !== '0';
 }
 
 /** The OpenAPI document of the application (same builder for the page and for the export). */
@@ -23,7 +27,7 @@ export function buildOpenApiDocument(app: INestApplication): OpenAPIObject {
 }
 
 /**
- * Serves the Swagger UI on /api/docs and the document on /api/docs-json, when GG_API_DOCS=1. Nothing is registered
+ * Serves the Swagger UI on /api/docs and the document on /api/docs-json, outside the prod mode. Nothing is registered
  * otherwise: the routes answer 404 for everybody, an admin included. When it is on, the access middleware keeps both
  * for admins only (see isPublic). Call it after the global prefix is set.
  */

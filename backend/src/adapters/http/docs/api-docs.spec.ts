@@ -1,5 +1,5 @@
 /**
- * The API documentation page: mounted only when GG_API_DOCS=1, and then reserved for admins. The tests run it behind the
+ * The API documentation page: mounted in the dev and rec modes (never in prod), and then reserved for admins. The tests run it behind the
  * REAL AuthMiddleware (only the AuthService is replaced), so they check the rule of isPublic end to end.
  */
 import { Controller, Get, INestApplication } from '@nestjs/common';
@@ -42,23 +42,36 @@ async function get(base: string, path: string, headers: Record<string, string> =
 }
 
 describe('docsEnabled', () => {
-  it('is on only for GG_API_DOCS=1', () => {
-    expect(docsEnabled({ GG_API_DOCS: '1' })).toBe(true);
-    for (const value of [undefined, '', '0', 'true', 'yes']) expect(docsEnabled({ GG_API_DOCS: value })).toBe(false);
+  it.each(['dev', 'rec'])('is open in the %s mode', (GG_ENV) => {
+    expect(docsEnabled({ GG_ENV })).toBe(true);
+  });
+
+  it('is closed in prod, and when the mode is missing or unknown (that is prod)', () => {
+    for (const GG_ENV of ['prod', undefined, '', 'staging']) expect(docsEnabled({ GG_ENV })).toBe(false);
+  });
+
+  it('nothing opens it in prod, not even GG_API_DOCS=1', () => {
+    expect(docsEnabled({ GG_ENV: 'prod', GG_API_DOCS: '1' })).toBe(false);
+    expect(docsEnabled({ GG_API_DOCS: '1' })).toBe(false);
+  });
+
+  it.each(['dev', 'rec'])('GG_API_DOCS=0 closes it in the %s mode', (GG_ENV) => {
+    expect(docsEnabled({ GG_ENV, GG_API_DOCS: '0' })).toBe(false);
+    expect(docsEnabled({ GG_ENV, GG_API_DOCS: '1' })).toBe(true);
   });
 });
 
 describe('API documentation page', () => {
-  it('switched off (the default): nothing is mounted, the routes do not exist, not even for an admin', async () => {
-    const { app, base, mounted } = await boot({});
+  it('in prod: nothing is mounted, the routes do not exist, not even for an admin', async () => {
+    const { app, base, mounted } = await boot({ GG_ENV: 'prod' });
     expect(mounted).toBe(false);
     expect((await get(base, '/api/docs', { authorization: 'Bearer adm' })).status).toBe(404);
     expect((await get(base, '/api/docs-json', { authorization: 'Bearer adm' })).status).toBe(404);
     await app.close();
   });
 
-  it('switched on: 401 without login, 200 for an admin (page and document), other public reads unchanged', async () => {
-    const { app, base, mounted } = await boot({ GG_API_DOCS: '1' });
+  it('in dev: 401 without login, 200 for an admin (page and document), other public reads unchanged', async () => {
+    const { app, base, mounted } = await boot({ GG_ENV: 'dev' });
     expect(mounted).toBe(true);
     for (const path of ['/api/docs', '/api/docs-json']) expect((await get(base, path)).status).toBe(401);
     const page = await get(base, '/api/docs', { authorization: 'Bearer adm' });

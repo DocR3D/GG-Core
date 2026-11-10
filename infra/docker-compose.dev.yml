@@ -80,7 +80,6 @@ services:
       GG_ADMIN_STEAMIDS: "${GG_ADMIN_STEAMIDS:-}"
       GG_ADMIN_PASSWORD: "${GG_ADMIN_PASSWORD:?missing: run make up (generates .env)}"
       GG_ADMIN_TOKEN: "${GG_ADMIN_TOKEN:?missing: run make up (generates .env)}"
-      GG_API_DOCS: "${GG_API_DOCS:-1}" # API documentation on /api/docs (admins only); 0 to switch it off, absent = off
       AUTH_PUBLIC_URL: "${AUTH_PUBLIC_URL:-}"
       # Derrière le front Next (profil front) : seule son IP fixe peut fournir l'adresse du client (limite d'essais du
       # login). Sans proxy devant le backend, aucune valeur à régler.

@@ -51,12 +51,25 @@ JWT_SECRET, GG_ADMIN_TOKEN, GG_ADMIN_PASSWORD, GG_LOGS_TOKEN, GG_RCON_PASSWORD
 # À renseigner
 GG_ADMIN_STEAMIDS=<SteamID64 des admins, séparés par des virgules>
 AUTH_PUBLIC_URL=                 # URL publique si Steam doit renvoyer le navigateur ailleurs (tunnel)
-AUTH_DISABLED=                   # 1 = pas d'authentification (dev jetable uniquement, jamais en LAN)
-GG_API_DOCS=                     # 1 = documentation de l'API sur /api/docs (Swagger UI, admins seulement) ; le compose de dev la met à 1, vide = absente (404)
-GG_VALIDATION=                   # entrées des routes qui ont une classe décrite : tolerant (défaut : laisse passer et journalise ce qu'elle refuserait), strict (400), off
+AUTH_DISABLED=                   # 1 = pas d'authentification (dev jetable uniquement) : refusé hors GG_ENV=dev, le backend ne démarre pas
+GG_API_DOCS=                     # 0 = ferme la documentation de l'API (/api/docs, Swagger UI, admins seulement) en dev et rec ; elle y est ouverte par défaut et jamais en prod
+GG_VALIDATION=                   # entrées des routes qui ont une classe décrite : tolerant (laisse passer et journalise ce qu'elle refuserait ; défaut en dev), strict (400 ; défaut en rec et prod), off
 GG_ENV=                          # mode de l'application : dev | rec (recette) | prod ; prod si absent ou inconnu (un oubli ferme les outils de dev, il ne les ouvre pas). Le compose de dev met dev et le transmet au backend, au manager et au front ; NODE_ENV reste pour Node et ses bibliothèques
-                                 # Branché aujourd'hui : la commande de chat !init (démarrer un match hors tournoi, outil de dev) ne marche qu'en dev. À rattacher au mode ensuite : /api/docs, AUTH_DISABLED, les pages Sandbox, la validation par défaut
+                                 # Ce que chaque mode ouvre ou ferme : voir « Modes de l'application » plus bas
 ```
+
+## Modes de l'application (`GG_ENV`)
+Une seule variable, lue en un seul endroit (`appMode()`, `backend/src/application/shared/app-mode.ts`). Absente ou inconnue, le mode est `prod` : un oubli ferme les outils de dev, il ne les ouvre pas. `NODE_ENV` reste pour Node et ses bibliothèques.
+
+| | dev | rec (recette) | prod |
+|---|---|---|---|
+| Commande de chat `!init` | oui | non | non |
+| Documentation de l'API (`/api/docs`, admins) | oui (`GG_API_DOCS=0` la ferme) | oui | non |
+| `AUTH_DISABLED=1` (plus d'authentification) | oui | **le backend refuse de démarrer** | **le backend refuse de démarrer** |
+| Pages et outils Sandbox (`/sandbox`) | oui | oui | non (404 pour tous) |
+| Validation des entrées par défaut (`GG_VALIDATION` la fixe) | tolerant | strict | strict |
+
+Le compose de dev met `GG_ENV=dev` (`GG_ENV=rec make up` pour en essayer un autre) et le transmet au backend, au manager et au front. Le futur compose de production écrira `GG_ENV: prod` en dur, sans le lire dans `.env`, pour qu'un `.env` copié d'un poste de dev ne puisse pas ouvrir les outils sur le serveur de la LAN. La CI qui joue le scénario de tournoi (il utilise la Sandbox) tourne en `dev`.
 
 ## Structure des dossiers infra
 ```

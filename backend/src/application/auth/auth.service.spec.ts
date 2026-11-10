@@ -130,11 +130,23 @@ describe('règles d’accès', () => {
     expect(call('POST', '/veto/m1/step').res.status).toHaveBeenCalledWith(401);
   });
 
-  it('AUTH_DISABLED=1 laisse tout passer (dev jetable uniquement)', () => {
-    process.env = { ...ENV, AUTH_DISABLED: '1', JWT_SECRET: 's' };
+  it('AUTH_DISABLED=1 laisse tout passer en mode dev (dev jetable uniquement)', () => {
+    process.env = { ...ENV, AUTH_DISABLED: '1', GG_ENV: 'dev', JWT_SECRET: 's' };
     const mw = new AuthMiddleware(service());
     const next = jest.fn();
     mw.use({ method: 'DELETE', path: '/api/x', originalUrl: '/api/x', headers: {}, accepts: () => false } as any, {} as any, next);
     expect(next).toHaveBeenCalled();
+  });
+
+  it.each(['rec', 'prod', undefined, 'staging'])("AUTH_DISABLED=1 est ignoré hors du mode dev (GG_ENV=%s) : l'authentification reste en place", (GG_ENV) => {
+    process.env = { ...ENV, AUTH_DISABLED: '1', ...(GG_ENV ? { GG_ENV } : {}), JWT_SECRET: 's' };
+    const res = { status: jest.fn().mockReturnThis(), json: jest.fn() };
+    const next = jest.fn();
+
+    new AuthMiddleware(service()).use({ method: 'DELETE', path: '/api/x', originalUrl: '/api/x', headers: {}, accepts: () => false } as any, res as any, next);
+
+    expect(service().disabled).toBe(false);
+    expect(next).not.toHaveBeenCalled();
+    expect(res.status).toHaveBeenCalledWith(401);
   });
 });

@@ -29,17 +29,29 @@ async function post(base: string, body: unknown) {
 }
 
 describe('validationMode', () => {
-  it('is tolerant by default and for any value it does not know; strict and off on request', () => {
-    expect(validationMode({})).toBe('tolerant');
-    expect(validationMode({ GG_VALIDATION: '' })).toBe('tolerant');
-    expect(validationMode({ GG_VALIDATION: 'whatever' })).toBe('tolerant');
-    expect(validationMode({ GG_VALIDATION: 'strict' })).toBe('strict');
-    expect(validationMode({ GG_VALIDATION: ' STRICT ' })).toBe('strict');
-    expect(validationMode({ GG_VALIDATION: 'off' })).toBe('off');
+  it('follows the mode of the application when nothing is asked: tolerant in dev, strict in rec and prod', () => {
+    expect(validationMode({ GG_ENV: 'dev' })).toBe('tolerant');
+    expect(validationMode({ GG_ENV: 'rec' })).toBe('strict');
+    expect(validationMode({ GG_ENV: 'prod' })).toBe('strict');
+    expect(validationMode({})).toBe('strict'); // no mode is prod
+  });
+
+  it('follows the mode too for a value it does not know', () => {
+    expect(validationMode({ GG_ENV: 'dev', GG_VALIDATION: '' })).toBe('tolerant');
+    expect(validationMode({ GG_ENV: 'dev', GG_VALIDATION: 'whatever' })).toBe('tolerant');
+    expect(validationMode({ GG_ENV: 'prod', GG_VALIDATION: 'whatever' })).toBe('strict');
+  });
+
+  it('is what GG_VALIDATION says, in any mode', () => {
+    for (const GG_ENV of ['dev', 'rec', 'prod']) {
+      expect(validationMode({ GG_ENV, GG_VALIDATION: 'tolerant' })).toBe('tolerant');
+      expect(validationMode({ GG_ENV, GG_VALIDATION: ' STRICT ' })).toBe('strict');
+      expect(validationMode({ GG_ENV, GG_VALIDATION: 'off' })).toBe('off');
+    }
   });
 
   it('gives the matching pipe, none when off', () => {
-    expect(createValidationPipe({})).toBeInstanceOf(TolerantValidationPipe);
+    expect(createValidationPipe({ GG_ENV: 'dev' })).toBeInstanceOf(TolerantValidationPipe);
     expect(createValidationPipe({ GG_VALIDATION: 'off' })).toBeNull();
     expect(createValidationPipe({ GG_VALIDATION: 'strict' })).not.toBeInstanceOf(TolerantValidationPipe);
   });
@@ -57,14 +69,14 @@ describe('inputs of a described route', () => {
   ];
 
   it('tolerant: a valid body goes through and nothing is logged', async () => {
-    const { app, base } = await boot({});
+    const { app, base } = await boot({ GG_ENV: 'dev' });
     expect(await post(base, { names: ['Alpha'] })).toEqual({ status: 201, body: { received: { names: ['Alpha'] } } });
     expect(warn).not.toHaveBeenCalled();
     await app.close();
   });
 
   it.each(invalid)('tolerant: %s goes through unchanged and the broken rule is logged (never the value)', async (_label, body) => {
-    const { app, base } = await boot({});
+    const { app, base } = await boot({ GG_ENV: 'dev' });
     const answer = await post(base, body);
     expect(answer.status).toBe(201);
     expect(answer.body).toEqual({ received: body }); // exactly what was sent, nothing converted or stripped
