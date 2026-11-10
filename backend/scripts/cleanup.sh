@@ -104,7 +104,7 @@ Flux : adapters → application → domain. Pas l’inverse.
 
 ## Détails
 - **domain/events/** : types d'événements canoniques (source de vérité).
-- **adapters/ws/dto/** : contrats WebSocket pour le front + `events.mapper.ts` (domain → WS).
+- **adapters/ws/dto/** : contrats WebSocket pour le front.
 - **adapters/streams/** : consommateurs des flux (Redis/XREAD) → délèguent à `application/subscribers/*`.
 - **application/subscribers/** : handlers métier (routing, règles, orchestration).
 - **application/match/rules/** : règles concrètes (knife, live, warmup) + `RuleRegistry`.
