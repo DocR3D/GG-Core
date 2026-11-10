@@ -2,7 +2,7 @@
  * ChatCommandHandler : what the bot does with a line typed in the game chat. Spectators and players without a team are
  * ignored in silence (nothing done, nothing said, so the players are never disturbed), a player cannot flood the bot,
  * the command goes to the rule of the current phase, and !init (start a match from the chat, outside a tournament) is
- * a development tool: it works only when NODE_ENV=development.
+ * a development tool: it works only in the dev mode (GG_ENV=dev).
  */
 import { Logger } from '@nestjs/common';
 import { ChatCommandHandler } from './chat-commands.handler';
@@ -44,7 +44,7 @@ describe('ChatCommandHandler', () => {
   let warn: jest.SpyInstance;
   let envBefore: string | undefined;
   beforeEach(() => {
-    envBefore = process.env.NODE_ENV;
+    envBefore = process.env.GG_ENV;
     jest.spyOn(Logger.prototype, 'log').mockImplementation(() => undefined);
     jest.spyOn(Logger.prototype, 'debug').mockImplementation(() => undefined);
     warn = jest.spyOn(Logger.prototype, 'warn').mockImplementation(() => undefined);
@@ -52,8 +52,8 @@ describe('ChatCommandHandler', () => {
   afterEach(() => {
     jest.useRealTimers();
     jest.restoreAllMocks();
-    if (envBefore === undefined) delete process.env.NODE_ENV;
-    else process.env.NODE_ENV = envBefore;
+    if (envBefore === undefined) delete process.env.GG_ENV;
+    else process.env.GG_ENV = envBefore;
   });
 
   describe('a command from a player', () => {
@@ -114,8 +114,8 @@ describe('ChatCommandHandler', () => {
   });
 
   describe('!init, a development tool', () => {
-    it('starts a match from the chat in development mode, with the match, the map and the team names it was given', async () => {
-      process.env.NODE_ENV = 'development';
+    it('starts a match from the chat in dev mode, with the match, the map and the team names it was given', async () => {
+      process.env.GG_ENV = 'dev';
       const { handler, matchCmds } = setup({ handles: false }); // no rule of a phase handles !init: it is a global command
 
       await handler.handle(event('init', { parameters: ['m-9', 'de_nuke', 'Démo Rouge', 'Démo Bleue'] }));
@@ -130,7 +130,7 @@ describe('ChatCommandHandler', () => {
       [['de_nuke', 'Rouge'], undefined, 'de_nuke', 'Rouge', undefined],
       [['de_nuke', 'Rouge', 'Bleue'], undefined, 'de_nuke', 'Rouge', 'Bleue'],
     ])('reads %j as map, home and away when there is no match id, and falls back to the match of the event', async (parameters, matchIdParam, map, home, away) => {
-      process.env.NODE_ENV = 'development';
+      process.env.GG_ENV = 'dev';
       const { handler, matchCmds } = setup({ handles: false }); // no rule of a phase handles !init: it is a global command
 
       await handler.handle(event('init', { parameters }));
@@ -141,7 +141,7 @@ describe('ChatCommandHandler', () => {
     });
 
     it('ignores empty parameters', async () => {
-      process.env.NODE_ENV = 'development';
+      process.env.GG_ENV = 'dev';
       const { handler, matchCmds } = setup({ handles: false }); // no rule of a phase handles !init: it is a global command
 
       await handler.handle(event('init', { parameters: ['  ', 'de_nuke', ''] }));
@@ -150,7 +150,7 @@ describe('ChatCommandHandler', () => {
     });
 
     it.each<Team>(['SPECTATOR', 'Unassigned'])('is the one command still accepted from somebody who is "%s", for the first line typed on a new server', async (team) => {
-      process.env.NODE_ENV = 'development';
+      process.env.GG_ENV = 'dev';
       const { handler, matchCmds } = setup({ handles: false }); // no rule of a phase handles !init: it is a global command
 
       await handler.handle(event('init', { team, parameters: ['de_nuke'] }));
@@ -158,9 +158,9 @@ describe('ChatCommandHandler', () => {
       expect(matchCmds.ensureInitMatch).toHaveBeenCalledTimes(1);
     });
 
-    it.each(['production', 'test', '', undefined])('does nothing, for anybody, when NODE_ENV is %j', async (value) => {
-      if (value === undefined) delete process.env.NODE_ENV;
-      else process.env.NODE_ENV = value;
+    it.each(['prod', 'rec', '', 'development', undefined])('does nothing, for anybody, when GG_ENV is %j', async (value) => {
+      if (value === undefined) delete process.env.GG_ENV;
+      else process.env.GG_ENV = value;
       const { handler, matchCmds, rule } = setup();
 
       await handler.handle(event('init', { parameters: ['de_nuke'] }));
@@ -172,7 +172,7 @@ describe('ChatCommandHandler', () => {
     });
 
     it('is closed too when the tournament renames it: the alias leads to the same command', async () => {
-      process.env.NODE_ENV = 'production';
+      process.env.GG_ENV = 'prod';
       const config = { resolveCommand: jest.fn().mockResolvedValue({ canonical: 'init', isAllowed: true }) };
       const { handler, matchCmds } = setup({ config });
 
