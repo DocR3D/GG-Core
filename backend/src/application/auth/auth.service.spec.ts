@@ -1,4 +1,4 @@
-import { AuthService, SESSION_COOKIE } from './auth.service';
+import { AuthService, SESSION_COOKIE, sessionHours } from './auth.service';
 import { AuthMiddleware, isPublic } from '@adapters/http/auth/auth.middleware';
 
 const ENV = { ...process.env };
@@ -148,5 +148,46 @@ describe('règles d’accès', () => {
     expect(service().disabled).toBe(false);
     expect(next).not.toHaveBeenCalled();
     expect(res.status).toHaveBeenCalledWith(401);
+  });
+});
+
+describe('how long a login lasts', () => {
+  const sessionOf = { sub: 'local-admin', role: 'admin', name: 'admin', via: 'password' } as const;
+
+  afterEach(() => {
+    process.env = { ...ENV };
+  });
+
+  it('is 24 hours without a setting, and for anything that is not a positive number', () => {
+    expect(sessionHours({})).toBe(24);
+    for (const value of ['', '  ', 'abc', '0', '-3', 'NaN', 'Infinity']) expect(sessionHours({ GG_SESSION_HOURS: value })).toBe(24);
+  });
+
+  it('is what GG_SESSION_HOURS says, a fraction of an hour included', () => {
+    expect(sessionHours({ GG_SESSION_HOURS: '8' })).toBe(8);
+    expect(sessionHours({ GG_SESSION_HOURS: '0.5' })).toBe(0.5);
+    expect(sessionHours({ GG_SESSION_HOURS: ' 72 ' })).toBe(72);
+  });
+
+  it('sets the lifetime of the signed session and of its cookie, both from the setting', () => {
+    process.env = { ...ENV, JWT_SECRET: 's', GG_SESSION_HOURS: '2' };
+    const auth = service();
+    const token = auth.sign(sessionOf);
+    const { iat, exp } = JSON.parse(Buffer.from(token.split('.')[1], 'base64url').toString()) as { iat: number; exp: number };
+
+    expect(exp - iat).toBe(2 * 3600);
+    expect(auth.cookie(token)).toContain('Max-Age=7200');
+    expect(auth.cookie(token)).toContain('HttpOnly');
+    expect(auth.cookie(null)).toContain('Max-Age=0');
+  });
+
+  it('is 24 hours for the session and the cookie when nothing is set', () => {
+    process.env = { ...ENV, JWT_SECRET: 's' };
+    delete process.env.GG_SESSION_HOURS;
+    const auth = service();
+    const { iat, exp } = JSON.parse(Buffer.from(auth.sign(sessionOf).split('.')[1], 'base64url').toString()) as { iat: number; exp: number };
+
+    expect(exp - iat).toBe(24 * 3600);
+    expect(auth.cookie('t')).toContain('Max-Age=86400');
   });
 });

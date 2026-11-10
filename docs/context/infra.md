@@ -51,6 +51,7 @@ JWT_SECRET, GG_ADMIN_TOKEN, GG_ADMIN_PASSWORD, GG_LOGS_TOKEN, GG_RCON_PASSWORD
 # À renseigner
 GG_ADMIN_STEAMIDS=<SteamID64 des admins, séparés par des virgules>
 AUTH_PUBLIC_URL=                 # URL publique si Steam doit renvoyer le navigateur ailleurs (tunnel)
+GG_SESSION_HOURS=               # durée d'une connexion, en heures (nombre positif, 24 par défaut)
 AUTH_DISABLED=                   # 1 = pas d'authentification (dev jetable uniquement) : refusé hors GG_ENV=dev, le backend ne démarre pas
 GG_API_DOCS=                     # 0 = ferme la documentation de l'API (/api/docs, Swagger UI, admins seulement) en dev et rec ; elle y est ouverte par défaut et jamais en prod
 GG_VALIDATION=                   # entrées des routes qui ont une classe décrite : tolerant (laisse passer et journalise ce qu'elle refuserait ; défaut en dev), strict (400 ; défaut en rec et prod), off

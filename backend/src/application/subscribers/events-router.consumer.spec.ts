@@ -71,9 +71,10 @@ describe('EventsRouterSubscriber : listening', () => {
 describe('EventsRouterSubscriber : routing', () => {
   let warn: jest.SpyInstance;
   let error: jest.SpyInstance;
+  let debug: jest.SpyInstance;
   beforeEach(() => {
     jest.spyOn(Logger.prototype, 'log').mockImplementation(() => undefined);
-    jest.spyOn(Logger.prototype, 'debug').mockImplementation(() => undefined);
+    debug = jest.spyOn(Logger.prototype, 'debug').mockImplementation(() => undefined);
     warn = jest.spyOn(Logger.prototype, 'warn').mockImplementation(() => undefined);
     error = jest.spyOn(Logger.prototype, 'error').mockImplementation(() => undefined);
   });
@@ -175,22 +176,36 @@ describe('EventsRouterSubscriber : routing', () => {
     expect(matchEvents.handle).not.toHaveBeenCalled();
   });
 
-  it('drops a message that has neither a match nor a server', async () => {
-    const { matchEvents, lookup, deliver } = await started();
+  it.each([
+    ['neither a match nor a server', { type: 'kill' }],
+    ['the placeholder "unknown" and no server to look it up from', { type: 'kill', matchId: 'unknown' }],
+  ])('drops a message that has %s', async (_label, message) => {
+    const { matchEvents, chatCommands, lookup, deliver } = await started();
 
-    await deliver({ type: 'kill' });
+    await deliver(message);
 
     expect(lookup).not.toHaveBeenCalled();
     expect(matchEvents.handle).not.toHaveBeenCalled();
+    expect(chatCommands.handle).not.toHaveBeenCalled();
   });
 
-  // Written down as it is today, so a change is a choice: with no server to ask, a match called "unknown" goes on to the handlers.
-  it('lets a match called "unknown" through when there is no server to look it up from', async () => {
-    const { matchEvents, deliver } = await started();
+  it('writes down every message it drops for want of a match, at debug level, with its type and its server', async () => {
+    const { deliver } = await started({ matchIdOfServer: null });
 
-    await deliver({ type: 'kill', matchId: 'unknown' });
+    await deliver({ type: 'kill', matchId: 'unknown', serverId: 'srv-a' });
+    await deliver({ type: 'chat_message' });
 
-    expect(matchEvents.handle).toHaveBeenCalledWith(expect.objectContaining({ matchId: 'unknown' }));
+    expect(debug).toHaveBeenCalledWith(expect.stringContaining('dropped kill: no match (server=srv-a)'));
+    expect(debug).toHaveBeenCalledWith(expect.stringContaining('dropped chat_message: no match (server=∅)'));
+    expect(warn).not.toHaveBeenCalled(); // a server that is not in a match sends lines all the time: no warning each
+  });
+
+  it('does not write a drop down for a message that found its match', async () => {
+    const { deliver } = await started();
+
+    await deliver({ type: 'kill', matchId: M });
+
+    expect(debug).not.toHaveBeenCalledWith(expect.stringContaining('dropped'));
   });
 
   it.each([

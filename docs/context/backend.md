@@ -189,7 +189,7 @@ Redis ggbot:events
 - `/login` n'est proposé qu'à un visiteur non connecté (connecté : renvoyé vers `next`) ; changer de compte = se
   déconnecter (barre du site : nom + « Se déconnecter ») ;
 - `GET /login` (page), `GET /auth/steam` → Steam OpenID → `GET /auth/steam/return` (assertion vérifiée auprès de Steam, rôle selon le SteamID : admin si dans `GG_ADMIN_STEAMIDS`, joueur si SteamID connu, sinon visiteur), `POST /auth/local` (formulaire avec redirection, ou JSON `200 { ok, session }`, `401`, `429`), `GET /auth/logout` (redirection), `POST /auth/logout` (`204`), `GET /auth/me` ;
-- session : JWT signé (`JWT_SECRET`) dans un cookie HttpOnly (24 h) ; scripts / curl : `Authorization: Bearer <GG_ADMIN_TOKEN>`.
+- session : JWT signé (`JWT_SECRET`) dans un cookie HttpOnly (24 h par défaut, `GG_SESSION_HOURS` pour la changer) ; scripts / curl : `Authorization: Bearer <GG_ADMIN_TOKEN>`.
 - mot de passe admin hors ligne : 10 essais par minute et par adresse au plus (fenêtre courte : derrière la redirection de
   ports Docker, tous les navigateurs peuvent avoir la même adresse, celle de la passerelle).
 

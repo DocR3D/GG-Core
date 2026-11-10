@@ -88,8 +88,13 @@ export class EventsRouterSubscriber implements OnModuleInit, OnModuleDestroy {
       }
     }
 
-    // 4) Si toujours pas de matchId → on ignore (inutile de spammer les logs)
-    if (!ev.matchId) return;
+    // 4) Still no match (none given, or the placeholder "unknown", and no server that plays one): nothing to route.
+    //    Dropped, but written down at debug level: a server that is not in a match sends lines all the time, a warning
+    //    each would bury the real ones.
+    if (!ev.matchId || ev.matchId === 'unknown') {
+      this.logger.debug(`[SUB=${channel}] dropped ${ev.type}: no match (server=${ev.serverId ?? '∅'})`);
+      return;
+    }
 
     this.logger.debug(`[SUB=${channel}] ${ev.type} m=${ev.matchId}`);
 
