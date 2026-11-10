@@ -54,6 +54,7 @@ AUTH_PUBLIC_URL=                 # URL publique si Steam doit renvoyer le naviga
 AUTH_DISABLED=                   # 1 = pas d'authentification (dev jetable uniquement, jamais en LAN)
 GG_API_DOCS=                     # 1 = documentation de l'API sur /api/docs (Swagger UI, admins seulement) ; le compose de dev la met à 1, vide = absente (404)
 GG_VALIDATION=                   # entrées des routes qui ont une classe décrite : tolerant (défaut : laisse passer et journalise ce qu'elle refuserait), strict (400), off
+NODE_ENV=                        # development = mode dev (les images du backend et la CI le mettent) ; la commande de chat !init (démarrer un match hors tournoi) n'y fonctionne QUE dans ce mode, toute autre valeur ou l'absence de valeur la ferme
 ```
 
 ## Structure des dossiers infra
