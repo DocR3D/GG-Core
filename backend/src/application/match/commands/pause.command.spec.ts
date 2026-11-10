@@ -173,7 +173,7 @@ describe('TC-03 - PauseCommand : phase live_main', () => {
 
     const can = await cmd.canHandle(makePauseEvent('pause'), ctx);
     expect(can).toBe(false);
-    expect(ctx.say).toHaveBeenCalledWith('Le match est déjà en pause.');
+    expect(ctx.say).toHaveBeenCalledWith('[GG-Core] Le match est déjà en pause.');
   });
 
   // TC-03.E - canHandle : refuse si sender = SPECTATOR
@@ -300,7 +300,7 @@ describe('TC-03 - PauseCommand : phase live_main', () => {
 
     expect(await makeCmd(pauseService, rconService).handle(makePauseEvent('unpause'), ctx)).toBe(false);
 
-    expect(ctx.say).toHaveBeenCalledWith("Le match n'est pas en pause.");
+    expect(ctx.say).toHaveBeenCalledWith("[GG-Core] Le match n'est pas en pause.");
     expect(rconService.unpause).not.toHaveBeenCalled();
   });
 
@@ -326,5 +326,39 @@ describe('TC-03 - PauseCommand : phase live_main', () => {
 
     expect(await makeCmd(pauseService).handleReadyToResume(makePauseEvent('ready'), ctx)).toBe(false);
     expect(ctx.say).not.toHaveBeenCalled();
+  });
+});
+
+// Les textes viennent du catalogue : un tournoi peut les changer, sans lui on garde le texte et le tag par défaut
+describe('PauseCommand : messages du catalogue', () => {
+  it('avec la config du tournoi, le texte et le tag configurés sont ceux dits dans le chat', async () => {
+    const configService: any = {
+      formatMessage: jest.fn().mockResolvedValue('[LAN] Pause déjà en cours.'),
+    };
+    const pauseService = makePauseService({ isPaused: true });
+    const cmd = new PauseCommand(pauseService as any, makeRconService() as any, undefined, configService);
+    const ctx = makeCtx();
+
+    expect(await cmd.canHandle(makePauseEvent('pause'), ctx)).toBe(false);
+
+    expect(configService.formatMessage).toHaveBeenCalledWith(MATCH_ID, 'PAUSE_ALREADY', {});
+    expect(ctx.say).toHaveBeenCalledWith('[LAN] Pause déjà en cours.');
+  });
+
+  it("la pause technique passe l'équipe et la raison au modèle", async () => {
+    const configService: any = { formatMessage: jest.fn().mockResolvedValue('ok') };
+    const pauseService = makePauseService({ phase: 'freeze' });
+    const cmd = new PauseCommand(pauseService as any, makeRconService() as any, undefined, configService);
+
+    const ev = makePauseEvent('tech');
+    ev.payload.parameters = ['crash', 'pc'];
+
+    await cmd.handle(ev, makeCtx());
+
+    expect(configService.formatMessage).toHaveBeenCalledWith(
+      MATCH_ID,
+      'PAUSE_TECH_LIVE',
+      expect.objectContaining({ team: expect.any(String), reason: ' : "crash pc"' }),
+    );
   });
 });
