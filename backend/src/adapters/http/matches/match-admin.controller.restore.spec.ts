@@ -5,9 +5,9 @@ import { BadRequestException, ConflictException, NotFoundException } from '@nest
 import { MatchAdminError } from '@app/match/admin/match-admin.service';
 import { RestoreStateError } from '@app/match/restore/restore-backup.service';
 import { MatchAdminController } from './match-admin.controller';
-import type { RestoreState } from '@domain/restore/restore-state';
+import type { RestoreStateDto } from './dto/restore-state.dto';
 
-const body = { round: 6, homeSide: 'T', home: { score: 3, lossStreak: 0 }, away: { score: 2, lossStreak: 2 }, players: [] } as unknown as RestoreState;
+const body = { round: 6, homeSide: 'T', home: { score: 3, lossStreak: 0 }, away: { score: 2, lossStreak: 2 }, players: [] } as unknown as RestoreStateDto;
 
 function setup() {
   const restoreBackups = { build: jest.fn() };

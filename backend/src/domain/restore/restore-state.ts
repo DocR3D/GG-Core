@@ -2,7 +2,7 @@
  * The state an admin asks a round to be put back to: the round, the score and the loss streak of each team, and for each
  * player the money, the armour and what he carries. It is what a CS2 round backup file holds, written in GG-Core's own
  * words (home / away, not "team1" / "team2"). The backend refuses any value outside it, in every mode (the check is in
- * the service, not in the global validation pipe). Its description for the OpenAPI contract is a separate change.
+ * the service, not in the global validation pipe). Its description for the OpenAPI contract is in adapters/http/matches/dto/restore-state.dto.ts.
  *
  * Item names: the weapon class names of CS2. Every name below is an entity name of Valve's own item data (items_game.txt of
  * SteamTracking/GameTracking-CS2, read in full on 2026-11-12: 66 `weapon_*` names, all of them here but the gun game knife),
