@@ -68,7 +68,9 @@ export class AuthController {
     if (!steam64) return res.redirect(302, `/login?error=${encodeURIComponent('Connexion Steam refusée')}&next=${encodeURIComponent(next)}`);
     const { role, name } = await this.auth.roleForSteamId(steam64);
     res.setHeader('Set-Cookie', this.auth.cookie(this.auth.sign({ sub: steam64, role, name, via: 'steam' })));
-    res.redirect(302, role === 'admin' ? next : '/login');
+    // everybody goes on to where he was heading: a captain to his veto, an admin to his page. What a visitor may not open
+    // shows "admin only" (see AuthMiddleware), it does not send him back to the login.
+    res.redirect(302, next);
   }
 
   @Post('auth/local')

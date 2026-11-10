@@ -17,7 +17,13 @@ export interface Session {
 }
 
 export const SESSION_COOKIE = 'gg_session';
-const SESSION_HOURS = 24;
+const DEFAULT_SESSION_HOURS = 24;
+
+/** How long a session lasts, in hours: GG_SESSION_HOURS (a positive number), 24 when it is absent or is anything else. */
+export function sessionHours(env: NodeJS.ProcessEnv = process.env): number {
+  const hours = Number(env.GG_SESSION_HOURS);
+  return Number.isFinite(hours) && hours > 0 ? hours : DEFAULT_SESSION_HOURS;
+}
 
 const secretEq = (a: string, b: string) => {
   // constant time, whatever the lengths
@@ -69,7 +75,7 @@ export class AuthService {
   }
 
   sign(session: Session): string {
-    return jwt.sign(session, this.secret(), { expiresIn: `${SESSION_HOURS}h` });
+    return jwt.sign(session, this.secret(), { expiresIn: Math.round(sessionHours() * 3600) });
   }
 
   /** Session from the cookie, or null when absent / invalid / expired. */
@@ -90,7 +96,7 @@ export class AuthService {
 
   cookie(token: string | null): string {
     return token
-      ? `${SESSION_COOKIE}=${encodeURIComponent(token)}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${SESSION_HOURS * 3600}`
+      ? `${SESSION_COOKIE}=${encodeURIComponent(token)}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${Math.round(sessionHours() * 3600)}`
       : `${SESSION_COOKIE}=; Path=/; HttpOnly; SameSite=Lax; Max-Age=0`;
   }
 
