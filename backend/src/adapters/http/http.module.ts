@@ -35,6 +35,7 @@ import { VetoController } from './veto/veto.controller';
 import { MatchAdminController } from './matches/match-admin.controller';
 import { MatchAdminService } from '@app/match/admin/match-admin.service';
 import { RestoreBackupService } from '@app/match/restore/restore-backup.service';
+import { RestoreDraftService } from '@app/match/restore/restore-draft.service';
 import { VetoActions } from './veto/veto-actions';
 import { MatchRestoreController } from './matches/match-restore.controller';
 import { AdminCallController } from './matches/admin-call.controller';
@@ -87,6 +88,7 @@ import { CommunityMessagesModule } from '@app/community-messages/community-messa
     TournamentAdminService,
     MatchAdminService,
     RestoreBackupService,
+    RestoreDraftService,
     TournamentEditService,
     GameRoundsService,
   ],

@@ -32,7 +32,7 @@ export class EconomyService {
   ) {}
 
   async initEconomy(matchId: string) {
-    await this.redis.del(redisConst.economyTeamHistory(matchId));
+    await this.redis.del(redisConst.economyTeamHistory(matchId), redisConst.economyPlayersHistory(matchId));
     await this.redis.hset(redisConst.economyTeam(matchId), {
       round: '1',
       home_loss_streak: '0',
@@ -59,6 +59,26 @@ export class EconomyService {
   async snapshotTeamEconomy(matchId: string, roundsPlayed: number) {
     const h = await this.redis.hgetall(redisConst.economyTeam(matchId));
     await this.redis.hset(redisConst.economyTeamHistory(matchId), String(roundsPlayed), JSON.stringify(h ?? {}));
+  }
+
+  /** Photographs the money and the equipment value of each player at the start of a round (`roundsPlayed` rounds played). */
+  async snapshotPlayersEconomy(matchId: string, roundsPlayed: number) {
+    const players = await this.teamsRoster.getPlayersEconomy(matchId);
+    await this.redis.hset(redisConst.economyPlayersHistory(matchId), String(roundsPlayed), JSON.stringify(players));
+  }
+
+  /** The loss streaks of the teams as they were photographed at the start of that round, null without a photo. */
+  async getTeamEconomyAt(matchId: string, roundsPlayed: number): Promise<{ home_loss_streak: number; away_loss_streak: number } | null> {
+    const snap = await this.redis.hget(redisConst.economyTeamHistory(matchId), String(roundsPlayed));
+    if (!snap) return null;
+    const fields = JSON.parse(snap) as Record<string, string>;
+    return { home_loss_streak: toInt(fields.home_loss_streak), away_loss_streak: toInt(fields.away_loss_streak) };
+  }
+
+  /** The money and equipment value of each player as photographed at the start of that round, null without a photo. */
+  async getPlayersEconomyAt(matchId: string, roundsPlayed: number): Promise<Record<string, { money: number; equip: number }> | null> {
+    const snap = await this.redis.hget(redisConst.economyPlayersHistory(matchId), String(roundsPlayed));
+    return snap ? (JSON.parse(snap) as Record<string, { money: number; equip: number }>) : null;
   }
 
   /** Backup restore CS2 : remet séries / loss bonus dans l'état photographié. Retourne false sans photo. */

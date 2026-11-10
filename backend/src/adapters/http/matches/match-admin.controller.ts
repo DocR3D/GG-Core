@@ -6,6 +6,7 @@ import {
   Controller,
   ForbiddenException,
   Get,
+  Header,
   HttpCode,
   NotFoundException,
   Param,
@@ -17,6 +18,7 @@ import type { Request } from 'express';
 import type { Session } from '@app/auth/auth.service';
 import { MatchAdminError, MatchAdminService } from '@app/match/admin/match-admin.service';
 import { RestoreBackupService, RestoreStateError, type RestoreBackup } from '@app/match/restore/restore-backup.service';
+import { RestoreDraftService, type RestoreDraft } from '@app/match/restore/restore-draft.service';
 import type { RestoreState } from '@domain/restore/restore-state';
 import { authorOf } from '../tournament/tournament-matches.controller';
 
@@ -31,6 +33,7 @@ export class MatchAdminController {
   constructor(
     private readonly admin: MatchAdminService,
     private readonly restoreBackups: RestoreBackupService,
+    private readonly restoreDrafts: RestoreDraftService,
   ) {}
 
   /** Technical pause, until Reprendre. */
@@ -73,6 +76,26 @@ export class MatchAdminController {
   @HttpCode(200)
   restore(@Param('id') matchId: string, @Body() body: { round: number }, @Req() req: AdminRequest) {
     return this.run(() => this.admin.restoreRound(matchId, Number(body?.round), authorOf(req.ggSession)));
+  }
+
+  /**
+   * What GG-Core remembers of a round, as the state the restore takes: the score round by round, the loss streaks, the money
+   * of each player at the start of the round, the players of the match. The admin gives the round (`round`) or the score the
+   * game goes back to (`scoreHome` and `scoreAway`), corrects what is wrong, and sends it to restore-backup. What nobody
+   * records (what each player carries) is flagged in `missing`. Admins only: it holds the SteamIDs and the money.
+   */
+  @Get('manual-restore/draft')
+  @Header('Cache-Control', 'private, no-store')
+  restoreDraft(
+    @Param('id') matchId: string,
+    @Query('round') round: string | undefined,
+    @Query('scoreHome') scoreHome: string | undefined,
+    @Query('scoreAway') scoreAway: string | undefined,
+    @Req() req: AdminRequest,
+  ): Promise<RestoreDraft> {
+    if (req.ggSession?.role !== 'admin') throw new ForbiddenException('admins only');
+    const num = (v: string | undefined) => (v === undefined || v === '' ? undefined : Number(v));
+    return this.run(() => this.restoreDrafts.draft(matchId, { round: num(round), scoreHome: num(scoreHome), scoreAway: num(scoreAway) }));
   }
 
   /**
