@@ -13,12 +13,20 @@ import { installAuthBodyParsers } from './adapters/http/auth/auth-body-parsers';
 import { mountApiDocs } from './adapters/http/docs/api-docs';
 import { applyGlobalPrefix } from './global-prefix';
 import { createValidationPipe } from './adapters/http/validation/validation-pipe';
+import { assertStartupAllowed } from './startup-checks';
+import { modeGate } from './adapters/http/mode-gate';
 
 async function bootstrap() {
+  // refuses to start with a setting the mode does not allow (the authentication switched off outside dev)
+  assertStartupAllowed();
+
   const app = await NestFactory.create<NestExpressApplication>(AppModule, { logger: ['log','error','warn','debug','verbose'] });
 
   // Only explicitly trusted proxies may supply the client address used by auth throttling.
   app.set('trust proxy', parseTrustProxy(process.env.TRUST_PROXY));
+
+  // What the mode closes (the Sandbox in prod), before any parser or access rule sees the request
+  app.use(modeGate());
 
   // ✅ 1) TEXTE brut UNIQUEMENT pour /cs2/logs (d’abord)
   app.use('/cs2/logs', bodyParser.text({ type: () => true, limit: '2mb' }));
@@ -50,11 +58,11 @@ async function bootstrap() {
   applyGlobalPrefix(app);
 
   // Inputs of the routes that have a described class (DTO with class-validator rules): GG_VALIDATION = tolerant (default,
-  // logs what it would refuse), strict (400) or off
+  // logs what it would refuse; the default in dev), strict (400; the default in rec and prod) or off
   const validation = createValidationPipe();
   if (validation) app.useGlobalPipes(validation);
 
-  // API documentation (Swagger UI), only when GG_API_DOCS=1, admins only: after the prefix, the document lists the real paths
+  // API documentation (Swagger UI), outside the prod mode, admins only: after the prefix, the document lists the real paths
   if (mountApiDocs(app)) console.log('[docs] API documentation on /api/docs (admins only)');
 
   // CORS REST : origines autorisées via CORS_ORIGIN (liste séparée par des virgules). Le front React est servi par

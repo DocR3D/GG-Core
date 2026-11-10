@@ -61,7 +61,7 @@ export function isPublic(method: string, path: string): boolean {
   const read = method === 'GET' || method === 'HEAD';
   const sandbox = path === '/sandbox' || path.startsWith('/sandbox/');
   const vetoAdmin = /^\/veto\/[^/]+\/admin$/.test(path);
-  // the API documentation lists every route, the admin ones included: admin only (and mounted only when GG_API_DOCS=1)
+  // the API documentation lists every route, the admin ones included: admin only (and mounted only outside the prod mode)
   const apiDocs = path === '/api/docs' || path.startsWith('/api/docs/') || path === '/api/docs-json';
   return read && !sandbox && !vetoAdmin && !apiDocs;
 }

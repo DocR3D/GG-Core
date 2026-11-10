@@ -1,19 +1,22 @@
 import { ArgumentMetadata, BadRequestException, Logger, ValidationPipe } from '@nestjs/common';
 import type { PipeTransform } from '@nestjs/common';
+import { appMode } from '@app/shared/app-mode';
 
 /**
  * How the inputs of the routes that have a described class (DTO with class-validator rules) are checked:
- * - tolerant (default): a request that breaks the rules goes through exactly as before, and the problem is written in
- *   the log. Used to see what the front and the scripts really send before refusing anything;
- * - strict: the request is refused with a 400 listing the broken rules;
+ * - tolerant (default in dev): a request that breaks the rules goes through exactly as before, and the problem is
+ *   written in the log. Used to see what the front and the scripts really send before refusing anything;
+ * - strict (default in rec and prod): the request is refused with a 400 listing the broken rules;
  * - off: no check.
+ * GG_VALIDATION chooses; without it, or with a value that is none of these, the mode decides.
  * Routes whose body is a plain TypeScript type (erased at run time) have nothing to check, whatever the mode.
  */
 export type ValidationMode = 'tolerant' | 'strict' | 'off';
 
 export function validationMode(env: NodeJS.ProcessEnv = process.env): ValidationMode {
   const value = env.GG_VALIDATION?.trim().toLowerCase();
-  return value === 'strict' || value === 'off' ? value : 'tolerant';
+  if (value === 'tolerant' || value === 'strict' || value === 'off') return value;
+  return appMode(env) === 'dev' ? 'tolerant' : 'strict';
 }
 
 /**

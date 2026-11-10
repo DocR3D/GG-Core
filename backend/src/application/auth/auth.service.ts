@@ -4,6 +4,7 @@ import * as jwt from 'jsonwebtoken';
 import { createHash, timingSafeEqual } from 'crypto';
 import { PrismaService } from '@adapters/database/prisma.service';
 import { steam64ToSteam3 } from './steam-openid';
+import { isDevMode } from '@app/shared/app-mode';
 
 export type Role = 'admin' | 'player' | 'visitor';
 
@@ -35,9 +36,12 @@ const secretEq = (a: string, b: string) => {
 export class AuthService {
   constructor(private readonly prisma: PrismaService) {}
 
-  /** Auth can be turned off for a throwaway dev setup (AUTH_DISABLED=1) - never at the LAN. */
+  /**
+   * Auth can be turned off for a throwaway dev setup (AUTH_DISABLED=1), in the dev mode only: anywhere else it is ignored
+   * here, and the backend refuses to start with it (see startup-checks.ts).
+   */
   get disabled(): boolean {
-    return process.env.AUTH_DISABLED === '1';
+    return process.env.AUTH_DISABLED === '1' && isDevMode();
   }
 
   /** Role of a Steam account. */

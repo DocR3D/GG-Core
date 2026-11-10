@@ -177,6 +177,8 @@ jobs:
       PORT: "8081"
       WS_PATH: /ws
       NODE_ENV: development
+      # the scenario uses the Sandbox, which exists in dev and rec only
+      GG_ENV: dev
 
     services:
       postgres:
