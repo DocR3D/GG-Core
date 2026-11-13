@@ -62,6 +62,12 @@ describe('inputs of a described route', () => {
   beforeEach(() => { warn = jest.spyOn(Logger.prototype, 'warn').mockImplementation(() => undefined); });
   afterEach(() => warn.mockRestore());
 
+  /**
+   * What the validation pipe logged. Nest warns by itself through the same logger when the machine is slow (for
+   * example "The module InternalCoreModule is taking 18ms to serialize"), which is none of this spec's business.
+   */
+  const pipeWarnings = () => warn.mock.calls.map((call) => String(call[0])).filter((message) => message.startsWith('[tolerant]'));
+
   const invalid: Array<[string, unknown]> = [
     ['an empty list', { names: [] }],
     ['no list', {}],
@@ -71,7 +77,7 @@ describe('inputs of a described route', () => {
   it('tolerant: a valid body goes through and nothing is logged', async () => {
     const { app, base } = await boot({ GG_ENV: 'dev' });
     expect(await post(base, { names: ['Alpha'] })).toEqual({ status: 201, body: { received: { names: ['Alpha'] } } });
-    expect(warn).not.toHaveBeenCalled();
+    expect(pipeWarnings()).toEqual([]);
     await app.close();
   });
 
@@ -80,8 +86,8 @@ describe('inputs of a described route', () => {
     const answer = await post(base, body);
     expect(answer.status).toBe(201);
     expect(answer.body).toEqual({ received: body }); // exactly what was sent, nothing converted or stripped
-    expect(warn).toHaveBeenCalledTimes(1);
-    expect(String(warn.mock.calls[0][0])).toMatch(/^\[tolerant\] CreateTeamsDto \(body\) would be refused: .*names/);
+    expect(pipeWarnings()).toHaveLength(1);
+    expect(pipeWarnings()[0]).toMatch(/^\[tolerant\] CreateTeamsDto \(body\) would be refused: .*names/);
     await app.close();
   });
 
@@ -90,7 +96,7 @@ describe('inputs of a described route', () => {
     const answer = await post(base, body);
     expect(answer.status).toBe(400);
     expect(Array.isArray(answer.body.message)).toBe(true); // the front already joins such a list (api.ts)
-    expect(warn).not.toHaveBeenCalled();
+    expect(pipeWarnings()).toEqual([]);
     await app.close();
   });
 
@@ -103,7 +109,7 @@ describe('inputs of a described route', () => {
   it('off: nothing is checked', async () => {
     const { app, base } = await boot({ GG_VALIDATION: 'off' });
     expect((await post(base, {})).status).toBe(201);
-    expect(warn).not.toHaveBeenCalled();
+    expect(pipeWarnings()).toEqual([]);
     await app.close();
   });
 });
