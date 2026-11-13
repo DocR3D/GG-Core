@@ -7,12 +7,12 @@ export type LogicalTeam = (typeof LOGICAL_TEAMS)[number];
 
 /** Body of POST /api/matches/:id/players. */
 export class UpsertPlayerDto {
-  /** Steam id of the player, in the format the game logs use (for example `[U:1:10000004]`) */
+  /** Steam id of the player, in the format the game logs use (for example `[U:1:10000004]`), kept exactly as sent and not checked */
   @IsString()
   @IsNotEmpty()
   steamId!: string;
 
-  /** Name shown for the player */
+  /** Name shown for the player; when left out for a player who is already there, his name is kept */
   @IsOptional()
   @IsString()
   name?: string;
