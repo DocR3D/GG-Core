@@ -1,4 +1,4 @@
-import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { ApiProperty, ApiPropertyOptional, ApiSchema } from '@nestjs/swagger';
 import { IsIn, IsNotEmpty, IsString, Matches, MaxLength, ValidateIf } from 'class-validator';
 
 /** The two teams of a match, stable for the whole match (the side CT or T changes at half time, this does not). */
@@ -13,6 +13,7 @@ export const PLAYER_ID_MAX_LENGTH = 64;
 export const PLAYER_NAME_MAX_LENGTH = 100;
 
 /** Body of POST /api/matches/:id/players. */
+@ApiSchema({ description: 'A player to add to a match, or whose name and team to update' })
 export class UpsertPlayerDto {
   /** Id of the player: for CS2 his Steam id, in the format the game logs use. Kept exactly as sent, its format is not checked */
   @ApiProperty({ example: '[U:1:10000004]', minLength: 1, maxLength: PLAYER_ID_MAX_LENGTH })
@@ -36,6 +37,7 @@ export class UpsertPlayerDto {
 }
 
 /** Body of PATCH /api/matches/:id/players/:steamId/move. */
+@ApiSchema({ description: 'The team a player moves to' })
 export class MovePlayerDto {
   /** Team the player goes to */
   @ApiProperty({ enum: LOGICAL_TEAMS, example: 'away' })
@@ -44,6 +46,7 @@ export class MovePlayerDto {
 }
 
 /** A player of a match. */
+@ApiSchema({ description: 'A player of a match, with his team and when he joined' })
 export class PlayerDto {
   /** Id of the player (for CS2 his Steam id), as it was sent when he was added */
   @ApiProperty({ example: '[U:1:10000004]' })
@@ -60,6 +63,7 @@ export class PlayerDto {
 }
 
 /** Players of a match by team, in lineup order. */
+@ApiSchema({ description: 'The players of a match by team, each team in lineup order' })
 export class RosterDto {
   /** Players of the home team */
   @ApiProperty({ type: () => [PlayerDto] })

@@ -134,6 +134,12 @@ jobs:
         working-directory: ./backend
         run: npm run build
 
+      # The API contract only gets more complete: the routes not described yet are listed in backend/openapi-gaps.json. A route
+      # outside the list must have no gap, and a route of the list that has none must leave it (npm run openapi:check -- --update).
+      - name: 4b. API contract completeness
+        working-directory: ./backend
+        run: node dist/tools/export-openapi.cli.js && node dist/tools/check-openapi-completeness.cli.js
+
       # Informative: the production vulnerabilities left need major upgrades (NestJS 11/12 with Express 5, Prisma 7).
       - name: 5. Dependency audit (production, informative)
         working-directory: ./backend
