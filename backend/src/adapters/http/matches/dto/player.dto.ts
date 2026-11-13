@@ -1,24 +1,36 @@
-import { ApiProperty } from '@nestjs/swagger';
-import { IsIn, IsNotEmpty, IsOptional, IsString } from 'class-validator';
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { IsIn, IsNotEmpty, IsString, Matches, MaxLength, ValidateIf } from 'class-validator';
 
 /** The two teams of a match, stable for the whole match (the side CT or T changes at half time, this does not). */
 export const LOGICAL_TEAMS = ['home', 'away'] as const;
 export type LogicalTeam = (typeof LOGICAL_TEAMS)[number];
 
+/**
+ * Sanity guards, not rules of a game: a player id or a name longer than this is a mistake whatever the game is (a Steam
+ * id is far shorter, a Steam name is at most 32 characters).
+ */
+export const PLAYER_ID_MAX_LENGTH = 64;
+export const PLAYER_NAME_MAX_LENGTH = 100;
+
 /** Body of POST /api/matches/:id/players. */
 export class UpsertPlayerDto {
-  /** Steam id of the player, in the format the game logs use (for example `[U:1:10000004]`), kept exactly as sent and not checked */
+  /** Id of the player: for CS2 his Steam id, in the format the game logs use. Kept exactly as sent, its format is not checked */
+  @ApiProperty({ example: '[U:1:10000004]', minLength: 1, maxLength: PLAYER_ID_MAX_LENGTH })
   @IsString()
   @IsNotEmpty()
+  @MaxLength(PLAYER_ID_MAX_LENGTH)
   steamId!: string;
 
-  /** Name shown for the player; when left out for a player who is already there, his name is kept */
-  @IsOptional()
+  /** Name shown for the player; when left out for a player who is already there, his name is kept. `null` is refused */
+  @ApiPropertyOptional({ example: 'Garitos', minLength: 1, maxLength: PLAYER_NAME_MAX_LENGTH, nullable: false })
+  @ValidateIf((_object, value) => value !== undefined)
   @IsString()
+  @MaxLength(PLAYER_NAME_MAX_LENGTH)
+  @Matches(/\S/, { message: 'name must contain at least one character that is not a space' })
   name?: string;
 
   /** Team of the player */
-  @ApiProperty({ enum: LOGICAL_TEAMS })
+  @ApiProperty({ enum: LOGICAL_TEAMS, example: 'home' })
   @IsIn(LOGICAL_TEAMS)
   logical!: LogicalTeam;
 }
@@ -26,21 +38,24 @@ export class UpsertPlayerDto {
 /** Body of PATCH /api/matches/:id/players/:steamId/move. */
 export class MovePlayerDto {
   /** Team the player goes to */
-  @ApiProperty({ enum: LOGICAL_TEAMS })
+  @ApiProperty({ enum: LOGICAL_TEAMS, example: 'away' })
   @IsIn(LOGICAL_TEAMS)
   logical!: LogicalTeam;
 }
 
 /** A player of a match. */
 export class PlayerDto {
-  /** Steam id of the player */
+  /** Id of the player (for CS2 his Steam id), as it was sent when he was added */
+  @ApiProperty({ example: '[U:1:10000004]' })
   steamId!: string;
   /** Name shown for the player, when known */
+  @ApiPropertyOptional({ example: 'Garitos' })
   name?: string;
   /** Team of the player */
-  @ApiProperty({ enum: LOGICAL_TEAMS })
+  @ApiProperty({ enum: LOGICAL_TEAMS, example: 'home' })
   logical!: LogicalTeam;
   /** When the player joined, in milliseconds since 1970 */
+  @ApiPropertyOptional({ type: 'integer', minimum: 0, example: 1767225600000 })
   joinedTs?: number;
 }
 
