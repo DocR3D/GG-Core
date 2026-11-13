@@ -1,5 +1,5 @@
-import { Controller, Param, Body, Post, Patch, Delete, Get } from '@nestjs/common';
-import { ApiBadRequestResponse, ApiCreatedResponse, ApiOkResponse, ApiOperation, ApiParam } from '@nestjs/swagger';
+import { Controller, Param, Body, Post, Patch, Delete, Get, NotFoundException } from '@nestjs/common';
+import { ApiBadRequestResponse, ApiCreatedResponse, ApiNotFoundResponse, ApiOkResponse, ApiOperation, ApiParam } from '@nestjs/swagger';
 import { MatchStateService } from '@app/match/state/match-state.service';
 import { AdminOnly } from '../docs/admin-only.decorator';
 import { OkResponseDto } from './dto/ok-response.dto';
@@ -35,16 +35,18 @@ export class PlayersController {
   @ApiOperation({
     description:
       'Admin only. The player goes to the end of the lineup of the other team. ' +
-      'Answers `ok: false` (still a 200, not a 404) when the player is not in the match, and `ok: true` without any change when he is already in that team.',
+      'Answers `ok: true` without any change when he is already in that team, and a 404 when he is not in the match.',
   })
   @AdminOnly()
   @ApiParam(PLAYER_ID_PARAM)
-  @ApiOkResponse({ description: '`ok: true` when the player is on the team asked, `ok: false` when he is not in the match', type: OkResponseDto })
+  @ApiOkResponse({ description: 'The player is on the team asked', type: OkResponseDto })
+  @ApiNotFoundResponse({ description: 'The player is not in the match' })
   @ApiBadRequestResponse({ description: BODY_REFUSED })
   @Patch(':steamId/move')
   async move(@Param('id') matchId: string, @Param('steamId') steamId: string, @Body() body: MovePlayerDto): Promise<OkResponseDto> {
-    const ok = await this.matchState.movePlayerLogical(matchId, steamId, body.logical);
-    return { ok };
+    const found = await this.matchState.movePlayerLogical(matchId, steamId, body.logical);
+    if (!found) throw new NotFoundException(`Joueur ${steamId} introuvable dans le match ${matchId}`);
+    return { ok: true };
   }
 
   /** Removes a player from a match */
