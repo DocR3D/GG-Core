@@ -1,5 +1,5 @@
 // src/adapters/http/matches/sides.controller.ts
-import { Controller, Param, Patch, Get, Body } from '@nestjs/common';
+import { Controller, Param, Patch, Get, Body, NotFoundException } from '@nestjs/common';
 import { MatchStateService, type GameSide, CoreSide, type Logical } from '@app/match/state/match-state.service';
 
 type SetSidesDto = Partial<CoreSide>; // {home?: 'CT'|'T', away?: 'CT'|'T'}
@@ -25,8 +25,9 @@ export class SidesController {
   // PATCH /matches/:id/sides/swap
   @Patch('swap')
   async swap(@Param('id') matchId: string) {
-    const ok = await this.matchState.swapSides(matchId); // inverse home/away
-    return { ok };
+    const swapped = await this.matchState.swapSides(matchId); // inverse home/away
+    if (!swapped) throw new NotFoundException(`Côtés du match ${matchId} non définis, rien à inverser`);
+    return { ok: true };
   }
 
   // GET /matches/:id/sides/logical-to-side/:logical  -> 'CT'|'T'|null

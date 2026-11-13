@@ -1,3 +1,4 @@
+import { NotFoundException } from '@nestjs/common';
 import { PlayersController } from './players.controller';
 
 function makeController() {
@@ -19,12 +20,22 @@ describe('PlayersController', () => {
     expect(matchState.upsertPlayer).toHaveBeenCalledWith('m1', body);
   });
 
-  it.each([true, false])('move answers what the match state says (%s: the player is known or not)', async (known) => {
+  it('move asks the match state to change the team of the player and answers ok', async () => {
     const { controller, matchState } = makeController();
-    matchState.movePlayerLogical.mockResolvedValue(known);
 
-    expect(await controller.move('m1', '[U:1:10000004]', { logical: 'away' })).toEqual({ ok: known });
+    expect(await controller.move('m1', '[U:1:10000004]', { logical: 'away' })).toEqual({ ok: true });
     expect(matchState.movePlayerLogical).toHaveBeenCalledWith('m1', '[U:1:10000004]', 'away');
+  });
+
+  it('move answers a 404, naming the player and the match, when the player is not in the match', async () => {
+    const { controller, matchState } = makeController();
+    matchState.movePlayerLogical.mockResolvedValue(false);
+
+    const answer = controller.move('m1', '[U:1:10000004]', { logical: 'away' });
+
+    await expect(answer).rejects.toBeInstanceOf(NotFoundException);
+    await expect(answer).rejects.toThrow('[U:1:10000004]');
+    await expect(answer).rejects.toThrow('m1');
   });
 
   it('remove asks the match state to forget the player and answers ok', async () => {
