@@ -1,5 +1,5 @@
 import type { OpenAPIObject } from '@nestjs/swagger';
-import { checkAgainstList, findGaps, gapsOfOperation } from './openapi-completeness';
+import { byCodeUnit, checkAgainstList, findGaps, gapsOfOperation } from './openapi-completeness';
 
 const schemas = {
   Player: {
@@ -83,6 +83,13 @@ describe('gapsOfOperation', () => {
       requestBody: { content: { 'application/json': { schema: { $ref: '#/components/schemas/Bare' } } } },
     };
     expect(gaps(twice).filter((gap) => gap === 'schema Bare: no description of the class')).toHaveLength(1);
+  });
+});
+
+describe('byCodeUnit', () => {
+  it('orders the routes the same way on every machine: capitals before small letters, equal ones kept', () => {
+    expect(['b', 'a', 'B', 'a'].sort(byCodeUnit)).toEqual(['B', 'a', 'a', 'b']);
+    expect(byCodeUnit('GET /api/a', 'GET /api/a')).toBe(0);
   });
 });
 

@@ -21,6 +21,12 @@ export const PUBLIC_WRITES: readonly string[] = [];
 
 type Schemas = Record<string, SchemaObject | ReferenceObject>;
 
+/** The order of the list of routes: by code unit, the same on every machine (localeCompare would depend on the locale). */
+export function byCodeUnit(a: string, b: string): number {
+  if (a < b) return -1;
+  return a > b ? 1 : 0;
+}
+
 function isRef(node: unknown): node is ReferenceObject {
   return typeof node === 'object' && node !== null && '$ref' in node;
 }
@@ -141,7 +147,7 @@ export function findGaps(document: OpenAPIObject): Record<string, string[]> {
 /** What the ratchet says, given the gaps found and the routes the list allows to have some. */
 export function checkAgainstList(found: Record<string, string[]>, allowed: readonly string[]): { newGaps: string[]; stale: string[] } {
   const known = new Set(allowed);
-  const newGaps = Object.keys(found).filter((route) => !known.has(route)).sort();
-  const stale = allowed.filter((route) => !(route in found)).sort();
+  const newGaps = Object.keys(found).filter((route) => !known.has(route)).sort(byCodeUnit);
+  const stale = allowed.filter((route) => !(route in found)).sort(byCodeUnit);
   return { newGaps, stale };
 }

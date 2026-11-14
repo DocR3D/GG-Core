@@ -10,7 +10,7 @@
  */
 import { readFileSync, writeFileSync } from 'fs';
 import type { OpenAPIObject } from '@nestjs/swagger';
-import { checkAgainstList, findGaps } from './openapi-completeness';
+import { byCodeUnit, checkAgainstList, findGaps } from './openapi-completeness';
 
 const DOCUMENT_FILE = 'openapi.json';
 const LIST_FILE = 'openapi-gaps.json';
@@ -20,7 +20,7 @@ const found = findGaps(document);
 const total = Object.keys(document.paths).reduce((n, path) => n + Object.keys(document.paths[path]).length, 0);
 
 if (process.argv.includes('--update')) {
-  writeFileSync(LIST_FILE, `${JSON.stringify(Object.keys(found).sort(), null, 2)}\n`);
+  writeFileSync(LIST_FILE, `${JSON.stringify(Object.keys(found).sort(byCodeUnit), null, 2)}\n`);
   console.log(`${LIST_FILE} rewritten: ${Object.keys(found).length} routes of ${total} still have gaps`);
   process.exit(0);
 }
