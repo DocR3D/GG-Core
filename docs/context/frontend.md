@@ -3,12 +3,16 @@
 ## État actuel
 
 ### Direction décidée le 2026-11-05 : le front est GGCoreFront (Next.js)
-Le front sera le projet **GGCoreFront** (dépôt `sullyvanyonnet/GGCoreFront`, branche `feat/migration-gg-core`, voisin de
+Le front sera le projet **GGCoreFront** (dépôt GGCoreFront, branche `master`, voisin de
 ce dépôt : `../GGCoreFront`), pas le `frontend/` React + Vite. Décidé avec l'utilisateur : on garde tout ce qui est fait
 du côté de GGCoreFront (sa charte bleu électrique, son dashboard `/admin/dashboard`) et on y ajoute ce que le front Vite
 avait en plus. Le plan est dans `docs/plans/migration-frontend-nextjs.md` (partie backend) et dans
 `docs/plan-migration-gg-core.md` du dépôt du front. Le front Vite et les pages HTML du backend restent en place jusqu'à
 la parité, vérifiée par un tournoi complet joué avec le front Next.
+
+Le 2026-11-24, les quatre PR de migration (branchement sur le backend par proxy, réparations, page Sandbox, vues live
+et console) ont été fusionnées dans `master` du dépôt du front, repris par le propriétaire de GG-Core avec l'accord de
+son auteur initial. La parité n'est pas prouvée pour autant : la règle ci-dessus reste en vigueur.
 
 - **Lancer** : `make web` (profil compose `front`, port 3000, IP fixe 172.30.0.20) construit l'image depuis
   `../GGCoreFront` (`FRONT_DIR=<chemin absolu>` pour un autre emplacement), à côté du front Vite (:8081). Le navigateur
@@ -58,7 +62,7 @@ la parité, vérifiée par un tournoi complet joué avec le front Next.
   `/sandbox`) et `backend/public/css`.
 - **Fonctions de l'ancien front sans équivalent dans `main`** : forcer la phase d'un match (échauffement, knife,
   prolongation, map suivante) et corriger le score à la main existaient dans l'API de la branche `fix/p0-p1…` de
-  sullyvan (`POST /api/matches/:id/admin-actions` vers un handler `/admin-action` de l'agent Go), jamais fusionnée.
+  l'auteur initial du front (`POST /api/matches/:id/admin-actions` vers un handler `/admin-action` de l'agent Go), jamais fusionnée.
   Son agent n'appliquait d'ailleurs pas le score (« non applicable sans plugin CS2 ») : il exécutait seulement un
   fichier de config. L'historique public d'un match (événements) demande une route filtrée (le journal complet est
   réservé aux admins : il contient le chat, les logs bruts et les actions admin).
