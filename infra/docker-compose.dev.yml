@@ -9,7 +9,7 @@
 #   cs2      [profil cs2]   serveur CS2 dédié vanilla (Zero Plugin), ~73 Go téléchargés au 1er lancement
 #   log-drain [profil debug] copie le bus Redis dans infra/logs/redis-events.jsonl
 #
-# Toutes les valeurs ont un défaut : un fichier infra/.env (optionnel) permet de les surcharger.
+# Toutes les valeurs ont un défaut : le fichier .env à la racine du dépôt permet de les surcharger (généré par `make`).
 
 networks:
   ggcore:
@@ -25,7 +25,7 @@ services:
     restart: unless-stopped
     networks: [ggcore]
     ports:
-      - "6379:6379"
+      - "${GG_REDIS_PORT:-6379}:6379"
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 3s
@@ -38,7 +38,7 @@ services:
     restart: unless-stopped
     networks: [ggcore]
     ports:
-      - "5432:5432"
+      - "${GG_POSTGRES_PORT:-5432}:5432"
     environment:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: postgres
@@ -99,7 +99,7 @@ services:
       postgres:
         condition: service_healthy
     ports:
-      - "8081:8081"
+      - "${GG_BACKEND_PORT:-8081}:8081"
     healthcheck:
       test: ["CMD", "wget", "-qO-", "http://127.0.0.1:8081/api/health"]
       interval: 5s
@@ -157,7 +157,7 @@ services:
       backend:
         condition: service_healthy
     ports:
-      - "3000:3000"
+      - "${GG_FRONT_PORT:-3000}:3000"
     healthcheck:
       test: ["CMD", "wget", "-qO-", "http://127.0.0.1:3000/api/health"]
       interval: 5s

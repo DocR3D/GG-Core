@@ -3,22 +3,22 @@
 #
 #   make            → aide
 #   make up         → stack complète (Redis, Postgres, backend, agent)
+#   make web        → + front Next.js (GGCoreFront) sur :3000
 #   make up-cs2     → + serveur CS2 dédié en conteneur
 #   make test       → typecheck + Jest + Go + intégration PostgreSQL
 
 SHELL        := /bin/bash
-# Secrets: .env (git-ignored) created / completed with RANDOM values on the first make - nothing to configure,
-# no public default. Only the admin token is read here (loading the whole .env would override variables given
-# on the command line, e.g. GG_ADMIN_STEAMIDS=<id> make up).
-_SECRETS     := $(shell bash infra/gen-secrets.sh)
-GG_ADMIN_TOKEN := $(shell grep '^GG_ADMIN_TOKEN=' .env 2>/dev/null | cut -d= -f2-)
 COMPOSE      := docker compose --env-file .env -f infra/docker-compose.dev.yml
-API          := http://localhost:8081
+BACKEND_PORT := $(or $(GG_BACKEND_PORT),$(shell grep '^GG_BACKEND_PORT=' .env 2>/dev/null | cut -d= -f2-),8081)
+FRONT_PORT   := $(or $(GG_FRONT_PORT),$(shell grep '^GG_FRONT_PORT=' .env 2>/dev/null | cut -d= -f2-),3000)
+PG_PORT      := $(or $(GG_POSTGRES_PORT),$(shell grep '^GG_POSTGRES_PORT=' .env 2>/dev/null | cut -d= -f2-),5432)
+REDIS_PORT   := $(or $(GG_REDIS_PORT),$(shell grep '^GG_REDIS_PORT=' .env 2>/dev/null | cut -d= -f2-),6379)
+API          := http://localhost:$(BACKEND_PORT)
 F            ?=
 S            ?=
 
 .DEFAULT_GOAL := help
-.PHONY: help doctor admin _core front web up up-cs2 down restart ps logs status server servers sandbox replay fixtures check test test-backend test-db test-go e2e-tournament tournament veto-demo veto-bot shell-backend psql redis-cli reset
+.PHONY: help doctor _env admin _core front web up up-cs2 down restart ps logs status server servers sandbox replay fixtures check test test-backend test-db test-go e2e-tournament tournament veto-demo veto-bot shell-backend psql redis-cli reset
 
 help: ## Affiche cette aide
 	@echo "GG-Core - commandes disponibles :"
@@ -26,21 +26,40 @@ help: ## Affiche cette aide
 	@echo ""
 	@echo "Options : F=<fixture> (replay), S=<service> (logs)"
 
-doctor: ## Vérifie les prérequis (Docker, Compose, droits, disque)
+# Secrets: .env (git-ignored) created / completed with RANDOM values before Compose commands - nothing to configure,
+# no public default. frontend/dist is also created by the host user so Docker never creates it owned by root.
+_env:
+	@bash infra/gen-secrets.sh
+	@mkdir -p frontend/dist
+
+doctor: ## Vérifie les prérequis (Docker, Compose, curl, droits, ports, disque)
 	@command -v docker >/dev/null || { echo "❌ docker introuvable"; exit 1; }
 	@docker compose version >/dev/null 2>&1 || { echo "❌ Docker Compose v2 introuvable"; exit 1; }
 	@docker info >/dev/null 2>&1 || { echo "❌ Docker inaccessible pour $$USER → sudo usermod -aG docker $$USER puis rouvrir le terminal"; exit 1; }
+	@command -v curl >/dev/null || { echo "❌ curl introuvable (requis par make status, replay et server)"; exit 1; }
 	@echo "✅ Docker $$(docker version -f '{{.Server.Version}}') / $$(docker compose version --short)"
-	@for c in ggcore-redis-dev ggcore-postgres-dev ggcore-backend-dev ggbot-manager ggcore-cs2-dev; do \
+	@for c in ggcore-redis-dev ggcore-postgres-dev ggcore-backend-dev ggbot-manager ggcore-front-dev ggcore-cs2-dev; do \
 	  p=$$(docker inspect -f '{{index .Config.Labels "com.docker.compose.project"}}' $$c 2>/dev/null) || continue; \
 	  if [ "$$p" != "infra" ]; then echo "❌ Le conteneur $$c existe déjà hors de ce projet (créé à la main ?) et bloque son nom/ses ports."; \
 	    echo "   → docker rm -f $$c   (ses données restent dans son volume)"; exit 1; fi; \
 	done
-	@root=$$(docker info -f '{{.DockerRootDir}}'); free=$$(df -BG --output=avail "$$root" 2>/dev/null | tail -1 | tr -dc 0-9); \
-	  if [ -n "$$free" ] && [ "$$free" -lt 90 ]; then echo "⚠️  $${free} Go libres sous $$root : le serveur CS2 (make up-cs2) en demande ~75"; \
+	@for entry in "GG_BACKEND_PORT:$(BACKEND_PORT):ggcore-backend-dev" "GG_POSTGRES_PORT:$(PG_PORT):ggcore-postgres-dev" "GG_REDIS_PORT:$(REDIS_PORT):ggcore-redis-dev"; do \
+	  var=$${entry%%:*}; rest=$${entry#*:}; port=$${rest%%:*}; cname=$${rest#*:}; \
+	  [ "$$(docker inspect -f '{{.State.Running}}' "$$cname" 2>/dev/null)" = "true" ] && continue; \
+	  busy=0; \
+	  if command -v ss >/dev/null 2>&1 && ss -Htan 2>/dev/null | awk '{print $$4}' | grep -Eq "[:.]$$port$$"; then busy=1; \
+	  elif command -v lsof >/dev/null 2>&1 && lsof -iTCP:$$port -sTCP:LISTEN -Pn >/dev/null 2>&1; then busy=1; fi; \
+	  if [ "$$busy" = "1" ]; then echo "⚠️  Port $$port déjà occupé : libérer le port ou définir $$var dans .env"; fi; \
+	done
+	@root=$$(docker info -f '{{.DockerRootDir}}' 2>/dev/null); \
+	  target="$$root"; [ -d "$$target" ] || target="."; \
+	  avail_kb=$$(df -Pk "$$target" 2>/dev/null | awk 'NR==2 {print $$4}'); \
+	  if [ -n "$$avail_kb" ]; then free=$$((avail_kb / 1048576)); else free=""; fi; \
+	  if [ -n "$$free" ] && [ "$$free" -lt 90 ]; then echo "⚠️  $${free} Go libres sous $$target : le serveur CS2 (make up-cs2) en demande ~75"; \
 	  else echo "✅ Espace disque Docker : $${free:-?} Go libres"; fi
+	@arch=$$(uname -m); case "$$arch" in arm64|aarch64) echo "ℹ️  Architecture $$arch : la stack dev fonctionne nativement, mais make up-cs2 (serveur CS2) nécessite x86_64." ;; esac
 
-admin: ## Affiche la connexion admin (URL, mot de passe hors ligne, SteamID64 admins) - secrets dans .env
+admin: _env ## Affiche la connexion admin (URL, mot de passe hors ligne, SteamID64 admins) - secrets dans .env
 	@echo "Connexion : $(API)/login"
 	@echo "Mot de passe admin hors ligne : $$(grep '^GG_ADMIN_PASSWORD=' .env | cut -d= -f2-)"
 	@echo "Admins Steam (GG_ADMIN_STEAMIDS) : $${GG_ADMIN_STEAMIDS:-$$(grep '^GG_ADMIN_STEAMIDS=' .env | cut -d= -f2-)}"
@@ -50,13 +69,13 @@ up: doctor ## Lance la stack (Redis, Postgres, backend, agent) et attend qu'elle
 	@$(MAKE) --no-print-directory _core
 	@$(MAKE) --no-print-directory status
 
-up-cs2: doctor ## Lance la stack + un serveur CS2 dédié (1er lancement : ~73 Go à télécharger)
+up-cs2: doctor _env ## Lance la stack + un serveur CS2 dédié (1er lancement : ~73 Go à télécharger)
 	@$(MAKE) --no-print-directory _core
 	@$(COMPOSE) --profile cs2 up -d cs2
 	@echo "⏳ CS2 démarre (suivre : make logs S=cs2). Le 1er lancement télécharge le jeu, compter un long moment."
 	@$(MAKE) --no-print-directory status
 
-_core: frontend/dist/index.html
+_core: _env frontend/dist/index.html
 	@$(COMPOSE) up -d --build --wait redis postgres manager
 	@# node_modules du backend = volume anonyme : le renouveler depuis l'image (sinon un vieux volume masque les deps à jour)
 	@$(COMPOSE) up -d --build --no-deps --renew-anon-volumes --wait backend
@@ -66,45 +85,49 @@ _core: frontend/dist/index.html
 FRONT_SRC := $(shell find frontend/src frontend/index.html frontend/package.json frontend/package-lock.json frontend/vite.config.ts frontend/tsconfig.json -type f 2>/dev/null)
 
 front: ## Compile le front React (frontend/ → frontend/dist, servi par le backend sur :8081)
-	@docker run --rm -v "$(CURDIR)/frontend:/app" -v ggcore-front-modules:/app/node_modules -w /app node:26-alpine \
-	  sh -c "npm ci --no-audit --no-fund --loglevel=error && npm run build"
+	@uid=$$(id -u); gid=$$(id -g); \
+	  docker run --rm -v "$(CURDIR)/frontend:/app" -v ggcore-front-modules:/app/node_modules -w /app node:26-alpine \
+	    sh -c "npm ci --no-audit --no-fund --loglevel=error && npm run build && { chown -R $$uid:$$gid /app/dist 2>/dev/null || true; }"
 
 frontend/dist/index.html: $(FRONT_SRC)
 	@$(MAKE) --no-print-directory front
 
-web: ## Construit et lance le front Next.js (dépôt GGCoreFront voisin, ou FRONT_DIR=...) sur :3000, à côté du front React
-	@test -f "$(or $(FRONT_DIR),../GGCoreFront)/package.json" || { echo "❌ Dépôt GGCoreFront introuvable ($(or $(FRONT_DIR),../GGCoreFront)) : FRONT_DIR=<chemin> make web"; exit 1; }
-	@$(MAKE) --no-print-directory _core
-	@$(COMPOSE) --profile front up -d --build --wait front
-	@echo "✅ Front Next.js : http://localhost:3000  (login Steam : AUTH_PUBLIC_URL=http://<ip>:3000 dans .env)"
+web: doctor _env ## Construit et lance le front Next.js (dépôt GGCoreFront voisin, ou FRONT_DIR=...) sur :3000, à côté du front React
+	@front_dir=$$(cd "$(or $(FRONT_DIR),../GGCoreFront)" 2>/dev/null && pwd) || { echo "❌ Dépôt GGCoreFront introuvable ($(or $(FRONT_DIR),../GGCoreFront)) : FRONT_DIR=<chemin> make web"; exit 1; }; \
+	  test -f "$$front_dir/package.json" || { echo "❌ package.json introuvable dans $$front_dir : FRONT_DIR=<chemin> make web"; exit 1; }; \
+	  $(MAKE) --no-print-directory _core && \
+	  FRONT_DIR="$$front_dir" $(COMPOSE) --profile front up -d --build --wait front
+	@echo "✅ Front Next.js : http://localhost:$(FRONT_PORT)  (login Steam : AUTH_PUBLIC_URL=http://<ip>:$(FRONT_PORT) dans .env)"
 
-down: ## Arrête tous les conteneurs (les données sont conservées)
+down: _env ## Arrête tous les conteneurs (les données sont conservées)
 	@$(COMPOSE) --profile cs2 --profile debug --profile front down
 
-restart: ## Redémarre un service (S=backend par défaut)
+restart: _env ## Redémarre un service (S=backend par défaut)
 	@$(COMPOSE) restart $(or $(S),backend)
 
-ps: ## Liste les conteneurs
+ps: _env ## Liste les conteneurs
 	@$(COMPOSE) --profile cs2 --profile debug --profile front ps
 
-logs: ## Suit les logs (tous, ou S=<service>)
+logs: _env ## Suit les logs (tous, ou S=<service>)
 	@$(COMPOSE) --profile cs2 --profile debug --profile front logs -f --tail=100 $(S)
 
-status: ## Résumé de l'état et des URLs
+status: _env ## Résumé de l'état et des URLs
 	@echo ""
 	@curl -fsS $(API)/api/health >/dev/null 2>&1 && echo "✅ Backend        $(API)/api  (health OK)" || echo "❌ Backend        $(API) ne répond pas (make logs S=backend)"
+	@if $(COMPOSE) --profile front ps --services --status running 2>/dev/null | grep -qx front; then echo "✅ Front Next.js  http://localhost:$(FRONT_PORT)"; fi
 	@echo "   Sandbox        $(API)/sandbox"
-	@echo "   WebSocket      ws://localhost:8081"
+	@echo "   WebSocket      ws://localhost:$(BACKEND_PORT)"
 	@echo "   Logs agent     http://localhost:8082/logs (srv-a)"
-	@echo "   Postgres       postgresql://postgres:postgres@localhost:5432/ggcore"
-	@echo "   Redis          redis://localhost:6379"
+	@echo "   Postgres       postgresql://postgres:postgres@localhost:$(PG_PORT)/ggcore"
+	@echo "   Redis          redis://localhost:$(REDIS_PORT)"
 	@if $(COMPOSE) --profile cs2 ps --services --status running 2>/dev/null | grep -qx cs2; then echo "   CS2            connect localhost:27015 (RCON $$(grep '^GG_RCON_PASSWORD=' .env | cut -d= -f2-))"; fi
 	@echo ""
 
-server: ## Ajoute un serveur CS2 de la LAN (NAME=srv-b IP=<IP du serveur> [PORT=27015] [TV_PORT=27020] [LAN_IP=<IP de cette machine>])
-	@COMPOSE="$(COMPOSE)" API="$(API)" GG_ADMIN_TOKEN="$(GG_ADMIN_TOKEN)" bash infra/add-server.sh "$(NAME)" "$(IP)" "$(or $(PORT),27015)" "$(LAN_IP)" "$(or $(TV_PORT),27020)"
+server: _env ## Ajoute un serveur CS2 de la LAN (NAME=srv-b IP=<IP du serveur> [PORT=27015] [TV_PORT=27020] [LAN_IP=<IP de cette machine>])
+	@token=$$(grep '^GG_ADMIN_TOKEN=' .env | cut -d= -f2-); \
+	  COMPOSE="$(COMPOSE)" API="$(API)" GG_ADMIN_TOKEN="$$token" bash infra/add-server.sh "$(NAME)" "$(IP)" "$(or $(PORT),27015)" "$(LAN_IP)" "$(or $(TV_PORT),27020)"
 
-servers: ## État des serveurs CS2 : agent, RCON, logs reçus (à vérifier avant la LAN)
+servers: _env ## État des serveurs CS2 : agent, RCON, logs reçus (à vérifier avant la LAN)
 	@$(COMPOSE) exec -T backend node scripts/servers.mjs
 
 sandbox: ## Affiche l'URL de la Sandbox
@@ -113,53 +136,54 @@ sandbox: ## Affiche l'URL de la Sandbox
 fixtures: ## Liste les fixtures rejouables
 	@ls -1 test/fixtures/raw-logs test/fixtures/scenarios
 
-replay: ## Rejoue une fixture dans la Sandbox (F=gglan19_mirage_13-11_anonymized.log)
+replay: _env ## Rejoue une fixture dans la Sandbox (F=gglan19_mirage_13-11_anonymized.log)
 	@test -n "$(F)" || { echo "Usage : make replay F=<fichier de test/fixtures/raw-logs ou scenarios> (voir make fixtures)"; exit 1; }
-	@case "$(F)" in *.json) ep=scenario ;; *) ep=raw-log ;; esac; \
-	  curl -fsS -X POST "$(API)/sandbox/replay/$$ep" -H 'Content-Type: application/json' -H "Authorization: Bearer $(GG_ADMIN_TOKEN)" \
+	@token=$$(grep '^GG_ADMIN_TOKEN=' .env | cut -d= -f2-); \
+	  case "$(F)" in *.json) ep=scenario ;; *) ep=raw-log ;; esac; \
+	  curl -fsS -X POST "$(API)/sandbox/replay/$$ep" -H 'Content-Type: application/json' -H "Authorization: Bearer $$token" \
 	    -d "{\"fixtureName\":\"$(F)\",\"matchId\":\"m-sandbox-1\",\"serverId\":\"srv-a\",\"speed\":\"instant\"}" >/dev/null \
 	  && echo "✅ $(F) rejoué → $(API)/sandbox (match m-sandbox-1)" || { echo "❌ replay échoué (backend lancé ? nom correct ?)"; exit 1; }
 
-check: ## Vérification qualité complète : typecheck + lint + tests avec couverture
+check: _env ## Vérification qualité complète : typecheck + lint + tests avec couverture
 	@$(COMPOSE) run --rm --no-deps backend sh -c "npx --no-install prisma generate >/dev/null && npm run typecheck && npm run lint && npm run test:coverage"
 
 test: test-backend test-db test-go ## Tous les tests (typecheck, Jest, intégration PostgreSQL, Go)
 
-test-backend: ## Typecheck + suite Jest complète (dans le conteneur backend)
+test-backend: _env ## Typecheck + suite Jest complète (dans le conteneur backend)
 	@$(COMPOSE) run --rm --no-deps backend sh -c "npx --no-install prisma generate >/dev/null && npm run typecheck && npm test"
 
-test-db: ## Test d'intégration sur un vrai PostgreSQL
+test-db: _env ## Test d'intégration sur un vrai PostgreSQL
 	@$(COMPOSE) up -d --wait postgres
 	@$(COMPOSE) run --rm --no-deps backend sh -c "npx --no-install prisma generate >/dev/null && npx --no-install prisma db push --skip-generate >/dev/null && DB_IT=1 npx --no-install jest --config jest.config.ts db.spec"
 
-e2e-tournament: ## Scénario tournoi complet sur la stack lancée (poule, matchs auto rejoués + saisies admin, qualification, vue ASCII)
+e2e-tournament: _env ## Scénario tournoi complet sur la stack lancée (poule, matchs auto rejoués + saisies admin, qualification, vue ASCII)
 	@$(COMPOSE) exec -T backend node scripts/e2e-tournament.mjs
 
-veto-demo: ## Véto à essayer à la main (F=BO1|BO3|BO5, BO3 par défaut ; sides au véto ; ton SteamID admin est capitaine)
+veto-demo: _env ## Véto à essayer à la main (F=BO1|BO3|BO5, BO3 par défaut ; sides au véto ; ton SteamID admin est capitaine)
 	@$(COMPOSE) exec -T -e VETO_FORMAT=$(or $(F),BO3) backend node scripts/veto-demo.mjs
 
-veto-bot: ## Adversaire automatique du véto de démo (capitaine de Démo Noir) : joue dès que c'est son tour, affiche le direct
+veto-bot: _env ## Adversaire automatique du véto de démo (capitaine de Démo Noir) : joue dès que c'est son tour, affiche le direct
 	@$(COMPOSE) exec -T backend node scripts/veto-bot.mjs
 
-tournament: ## Joue un faux tournoi décrit en JSON (F=fake-gglan-32.json, dans test/fixtures/tournaments) et affiche la vue ASCII
+tournament: _env ## Joue un faux tournoi décrit en JSON (F=fake-gglan-32.json, dans test/fixtures/tournaments) et affiche la vue ASCII
 	@test -n "$(F)" || { echo "Usage : make tournament F=<fichier de test/fixtures/tournaments>"; exit 1; }
 	@$(COMPOSE) exec -T backend node scripts/tournament-scenario.mjs /test/fixtures/tournaments/$(F)
 
-test-go: ## Build + tests de l'agent Go
-	@docker run --rm -v "$(CURDIR)/agent:/src" -v ggcore-gocache:/root/.cache -v ggcore-gomod:/go/pkg/mod -w /src golang:1.23 \
-	  sh -c "go build ./cmd/agent ./cmd/manager && go test ./..."
+test-go: ## Build + vet + tests de l'agent Go
+	@docker run --rm -v "$(CURDIR)/agent:/src" -v ggcore-gocache:/root/.cache -v ggcore-gomod:/go/pkg/mod -w /src golang:1.26 \
+	  sh -c "go build ./... && go vet ./... && go test ./..."
 
-shell-backend: ## Shell dans le conteneur backend
+shell-backend: _env ## Shell dans le conteneur backend
 	@$(COMPOSE) exec backend sh
 
-psql: ## Console PostgreSQL
+psql: _env ## Console PostgreSQL
 	@$(COMPOSE) exec postgres psql -U postgres -d ggcore
 
-redis-cli: ## Console Redis
+redis-cli: _env ## Console Redis
 	@$(COMPOSE) exec redis redis-cli
 
-reset: ## ⚠️ Supprime conteneurs ET données (base, Redis ; CS2 conservé sauf RESET_CS2=1)
-	@read -p "Supprimer les données de dev (base PostgreSQL…) ? [o/N] " a; [ "$$a" = "o" ] || exit 1
+reset: _env ## ⚠️ Supprime conteneurs ET données (base, Redis ; CS2 conservé sauf RESET_CS2=1)
+	@read -p "Supprimer les données de dev (base PostgreSQL…) ? [o/N] " a; case "$$a" in o|O|y|Y) ;; *) exit 1 ;; esac
 	@$(COMPOSE) --profile cs2 --profile debug --profile front down --remove-orphans
 	@docker volume rm -f infra_pgdata >/dev/null
 	@if [ "$(RESET_CS2)" = "1" ]; then docker volume rm -f infra_cs2data >/dev/null && echo "CS2 supprimé (re-téléchargement au prochain up-cs2)"; fi
