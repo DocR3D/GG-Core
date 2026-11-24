@@ -139,7 +139,10 @@ describe('règles d’accès', () => {
   });
 
   it.each(['rec', 'prod', undefined, 'staging'])("AUTH_DISABLED=1 est ignoré hors du mode dev (GG_ENV=%s) : l'authentification reste en place", (GG_ENV) => {
-    process.env = { ...ENV, AUTH_DISABLED: '1', ...(GG_ENV ? { GG_ENV } : {}), JWT_SECRET: 's' };
+    const env: NodeJS.ProcessEnv = { ...ENV, AUTH_DISABLED: '1', JWT_SECRET: 's' };
+    if (GG_ENV) env.GG_ENV = GG_ENV;
+    else delete env.GG_ENV;
+    process.env = env;
     const res = { status: jest.fn().mockReturnThis(), json: jest.fn() };
     const next = jest.fn();
 

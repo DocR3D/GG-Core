@@ -31,9 +31,10 @@ Prévu : analyse CSTV/GOTV (positions, grenades), replays mini-map.
 git clone https://github.com/DocR3D/GG-Core.git
 cd GG-Core
 make            # liste des commandes
-make doctor     # vérifie Docker, droits, espace disque
+make doctor     # vérifie Docker, curl, droits, ports, espace disque
 make up         # Redis + PostgreSQL + backend + agent Go (schéma de base appliqué automatiquement)
-make up-cs2     # idem + serveur CS2 dédié vanilla en conteneur (~73 Go téléchargés au 1er lancement)
+make web        # idem + front Next.js (cloner GGCoreFront dans ../GGCoreFront ou passer FRONT_DIR=<chemin>)
+make up-cs2     # idem + serveur CS2 dédié vanilla en conteneur (~73 Go téléchargés au 1er lancement, x86_64 uniquement)
 make replay F=gglan19_mirage_13-11_anonymized.log   # rejoue un vrai match dans la Sandbox
 make test       # typecheck + Jest + intégration PostgreSQL + Go
 make e2e-tournament   # scénario tournoi complet sur la stack lancée (vue ASCII à relire)
@@ -91,7 +92,7 @@ Les logs CS2 vont à l'**agent Go** du serveur, qui les parse puis les transmet 
 /agent       # Go : agent (RCON, logs HTTP, parser) + manager (1 agent par serveur)
 /agents.d    # Config YAML d'un agent par serveur CS2
 /backend     # NestJS : moteur de match, API REST, WebSocket, Sandbox
-/infra       # Docker Compose (dev, ci, monolith)
+/infra       # Docker Compose (dev), Dockerfile agent/manager, scripts (secrets, serveurs)
 /docs        # Cahier des charges, architecture, contexte technique
 /test        # Fixtures (logs CS2 réels anonymisés, scénarios, backups)
 ```

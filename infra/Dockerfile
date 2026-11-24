@@ -3,7 +3,7 @@
 # so in compose use: build: { context: .., dockerfile: infra/Dockerfile }
 
 FROM golang:1.26-alpine AS builder
-RUN apk add --no-cache git ca-certificates build-base
+RUN apk add --no-cache ca-certificates
 WORKDIR /src
 
 # --- Go module lives under ./agent
@@ -13,10 +13,11 @@ RUN go mod download
 # Copy the agent project sources
 COPY agent/ ./
 
-# Build statically (CGO disabled)
-ENV CGO_ENABLED=0 GOOS=linux GOARCH=amd64
-RUN --mount=type=cache,target=/root/.cache/go-build \
-    go build -trimpath -ldflags "-s -w" -o /out/managerd ./cmd/manager && \
+# Build statically for the target platform (CGO disabled, multi-arch: amd64 & arm64)
+ARG TARGETOS=linux
+ARG TARGETARCH
+ENV CGO_ENABLED=0 GOOS=${TARGETOS} GOARCH=${TARGETARCH}
+RUN go build -trimpath -ldflags "-s -w" -o /out/managerd ./cmd/manager && \
     go build -trimpath -ldflags "-s -w" -o /out/agentd   ./cmd/agent
 
 # --- Final runtime image

@@ -89,11 +89,29 @@ case "$code" in
 esac
 rm -f /tmp/ggcore-add-server.$$
 
-# Address of this machine as the CS2 servers see it
+# Address of this machine as the CS2 servers see it (works on offline LANs, Linux and macOS)
 if [ -z "$LAN_IP" ]; then LAN_IP=$(grep '^GG_LAN_IP=' .env 2>/dev/null | cut -d= -f2- || true); fi
 if [ -z "$LAN_IP" ]; then
-  LAN_IP=$(ip route get 1.1.1.1 2>/dev/null | awk '{for (i = 1; i < NF; i++) if ($i == "src") print $(i + 1)}' | head -1)
+  if command -v ip >/dev/null 2>&1; then
+    LAN_IP=$(ip route get "$IP" 2>/dev/null | awk '{for (i = 1; i < NF; i++) if ($i == "src") print $(i + 1)}' | head -1 || true)
+    if [ -z "$LAN_IP" ]; then
+      LAN_IP=$(ip route get 1.1.1.1 2>/dev/null | awk '{for (i = 1; i < NF; i++) if ($i == "src") print $(i + 1)}' | head -1 || true)
+    fi
+  fi
+  if [ -z "$LAN_IP" ] && command -v ipconfig >/dev/null 2>&1; then
+    iface=$(route -n get default 2>/dev/null | awk '/interface:/{print $2; exit}' || true)
+    if [ -n "$iface" ]; then
+      LAN_IP=$(ipconfig getifaddr "$iface" 2>/dev/null || true)
+    fi
+  fi
+  if [ -z "$LAN_IP" ]; then
+    LAN_IP=$(hostname -I 2>/dev/null | awk '{print $1}' || true)
+  fi
   guessed=1
+fi
+if [ -z "$LAN_IP" ]; then
+  LAN_IP="<IP_DE_CETTE_MACHINE>"
+  echo "⚠️  Impossible de détecter l'IP LAN automatiquement : remplacer $LAN_IP ci-dessous (ou passer LAN_IP=<IP> / GG_LAN_IP dans .env)."
 fi
 if grep -qi microsoft /proc/version 2>/dev/null && [ "${guessed:-0}" = 1 ]; then
   echo "⚠️  WSL : l'adresse détectée ($LAN_IP) est celle de la VM, invisible du réseau de la LAN. Donner l'IP de"

@@ -46,8 +46,7 @@ updates:
       agent-minor-patch:
         update-types: [minor, patch]
 
-  # Base images of the Dockerfiles that are built (backend, infra, tools). The Dockerfile at the root and
-  # Dockerfile.agent.dev are not listed: nothing uses them (the root one copies folders that no longer exist).
+  # Base images of the Dockerfiles that are built (backend, infra, tools).
   - package-ecosystem: docker
     directories: [/backend, /infra, /tools/log-drain]
     schedule: { interval: monthly }
