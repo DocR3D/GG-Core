@@ -26,8 +26,21 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
+      - name: Install Metamod, CounterStrikeSharp & build GGCore.QaOracle
+        run: make install-qa-addons
+
       - name: Start isolated QA stack & CS2 QA
-        run: make up-cs2-qa
+        run: |
+          make up-cs2-qa
+          echo "⏳ Attente du démarrage de CS2 QA (max 45s)..."
+          for i in $(seq 1 15); do
+            if docker compose --env-file .env -f infra/docker-compose.dev.yml -f infra/docker-compose.qa.yml exec -T backend node -e "fetch('http://cs2-qa:27080/qa/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))" 2>/dev/null; then
+              echo "✅ QA Oracle prêt !"
+              exit 0
+            fi
+            sleep 3
+          done
+          echo "⚠️  QA Oracle pas encore joignable après 45s (le check suivant décidera : exit 77)."
 
       - name: Run CS2 QA Oracle check (exit 77 = Metamod/CSSharp absent ou cassé)
         run: |
