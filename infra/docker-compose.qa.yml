@@ -37,6 +37,6 @@ services:
     volumes:
       # Réutilise les ~75 Go du jeu déjà téléchargés sur le VPS
       - cs2data:/home/steam/cs2-dedicated
-      # Dossier contenant Metamod + CounterStrikeSharp + GGCore.QaOracle sur le VPS
-      - ${CS2_QA_ADDONS_DIR:-./qa-addons}:/home/steam/cs2-dedicated/game/csgo/addons:ro
+      # Dossier contenant Metamod + CounterStrikeSharp + GGCore.QaOracle sur le VPS (rw requis par CSSharp pour configs/logs)
+      - ${CS2_QA_ADDONS_DIR:-./qa-addons}:/home/steam/cs2-dedicated/game/csgo/addons
     restart: unless-stopped
