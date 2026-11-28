@@ -155,13 +155,13 @@ async function main() {
     }, { timeoutMs: 25000, intervalMs: 500, label: 'fin du warmup côté CS2 et phase live_main côté GG-Core' });
     console.log('✅ Serveur CS2 et GG-Core synchronisés en live_main !');
 
-    // Ajouter 2 bots (1 CT + 1 T) APRÈS l'exécution de live.cfg (qui contient bot_kick)
-    // puis mp_restartgame 1 pour repartir proprement à 0-0 sans faux round de bot_kick
-    await sleep(1500);
+    // Attendre que la file RCON de live.cfg (qui met bot_quota 0 / bot_kick) ait fini,
+    // puis configurer bot_quota 2 pour maintenir 1 CT + 1 T même après mp_restartgame 1
+    await sleep(3000);
     await fetch(`${ORACLE_URL}/qa/exec`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ command: 'mp_autoteambalance 0; mp_limitteams 0; mp_freezetime 2; mp_round_restart_delay 2; bot_quota_mode normal; bot_add_ct; bot_add_t' }),
+      body: JSON.stringify({ command: 'mp_autoteambalance 0; mp_limitteams 0; mp_freezetime 2; mp_round_restart_delay 2; bot_quota_mode fill; bot_quota 2' }),
     });
     await waitUntil(async () => {
       const state = await oracleGet('/qa/state');
