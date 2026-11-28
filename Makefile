@@ -20,7 +20,7 @@ S            ?=
 SKIP_PLUGIN_TESTS ?= false
 
 .DEFAULT_GOAL := help
-.PHONY: help doctor admin _core front web up up-cs2 up-cs2-qa down restart ps logs status server servers sandbox replay fixtures check test test-backend test-db test-go test-cs2-qa e2e-tournament tournament veto-demo veto-bot shell-backend psql redis-cli reset
+.PHONY: help doctor admin _core front web up up-cs2 up-cs2-qa install-qa-addons down restart ps logs status server servers sandbox replay fixtures check test test-backend test-db test-go test-cs2-qa e2e-tournament tournament veto-demo veto-bot shell-backend psql redis-cli reset
 
 help: ## Affiche cette aide
 	@echo "GG-Core - commandes disponibles :"
@@ -63,6 +63,9 @@ up-cs2-qa: doctor ## Lance la stack QA isolée (sans ports hôtes) + serveur CS2
 	@$(COMPOSE_QA) up -d --build --no-deps --renew-anon-volumes --wait backend
 	@$(COMPOSE_QA) --profile cs2-qa up -d cs2-qa
 	@echo "⏳ CS2 QA démarre (suivre : docker compose --env-file .env -f infra/docker-compose.dev.yml -f infra/docker-compose.qa.yml logs -f cs2-qa)."
+
+install-qa-addons: ## Télécharge Metamod + CounterStrikeSharp et compile le plugin GGCore.QaOracle
+	@bash infra/install-qa-addons.sh
 
 _core: frontend/dist/index.html
 	@$(COMPOSE) up -d --build --wait redis postgres manager
