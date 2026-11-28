@@ -1,14 +1,10 @@
 name: CS2 QA Super Golden Test
 
 on:
-  pull_request:
-    branches:
-      - main
-      - new-main
+  # Sécurité self-hosted VPS : déclenchement automatique uniquement après merge/push sur main
   push:
     branches:
       - main
-      - ci/cs2-qa-pipeline
   workflow_dispatch:
     inputs:
       skip_plugin_tests:
@@ -43,3 +39,7 @@ jobs:
             exit 0
           fi
           exit "$CODE"
+
+      - name: Stop QA stack & CS2 QA (conserve cs2data)
+        if: always()
+        run: make down-cs2-qa
