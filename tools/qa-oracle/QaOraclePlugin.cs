@@ -187,7 +187,7 @@ public class QaOraclePlugin : BasePlugin
         var gameRules = gameRulesProxy?.GameRules;
 
         var players = Utilities.GetPlayers()
-            .Where(p => p.IsValid && !p.IsHLTV && p.Connected == PlayerConnectedState.PlayerConnected)
+            .Where(p => p.IsValid && !p.IsHLTV && p.UserId.HasValue)
             .Select(p =>
             {
                 var stats = p.ActionTrackingServices?.MatchStats;
