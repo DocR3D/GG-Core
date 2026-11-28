@@ -112,6 +112,10 @@ async function main() {
     tournamentId = t.id;
 
     const teams = await api('POST', '/api/tournament/teams', { names: ['QA Alpha', 'QA Bravo'] });
+    await api('PUT', `/api/tournament/tournaments/${t.id}/veto`, {
+      mapPool: ['de_ancient', 'de_anubis', 'de_dust2', 'de_inferno', 'de_mirage', 'de_nuke', 'de_train'],
+      sideMode: 'pick',
+    });
     const stage = await api('POST', `/api/tournament/tournaments/${t.id}/stages`, {
       name: 'QA Poule',
       type: 'ROUND_ROBIN',
