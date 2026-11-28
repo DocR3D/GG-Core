@@ -2,8 +2,24 @@
 # Usage : docker compose --env-file .env -f infra/docker-compose.dev.yml -f infra/docker-compose.qa.yml --profile cs2-qa up -d
 #
 # ⚠️ STRICTEMENT RÉSERVÉ AU DEV / CI SUR VPS. Le service `cs2` de docker-compose.dev.yml reste 100% vanilla (Zero Plugin).
+# Tous les ports hôtes sont vidés (`!reset []`) pour éviter tout conflit sur le VPS (8085, 8088, 27015, etc.) :
+# toute la communication passe par le réseau Docker interne `ggcore`.
 
 services:
+  redis:
+    ports: !reset []
+
+  postgres:
+    ports: !reset []
+
+  backend:
+    ports: !reset []
+
+  manager:
+    ports: !reset []
+    environment:
+      GG_CS2_HOST: "cs2-qa"
+
   cs2-qa:
     image: cm2network/cs2:latest
     container_name: ggcore-cs2-qa
@@ -23,9 +39,4 @@ services:
       - cs2data:/home/steam/cs2-dedicated
       # Dossier contenant Metamod + CounterStrikeSharp + GGCore.QaOracle sur le VPS
       - ${CS2_QA_ADDONS_DIR:-./qa-addons}:/home/steam/cs2-dedicated/game/csgo/addons:ro
-    ports:
-      - "27015:27015/tcp"
-      - "27015:27015/udp"
-      - "27020:27020/udp"
-      - "27080:27080/tcp" # Endpoint HTTP local du plugin GGCore.QaOracle
     restart: unless-stopped

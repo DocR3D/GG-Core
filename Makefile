@@ -58,11 +58,11 @@ up-cs2: doctor ## Lance la stack + un serveur CS2 dédié (1er lancement : ~73 G
 	@echo "⏳ CS2 démarre (suivre : make logs S=cs2). Le 1er lancement télécharge le jeu, compter un long moment."
 	@$(MAKE) --no-print-directory status
 
-up-cs2-qa: doctor ## Lance la stack + serveur CS2 QA avec addons Metamod/CSSharp (dev/CI uniquement)
-	@$(MAKE) --no-print-directory _core
+up-cs2-qa: doctor ## Lance la stack QA isolée (sans ports hôtes) + serveur CS2 QA avec addons
+	@$(COMPOSE_QA) up -d --build --wait redis postgres manager
+	@$(COMPOSE_QA) up -d --build --no-deps --renew-anon-volumes --wait backend
 	@$(COMPOSE_QA) --profile cs2-qa up -d cs2-qa
-	@echo "⏳ CS2 QA démarre (suivre : make logs S=cs2-qa)."
-	@$(MAKE) --no-print-directory status
+	@echo "⏳ CS2 QA démarre (suivre : docker compose --env-file .env -f infra/docker-compose.dev.yml -f infra/docker-compose.qa.yml logs -f cs2-qa)."
 
 _core: frontend/dist/index.html
 	@$(COMPOSE) up -d --build --wait redis postgres manager
@@ -160,9 +160,9 @@ test-go: ## Build + tests de l'agent Go
 test-cs2-qa: ## Super Golden Test sur vrai serveur CS2 avec plugin Oracle (SKIP_PLUGIN_TESTS=true pour ignorer)
 	@if [ "$(SKIP_PLUGIN_TESTS)" = "true" ] || [ "$(SKIP_PLUGIN_TESTS)" = "1" ]; then \
 		echo "⏭️  SKIP_PLUGIN_TESTS=$(SKIP_PLUGIN_TESTS) : tests CS2 avec plugin ignorés."; \
-		exit 0; \
+	else \
+		$(COMPOSE_QA) exec -T -e GG_ADMIN_TOKEN="$(GG_ADMIN_TOKEN)" backend node scripts/cs2-qa-check.mjs; \
 	fi
-	@$(COMPOSE_QA) exec -T -e GG_ADMIN_TOKEN="$(GG_ADMIN_TOKEN)" backend node scripts/cs2-qa-check.mjs
 
 shell-backend: ## Shell dans le conteneur backend
 	@$(COMPOSE) exec backend sh

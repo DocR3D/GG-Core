@@ -1,0 +1,45 @@
+name: CS2 QA Super Golden Test
+
+on:
+  pull_request:
+    branches:
+      - main
+      - new-main
+  push:
+    branches:
+      - main
+      - ci/cs2-qa-pipeline
+  workflow_dispatch:
+    inputs:
+      skip_plugin_tests:
+        description: 'Ignorer les tests CS2 avec plugin QA (ex: MAJ Valve cassante)'
+        required: false
+        default: 'false'
+        type: choice
+        options:
+          - 'false'
+          - 'true'
+
+jobs:
+  cs2-super-golden-test:
+    name: CS2 Super Golden Test (VPS)
+    runs-on: [self-hosted, cs2-vps]
+    if: ${{ vars.SKIP_PLUGIN_TESTS != 'true' && inputs.skip_plugin_tests != 'true' }}
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Start isolated QA stack & CS2 QA
+        run: make up-cs2-qa
+
+      - name: Run CS2 QA Oracle check (exit 77 = Metamod/CSSharp absent ou cassé)
+        run: |
+          set +e
+          make test-cs2-qa
+          CODE=$?
+          if [ "$CODE" -eq 77 ]; then
+            echo "::warning title=CS2 QA Plugin Skip::Plugin QA Oracle non disponible (code 77 : probable MAJ CS2 Valve ou addons non installés)."
+            exit 0
+          fi
+          exit "$CODE"
