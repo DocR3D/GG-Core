@@ -227,6 +227,9 @@ async function main() {
       console.log(
         `  ✅ Accord parfait Round ${i + 1} : CS2 Oracle [${afterOracle.teams.ct.score}-${afterOracle.teams.t.score}] == GG-Core [${matchedSnap.score.ct}-${matchedSnap.score.t}]`
       );
+
+      // Laisser passer mp_round_restart_delay (2s) pour ne pas tuer pendant la célébration de fin de round
+      await sleep(2500);
     }
 
     console.log('\n🎉 Super Golden Test CS2 QA réussi : aucune perte d\'événement entre CS2, Go Agent, Redis et NestJS !');
