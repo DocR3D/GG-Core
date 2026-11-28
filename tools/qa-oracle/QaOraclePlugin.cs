@@ -115,9 +115,9 @@ public class QaOraclePlugin : BasePlugin
                     int count = 0;
                     foreach (var p in Utilities.GetPlayers())
                     {
-                        if (p.IsValid && !p.IsHLTV && p.TeamNum == (int)targetTeam && p.PawnIsAlive)
+                        if (p.IsValid && !p.IsHLTV && p.TeamNum == (int)targetTeam && p.PawnIsAlive && p.PlayerPawn.Value != null)
                         {
-                            p.CommitSuicide(false, true);
+                            p.PlayerPawn.Value.CommitSuicide(false, true);
                             count++;
                         }
                     }

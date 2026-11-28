@@ -197,7 +197,11 @@ async function main() {
       const roundsBefore = before.gameRules.totalRoundsPlayed;
 
       console.log(`\n🎮 Round ${i + 1} : victoire simulée pour ${winner} (kill-team ${loserTeam})...`);
-      await oracleKillTeam(loserTeam);
+      const killRes = await oracleKillTeam(loserTeam);
+      console.log(`  ℹ️  kill-team ${loserTeam} -> killed=${killRes.killed}`);
+      if (!killRes.killed) {
+        throw new Error(`Aucun bot vivant trouvé dans l'équipe ${loserTeam} au round ${i + 1}`);
+      }
 
       const afterOracle = await waitUntil(async () => {
         const s = await oracleGet('/qa/state');
