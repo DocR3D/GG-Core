@@ -161,7 +161,7 @@ async function main() {
     await fetch(`${ORACLE_URL}/qa/exec`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ command: 'mp_autoteambalance 0; mp_limitteams 0; mp_freezetime 2; mp_round_restart_delay 2; bot_quota_mode fill; bot_quota 2' }),
+      body: JSON.stringify({ command: 'mp_autoteambalance 0; mp_limitteams 0; mp_freezetime 2; mp_round_restart_delay 2; bot_join_after_player 0; bot_quota_mode normal; bot_quota 2' }),
     });
     await waitUntil(async () => {
       const state = await oracleGet('/qa/state');
