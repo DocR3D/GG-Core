@@ -139,14 +139,10 @@ async function main() {
     const launched = await api('POST', `/api/tournament/matches/${match.id}/games/1/launch`, {
       server: SERVER_NAME,
       mapName: 'de_inferno',
+      settings: { knifeEnabled: false },
     });
     const matchId = launched.engineMatchId;
     console.log(`✅ Match lancé : engineMatchId=${matchId} (map=${launched.mapName})`);
-
-    // S'assurer que 2 bots (1 CT + 1 T) sont présents
-    await sleep(1500);
-    await oracleExec('mp_autoteambalance 0; mp_limitteams 0; bot_quota_mode normal; bot_kick; bot_add_ct; bot_add_t');
-    await sleep(1000);
 
     // Forcer le passage en live_main côté GG-Core (envoie live.cfg + mp_restartgame 1)
     console.log('⚡ 4. Passage en live_main (force-start)...');
@@ -158,6 +154,17 @@ async function main() {
       return state.gameRules && state.gameRules.warmupPeriod === false && snap.phase === 'live_main';
     }, { timeoutMs: 25000, intervalMs: 500, label: 'fin du warmup côté CS2 et phase live_main côté GG-Core' });
     console.log('✅ Serveur CS2 et GG-Core synchronisés en live_main !');
+
+    // Ajouter 2 bots (1 CT + 1 T) APRÈS l'exécution de live.cfg (qui contient bot_kick)
+    await sleep(1500);
+    await oracleExec('mp_autoteambalance 0; mp_limitteams 0; bot_quota_mode normal; bot_kick; bot_add_ct; bot_add_t');
+    await waitUntil(async () => {
+      const state = await oracleGet('/qa/state');
+      const hasCt = state.players.some((p) => p.team === 'CT');
+      const hasT = state.players.some((p) => p.team === 'T');
+      return hasCt && hasT;
+    }, { timeoutMs: 10000, intervalMs: 400, label: 'présence des bots CT et T' });
+    console.log('✅ Bots CT et T prêts dans la partie.');
 
     // Scénario de 3 rounds déterministes : CT gagne, T gagne, CT gagne
     const expectedWinners = ['CT', 'T', 'CT'];
