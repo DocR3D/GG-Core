@@ -16,6 +16,8 @@ import {
 import type { Request } from 'express';
 import type { Session } from '@app/auth/auth.service';
 import { MatchAdminError, MatchAdminService } from '@app/match/admin/match-admin.service';
+import { RestoreBackupService, RestoreStateError, type RestoreBackup } from '@app/match/restore/restore-backup.service';
+import type { RestoreState } from '@domain/restore/restore-state';
 import { authorOf } from '../tournament/tournament-matches.controller';
 
 type AdminRequest = Request & { ggSession?: Session | null };
@@ -26,7 +28,10 @@ type AdminRequest = Request & { ggSession?: Session | null };
  */
 @Controller('matches/:id')
 export class MatchAdminController {
-  constructor(private readonly admin: MatchAdminService) {}
+  constructor(
+    private readonly admin: MatchAdminService,
+    private readonly restoreBackups: RestoreBackupService,
+  ) {}
 
   /** Technical pause, until Reprendre. */
   @Post('pause')
@@ -70,6 +75,21 @@ export class MatchAdminController {
     return this.run(() => this.admin.restoreRound(matchId, Number(body?.round), authorOf(req.ggSession)));
   }
 
+  /**
+   * Builds the CS2 round backup of a state asked for (round, score, loss streaks, money and what each player carries),
+   * for when the server has no backup of the round. Sends nothing to the server: the file is given back, to be put in the
+   * game folder and loaded with the command that comes with it.
+   *
+   * Step of the manual restore, which goes: GET manual-restore/draft (what GG-Core knows, a starting point that is optional:
+   * a state typed by hand is accepted as well), the admin corrects, then this route, then the file is put on the server
+   * and loaded.
+   */
+  @Post('manual-restore/backup')
+  @HttpCode(200)
+  restoreBackup(@Param('id') matchId: string, @Body() body: RestoreState): Promise<RestoreBackup> {
+    return this.run(() => this.restoreBackups.build(matchId, body));
+  }
+
   /** Message in the game chat: { message }. */
   @Post('say')
   @HttpCode(200)
@@ -88,6 +108,9 @@ export class MatchAdminController {
     try {
       return await fn();
     } catch (e) {
+      if (e instanceof RestoreStateError) {
+        throw new BadRequestException({ statusCode: 400, error: 'Bad Request', message: e.errors, warnings: e.warnings });
+      }
       if (!(e instanceof MatchAdminError)) throw e;
       if (e.code === 'not_found') throw new NotFoundException(e.message);
       if (e.code === 'conflict') throw new ConflictException(e.message);
