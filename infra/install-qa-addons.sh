@@ -56,11 +56,16 @@ if docker volume inspect infra_cs2data >/dev/null 2>&1; then
       echo "ℹ️  gameinfo.gi absent (CS2 pas encore téléchargé)."
       exit 0
     fi
-    if grep -q "Game\s*csgo/addons/metamod" "$GI"; then
+    if grep -q "csgo/addons/metamod" "$GI"; then
       echo "✅ gameinfo.gi contient déjà Metamod."
     else
-      sed -i "s|Game[[:space:]]*csgo$|Game\tcsgo/addons/metamod\n\t\t\tGame\tcsgo|" "$GI"
-      echo "✅ gameinfo.gi patché pour charger Metamod."
+      sed -i "s|\(Game[[:space:]]*csgo\)\r\?$|Game\tcsgo/addons/metamod\n\t\t\t\1|" "$GI"
+      if grep -q "csgo/addons/metamod" "$GI"; then
+        echo "✅ gameinfo.gi patché pour charger Metamod."
+      else
+        echo "❌ Échec du patch de gameinfo.gi" >&2
+        exit 1
+      fi
     fi
   '
 fi
