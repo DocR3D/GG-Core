@@ -65,7 +65,7 @@ async function waitUntil(fn, { timeoutMs = 20000, intervalMs = 500, label = 'con
     }
     await sleep(intervalMs);
   }
-  throw new Error(`Timeout (${timeoutMs}ms) en attendant : ${label}${lastErr ? ` (${lastErr.message})` : ''}`);
+  throw new Error(`Timeout (${timeoutMs}ms) en attendant : ${typeof label === 'function' ? label() : label}${lastErr ? ` (${lastErr.message})` : ''}`);
 }
 
 async function checkOracleHealth() {
@@ -189,11 +189,13 @@ async function main() {
       const loserTeam = winner === 'CT' ? 'T' : 'CT';
 
       // Attendre la fin du freeze time ET qu'il y ait un bot vivant dans l'équipe perdante
+      let lastState = null;
       await waitUntil(async () => {
         const s = await oracleGet('/qa/state');
+        lastState = s;
         return s.gameRules && s.gameRules.freezePeriod === false &&
           s.players.some((p) => p.team === loserTeam && p.alive);
-      }, { timeoutMs: 25000, intervalMs: 400, label: `fin de freeze time et bot ${loserTeam} vivant (round ${i + 1})` });
+      }, { timeoutMs: 25000, intervalMs: 400, label: () => `fin de freeze time et bot ${loserTeam} vivant (round ${i + 1}) - lastState=${JSON.stringify(lastState)}` });
 
       const before = await oracleGet('/qa/state');
       const roundsBefore = before.gameRules.totalRoundsPlayed;
