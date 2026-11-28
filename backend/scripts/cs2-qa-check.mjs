@@ -174,6 +174,7 @@ async function main() {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ command: 'mp_restartgame 1' }),
     });
+    await sleep(1800);
     await waitUntil(async () => {
       const state = await oracleGet('/qa/state');
       const snap = await api('GET', `/api/matches/${matchId}/snapshot`);
@@ -187,11 +188,12 @@ async function main() {
       const winner = expectedWinners[i];
       const loserTeam = winner === 'CT' ? 'T' : 'CT';
 
-      // Attendre la fin du freeze time pour que le round soit actif
+      // Attendre la fin du freeze time ET qu'il y ait un bot vivant dans l'équipe perdante
       await waitUntil(async () => {
         const s = await oracleGet('/qa/state');
-        return s.gameRules && s.gameRules.freezePeriod === false;
-      }, { timeoutMs: 25000, intervalMs: 400, label: `fin de freeze time (round ${i + 1})` });
+        return s.gameRules && s.gameRules.freezePeriod === false &&
+          s.players.some((p) => p.team === loserTeam && p.alive);
+      }, { timeoutMs: 25000, intervalMs: 400, label: `fin de freeze time et bot ${loserTeam} vivant (round ${i + 1})` });
 
       const before = await oracleGet('/qa/state');
       const roundsBefore = before.gameRules.totalRoundsPlayed;
