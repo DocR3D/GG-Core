@@ -1,0 +1,31 @@
+# Override Docker Compose pour les tests QA automatisés sur vrai serveur CS2 avec plugin Oracle.
+# Usage : docker compose --env-file .env -f infra/docker-compose.dev.yml -f infra/docker-compose.qa.yml --profile cs2-qa up -d
+#
+# ⚠️ STRICTEMENT RÉSERVÉ AU DEV / CI SUR VPS. Le service `cs2` de docker-compose.dev.yml reste 100% vanilla (Zero Plugin).
+
+services:
+  cs2-qa:
+    image: cm2network/cs2:latest
+    container_name: ggcore-cs2-qa
+    profiles: ["cs2-qa"]
+    networks: [ggcore]
+    environment:
+      CS2_SERVERNAME: "GG-Core QA Oracle"
+      CS2_PORT: "27015"
+      CS2_RCONPW: "${GG_RCON_PASSWORD:?missing: run make up (generates .env)}"
+      CS2_STARTMAP: "de_inferno"
+      CS2_LAN: "1"
+      TV_ENABLE: "1"
+      CS2_LOG_DETAIL: "3"
+      CS2_ADDITIONAL_ARGS: "-allow_round_backup_files +log on +logaddress_add_http \"http://172.30.0.10:8082/logs?token=${GG_LOGS_TOKEN:?missing: run make up (generates .env)}\""
+    volumes:
+      # Réutilise les ~75 Go du jeu déjà téléchargés sur le VPS
+      - cs2data:/home/steam/cs2-dedicated
+      # Dossier contenant Metamod + CounterStrikeSharp + GGCore.QaOracle sur le VPS
+      - ${CS2_QA_ADDONS_DIR:-./qa-addons}:/home/steam/cs2-dedicated/game/csgo/addons:ro
+    ports:
+      - "27015:27015/tcp"
+      - "27015:27015/udp"
+      - "27020:27020/udp"
+      - "27080:27080/tcp" # Endpoint HTTP local du plugin GGCore.QaOracle
+    restart: unless-stopped

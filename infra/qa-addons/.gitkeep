@@ -1,0 +1,3 @@
+# Ce dossier est monté sur /home/steam/cs2-dedicated/game/csgo/addons dans le profil `cs2-qa` uniquement.
+# Sur le VPS de test, déposer ici : metamod/ et counterstrikesharp/ (avec GGCore.QaOracle).
+# Ne rien commiter de binaire ici.
