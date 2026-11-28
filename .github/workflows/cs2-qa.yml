@@ -1,0 +1,58 @@
+name: CS2 QA Super Golden Test
+
+on:
+  # Sécurité self-hosted VPS : déclenchement automatique uniquement après merge/push sur main
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+    inputs:
+      skip_plugin_tests:
+        description: 'Ignorer les tests CS2 avec plugin QA (ex: MAJ Valve cassante)'
+        required: false
+        default: 'false'
+        type: choice
+        options:
+          - 'false'
+          - 'true'
+
+jobs:
+  cs2-super-golden-test:
+    name: CS2 Super Golden Test (VPS)
+    runs-on: [self-hosted, cs2-vps]
+    if: ${{ vars.SKIP_PLUGIN_TESTS != 'true' && inputs.skip_plugin_tests != 'true' }}
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install Metamod, CounterStrikeSharp & build GGCore.QaOracle
+        run: make install-qa-addons
+
+      - name: Start isolated QA stack & CS2 QA
+        run: |
+          make up-cs2-qa
+          echo "⏳ Attente du démarrage de CS2 QA (max 45s)..."
+          for i in $(seq 1 15); do
+            if docker compose --env-file .env -f infra/docker-compose.dev.yml -f infra/docker-compose.qa.yml exec -T backend node -e "fetch('http://cs2-qa:27080/qa/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))" 2>/dev/null; then
+              echo "✅ QA Oracle prêt !"
+              exit 0
+            fi
+            sleep 3
+          done
+          echo "⚠️  QA Oracle pas encore joignable après 45s (le check suivant décidera : exit 77)."
+
+      - name: Run CS2 QA Oracle check (exit 77 = Metamod/CSSharp absent ou cassé)
+        run: |
+          set +e
+          make test-cs2-qa
+          CODE=$?
+          if [ "$CODE" -eq 77 ]; then
+            echo "::warning title=CS2 QA Plugin Skip::Plugin QA Oracle non disponible (code 77 : probable MAJ CS2 Valve ou addons non installés)."
+            exit 0
+          fi
+          exit "$CODE"
+
+      - name: Stop QA stack & CS2 QA (conserve cs2data)
+        if: always()
+        run: make down-cs2-qa

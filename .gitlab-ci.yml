@@ -1,0 +1,100 @@
+# Pipeline CI/CD GitLab pour GG-Core (Backend, Agent Go, et Super Golden Test CS2 sur VPS)
+
+variables:
+  # Passer à "true" (dans Settings > CI/CD > Variables ou lors d'un Run Pipeline manuel)
+  # pour ignorer complètement le job CS2 + plugin (ex: VPS éteint ou MAJ Valve cassante).
+  SKIP_PLUGIN_TESTS: "false"
+
+stages:
+  - quality
+  - test
+  - cs2-golden
+
+# ------------------------------------------------------------------------------
+# 1. Qualité statique Backend (Typecheck, ESLint, OpenAPI)
+# ------------------------------------------------------------------------------
+backend-quality:
+  stage: quality
+  image: node:20-alpine
+  cache:
+    key:
+      files:
+        - backend/package-lock.json
+    paths:
+      - backend/node_modules/
+  script:
+    - cd backend
+    - npm ci
+    - npx prisma generate
+    - npm run typecheck
+    - npm run lint
+    - npm run build
+  rules:
+    - if: '$CI_PIPELINE_SOURCE == "merge_request_event" || $CI_COMMIT_BRANCH == "main"'
+
+# ------------------------------------------------------------------------------
+# 2. Tests unitaires + Golden Master + Intégration PostgreSQL
+# ------------------------------------------------------------------------------
+backend-tests:
+  stage: test
+  image: node:20-alpine
+  services:
+    - name: postgres:16-alpine
+      alias: postgres
+  variables:
+    POSTGRES_USER: postgres
+    POSTGRES_PASSWORD: postgres
+    POSTGRES_DB: ggcore_ci
+    DATABASE_URL: "postgresql://postgres:postgres@postgres:5432/ggcore_ci?schema=public"
+  cache:
+    key:
+      files:
+        - backend/package-lock.json
+    paths:
+      - backend/node_modules/
+  script:
+    - cd backend
+    - npm ci
+    - npx prisma generate
+    - npm run test:coverage
+    - npx prisma db push --skip-generate
+    - DB_IT=1 npx jest --config jest.config.ts db.spec
+  artifacts:
+    when: always
+    paths:
+      - backend/coverage/lcov.info
+    expire_in: 7 days
+  rules:
+    - if: '$CI_PIPELINE_SOURCE == "merge_request_event" || $CI_COMMIT_BRANCH == "main"'
+
+# ------------------------------------------------------------------------------
+# 3. Build & Tests Agent Go
+# ------------------------------------------------------------------------------
+agent-go:
+  stage: test
+  image: golang:1.23-alpine
+  script:
+    - cd agent
+    - go build ./cmd/agent ./cmd/manager
+    - go test ./...
+  rules:
+    - if: '$CI_PIPELINE_SOURCE == "merge_request_event" || $CI_COMMIT_BRANCH == "main"'
+
+# ------------------------------------------------------------------------------
+# 4. Super Golden Test sur vrai serveur CS2 + Plugin QA Oracle (VPS maison)
+# ------------------------------------------------------------------------------
+cs2-super-golden-test:
+  stage: cs2-golden
+  tags:
+    - cs2-vps # Runner self-hosted sur le VPS maison (Docker + volume cs2data en cache)
+  allow_failure:
+    # Code 77 = Metamod / CounterStrikeSharp non chargé (ex: MAJ Valve) -> passe en Warning sans bloquer la MR
+    exit_codes:
+      - 77
+  rules:
+    - if: '$SKIP_PLUGIN_TESTS == "true" || $SKIP_PLUGIN_TESTS == "1"'
+      when: never
+    - if: '$CI_PIPELINE_SOURCE == "merge_request_event" || $CI_COMMIT_BRANCH == "main"'
+      when: on_success
+  script:
+    - make test-cs2-qa

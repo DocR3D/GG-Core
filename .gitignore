@@ -50,3 +50,7 @@ memory-bank/
 
 # Temporary local dumps
 temp/
+
+# QA Addons (Metamod, CounterStrikeSharp, compiled DLL)
+/infra/qa-addons/*
+!/infra/qa-addons/.gitkeep

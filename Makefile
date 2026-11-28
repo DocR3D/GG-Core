@@ -13,12 +13,14 @@ SHELL        := /bin/bash
 _SECRETS     := $(shell bash infra/gen-secrets.sh)
 GG_ADMIN_TOKEN := $(shell grep '^GG_ADMIN_TOKEN=' .env 2>/dev/null | cut -d= -f2-)
 COMPOSE      := docker compose --env-file .env -f infra/docker-compose.dev.yml
+COMPOSE_QA   := docker compose --env-file .env -f infra/docker-compose.dev.yml -f infra/docker-compose.qa.yml
 API          := http://localhost:8081
 F            ?=
 S            ?=
+SKIP_PLUGIN_TESTS ?= false
 
 .DEFAULT_GOAL := help
-.PHONY: help doctor admin _core front web up up-cs2 down restart ps logs status server servers sandbox replay fixtures check test test-backend test-db test-go e2e-tournament tournament veto-demo veto-bot shell-backend psql redis-cli reset
+.PHONY: help doctor admin _core front web up up-cs2 up-cs2-qa down-cs2-qa install-qa-addons down restart ps logs status server servers sandbox replay fixtures check test test-backend test-db test-go test-cs2-qa e2e-tournament tournament veto-demo veto-bot shell-backend psql redis-cli reset
 
 help: ## Affiche cette aide
 	@echo "GG-Core - commandes disponibles :"
@@ -55,6 +57,18 @@ up-cs2: doctor ## Lance la stack + un serveur CS2 dédié (1er lancement : ~73 G
 	@$(COMPOSE) --profile cs2 up -d cs2
 	@echo "⏳ CS2 démarre (suivre : make logs S=cs2). Le 1er lancement télécharge le jeu, compter un long moment."
 	@$(MAKE) --no-print-directory status
+
+up-cs2-qa: doctor ## Lance la stack QA isolée (sans ports hôtes) + serveur CS2 QA avec addons
+	@$(COMPOSE_QA) up -d --build --wait redis postgres manager
+	@$(COMPOSE_QA) up -d --build --no-deps --renew-anon-volumes --wait backend
+	@$(COMPOSE_QA) --profile cs2-qa up -d cs2-qa
+	@echo "⏳ CS2 QA démarre (suivre : docker compose --env-file .env -f infra/docker-compose.dev.yml -f infra/docker-compose.qa.yml logs -f cs2-qa)."
+
+install-qa-addons: ## Télécharge Metamod + CounterStrikeSharp et compile le plugin GGCore.QaOracle
+	@bash infra/install-qa-addons.sh
+
+down-cs2-qa: ## Arrête et supprime les conteneurs QA (conserve les volumes dont cs2data)
+	@$(COMPOSE_QA) --profile cs2-qa down
 
 _core: frontend/dist/index.html
 	@$(COMPOSE) up -d --build --wait redis postgres manager
@@ -148,6 +162,13 @@ tournament: ## Joue un faux tournoi décrit en JSON (F=fake-gglan-32.json, dans 
 test-go: ## Build + tests de l'agent Go
 	@docker run --rm -v "$(CURDIR)/agent:/src" -v ggcore-gocache:/root/.cache -v ggcore-gomod:/go/pkg/mod -w /src golang:1.23 \
 	  sh -c "go build ./cmd/agent ./cmd/manager && go test ./..."
+
+test-cs2-qa: ## Super Golden Test sur vrai serveur CS2 avec plugin Oracle (SKIP_PLUGIN_TESTS=true pour ignorer)
+	@if [ "$(SKIP_PLUGIN_TESTS)" = "true" ] || [ "$(SKIP_PLUGIN_TESTS)" = "1" ]; then \
+		echo "⏭️  SKIP_PLUGIN_TESTS=$(SKIP_PLUGIN_TESTS) : tests CS2 avec plugin ignorés."; \
+	else \
+		$(COMPOSE_QA) exec -T -e GG_ADMIN_TOKEN="$(GG_ADMIN_TOKEN)" backend node scripts/cs2-qa-check.mjs; \
+	fi
 
 shell-backend: ## Shell dans le conteneur backend
 	@$(COMPOSE) exec backend sh
