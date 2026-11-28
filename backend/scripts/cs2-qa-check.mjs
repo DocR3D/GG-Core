@@ -156,8 +156,9 @@ async function main() {
     console.log('✅ Serveur CS2 et GG-Core synchronisés en live_main !');
 
     // Ajouter 2 bots (1 CT + 1 T) APRÈS l'exécution de live.cfg (qui contient bot_kick)
+    // et raccourcir le freeze/restart delay pour accélérer les rounds QA
     await sleep(1500);
-    await oracleExec('mp_autoteambalance 0; mp_limitteams 0; bot_quota_mode normal; bot_kick; bot_add_ct; bot_add_t');
+    await oracleExec('mp_autoteambalance 0; mp_limitteams 0; mp_freezetime 2; mp_round_restart_delay 2; bot_quota_mode normal; bot_kick; bot_add_ct; bot_add_t');
     await waitUntil(async () => {
       const state = await oracleGet('/qa/state');
       const hasCt = state.players.some((p) => p.team === 'CT');
@@ -176,7 +177,7 @@ async function main() {
       await waitUntil(async () => {
         const s = await oracleGet('/qa/state');
         return s.gameRules && s.gameRules.freezePeriod === false;
-      }, { timeoutMs: 15000, intervalMs: 400, label: `fin de freeze time (round ${i + 1})` });
+      }, { timeoutMs: 25000, intervalMs: 400, label: `fin de freeze time (round ${i + 1})` });
 
       const before = await oracleGet('/qa/state');
       const roundsBefore = before.gameRules.totalRoundsPlayed;
