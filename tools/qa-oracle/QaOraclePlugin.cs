@@ -102,6 +102,32 @@ public class QaOraclePlugin : BasePlugin
                 return;
             }
 
+            if (method == "POST" && path == "/qa/kill-team")
+            {
+                using var reader = new StreamReader(ctx.Request.InputStream, Encoding.UTF8);
+                var body = await reader.ReadToEndAsync();
+                using var doc = JsonDocument.Parse(body);
+                var teamStr = doc.RootElement.GetProperty("team").GetString()?.ToUpperInvariant();
+                var targetTeam = teamStr == "CT" ? CsTeam.CounterTerrorist : CsTeam.Terrorist;
+
+                var killed = await RunOnMainThreadAsync(() =>
+                {
+                    int count = 0;
+                    foreach (var p in Utilities.GetPlayers())
+                    {
+                        if (p.IsValid && !p.IsHLTV && p.TeamNum == (int)targetTeam && p.PawnIsAlive)
+                        {
+                            p.CommitSuicide(false, true);
+                            count++;
+                        }
+                    }
+                    return count;
+                });
+
+                await WriteJsonAsync(ctx.Response, 200, JsonSerializer.Serialize(new { ok = true, killed }));
+                return;
+            }
+
             if (method == "POST" && path == "/qa/exec")
             {
                 using var reader = new StreamReader(ctx.Request.InputStream, Encoding.UTF8);

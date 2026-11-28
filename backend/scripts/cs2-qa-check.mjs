@@ -43,13 +43,13 @@ async function oracleGet(path) {
   }
 }
 
-async function oracleExec(command) {
-  const res = await fetch(`${ORACLE_URL}/qa/exec`, {
+async function oracleKillTeam(team) {
+  const res = await fetch(`${ORACLE_URL}/qa/kill-team`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ command }),
+    body: JSON.stringify({ team }),
   });
-  if (!res.ok) throw new Error(`Oracle exec "${command}" -> HTTP ${res.status}`);
+  if (!res.ok) throw new Error(`Oracle kill-team "${team}" -> HTTP ${res.status}`);
   return res.json();
 }
 
@@ -156,22 +156,36 @@ async function main() {
     console.log('✅ Serveur CS2 et GG-Core synchronisés en live_main !');
 
     // Ajouter 2 bots (1 CT + 1 T) APRÈS l'exécution de live.cfg (qui contient bot_kick)
-    // et raccourcir le freeze/restart delay pour accélérer les rounds QA
+    // puis mp_restartgame 1 pour repartir proprement à 0-0 sans faux round de bot_kick
     await sleep(1500);
-    await oracleExec('mp_autoteambalance 0; mp_limitteams 0; mp_freezetime 2; mp_round_restart_delay 2; bot_quota_mode normal; bot_kick; bot_add_ct; bot_add_t');
+    await fetch(`${ORACLE_URL}/qa/exec`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ command: 'mp_autoteambalance 0; mp_limitteams 0; mp_freezetime 2; mp_round_restart_delay 2; bot_quota_mode normal; bot_add_ct; bot_add_t' }),
+    });
     await waitUntil(async () => {
       const state = await oracleGet('/qa/state');
       const hasCt = state.players.some((p) => p.team === 'CT');
       const hasT = state.players.some((p) => p.team === 'T');
       return hasCt && hasT;
     }, { timeoutMs: 10000, intervalMs: 400, label: 'présence des bots CT et T' });
-    console.log('✅ Bots CT et T prêts dans la partie.');
+    await fetch(`${ORACLE_URL}/qa/exec`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ command: 'mp_restartgame 1' }),
+    });
+    await waitUntil(async () => {
+      const state = await oracleGet('/qa/state');
+      const snap = await api('GET', `/api/matches/${matchId}/snapshot`);
+      return state.teams.ct.score === 0 && state.teams.t.score === 0 && snap.score.ct === 0 && snap.score.t === 0;
+    }, { timeoutMs: 10000, intervalMs: 400, label: 'remise à 0-0 après spawn des bots' });
+    console.log('✅ Bots CT et T prêts dans la partie (score 0-0).');
 
     // Scénario de 3 rounds déterministes : CT gagne, T gagne, CT gagne
     const expectedWinners = ['CT', 'T', 'CT'];
     for (let i = 0; i < expectedWinners.length; i++) {
       const winner = expectedWinners[i];
-      const loserCmd = winner === 'CT' ? 'bot_kill t' : 'bot_kill ct';
+      const loserTeam = winner === 'CT' ? 'T' : 'CT';
 
       // Attendre la fin du freeze time pour que le round soit actif
       await waitUntil(async () => {
@@ -182,8 +196,8 @@ async function main() {
       const before = await oracleGet('/qa/state');
       const roundsBefore = before.gameRules.totalRoundsPlayed;
 
-      console.log(`\n🎮 Round ${i + 1} : victoire simulée pour ${winner} (${loserCmd})...`);
-      await oracleExec(loserCmd);
+      console.log(`\n🎮 Round ${i + 1} : victoire simulée pour ${winner} (kill-team ${loserTeam})...`);
+      await oracleKillTeam(loserTeam);
 
       const afterOracle = await waitUntil(async () => {
         const s = await oracleGet('/qa/state');
